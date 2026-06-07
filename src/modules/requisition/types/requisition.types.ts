@@ -29,14 +29,16 @@ export type ApprovalRole =
   | 'department_head'
   | 'factory_hr'
   | 'sbu_head'
-  | 'corporate_hr';
+  | 'corporate_hr'
+  | 'chro';
 
-export type ApprovalDecision = 'approved' | 'rejected' | 'need_more_info';
-export type StepStatus =
-  | 'pending'
+export type ApprovalDecision =
   | 'approved'
   | 'rejected'
-  | 'info_requested';
+  | 'need_more_info'
+  | 'escalate'
+  | 'escalated';
+export type StepStatus = 'pending' | 'approved' | 'rejected' | 'info_requested';
 
 export interface ApprovalStep {
   role: ApprovalRole;
@@ -157,4 +159,20 @@ export interface RequisitionFilters {
   unitFactory?: string;
   page?: number;
   pageSize?: number;
+}
+
+/** Fields editable while a requisition is awaiting approval. */
+export interface UpdateRequisitionInput {
+  requiredPosts?: number;
+  totalVacantPosts?: number;
+  placeOfPosting?: string;
+  whenNeededDate?: string;
+  priority?: Priority;
+  employmentNature?: EmploymentNature;
+  contractualPurpose?: string;
+  jobDescription?: string;
+  education?: string;
+  experience?: string;
+  others?: string;
+  preferredSources?: PreferredSource[];
 }

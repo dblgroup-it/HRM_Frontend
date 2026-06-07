@@ -5,6 +5,8 @@ export type EmploymentType = 'full_time' | 'part_time' | 'contract' | 'intern';
 
 export interface Employee {
   id: ID;
+  /** Login/user id — used when assigning access roles. */
+  userId?: string;
   employeeCode: string;
   name: string;
   email: string;
@@ -18,6 +20,15 @@ export interface Employee {
   joinedAt: ISODateString;
   avatarUrl?: string | null;
   manager?: string;
+  managerCode?: string | null;
+  managerId?: string | null;
+  // Captured from ZingHR
+  section?: string | null;
+  grade?: string | null;
+  category?: string | null;
+  gender?: string | null;
+  dateOfBirth?: ISODateString | null;
+  exitDate?: ISODateString | null;
 }
 
 export interface EmployeeFilters {

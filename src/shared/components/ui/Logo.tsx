@@ -34,7 +34,7 @@ export function Logo({
         <div className="leading-tight">
           <span
             className={cn(
-              'block text-sm font-bold tracking-tight',
+              'block text-sm font-medium tracking-tight',
               inverted ? 'text-white' : 'text-ink'
             )}
           >
@@ -42,7 +42,7 @@ export function Logo({
           </span>
           <span
             className={cn(
-              'block text-[10px] font-medium uppercase tracking-wider',
+              'block text-[10px] font-medium uppercase tracking-[0.18em]',
               inverted ? 'text-white/70' : 'text-slate-400'
             )}
           >

@@ -16,6 +16,15 @@ const DashboardPage = lazy(
 const OrganogramPage = lazy(
   () => import('@modules/organogram/pages/OrganogramPage')
 );
+const UnitConfigPage = lazy(
+  () => import('@modules/units/pages/UnitConfigPage')
+);
+const IntegrationsPage = lazy(
+  () => import('@modules/integrations/pages/IntegrationsPage')
+);
+const AccessControlPage = lazy(
+  () => import('@modules/rbac/pages/AccessControlPage')
+);
 
 // Phase 1 · Manpower Requisition
 const RequisitionsPage = lazy(
@@ -40,6 +49,9 @@ const EmployeeDetailPage = lazy(
 const SettingsPage = lazy(
   () => import('@modules/settings/pages/SettingsPage')
 );
+const NotificationsPage = lazy(
+  () => import('@modules/notifications/pages/NotificationsPage')
+);
 const NotFoundPage = lazy(() => import('@app/router/NotFoundPage'));
 
 export function AppRouter() {
@@ -57,6 +69,12 @@ export function AppRouter() {
             <Route path={ROUTES.dashboard} element={<DashboardPage />} />
 
             <Route path={ROUTES.organogram} element={<OrganogramPage />} />
+            <Route path={ROUTES.unitConfig} element={<UnitConfigPage />} />
+            <Route
+              path={ROUTES.accessControl}
+              element={<AccessControlPage />}
+            />
+            <Route path={ROUTES.integrations} element={<IntegrationsPage />} />
 
             <Route path={ROUTES.requisitions} element={<RequisitionsPage />} />
             <Route
@@ -77,6 +95,10 @@ export function AppRouter() {
             />
 
             <Route path={ROUTES.settings} element={<SettingsPage />} />
+            <Route
+              path={ROUTES.notifications}
+              element={<NotificationsPage />}
+            />
           </Route>
         </Route>
 

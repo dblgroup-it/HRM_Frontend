@@ -11,11 +11,10 @@ import {
   FullPageSpinner,
   EmptyState,
 } from '@shared/components/ui';
-import { formatCurrency, formatDate } from '@shared/utils';
+import { formatDate } from '@shared/utils';
 import { ROUTES } from '@app/router/paths';
 
 import { useEmployee } from '../hooks/useEmployees';
-import { EMPLOYMENT_TYPE_LABEL } from '../constants';
 import { EmployeeStatusBadge } from '../components/EmployeeStatusBadge';
 
 export default function EmployeeDetailPage() {
@@ -41,19 +40,40 @@ export default function EmployeeDetailPage() {
   const details = [
     { label: 'Email', value: employee.email, icon: Mail },
     { label: 'Phone', value: employee.phone, icon: Phone },
-    { label: 'Location', value: employee.location, icon: MapPin },
-    { label: 'Reports to', value: employee.manager ?? '—', icon: User },
+    { label: 'Unit', value: employee.location, icon: MapPin },
   ];
 
   const records = [
     { label: 'Employee Code', value: employee.employeeCode },
     { label: 'Department', value: employee.department },
+    ...(employee.section
+      ? [{ label: 'Section', value: employee.section }]
+      : []),
+    ...(employee.grade ? [{ label: 'Grade', value: employee.grade }] : []),
+    ...(employee.category
+      ? [{ label: 'Category', value: employee.category }]
+      : []),
+    ...(employee.gender ? [{ label: 'Gender', value: employee.gender }] : []),
     {
-      label: 'Employment Type',
-      value: EMPLOYMENT_TYPE_LABEL[employee.employmentType],
+      label: 'Date Joined',
+      value: formatDate(employee.joinedAt, 'dd MMMM yyyy'),
     },
-    { label: 'Date Joined', value: formatDate(employee.joinedAt, 'dd MMMM yyyy') },
-    { label: 'Monthly Salary', value: formatCurrency(employee.salary) },
+    ...(employee.dateOfBirth
+      ? [
+          {
+            label: 'Date of Birth',
+            value: formatDate(employee.dateOfBirth, 'dd MMMM yyyy'),
+          },
+        ]
+      : []),
+    ...(employee.exitDate
+      ? [
+          {
+            label: 'Exit Date',
+            value: formatDate(employee.exitDate, 'dd MMMM yyyy'),
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -103,6 +123,35 @@ export default function EmployeeDetailPage() {
                 </div>
               </div>
             ))}
+
+            {/* Line manager (top-level ReportingManager from ZingHR) */}
+            {employee.manager && (
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                  <User className="h-4 w-4" />
+                </span>
+                <div>
+                  <p className="text-xs text-slate-400">Reports to</p>
+                  {employee.managerId ? (
+                    <Link
+                      to={ROUTES.employeeDetail(employee.managerId)}
+                      className="text-sm font-medium text-brand-600 hover:underline"
+                    >
+                      {employee.manager}
+                    </Link>
+                  ) : (
+                    <p className="text-sm font-medium text-slate-700">
+                      {employee.manager}
+                    </p>
+                  )}
+                  {employee.managerCode && (
+                    <p className="text-xs text-slate-400">
+                      {employee.managerCode}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </CardBody>
         </Card>
 

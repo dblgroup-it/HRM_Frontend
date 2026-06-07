@@ -14,10 +14,11 @@ import {
 import { useDebounce } from '@shared/hooks';
 import type { SelectOption } from '@shared/types';
 import { ROUTES } from '@app/router/paths';
+import { useOrganogramUnits } from '@modules/organogram';
 
 import { useRequisitions } from '../hooks/useRequisitions';
 import { RequisitionTable } from '../components/RequisitionTable';
-import { UNIT_OPTIONS, STATUS_CONFIG } from '../constants';
+import { STATUS_CONFIG } from '../constants';
 import type { RequisitionStatus } from '../types/requisition.types';
 
 const PAGE_SIZE = 8;
@@ -30,13 +31,9 @@ const STATUS_OPTIONS: SelectOption[] = [
   })),
 ];
 
-const UNIT_FILTER_OPTIONS: SelectOption[] = [
-  { label: 'All units', value: 'all' },
-  ...UNIT_OPTIONS,
-];
-
 export default function RequisitionsPage() {
   const navigate = useNavigate();
+  const { data: orgUnits } = useOrganogramUnits();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
   const [unitFactory, setUnitFactory] = useState('all');
@@ -57,6 +54,13 @@ export default function RequisitionsPage() {
 
   const { data, isLoading, isFetching } = useRequisitions(filters);
   const resetPage = () => setPage(1);
+  const unitFilterOptions: SelectOption[] = [
+    { label: 'All accessible units', value: 'all' },
+    ...(orgUnits ?? []).map((unit) => ({
+      label: unit.unit,
+      value: unit.unit,
+    })),
+  ];
 
   return (
     <div className="space-y-6">
@@ -97,7 +101,7 @@ export default function RequisitionsPage() {
             }}
           />
           <Select
-            options={UNIT_FILTER_OPTIONS}
+            options={unitFilterOptions}
             value={unitFactory}
             onChange={(e) => {
               setUnitFactory(e.target.value);

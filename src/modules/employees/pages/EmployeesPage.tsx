@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Plus, Users } from 'lucide-react';
+import { Plus, Users, UserCheck, ClipboardList, Building2 } from 'lucide-react';
 
 import {
   Button,
@@ -14,8 +14,9 @@ import { useEmployees } from '../hooks/useEmployees';
 import { EmployeeTable } from '../components/EmployeeTable';
 import { EmployeeFilters } from '../components/EmployeeFilters';
 import type { EmploymentStatus } from '../types/employee.types';
+import { useDashboard } from '@modules/dashboard/hooks/useDashboard';
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 50;
 
 export default function EmployeesPage() {
   const [search, setSearch] = useState('');
@@ -37,6 +38,7 @@ export default function EmployeesPage() {
   );
 
   const { data, isLoading, isFetching } = useEmployees(filters);
+  const { data: dashboard } = useDashboard();
 
   const resetToFirstPage = () => setPage(1);
 
@@ -50,24 +52,30 @@ export default function EmployeesPage() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total Workforce"
-          value={data?.meta.total ?? '—'}
+          value={dashboard?.summary.totalEmployees ?? '—'}
           icon={Users}
           accent="brand"
         />
         <StatCard
-          label="Active"
-          value="1,147"
-          icon={Users}
+          label="Active Employees"
+          value={dashboard?.summary.activeEmployees ?? '—'}
+          icon={UserCheck}
           accent="emerald"
         />
         <StatCard
-          label="On Probation"
-          value="42"
-          icon={Users}
+          label="Open Requisitions"
+          value={dashboard?.summary.openRequisitions ?? '—'}
+          icon={ClipboardList}
           accent="amber"
+        />
+        <StatCard
+          label="Vacant Seats"
+          value={dashboard?.summary.vacantSeats ?? '—'}
+          icon={Building2}
+          accent="violet"
         />
       </div>
 

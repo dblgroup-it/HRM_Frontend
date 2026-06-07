@@ -6,6 +6,6 @@ export type {
   DashboardStat,
   DepartmentHeadcount,
   RecentHire,
-  ActivityItem,
-  AttendanceSummary,
+  RequisitionSnapshot,
+  DashboardSummary,
 } from './types/dashboard.types';

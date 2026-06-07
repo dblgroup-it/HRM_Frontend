@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, X, Clock, Undo2, History } from 'lucide-react';
+import { Check, X, Clock, Undo2, History, ArrowUpFromLine } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import {
@@ -12,6 +12,7 @@ import {
 } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import { formatDate, formatRelative } from '@shared/utils';
+import { useMyPermissions } from '@modules/rbac';
 
 import type {
   ApprovalDecision,
@@ -23,12 +24,25 @@ import { useApprovalAction } from '../hooks/useRequisitionActions';
 export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
   const [note, setNote] = useState('');
   const action = useApprovalAction();
+  const { data: perms } = useMyPermissions();
 
   const chain = requisition.approvalChain;
   const nextPendingIndex = chain.findIndex((s) => s.status === 'pending');
   const isRejected = requisition.status === 'rejected';
   const allDone = nextPendingIndex === -1 && !isRejected;
   const canRollback = nextPendingIndex > 0;
+
+  // Can the current user act on the active step?
+  const currentStep = nextPendingIndex >= 0 ? chain[nextPendingIndex] : null;
+  const unit = requisition.unitFactory.toLowerCase();
+  const canAct =
+    !currentStep ||
+    !!perms?.isSuperUser ||
+    (perms?.roles ?? []).some(
+      (r) =>
+        r.key === currentStep.role &&
+        (r.unitId === null || (r.unitName ?? '').toLowerCase() === unit)
+    );
 
   const act = (decision: ApprovalDecision) =>
     action.mutate(
@@ -54,67 +68,89 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
               isLast={index === chain.length - 1}
               isNext={index === nextPendingIndex && !isRejected}
             >
-              {index === nextPendingIndex && !isRejected && (
-                <div className="mt-3 space-y-3 rounded-lg border border-slate-200 bg-surface-muted p-3">
-                  <Textarea
-                    rows={2}
-                    placeholder="Add a remark (required to request more info)"
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                  />
-                  {action.isError && (
-                    <p className="text-sm text-red-600">
-                      {(action.error as Error).message}
-                    </p>
-                  )}
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      isLoading={
-                        action.isPending &&
-                        action.variables?.decision === 'approved'
-                      }
-                      leftIcon={<Check className="h-4 w-4" />}
-                      onClick={() => act('approved')}
-                    >
-                      Approve
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      isLoading={
-                        action.isPending &&
-                        action.variables?.decision === 'rejected'
-                      }
-                      leftIcon={<X className="h-4 w-4" />}
-                      onClick={() => act('rejected')}
-                    >
-                      Reject
-                    </Button>
-                    {canRollback && (
+              {index === nextPendingIndex &&
+                !isRejected &&
+                (canAct ? (
+                  <div className="mt-3 space-y-3 rounded-lg border border-slate-200 bg-surface-muted p-3">
+                    <Textarea
+                      rows={2}
+                      placeholder="Add a remark (required to request more info)"
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                    />
+                    {action.isError && (
+                      <p className="text-sm text-red-600">
+                        {(action.error as Error).message}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-2">
                       <Button
                         size="sm"
-                        variant="outline"
-                        disabled={note.trim().length < 2}
                         isLoading={
                           action.isPending &&
-                          action.variables?.decision === 'need_more_info'
+                          action.variables?.decision === 'approved'
                         }
-                        leftIcon={<Undo2 className="h-4 w-4" />}
-                        onClick={() => act('need_more_info')}
+                        leftIcon={<Check className="h-4 w-4" />}
+                        onClick={() => act('approved')}
                       >
-                        Need more info
+                        Approve
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        isLoading={
+                          action.isPending &&
+                          action.variables?.decision === 'rejected'
+                        }
+                        leftIcon={<X className="h-4 w-4" />}
+                        onClick={() => act('rejected')}
+                      >
+                        Reject
+                      </Button>
+                      {canRollback && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={note.trim().length < 2}
+                          isLoading={
+                            action.isPending &&
+                            action.variables?.decision === 'need_more_info'
+                          }
+                          leftIcon={<Undo2 className="h-4 w-4" />}
+                          onClick={() => act('need_more_info')}
+                        >
+                          Need more info
+                        </Button>
+                      )}
+                      {currentStep?.role === 'corporate_hr' && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          isLoading={
+                            action.isPending &&
+                            action.variables?.decision === 'escalate'
+                          }
+                          leftIcon={<ArrowUpFromLine className="h-4 w-4" />}
+                          onClick={() => act('escalate')}
+                        >
+                          Send to CHRO
+                        </Button>
+                      )}
+                    </div>
+                    {canRollback && (
+                      <p className="text-xs text-slate-400">
+                        “Need more info” sends this back to{' '}
+                        {chain[nextPendingIndex - 1].title} for clarification.
+                      </p>
                     )}
                   </div>
-                  {canRollback && (
-                    <p className="text-xs text-slate-400">
-                      “Need more info” sends this back to{' '}
-                      {chain[nextPendingIndex - 1].title} for clarification.
-                    </p>
-                  )}
-                </div>
-              )}
+                ) : (
+                  <div className="mt-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                    <Clock className="h-4 w-4" />
+                    Awaiting {currentStep?.title} approval
+                    {currentStep?.assignee ? ` — ${currentStep.assignee}` : ''}
+                  </div>
+                ))}
             </ChainRow>
           ))}
         </ol>
@@ -130,7 +166,9 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
           </p>
         )}
 
-        {requisition.activityLog.length > 0 && <ActivityLog requisition={requisition} />}
+        {requisition.activityLog.length > 0 && (
+          <ActivityLog requisition={requisition} />
+        )}
       </CardBody>
     </Card>
   );
@@ -140,6 +178,8 @@ const ACTION_LABEL: Record<ApprovalDecision, string> = {
   approved: 'approved',
   rejected: 'rejected',
   need_more_info: 'requested more info',
+  escalate: 'escalated to CHRO',
+  escalated: 'escalated to CHRO',
 };
 
 function ActivityLog({ requisition }: { requisition: Requisition }) {
@@ -154,8 +194,13 @@ function ActivityLog({ requisition }: { requisition: Requisition }) {
           <li key={i} className="text-xs text-slate-500">
             <span className="font-medium text-slate-700">{entry.actor}</span>{' '}
             {ACTION_LABEL[entry.action]}
-            {entry.note && <span className="text-slate-500"> — “{entry.note}”</span>}
-            <span className="text-slate-400"> · {formatRelative(entry.at)}</span>
+            {entry.note && (
+              <span className="text-slate-500"> — “{entry.note}”</span>
+            )}
+            <span className="text-slate-400">
+              {' '}
+              · {formatRelative(entry.at)}
+            </span>
           </li>
         ))}
       </ul>

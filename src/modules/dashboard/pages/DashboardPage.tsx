@@ -6,9 +6,9 @@ import { useAuth } from '@modules/auth';
 import { useDashboard } from '../hooks/useDashboard';
 import { StatsGrid } from '../components/StatsGrid';
 import { DepartmentBreakdown } from '../components/DepartmentBreakdown';
-import { AttendanceOverview } from '../components/AttendanceOverview';
 import { RecentHires } from '../components/RecentHires';
-import { ActivityFeed } from '../components/ActivityFeed';
+import { OrganogramSnapshot } from '../components/OrganogramSnapshot';
+import { RequisitionQueue } from '../components/RequisitionQueue';
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -17,11 +17,11 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Welcome back, ${user?.name?.split(' ')[0] ?? 'there'} 👋`}
-        description="Here’s what’s happening across your organisation today."
+        title={`Welcome back, ${user?.name?.split(' ')[0] ?? 'there'}`}
+        description="Live snapshot across workforce, organogram, and requisition flow."
         actions={
           <Button variant="outline" leftIcon={<Download className="h-4 w-4" />}>
-            Export report
+            Export snapshot
           </Button>
         }
       />
@@ -40,12 +40,12 @@ export default function DashboardPage() {
             <div className="lg:col-span-2">
               <DepartmentBreakdown departments={data.departments} />
             </div>
-            <AttendanceOverview attendance={data.attendance} />
+            <OrganogramSnapshot summary={data.summary} />
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <RecentHires hires={data.recentHires} />
-            <ActivityFeed activity={data.activity} />
+            <RequisitionQueue requisitions={data.requisitions} />
           </div>
         </>
       )}

@@ -124,6 +124,10 @@ export const APPROVAL_ROLE_META: Record<
     title: 'Corporate HR',
     subtitle: 'Final approval to commence hiring',
   },
+  chro: {
+    title: 'CHRO',
+    subtitle: 'Escalated final approval',
+  },
 };
 
 /**

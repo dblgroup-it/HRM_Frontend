@@ -1,4 +1,4 @@
-import { Users, UserCheck, CalendarOff, Briefcase } from 'lucide-react';
+import { Users, UserCheck, ClipboardList, Building2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 import { StatCard, Skeleton } from '@shared/components/ui';
@@ -9,16 +9,16 @@ import type { DashboardStat } from '../types/dashboard.types';
 
 const ICONS: Record<string, LucideIcon> = {
   employees: Users,
-  present: UserCheck,
-  onLeave: CalendarOff,
-  openRoles: Briefcase,
+  activeEmployees: UserCheck,
+  openRequisitions: ClipboardList,
+  vacantSeats: Building2,
 };
 
 const ACCENTS: Record<string, StatCardProps['accent']> = {
   employees: 'brand',
-  present: 'emerald',
-  onLeave: 'amber',
-  openRoles: 'violet',
+  activeEmployees: 'emerald',
+  openRequisitions: 'amber',
+  vacantSeats: 'violet',
 };
 
 export function StatsGrid({

@@ -1,12 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Building2,
   ClipboardList,
-  Laptop,
   Send,
-  Users,
   FileText,
   CheckCircle2,
   AlertTriangle,
@@ -23,9 +21,17 @@ import {
   Input,
   Select,
   Textarea,
+  Badge,
 } from '@shared/components/ui';
 import { cn } from '@shared/lib';
-import { useSeatLookup, type SeatLookupResult } from '@modules/organogram';
+import type { SelectOption } from '@shared/types';
+import {
+  useSeatLookup,
+  useOrganogramUnits,
+  type SeatLookupResult,
+} from '@modules/organogram';
+import { useAuth } from '@modules/auth';
+import { useMyPermissions } from '@modules/rbac';
 
 import {
   requisitionSchema,
@@ -34,24 +40,11 @@ import {
 } from '../schemas/requisition.schema';
 import type { CreateRequisitionPayload } from '../types/requisition.types';
 import {
-  DEPARTMENT_OPTIONS,
   EMPLOYMENT_NATURE_OPTIONS,
   PREFERRED_SOURCES,
   PRIORITY_OPTIONS,
   SOURCE_OPTIONS,
-  UNIT_OPTIONS,
 } from '../constants';
-
-const COMPUTER_OPTIONS = [
-  { value: 'not_applicable', label: 'Not Applicable' },
-  { value: 'desktop', label: 'Applicable — Desktop' },
-  { value: 'laptop', label: 'Applicable — Laptop' },
-];
-
-const SEATING_OPTIONS = [
-  { value: 'existing', label: 'Manageable from existing' },
-  { value: 'new', label: 'Required new arrangement' },
-];
 
 interface Props {
   onSubmit: (payload: CreateRequisitionPayload) => void;
@@ -60,6 +53,9 @@ interface Props {
 }
 
 export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
+  const { user } = useAuth();
+  const requestedBy = user?.name ?? '';
+
   const {
     register,
     handleSubmit,
@@ -83,15 +79,56 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
 
   const source = watch('source');
   const employmentNature = watch('employmentNature');
-  const computer = watch('computer');
   const unit = watch('unitFactory') ?? '';
   const department = watch('department') ?? '';
   const designation = watch('designation') ?? '';
 
+  const { data: orgUnits } = useOrganogramUnits();
+  const { data: perms } = useMyPermissions();
+
+  // The unit is the requester's assigned unit. Super users may raise for any unit.
+  const allowedUnitNames = useMemo(() => {
+    if (perms?.isSuperUser) return (orgUnits ?? []).map((u) => u.unit);
+    return [
+      ...new Set(
+        (perms?.roles ?? [])
+          .map((r) => r.unitName)
+          .filter((n): n is string => Boolean(n)),
+      ),
+    ];
+  }, [perms, orgUnits]);
+
+  const unitOptions: SelectOption[] = allowedUnitNames.map((n) => ({
+    value: n,
+    label: n,
+  }));
+  const lockedUnit = allowedUnitNames.length === 1;
+  const allowedKey = allowedUnitNames.join('|');
+
+  // Auto-select when the requester belongs to exactly one unit.
+  useEffect(() => {
+    if (lockedUnit && unit !== allowedUnitNames[0]) {
+      setValue('unitFactory', allowedUnitNames[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allowedKey]);
+
+  // Department + designation suggestions come from the selected unit's organogram.
+  const selectedUnit = orgUnits?.find((u) => u.unit === unit);
+  const departmentSuggestions = (selectedUnit?.departments ?? []).map(
+    (d) => d.department,
+  );
+  const designationSuggestions = (
+    selectedUnit?.departments.find((d) => d.department === department)?.seats ??
+    []
+  ).map((s) => s.designation);
+
+  const unitReg = register('unitFactory');
+  const deptReg = register('department');
+
   // Live organogram check → drives New vs Replacement.
   const lookup = useSeatLookup(unit, department, designation);
   const requirement = lookup.data?.requirement;
-
   useEffect(() => {
     if (requirement) setValue('requirementType', requirement);
   }, [requirement, setValue]);
@@ -99,7 +136,7 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
   const needsSbu = requirement === 'new' && source === 'factory';
 
   const submit = handleSubmit((values) =>
-    onSubmit(toPayload(values as RequisitionFormOutput))
+    onSubmit(toPayload(values as RequisitionFormOutput, requestedBy)),
   );
 
   return (
@@ -111,12 +148,26 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
         title="Vacancy Information"
         description="Position, unit and timing of the requirement."
       >
+        {requestedBy && (
+          <p className="mb-4 flex items-center gap-2 text-xs text-slate-500">
+            Raising as
+            <Badge tone="brand">{requestedBy}</Badge>
+            (Department Head)
+          </p>
+        )}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <Input
-            label="Designation / Job title"
-            placeholder="e.g. Assistant Production Officer"
-            error={errors.designation?.message}
-            {...register('designation')}
+          <Select
+            label="Unit / Factory"
+            placeholder="Select unit"
+            options={unitOptions}
+            disabled={lockedUnit}
+            error={errors.unitFactory?.message}
+            {...unitReg}
+            onChange={(e) => {
+              void unitReg.onChange(e);
+              setValue('department', '');
+              setValue('designation', '');
+            }}
           />
           <Select
             label="Requisition source"
@@ -124,20 +175,40 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
             error={errors.source?.message}
             {...register('source')}
           />
-          <Select
-            label="Unit / Factory"
-            placeholder="Select unit"
-            options={UNIT_OPTIONS}
-            error={errors.unitFactory?.message}
-            {...register('unitFactory')}
-          />
-          <Select
-            label="Department / Section"
-            placeholder="Select department"
-            options={DEPARTMENT_OPTIONS}
-            error={errors.department?.message}
-            {...register('department')}
-          />
+          <div>
+            <Input
+              label="Department / Section"
+              list="req-departments"
+              placeholder={
+                unit ? 'Select or type a department' : 'Pick a unit first'
+              }
+              error={errors.department?.message}
+              {...deptReg}
+              onChange={(e) => {
+                void deptReg.onChange(e);
+                setValue('designation', '');
+              }}
+            />
+            <datalist id="req-departments">
+              {departmentSuggestions.map((d) => (
+                <option key={d} value={d} />
+              ))}
+            </datalist>
+          </div>
+          <div>
+            <Input
+              label="Designation / Job title"
+              list="req-designations"
+              placeholder="Select an existing seat or type a new one"
+              error={errors.designation?.message}
+              {...register('designation')}
+            />
+            <datalist id="req-designations">
+              {designationSuggestions.map((d) => (
+                <option key={d} value={d} />
+              ))}
+            </datalist>
+          </div>
           <Input
             label="Nos. of required post"
             type="number"
@@ -246,70 +317,12 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
         </div>
       </Section>
 
-      {/* C · Logistics Requirement */}
+      {/* C · Preferred Sources */}
       <Section
         letter="C"
-        icon={Laptop}
-        title="Logistics Requirement"
-        description="Computer and seating arrangement."
-      >
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <Select
-            label="Computer"
-            options={COMPUTER_OPTIONS}
-            {...register('computer')}
-          />
-          {computer !== 'not_applicable' && (
-            <Input
-              label="Reason (if needed)"
-              placeholder="Why is a computer required?"
-              {...register('computerReason')}
-            />
-          )}
-          <Select
-            label="Seating arrangement"
-            options={SEATING_OPTIONS}
-            {...register('seating')}
-          />
-        </div>
-      </Section>
-
-      {/* D · Requested by */}
-      <Section
-        letter="D"
-        icon={Users}
-        title="Requested By"
-        description="Signatories who raise and verify the requisition."
-      >
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <Input
-            label="Department / Division Head — name"
-            placeholder="e.g. Mohammad Abdul Latif"
-            error={errors.departmentHeadName?.message}
-            {...register('departmentHeadName')}
-          />
-          <Input
-            label="Department Head — designation"
-            placeholder="e.g. GM-Production"
-            {...register('departmentHeadDesignation')}
-          />
-          {source === 'factory' && (
-            <Input
-              label="Factory HR — name"
-              placeholder="e.g. Omar Faruque"
-              error={errors.factoryHRName?.message}
-              {...register('factoryHRName')}
-            />
-          )}
-        </div>
-      </Section>
-
-      {/* E · Group HR */}
-      <Section
-        letter="E"
         icon={Building2}
         title="Preferred Source of Candidates"
-        description="Group HR — how should this role be sourced?"
+        description="How should this role be sourced?"
       >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {PREFERRED_SOURCES.map(({ value, label }) => (
@@ -370,7 +383,7 @@ function OrganogramBanner({
         'mt-5 rounded-lg border px-3 py-2.5 text-sm',
         existing
           ? 'border-sky-200 bg-sky-50 text-sky-800'
-          : 'border-amber-200 bg-amber-50 text-amber-800'
+          : 'border-amber-200 bg-amber-50 text-amber-800',
       )}
     >
       <p className="flex items-center gap-2 font-medium">
@@ -429,7 +442,10 @@ function Section({
   );
 }
 
-function toPayload(values: RequisitionFormOutput): CreateRequisitionPayload {
+function toPayload(
+  values: RequisitionFormOutput,
+  requestedBy: string,
+): CreateRequisitionPayload {
   return {
     designation: values.designation,
     requirementType: values.requirementType,
@@ -452,10 +468,12 @@ function toPayload(values: RequisitionFormOutput): CreateRequisitionPayload {
     computerReason: values.computerReason ?? '',
     seating: values.seating,
     preferredSources: values.preferredSources,
+    // The requester is the Department Head; Factory HR / others come from
+    // role assignments on the backend.
     signatories: {
-      departmentHeadName: values.departmentHeadName,
-      departmentHeadDesignation: values.departmentHeadDesignation ?? '',
-      factoryHRName: values.factoryHRName ?? '',
+      departmentHeadName: requestedBy,
+      departmentHeadDesignation: '',
+      factoryHRName: '',
     },
   };
 }

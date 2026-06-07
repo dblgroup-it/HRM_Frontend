@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, ChevronDown, LogOut, Menu, Search, UserCog } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, Search, UserCog } from 'lucide-react';
 
 import { Avatar } from '@shared/components/ui';
 import { useAuth } from '@modules/auth';
+import { NotificationBell } from '@modules/notifications';
 import { ROUTES } from '@app/router/paths';
 
 interface HeaderProps {
@@ -28,11 +29,11 @@ export function Header({ onMenuClick }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-slate-200 bg-white/80 px-4 backdrop-blur lg:px-6">
+    <header className="sticky top-0 z-20 flex h-18 items-center justify-between gap-4 border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur lg:px-6">
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuClick}
-          className="rounded-md p-2 text-slate-500 hover:bg-slate-100 lg:hidden"
+          className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 hover:border-slate-300 hover:bg-slate-50 lg:hidden"
           aria-label="Open navigation"
         >
           <Menu className="h-5 w-5" />
@@ -43,31 +44,25 @@ export function Header({ onMenuClick }: HeaderProps) {
           <input
             type="search"
             placeholder="Search employees, requests…"
-            className="h-9 w-64 rounded-lg border border-slate-200 bg-surface-muted pl-9 pr-3 text-sm focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/30"
+            className="h-10 w-64 rounded-full border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/10 lg:w-80"
           />
         </div>
       </div>
 
       <div className="flex items-center gap-2">
-        <button
-          className="relative rounded-md p-2 text-slate-500 hover:bg-slate-100"
-          aria-label="Notifications"
-        >
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
-        </button>
+        <NotificationBell />
 
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setMenuOpen((v) => !v)}
-            className="flex items-center gap-2 rounded-lg p-1.5 hover:bg-slate-100"
+            className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1.5 transition hover:border-slate-300 hover:bg-slate-50"
           >
             <Avatar name={user?.name ?? 'User'} src={user?.avatarUrl} size="sm" />
             <span className="hidden text-left sm:block">
-              <span className="block text-sm font-medium text-slate-800">
+              <span className="block text-sm font-medium text-slate-700">
                 {user?.name}
               </span>
-              <span className="block text-xs text-slate-400">
+              <span className="block text-xs text-slate-500">
                 {ROLE_LABELS[user?.role ?? ''] ?? user?.jobTitle}
               </span>
             </span>
@@ -81,9 +76,9 @@ export function Header({ onMenuClick }: HeaderProps) {
                 onClick={() => setMenuOpen(false)}
                 aria-hidden
               />
-              <div className="absolute right-0 z-20 mt-2 w-56 animate-fade-in rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+              <div className="absolute right-0 z-20 mt-2 w-56 animate-fade-in rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
                 <div className="border-b border-slate-100 px-4 py-3">
-                  <p className="text-sm font-medium text-slate-800">
+                  <p className="text-sm font-medium text-slate-700">
                     {user?.name}
                   </p>
                   <p className="truncate text-xs text-slate-400">

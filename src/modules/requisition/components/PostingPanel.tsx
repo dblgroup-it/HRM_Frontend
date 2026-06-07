@@ -13,14 +13,17 @@ import {
 import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
 
-import type {
-  PreferredSource,
-  Requisition,
-} from '../types/requisition.types';
+import type { PreferredSource, Requisition } from '../types/requisition.types';
 import { PREFERRED_SOURCE_LABEL, PREFERRED_SOURCES } from '../constants';
 import { usePostRequisition } from '../hooks/useRequisitionActions';
 
-export function PostingPanel({ requisition }: { requisition: Requisition }) {
+export function PostingPanel({
+  requisition,
+  canContinue,
+}: {
+  requisition: Requisition;
+  canContinue: boolean;
+}) {
   const [selected, setSelected] = useState<PreferredSource[]>(
     requisition.preferredSources.length
       ? requisition.preferredSources
@@ -70,7 +73,7 @@ export function PostingPanel({ requisition }: { requisition: Requisition }) {
     );
   }
 
-  const canPost = selected.length > 0 && closingDate !== '';
+  const canPost = canContinue && selected.length > 0 && closingDate !== '';
 
   return (
     <Card>
@@ -89,9 +92,10 @@ export function PostingPanel({ requisition }: { requisition: Requisition }) {
                 <button
                   key={value}
                   type="button"
+                  disabled={!canContinue}
                   onClick={() => toggle(value)}
                   className={cn(
-                    'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+                    'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60',
                     active
                       ? 'border-brand-500 bg-brand-50 text-brand-700'
                       : 'border-slate-300 text-slate-600 hover:bg-slate-50'
@@ -108,9 +112,16 @@ export function PostingPanel({ requisition }: { requisition: Requisition }) {
         <Input
           label="Application closing date"
           type="date"
+          disabled={!canContinue}
           value={closingDate}
           onChange={(e) => setClosingDate(e.target.value)}
         />
+
+        {!canContinue && (
+          <p className="text-sm text-slate-500">
+            Corporate HR continues job posting after the role profile is ready.
+          </p>
+        )}
 
         {post.isError && (
           <p className="text-sm text-red-600">

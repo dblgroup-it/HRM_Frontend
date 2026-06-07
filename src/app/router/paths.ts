@@ -5,6 +5,9 @@ export const ROUTES = {
 
   // Organogram (sanctioned seats)
   organogram: '/organogram',
+  unitConfig: '/configuration/units',
+  accessControl: '/configuration/access',
+  integrations: '/configuration/integrations',
 
   // Phase 1 · Manpower Requisition
   requisitions: '/requisitions',
@@ -20,4 +23,5 @@ export const ROUTES = {
 
   // System
   settings: '/settings',
+  notifications: '/notifications',
 } as const;

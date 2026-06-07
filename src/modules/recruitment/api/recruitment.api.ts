@@ -1,7 +1,5 @@
-import { ENV, MOCK_LATENCY } from '@shared/constants';
-import { http } from '@shared/api';
+import { MOCK_LATENCY } from '@shared/constants';
 import { delay } from '@shared/utils';
-import type { ApiResponse } from '@shared/types';
 
 import type { RecruitmentData } from '../types/recruitment.types';
 
@@ -61,12 +59,8 @@ const MOCK_DATA: RecruitmentData = {
 };
 
 export const recruitmentApi = {
+  // No backend recruitment endpoint yet — always serve mock pipeline data.
   getData(): Promise<RecruitmentData> {
-    if (ENV.USE_MOCK_API) {
-      return delay(MOCK_LATENCY).then(() => MOCK_DATA);
-    }
-    return http
-      .get<ApiResponse<RecruitmentData>>('/recruitment')
-      .then((res) => res.data);
+    return delay(MOCK_LATENCY).then(() => MOCK_DATA);
   },
 };

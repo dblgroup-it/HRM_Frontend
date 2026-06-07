@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Pencil } from 'lucide-react';
+
+import { useMyPermissions } from '@modules/rbac';
 
 import {
   Badge,
@@ -20,20 +23,21 @@ import { WorkflowStepper } from '../components/WorkflowStepper';
 import { ApprovalPanel } from '../components/ApprovalPanel';
 import { RoleProfilePanel } from '../components/RoleProfilePanel';
 import { PostingPanel } from '../components/PostingPanel';
+import { EditRequisitionModal } from '../components/EditRequisitionModal';
 import {
-  COMPUTER_LABEL,
   EMPLOYMENT_NATURE_LABEL,
   REQUIREMENT_LABEL,
   SOURCE_LABEL,
   PREFERRED_SOURCE_LABEL,
   PRIORITY_LABEL,
   PRIORITY_TONE,
-  SEATING_LABEL,
 } from '../constants';
 
 export default function RequisitionDetailPage() {
   const { id = '' } = useParams();
   const { data: req, isLoading, isError } = useRequisition(id);
+  const { data: perms } = useMyPermissions();
+  const [editOpen, setEditOpen] = useState(false);
 
   if (isLoading) return <FullPageSpinner label="Loading requisition…" />;
 
@@ -58,6 +62,27 @@ export default function RequisitionDetailPage() {
   const showPosting =
     req.status === 'profile_generated' || req.status === 'posted';
 
+  // The current approver may edit the requisition while it's pending
+  // (e.g. the Department Head after it's bounced back with "need more info").
+  const currentStep = req.approvalChain.find((s) => s.status === 'pending');
+  const unitLower = req.unitFactory.toLowerCase();
+  const canEdit =
+    req.status === 'pending_approval' &&
+    !!currentStep &&
+    (!!perms?.isSuperUser ||
+      (perms?.roles ?? []).some(
+        (r) =>
+          r.key === currentStep.role &&
+          (r.unitId === null || (r.unitName ?? '').toLowerCase() === unitLower)
+      ));
+  const canCorporateHrContinue =
+    !!perms?.isSuperUser ||
+    (perms?.roles ?? []).some(
+      (r) =>
+        r.key === 'corporate_hr' &&
+        (r.unitId === null || (r.unitName ?? '').toLowerCase() === unitLower)
+    );
+
   const vacancy: Row[] = [
     { label: 'Requirement', value: REQUIREMENT_LABEL[req.requirementType] },
     { label: 'Source', value: SOURCE_LABEL[req.source] },
@@ -74,7 +99,10 @@ export default function RequisitionDetailPage() {
       label: 'Vacant date',
       value: req.vacantDate ? formatDate(req.vacantDate) : '—',
     },
-    { label: 'Employment nature', value: EMPLOYMENT_NATURE_LABEL[req.employmentNature] },
+    {
+      label: 'Employment nature',
+      value: EMPLOYMENT_NATURE_LABEL[req.employmentNature],
+    },
     ...(req.employmentNature !== 'permanent' && req.contractualPurpose
       ? [{ label: 'Purpose', value: req.contractualPurpose }]
       : []),
@@ -84,16 +112,6 @@ export default function RequisitionDetailPage() {
     { label: 'Education & training', value: req.education },
     { label: 'Experience', value: req.experience },
     ...(req.others ? [{ label: 'Others', value: req.others }] : []),
-  ];
-
-  const logistics: Row[] = [
-    {
-      label: 'Computer',
-      value:
-        COMPUTER_LABEL[req.computer] +
-        (req.computerReason ? ` — ${req.computerReason}` : ''),
-    },
-    { label: 'Seating arrangement', value: SEATING_LABEL[req.seating] },
   ];
 
   return (
@@ -122,8 +140,26 @@ export default function RequisitionDetailPage() {
             {req.code} · {req.unitFactory} · {req.department}
           </p>
         </div>
-        <Badge tone="brand">{req.requiredPosts} required post(s)</Badge>
+        <div className="flex items-center gap-3">
+          {canEdit && (
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Pencil className="h-4 w-4" />}
+              onClick={() => setEditOpen(true)}
+            >
+              Edit details
+            </Button>
+          )}
+          <Badge tone="brand">{req.requiredPosts} required post(s)</Badge>
+        </div>
       </div>
+
+      <EditRequisitionModal
+        requisition={req}
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+      />
 
       {/* Workflow progress */}
       <Card>
@@ -154,11 +190,9 @@ export default function RequisitionDetailPage() {
             </CardBody>
           </Card>
 
-          <DetailCard title="C · Logistics Requirement" rows={logistics} />
-
           <Card>
             <CardHeader>
-              <CardTitle>E · Preferred Sources</CardTitle>
+              <CardTitle>C · Preferred Sources</CardTitle>
             </CardHeader>
             <CardBody>
               <div className="flex flex-wrap gap-1.5">
@@ -169,9 +203,7 @@ export default function RequisitionDetailPage() {
                     </Badge>
                   ))
                 ) : (
-                  <span className="text-sm text-slate-400">
-                    Not specified
-                  </span>
+                  <span className="text-sm text-slate-400">Not specified</span>
                 )}
               </div>
             </CardBody>
@@ -181,8 +213,18 @@ export default function RequisitionDetailPage() {
         {/* Right · workflow */}
         <div className="space-y-6 lg:col-span-2">
           <ApprovalPanel requisition={req} />
-          {showProfile && <RoleProfilePanel requisition={req} />}
-          {showPosting && <PostingPanel requisition={req} />}
+          {showProfile && (
+            <RoleProfilePanel
+              requisition={req}
+              canContinue={canCorporateHrContinue}
+            />
+          )}
+          {showPosting && (
+            <PostingPanel
+              requisition={req}
+              canContinue={canCorporateHrContinue}
+            />
+          )}
         </div>
       </div>
     </div>

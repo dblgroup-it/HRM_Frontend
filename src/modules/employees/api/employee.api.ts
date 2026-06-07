@@ -3,8 +3,80 @@ import { http } from '@shared/api';
 import { delay } from '@shared/utils';
 import type { ApiResponse, Paginated } from '@shared/types';
 
-import type { Employee, EmployeeFilters } from '../types/employee.types';
+import type {
+  Employee,
+  EmployeeFilters,
+  EmploymentStatus,
+} from '../types/employee.types';
 import { MOCK_EMPLOYEES } from '../data/employees.mock';
+
+/** Shape returned by the NestJS `/employees` endpoint. */
+interface BackendEmployee {
+  id: string;
+  userId: string;
+  employeeCode: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  designation: string | null;
+  department: string | null;
+  section: string | null;
+  grade: string | null;
+  category: string | null;
+  unitName: string | null;
+  location: string | null;
+  gender: string | null;
+  dateOfBirth: string | null;
+  joiningDate: string | null;
+  exitDate: string | null;
+  lineManagerName: string | null;
+  lineManagerCode: string | null;
+  lineManagerId: string | null;
+  source: string;
+  status: string;
+}
+
+function mapEmployee(e: BackendEmployee): Employee {
+  const status: EmploymentStatus =
+    e.status === 'INACTIVE' ? 'inactive' : 'active';
+  return {
+    id: e.id,
+    userId: e.userId,
+    employeeCode: e.employeeCode,
+    name: e.name,
+    email: e.email ?? '',
+    phone: e.phone ?? '',
+    jobTitle: e.designation ?? '—',
+    department: e.department ?? '—',
+    employmentType: 'full_time',
+    status,
+    location: e.unitName ?? '—',
+    salary: 0,
+    joinedAt: e.joiningDate ?? new Date().toISOString(),
+    avatarUrl: null,
+    manager: e.lineManagerName ?? undefined,
+    managerCode: e.lineManagerCode,
+    managerId: e.lineManagerId,
+    section: e.section,
+    grade: e.grade,
+    category: e.category,
+    gender: e.gender,
+    dateOfBirth: e.dateOfBirth,
+    exitDate: e.exitDate,
+  };
+}
+
+/** Build the query params the backend actually accepts (no `status`). */
+function toParams(filters: EmployeeFilters) {
+  return {
+    page: filters.page,
+    pageSize: filters.pageSize,
+    ...(filters.search ? { search: filters.search } : {}),
+    ...(filters.department && filters.department !== 'all'
+      ? { department: filters.department }
+      : {}),
+  };
+}
 
 function applyFilters(
   source: Employee[],
@@ -52,8 +124,13 @@ export const employeeApi = {
       );
     }
     return http
-      .get<ApiResponse<Paginated<Employee>>>('/employees', { params: filters })
-      .then((res) => res.data);
+      .get<ApiResponse<Paginated<BackendEmployee>>>('/employees', {
+        params: toParams(filters),
+      })
+      .then((res) => ({
+        items: res.data.items.map(mapEmployee),
+        meta: res.data.meta,
+      }));
   },
 
   getById(id: string): Promise<Employee> {
@@ -65,7 +142,7 @@ export const employeeApi = {
       });
     }
     return http
-      .get<ApiResponse<Employee>>(`/employees/${id}`)
-      .then((res) => res.data);
+      .get<ApiResponse<BackendEmployee>>(`/employees/${id}`)
+      .then((res) => mapEmployee(res.data));
   },
 };

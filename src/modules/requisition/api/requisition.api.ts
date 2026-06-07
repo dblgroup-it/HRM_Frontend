@@ -14,6 +14,7 @@ import type {
   RequisitionSource,
   RequirementType,
   RoleProfile,
+  UpdateRequisitionInput,
 } from '../types/requisition.types';
 import { APPROVAL_ROLE_META, buildApprovalRoles } from '../constants';
 
@@ -327,8 +328,22 @@ export const requisitionApi = {
         return created;
       });
     }
+    // The backend derives requirementType from the organogram, and rejects
+    // unknown fields — send everything except requirementType.
+    const { requirementType: _ignored, ...body } = payload;
     return http
-      .post<ApiResponse<Requisition>>('/requisitions', payload)
+      .post<ApiResponse<Requisition>>('/requisitions', body)
+      .then((res) => res.data);
+  },
+
+  update(id: string, input: UpdateRequisitionInput): Promise<Requisition> {
+    if (ENV.USE_MOCK_API) {
+      return delay(MOCK_LATENCY).then(() =>
+        updateStore(id, (r) => ({ ...r, ...input }))
+      );
+    }
+    return http
+      .patch<ApiResponse<Requisition>>(`/requisitions/${id}`, input)
       .then((res) => res.data);
   },
 

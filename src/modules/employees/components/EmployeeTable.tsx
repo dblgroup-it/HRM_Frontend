@@ -1,11 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 
 import { Avatar, DataTable, type Column } from '@shared/components/ui';
-import { formatCurrency, formatDate } from '@shared/utils';
+import { formatDate } from '@shared/utils';
 import { ROUTES } from '@app/router/paths';
 
 import type { Employee } from '../types/employee.types';
-import { EMPLOYMENT_TYPE_LABEL } from '../constants';
 import { EmployeeStatusBadge } from './EmployeeStatusBadge';
 
 interface Props {
@@ -32,35 +31,38 @@ export function EmployeeTable({ employees, isLoading }: Props) {
     },
     {
       key: 'jobTitle',
-      header: 'Job Title',
+      header: 'Designation',
       render: (e) => (
         <div>
           <p className="text-slate-700">{e.jobTitle}</p>
-          <p className="text-xs text-slate-400">
-            {EMPLOYMENT_TYPE_LABEL[e.employmentType]}
-          </p>
+          {e.category && (
+            <p className="text-xs text-slate-400">{e.category}</p>
+          )}
         </div>
       ),
     },
     {
       key: 'department',
       header: 'Department',
-      render: (e) => e.department,
+      render: (e) => (
+        <div>
+          <p className="text-slate-700">{e.department}</p>
+          {e.section && e.section !== e.department && (
+            <p className="text-xs text-slate-400">{e.section}</p>
+          )}
+        </div>
+      ),
     },
     {
       key: 'location',
-      header: 'Location',
+      header: 'Unit',
       render: (e) => e.location,
     },
     {
-      key: 'salary',
-      header: 'Salary',
-      align: 'right',
-      render: (e) => (
-        <span className="font-medium text-slate-700">
-          {formatCurrency(e.salary)}
-        </span>
-      ),
+      key: 'grade',
+      header: 'Grade',
+      align: 'center',
+      render: (e) => e.grade ?? '—',
     },
     {
       key: 'joinedAt',

@@ -6,6 +6,7 @@ import type {
   ApprovalDecision,
   PreferredSource,
   Requisition,
+  UpdateRequisitionInput,
 } from '../types/requisition.types';
 
 /** Shared cache-sync helper for single-requisition mutations. */
@@ -15,6 +16,21 @@ function useSyncRequisition() {
     queryClient.setQueryData(requisitionKeys.detail(updated.id), updated);
     void queryClient.invalidateQueries({ queryKey: requisitionKeys.all });
   };
+}
+
+/** Edit requisition details (allowed for the current approver while pending). */
+export function useUpdateRequisition() {
+  const sync = useSyncRequisition();
+  return useMutation({
+    mutationFn: ({
+      id,
+      input,
+    }: {
+      id: string;
+      input: UpdateRequisitionInput;
+    }) => requisitionApi.update(id, input),
+    onSuccess: sync,
+  });
 }
 
 /** Step 2 — act on the next pending sign-off in the chain. */

@@ -74,7 +74,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                       }
                     >
                       <item.icon className="h-5 w-5" />
-                      <span className="flex-1">{item.label}</span>
+                      <span className="flex-1 truncate">{item.label}</span>
                       {item.badge && (
                         <span className="rounded bg-accent-100 px-1.5 py-0.5 text-[10px] font-semibold text-accent-700">
                           {item.badge}

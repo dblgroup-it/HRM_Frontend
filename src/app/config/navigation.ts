@@ -2,8 +2,12 @@ import {
   LayoutDashboard,
   ClipboardList,
   Network,
+  SlidersHorizontal,
+  Plug,
+  ShieldCheck,
   Users,
   UserSearch,
+  Bell,
   Settings,
   type LucideIcon,
 } from 'lucide-react';
@@ -41,7 +45,6 @@ export const NAVIGATION: NavSection[] = [
         label: 'Requisitions',
         to: ROUTES.requisitions,
         icon: ClipboardList,
-        badge: 'P1',
       },
       { label: 'Candidates', to: ROUTES.candidates, icon: UserSearch },
     ],
@@ -51,6 +54,29 @@ export const NAVIGATION: NavSection[] = [
     items: [{ label: 'Employees', to: ROUTES.employees, icon: Users }],
   },
   {
+    heading: 'Configuration',
+    items: [
+      {
+        label: 'Unit Config',
+        to: ROUTES.unitConfig,
+        icon: SlidersHorizontal,
+        roles: ['admin', 'hr_manager'],
+      },
+      {
+        label: 'Access Control',
+        to: ROUTES.accessControl,
+        icon: ShieldCheck,
+        roles: ['admin'],
+      },
+      {
+        label: 'Integrations',
+        to: ROUTES.integrations,
+        icon: Plug,
+        roles: ['admin', 'hr_manager'],
+      },
+    ],
+  },
+  {
     heading: 'System',
     items: [
       {
@@ -58,6 +84,11 @@ export const NAVIGATION: NavSection[] = [
         to: ROUTES.settings,
         icon: Settings,
         roles: ['admin', 'hr_manager'],
+      },
+      {
+        label: 'Notifications',
+        to: ROUTES.notifications,
+        icon: Bell,
       },
     ],
   },

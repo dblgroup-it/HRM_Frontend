@@ -36,11 +36,6 @@ export const requisitionSchema = z
     computerReason: z.string().optional(),
     seating: z.enum(['existing', 'new']),
 
-    // D · Requested by
-    departmentHeadName: z.string().min(2, 'Required'),
-    departmentHeadDesignation: z.string().optional(),
-    factoryHRName: z.string().optional(),
-
     // E · Group HR
     preferredSources: z
       .array(z.enum(['job_advertisement', 'headhunting', 'referral', 'cv_bank']))
@@ -54,15 +49,6 @@ export const requisitionSchema = z
     {
       message: 'State the purpose for temporary / contractual roles',
       path: ['contractualPurpose'],
-    }
-  )
-  .refine(
-    (data) =>
-      data.source !== 'factory' ||
-      (data.factoryHRName && data.factoryHRName.trim().length > 1),
-    {
-      message: 'Factory HR name is required for factory requisitions',
-      path: ['factoryHRName'],
     }
   );
 

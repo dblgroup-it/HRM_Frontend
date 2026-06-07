@@ -7,6 +7,7 @@ import {
   CardBody,
   CardHeader,
   CardTitle,
+  EmptyState,
   FullPageSpinner,
   PageHeader,
   StatCard,
@@ -21,6 +22,14 @@ export default function OrganogramPage() {
   const [activeUnit, setActiveUnit] = useState<string | null>(null);
 
   if (isLoading || !units) return <FullPageSpinner label="Loading organogram…" />;
+  if (units.length === 0) {
+    return (
+      <EmptyState
+        title="No organogram units available"
+        description="You do not have access to any assigned units yet."
+      />
+    );
+  }
 
   const selected = units.find((u) => u.unit === activeUnit) ?? units[0];
 

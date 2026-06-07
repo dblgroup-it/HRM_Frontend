@@ -1,9 +1,11 @@
+import type { RequisitionStatus } from '@modules/requisition';
+
 export interface DashboardStat {
   key: string;
   label: string;
   value: number;
   /** % change vs. previous period. */
-  trend: number;
+  trend?: number;
 }
 
 export interface DepartmentHeadcount {
@@ -22,24 +24,32 @@ export interface RecentHire {
   avatarUrl?: string | null;
 }
 
-export interface ActivityItem {
+export interface RequisitionSnapshot {
   id: string;
-  type: 'leave' | 'hire' | 'payroll' | 'attendance';
-  message: string;
-  timestamp: string;
+  code: string;
+  designation: string;
+  unitFactory: string;
+  department: string;
+  status: RequisitionStatus;
+  requiredPosts: number;
+  updatedAt: string;
 }
 
-export interface AttendanceSummary {
-  present: number;
-  remote: number;
-  onLeave: number;
-  absent: number;
+export interface DashboardSummary {
+  totalEmployees: number;
+  activeEmployees: number;
+  activeUnits: number;
+  totalUnits: number;
+  sanctionedSeats: number;
+  filledSeats: number;
+  vacantSeats: number;
+  openRequisitions: number;
 }
 
 export interface DashboardData {
   stats: DashboardStat[];
+  summary: DashboardSummary;
   departments: DepartmentHeadcount[];
   recentHires: RecentHire[];
-  activity: ActivityItem[];
-  attendance: AttendanceSummary;
+  requisitions: RequisitionSnapshot[];
 }

@@ -33,19 +33,21 @@ export function StatCard({
   const isPositive = (trend ?? 0) >= 0;
 
   return (
-    <Card className="p-5 transition-shadow hover:shadow-card-hover">
+    <Card className="p-5 transition-shadow hover:shadow-sm">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm font-medium text-slate-500">{label}</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900">{value}</p>
+          <p className="text-sm font-normal text-slate-500">{label}</p>
+          <p className="mt-2 text-2xl font-medium tracking-tight text-slate-900">
+            {value}
+          </p>
         </div>
         <span
           className={cn(
-            'flex h-11 w-11 items-center justify-center rounded-lg',
+            'flex h-10 w-10 items-center justify-center rounded-lg',
             accents[accent]
           )}
         >
-          <Icon className="h-5 w-5" />
+          <Icon className="h-4.5 w-4.5" />
         </span>
       </div>
       {trend !== undefined && (

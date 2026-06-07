@@ -1,89 +1,133 @@
-import { ENV, MOCK_LATENCY } from '@shared/constants';
 import { http } from '@shared/api';
-import { delay } from '@shared/utils';
+import { ENV } from '@shared/constants';
 import type { ApiResponse } from '@shared/types';
 
-import type { DashboardData } from '../types/dashboard.types';
+import { employeeApi } from '@modules/employees';
+import { requisitionApi } from '@modules/requisition';
+import { organogramApi } from '@modules/organogram';
 
-const MOCK_DASHBOARD: DashboardData = {
-  stats: [
-    { key: 'employees', label: 'Total Employees', value: 1284, trend: 4.2 },
-    { key: 'present', label: 'Present Today', value: 1147, trend: 1.8 },
-    { key: 'onLeave', label: 'On Leave', value: 38, trend: -2.4 },
-    { key: 'openRoles', label: 'Open Positions', value: 23, trend: 9.1 },
-  ],
-  departments: [
-    { department: 'Production', headcount: 642, percentage: 50 },
-    { department: 'Quality Assurance', headcount: 168, percentage: 13 },
-    { department: 'Supply Chain', headcount: 142, percentage: 11 },
-    { department: 'Human Resources', headcount: 96, percentage: 7.5 },
-    { department: 'Finance', headcount: 88, percentage: 6.8 },
-    { department: 'IT & Systems', headcount: 78, percentage: 6 },
-    { department: 'Sales & Marketing', headcount: 70, percentage: 5.7 },
-  ],
-  recentHires: [
-    {
-      id: 'h1',
-      name: 'Tanvir Ahmed',
-      jobTitle: 'Production Supervisor',
-      department: 'Production',
-      joinedAt: '2026-05-28',
-    },
-    {
-      id: 'h2',
-      name: 'Nusrat Jahan',
-      jobTitle: 'QA Engineer',
-      department: 'Quality Assurance',
-      joinedAt: '2026-05-25',
-    },
-    {
-      id: 'h3',
-      name: 'Rafiul Islam',
-      jobTitle: 'Frontend Developer',
-      department: 'IT & Systems',
-      joinedAt: '2026-05-22',
-    },
-    {
-      id: 'h4',
-      name: 'Sadia Karim',
-      jobTitle: 'HR Coordinator',
-      department: 'Human Resources',
-      joinedAt: '2026-05-20',
-    },
-  ],
-  activity: [
-    {
-      id: 'a1',
-      type: 'leave',
-      message: 'Mehedi Hasan requested 3 days of annual leave',
-      timestamp: '2026-06-04T08:15:00Z',
-    },
-    {
-      id: 'a2',
-      type: 'hire',
-      message: 'Tanvir Ahmed joined as Production Supervisor',
-      timestamp: '2026-06-04T06:40:00Z',
-    },
-    {
-      id: 'a3',
-      type: 'payroll',
-      message: 'May payroll run completed for 1,284 employees',
-      timestamp: '2026-06-03T17:05:00Z',
-    },
-    {
-      id: 'a4',
-      type: 'attendance',
-      message: '12 employees clocked in remotely this morning',
-      timestamp: '2026-06-03T09:20:00Z',
-    },
-  ],
-  attendance: { present: 1147, remote: 64, onLeave: 38, absent: 35 },
-};
+import type {
+  DashboardData,
+  DashboardStat,
+  DepartmentHeadcount,
+  RecentHire,
+  RequisitionSnapshot,
+} from '../types/dashboard.types';
+
+function buildDepartmentBreakdown(
+  employees: Array<{ department: string; status: string }>
+): DepartmentHeadcount[] {
+  const total = employees.length;
+  const counts = new Map<string, number>();
+
+  for (const employee of employees) {
+    const department = employee.department?.trim() || 'Unassigned';
+    counts.set(department, (counts.get(department) ?? 0) + 1);
+  }
+
+  return [...counts.entries()]
+    .map(([department, headcount]) => ({
+      department,
+      headcount,
+      percentage: total > 0 ? (headcount / total) * 100 : 0,
+    }))
+    .sort((a, b) => b.headcount - a.headcount)
+    .slice(0, 7);
+}
+
+function buildRecentHires(
+  employees: Array<{
+    id: string;
+    name: string;
+    jobTitle: string;
+    department: string;
+    joinedAt: string;
+    avatarUrl?: string | null;
+  }>
+): RecentHire[] {
+  return [...employees]
+    .sort((a, b) => +new Date(b.joinedAt) - +new Date(a.joinedAt))
+    .slice(0, 5);
+}
+
+function buildRequisitionSnapshots(
+  requisitions: Array<{
+    id: string;
+    code: string;
+    designation: string;
+    unitFactory: string;
+    department: string;
+    status: RequisitionSnapshot['status'];
+    requiredPosts: number;
+    updatedAt: string;
+  }>
+): RequisitionSnapshot[] {
+  return [...requisitions]
+    .sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt))
+    .slice(0, 5);
+}
+
+function buildMockDashboard(): Promise<DashboardData> {
+  return Promise.all([
+    employeeApi.list({ page: 1, pageSize: 5000 }),
+    requisitionApi.list({ page: 1, pageSize: 5000 }),
+    organogramApi.units(),
+  ]).then(([employees, requisitions, units]) => {
+    const activeEmployees = employees.items.filter(
+      (employee) => employee.status !== 'inactive'
+    );
+    const totalEmployees = employees.meta.total;
+    const activeUnits = units.filter((unit) => unit.sanctioned > 0).length;
+    const totalUnits = units.length;
+    const sanctionedSeats = units.reduce((sum, unit) => sum + unit.sanctioned, 0);
+    const filledSeats = units.reduce((sum, unit) => sum + unit.filled, 0);
+    const vacantSeats = units.reduce((sum, unit) => sum + unit.vacant, 0);
+    const openRequisitions = requisitions.items.filter((req) =>
+      ['pending_approval', 'approved', 'profile_generated'].includes(req.status)
+    ).length;
+
+    const stats: DashboardStat[] = [
+      { key: 'employees', label: 'Total Workforce', value: totalEmployees },
+      { key: 'activeEmployees', label: 'Active Employees', value: activeEmployees.length },
+      { key: 'openRequisitions', label: 'Open Requisitions', value: openRequisitions },
+      { key: 'vacantSeats', label: 'Vacant Seats', value: vacantSeats },
+    ];
+
+    return {
+      stats,
+      summary: {
+        totalEmployees,
+        activeEmployees: activeEmployees.length,
+        activeUnits,
+        totalUnits,
+        sanctionedSeats,
+        filledSeats,
+        vacantSeats,
+        openRequisitions,
+      },
+      departments: buildDepartmentBreakdown(employees.items.map((e) => ({
+        department: e.department,
+        status: e.status,
+      }))),
+      recentHires: buildRecentHires(
+        employees.items.map((e) => ({
+          id: e.id,
+          name: e.name,
+          jobTitle: e.jobTitle,
+          department: e.department,
+          joinedAt: e.joinedAt,
+          avatarUrl: e.avatarUrl ?? null,
+        }))
+      ),
+      requisitions: buildRequisitionSnapshots(requisitions.items),
+    };
+  });
+}
 
 export const dashboardApi = {
   getDashboard(): Promise<DashboardData> {
     if (ENV.USE_MOCK_API) {
-      return delay(MOCK_LATENCY).then(() => MOCK_DASHBOARD);
+      return buildMockDashboard();
     }
     return http
       .get<ApiResponse<DashboardData>>('/dashboard')

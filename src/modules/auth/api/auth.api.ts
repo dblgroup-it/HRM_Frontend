@@ -29,7 +29,7 @@ async function mockLogin(credentials: LoginCredentials): Promise<AuthSession> {
 
   return {
     user: DEMO_USER,
-    token: `mock.jwt.${btoa(DEMO_USER.email)}.${Date.now()}`,
+    token: `mock.jwt.${btoa(DEMO_USER.email ?? '')}.${Date.now()}`,
   };
 }
 
@@ -48,7 +48,10 @@ export const authApi = {
   login(credentials: LoginCredentials): Promise<AuthSession> {
     if (ENV.USE_MOCK_API) return mockLogin(credentials);
     return http
-      .post<ApiResponse<AuthSession>>('/auth/login', credentials)
+      .post<ApiResponse<AuthSession>>('/auth/login', {
+        identifier: credentials.email,
+        password: credentials.password,
+      })
       .then((res) => res.data);
   },
 
@@ -58,12 +61,12 @@ export const authApi = {
   },
 
   logout(): Promise<void> {
-    if (ENV.USE_MOCK_API) return delay(200);
-    return http.post('/auth/logout');
+    // JWT is stateless — the session is cleared client-side; no server call.
+    return delay(0);
   },
 };
 
 export const DEMO_CREDENTIALS = {
-  email: DEMO_USER.email,
+  email: 'admin@dbl-group.com',
   password: DEMO_PASSWORD,
 } as const;

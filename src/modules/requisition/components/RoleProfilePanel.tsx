@@ -14,8 +14,10 @@ import { useGenerateRoleProfile } from '../hooks/useRequisitionActions';
 
 export function RoleProfilePanel({
   requisition,
+  canContinue,
 }: {
   requisition: Requisition;
+  canContinue: boolean;
 }) {
   const generate = useGenerateRoleProfile();
   const profile = requisition.roleProfile;
@@ -24,7 +26,7 @@ export function RoleProfilePanel({
     <Card>
       <CardHeader>
         <CardTitle>Role Profile · Step 3</CardTitle>
-        {profile && (
+        {profile && canContinue && requisition.status !== 'posted' && (
           <Button
             size="sm"
             variant="ghost"
@@ -44,20 +46,26 @@ export function RoleProfilePanel({
             </span>
             <div>
               <p className="font-medium text-slate-800">
-                Generate the AI role profile
+                {canContinue
+                  ? 'Generate the AI role profile'
+                  : 'Awaiting Corporate HR'}
               </p>
               <p className="mt-1 max-w-sm text-sm text-slate-500">
-                The system reads the position, organization, department and
-                employee level to produce a structured JD, responsibilities and
-                requirements.
+                Corporate HR continues from this step after the requisition is
+                fully approved.
               </p>
             </div>
             <Button
+              disabled={!canContinue}
               isLoading={generate.isPending}
               leftIcon={<Sparkles className="h-4 w-4" />}
               onClick={() => generate.mutate(requisition.id)}
             >
-              {generate.isPending ? 'Generating…' : 'Generate role profile'}
+              {canContinue
+                ? generate.isPending
+                  ? 'Generating…'
+                  : 'Generate role profile'
+                : 'Corporate HR required'}
             </Button>
           </div>
         ) : (
