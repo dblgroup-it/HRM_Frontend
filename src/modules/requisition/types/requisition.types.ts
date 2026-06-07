@@ -75,6 +75,30 @@ export interface JobPosting {
   postedAt: ISODateString;
 }
 
+/** Phase 2 — per-stage candidate counts for a requisition. */
+export interface CandidateStats {
+  applied: number;
+  shortlisted: number;
+  interview: number;
+  final: number;
+  selected: number;
+  rejected: number;
+  total: number;
+}
+
+/** Phase 2 — Google Drive recruitment workspace (folder ids + shareable links). */
+export interface RequisitionDrive {
+  rootFolderId: string;
+  rootFolderUrl: string;
+  allCvFolderId: string;
+  allCvFolderUrl: string;
+  shortlistedFolderId: string;
+  interviewFolderId: string;
+  finalFolderId: string;
+  joiningFolderId: string;
+  createdAt: ISODateString;
+}
+
 export interface Requisition {
   id: ID;
   code: string;
@@ -114,6 +138,8 @@ export interface Requisition {
   activityLog: ActivityLogEntry[];
   roleProfile: RoleProfile | null;
   posting: JobPosting | null;
+  drive?: RequisitionDrive | null;
+  candidateStats?: CandidateStats;
 
   raisedBy: string;
   createdAt: ISODateString;

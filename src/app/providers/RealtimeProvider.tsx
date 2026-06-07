@@ -8,6 +8,7 @@ import { ENV } from '@shared/constants';
 import type { Paginated } from '@shared/types';
 import { useAuthStore } from '@modules/auth';
 import { notificationKeys, type AppNotification } from '@modules/notifications';
+import { candidateKeys } from '@modules/candidates';
 import { requisitionKeys } from '@modules/requisition/hooks/useRequisitions';
 import type { Requisition } from '@modules/requisition/types/requisition.types';
 import notificationSound from '@assets/notification.mp3';
@@ -151,12 +152,28 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       void queryClient.invalidateQueries({ queryKey: notificationKeys.all });
     });
 
+    // Candidate pipeline changed (payload.id is the requisition id).
+    socket.on('candidate:changed', (payload?: { id?: string }) => {
+      if (payload?.id) {
+        void queryClient.invalidateQueries({
+          queryKey: candidateKeys.list(payload.id),
+        });
+      } else {
+        void queryClient.invalidateQueries({ queryKey: candidateKeys.all });
+      }
+      // Refresh requisition lists/cards so their stage counts stay live.
+      void queryClient.invalidateQueries({ queryKey: requisitionKeys.all });
+    });
+
     return () => {
       socket.disconnect();
       unlockEvents.forEach((eventName) =>
         document.removeEventListener(eventName, unlockAudio)
       );
     };
+    // Audio-priming helpers are intentionally stable across renders; re-running
+    // this effect on every render would needlessly reconnect the socket.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, isAuthenticated, queryClient, navigate]);
 
   return <>{children}</>;

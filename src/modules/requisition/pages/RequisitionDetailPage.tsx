@@ -17,6 +17,8 @@ import {
 import { formatDate } from '@shared/utils';
 import { ROUTES } from '@app/router/paths';
 
+import { CandidatesPanel } from '@modules/candidates';
+
 import { useRequisition } from '../hooks/useRequisitions';
 import { RequisitionStatusBadge } from '../components/RequisitionStatusBadge';
 import { WorkflowStepper } from '../components/WorkflowStepper';
@@ -223,6 +225,12 @@ export default function RequisitionDetailPage() {
             <PostingPanel
               requisition={req}
               canContinue={canCorporateHrContinue}
+            />
+          )}
+          {(req.status === 'posted' || req.status === 'approved' || !!req.drive) && (
+            <CandidatesPanel
+              requisition={req}
+              canManage={canCorporateHrContinue}
             />
           )}
         </div>
