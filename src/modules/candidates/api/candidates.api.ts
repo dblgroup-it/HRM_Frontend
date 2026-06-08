@@ -4,6 +4,9 @@ import type { ApiResponse } from '@shared/types';
 import type {
   Candidate,
   CreateCandidateInput,
+  EmailCandidateInput,
+  PublicApplyInput,
+  PublicJobInfo,
   RecruitmentWorkspace,
   UpdateCandidateInput,
 } from '../types/candidate.types';
@@ -76,4 +79,34 @@ export const candidatesApi = {
 
   remove: (id: string): Promise<{ id: string }> =>
     http.delete<ApiResponse<{ id: string }>>(`/candidates/${id}`).then((r) => r.data),
+
+  email: (
+    id: string,
+    input: EmailCandidateInput,
+  ): Promise<{ sent: boolean; to: string }> =>
+    http
+      .post<ApiResponse<{ sent: boolean; to: string }>>(
+        `/candidates/${id}/email`,
+        input,
+      )
+      .then((r) => r.data),
+
+  // --- public application page (no auth) ---
+  jobInfo: (reqId: string): Promise<PublicJobInfo> =>
+    http.get<ApiResponse<PublicJobInfo>>(`/apply/${reqId}`).then((r) => r.data),
+
+  apply: (
+    reqId: string,
+    input: PublicApplyInput,
+    cv: File,
+  ): Promise<{ ok: boolean }> => {
+    const fd = new FormData();
+    fd.append('name', input.name);
+    fd.append('email', input.email);
+    if (input.phone) fd.append('phone', input.phone);
+    fd.append('cv', cv);
+    return http
+      .post<ApiResponse<{ ok: boolean }>>(`/apply/${reqId}`, fd, MULTIPART)
+      .then((r) => r.data);
+  },
 };

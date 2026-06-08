@@ -2,14 +2,14 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, Lock, Mail } from 'lucide-react';
 
 import { Button, Input } from '@shared/components/ui';
 import { ROUTES } from '@app/router/paths';
+import { DEMO_CREDENTIALS } from '../api/auth.api';
 
 import { loginSchema, type LoginFormValues } from '../schemas/auth.schema';
 import { useLogin } from '../hooks/useLogin';
-import { DEMO_CREDENTIALS } from '../api/auth.api';
 
 export function LoginForm() {
   const navigate = useNavigate();
@@ -20,7 +20,6 @@ export function LoginForm() {
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -36,13 +35,8 @@ export function LoginForm() {
     });
   });
 
-  const fillDemo = () => {
-    setValue('email', DEMO_CREDENTIALS.email);
-    setValue('password', DEMO_CREDENTIALS.password);
-  };
-
   return (
-    <form onSubmit={onSubmit} className="space-y-4" noValidate>
+    <form onSubmit={onSubmit} className="space-y-5" noValidate>
       <Input
         label="Email address"
         type="email"
@@ -63,7 +57,7 @@ export function LoginForm() {
         {...register('password')}
       />
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <label className="flex items-center gap-2 text-sm text-slate-600">
           <input
             type="checkbox"
@@ -75,7 +69,7 @@ export function LoginForm() {
         <button
           type="button"
           onClick={() => setShowPassword((v) => !v)}
-          className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
+          className="inline-flex items-center gap-1 text-sm text-slate-500 transition-colors hover:text-slate-700"
         >
           {showPassword ? (
             <EyeOff className="h-4 w-4" />
@@ -87,22 +81,28 @@ export function LoginForm() {
       </div>
 
       {login.isError && (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700">
           {(login.error as Error).message}
         </p>
       )}
 
-      <Button type="submit" fullWidth size="lg" isLoading={login.isPending}>
+      <Button
+        type="submit"
+        fullWidth
+        size="lg"
+        isLoading={login.isPending}
+        rightIcon={<ArrowRight className="h-4 w-4" />}
+      >
         Sign in
       </Button>
 
-      <button
-        type="button"
-        onClick={fillDemo}
-        className="w-full text-center text-xs text-slate-400 hover:text-brand-600"
-      >
-        Use demo credentials
-      </button>
+      <div className="rounded-2xl border border-slate-200 bg-surface-muted/70 px-4 py-3 text-xs text-slate-500">
+        <div className="font-medium text-slate-700">Demo login</div>
+        <div className="mt-1 space-y-0.5 font-mono text-[11px] leading-5 text-slate-600">
+          <p>{DEMO_CREDENTIALS.email}</p>
+          <p>{DEMO_CREDENTIALS.password}</p>
+        </div>
+      </div>
     </form>
   );
 }

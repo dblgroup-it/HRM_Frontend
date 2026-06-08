@@ -1,7 +1,6 @@
 import { useState } from 'react';
 
 import {
-  Avatar,
   Button,
   Card,
   CardBody,
@@ -10,9 +9,9 @@ import {
   PageHeader,
 } from '@shared/components/ui';
 import { cn } from '@shared/lib';
-import { useAuth } from '@modules/auth';
 
 import { ProfileForm } from '../components/ProfileForm';
+import { AvatarUploader } from '../components/AvatarUploader';
 
 type Tab = 'profile' | 'notifications' | 'security';
 
@@ -30,7 +29,6 @@ const NOTIFICATION_PREFS = [
 ];
 
 export default function SettingsPage() {
-  const { user } = useAuth();
   const [tab, setTab] = useState<Tab>('profile');
 
   return (
@@ -63,17 +61,7 @@ export default function SettingsPage() {
             <CardTitle>Personal Information</CardTitle>
           </CardHeader>
           <CardBody className="space-y-6">
-            <div className="flex items-center gap-4">
-              <Avatar name={user?.name ?? 'User'} src={user?.avatarUrl} size="lg" />
-              <div>
-                <Button variant="outline" size="sm">
-                  Change photo
-                </Button>
-                <p className="mt-1.5 text-xs text-slate-400">
-                  JPG or PNG, up to 2MB.
-                </p>
-              </div>
-            </div>
+            <AvatarUploader />
             <ProfileForm />
           </CardBody>
         </Card>

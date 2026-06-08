@@ -26,7 +26,30 @@ export interface Candidate {
 /** Drive workspace status for a requisition. */
 export interface RecruitmentWorkspace {
   connected: boolean;
+  mailConfigured?: boolean;
   drive: RequisitionDrive | null;
+}
+
+export interface EmailCandidateInput {
+  subject: string;
+  message: string;
+}
+
+/** Public job info shown on the application page. */
+export interface PublicJobInfo {
+  code: string;
+  designation: string;
+  unitFactory: string;
+  department: string;
+  placeOfPosting: string;
+  requiredPosts: number;
+  employmentNature: string;
+}
+
+export interface PublicApplyInput {
+  name: string;
+  email: string;
+  phone?: string;
 }
 
 export interface CreateCandidateInput {

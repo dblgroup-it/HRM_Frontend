@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { candidatesApi } from '../api/candidates.api';
 import type {
   CreateCandidateInput,
+  EmailCandidateInput,
   UpdateCandidateInput,
 } from '../types/candidate.types';
 
@@ -107,6 +108,19 @@ export function useRemoveCandidate(reqId: string) {
     },
     onError: (error) =>
       toast.error(errMsg(error, 'Could not remove the candidate')),
+  });
+}
+
+export function useEmailCandidate(reqId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { id: string; input: EmailCandidateInput }) =>
+      candidatesApi.email(vars.id, vars.input),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: candidateKeys.list(reqId) });
+      toast.success(`Email sent to ${res.to}`);
+    },
+    onError: (error) => toast.error(errMsg(error, 'Could not send the email')),
   });
 }
 

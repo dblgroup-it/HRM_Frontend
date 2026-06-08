@@ -5,6 +5,8 @@ import { cn } from '@shared/lib';
 import { APP_META } from '@shared/constants';
 import { Logo } from '@shared/components/ui';
 import { useAuth } from '@modules/auth';
+import { useMyPermissions } from '@modules/rbac';
+import { canAccessRecruitment } from '@modules/candidates';
 import { NAVIGATION } from '@app/config/navigation';
 
 interface SidebarProps {
@@ -16,6 +18,8 @@ interface SidebarProps {
 export function Sidebar({ open, onClose }: SidebarProps) {
   const { user } = useAuth();
   const role = user?.role;
+  const { data: perms } = useMyPermissions();
+  const canSeeRecruitment = canAccessRecruitment(perms);
 
   return (
     <>
@@ -48,7 +52,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         <nav className="scrollbar-thin flex-1 space-y-6 overflow-y-auto px-3 py-5">
           {NAVIGATION.map((section) => {
             const items = section.items.filter(
-              (item) => !item.roles || (role && item.roles.includes(role))
+              (item) =>
+                (!item.roles || (role && item.roles.includes(role))) &&
+                (!item.requiresRecruitment || canSeeRecruitment)
             );
             if (items.length === 0) return null;
 

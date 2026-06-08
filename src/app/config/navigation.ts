@@ -21,6 +21,8 @@ export interface NavItem {
   icon: LucideIcon;
   /** Optional role gating; omit to allow everyone. */
   roles?: UserRole[];
+  /** Gate to recruitment roles (Corporate HR / CHRO / super user). */
+  requiresRecruitment?: boolean;
   /** Optional short tag, e.g. phase marker. */
   badge?: string;
 }
@@ -46,7 +48,12 @@ export const NAVIGATION: NavSection[] = [
         to: ROUTES.requisitions,
         icon: ClipboardList,
       },
-      { label: 'Candidates', to: ROUTES.candidates, icon: UserSearch },
+      {
+        label: 'Candidates',
+        to: ROUTES.candidates,
+        icon: UserSearch,
+        requiresRecruitment: true,
+      },
     ],
   },
   {

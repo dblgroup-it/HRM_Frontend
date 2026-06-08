@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { ArrowLeft, Pencil } from 'lucide-react';
 
 import { useMyPermissions } from '@modules/rbac';
@@ -17,7 +17,7 @@ import {
 import { formatDate } from '@shared/utils';
 import { ROUTES } from '@app/router/paths';
 
-import { CandidatesPanel } from '@modules/candidates';
+import { CandidatesPanel, canAccessRecruitment } from '@modules/candidates';
 
 import { useRequisition } from '../hooks/useRequisitions';
 import { RequisitionStatusBadge } from '../components/RequisitionStatusBadge';
@@ -37,9 +37,18 @@ import {
 
 export default function RequisitionDetailPage() {
   const { id = '' } = useParams();
+  const location = useLocation();
   const { data: req, isLoading, isError } = useRequisition(id);
   const { data: perms } = useMyPermissions();
   const [editOpen, setEditOpen] = useState(false);
+
+  // Return to wherever the user came from (Candidates, Requisitions, …).
+  const nav = (location.state ?? null) as {
+    from?: string;
+    fromLabel?: string;
+  } | null;
+  const backTo = nav?.from ?? ROUTES.requisitions;
+  const backLabel = nav?.fromLabel ?? 'requisitions';
 
   if (isLoading) return <FullPageSpinner label="Loading requisition…" />;
 
@@ -84,6 +93,12 @@ export default function RequisitionDetailPage() {
         r.key === 'corporate_hr' &&
         (r.unitId === null || (r.unitName ?? '').toLowerCase() === unitLower)
     );
+  // The candidate pipeline is visible only to Corporate HR, CHRO & super users.
+  const showCandidates =
+    canAccessRecruitment(perms, req.unitFactory) &&
+    (req.status === 'posted' ||
+      req.status === 'approved' ||
+      Boolean(req.drive));
 
   const vacancy: Row[] = [
     { label: 'Requirement', value: REQUIREMENT_LABEL[req.requirementType] },
@@ -119,11 +134,11 @@ export default function RequisitionDetailPage() {
   return (
     <div className="space-y-6">
       <Link
-        to={ROUTES.requisitions}
+        to={backTo}
         className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-600"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to requisitions
+        Back to {backLabel}
       </Link>
 
       {/* Header */}
@@ -169,6 +184,11 @@ export default function RequisitionDetailPage() {
           <WorkflowStepper status={req.status} />
         </CardBody>
       </Card>
+
+      {/* Candidate pipeline — prominent for posted requisitions */}
+      {showCandidates && (
+        <CandidatesPanel requisition={req} canManage={canCorporateHrContinue} />
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left · the form */}
@@ -225,12 +245,6 @@ export default function RequisitionDetailPage() {
             <PostingPanel
               requisition={req}
               canContinue={canCorporateHrContinue}
-            />
-          )}
-          {(req.status === 'posted' || req.status === 'approved' || !!req.drive) && (
-            <CandidatesPanel
-              requisition={req}
-              canManage={canCorporateHrContinue}
             />
           )}
         </div>

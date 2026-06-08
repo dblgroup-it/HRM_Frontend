@@ -60,6 +60,22 @@ export const authApi = {
     return http.get<ApiResponse<AuthUser>>('/auth/me').then((res) => res.data);
   },
 
+  uploadAvatar(file: File): Promise<{ avatarUrl: string | null }> {
+    const fd = new FormData();
+    fd.append('image', file);
+    return http
+      .post<ApiResponse<{ avatarUrl: string | null }>>('/users/me/avatar', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((res) => res.data);
+  },
+
+  deleteAvatar(): Promise<{ avatarUrl: string | null }> {
+    return http
+      .delete<ApiResponse<{ avatarUrl: string | null }>>('/users/me/avatar')
+      .then((res) => res.data);
+  },
+
   logout(): Promise<void> {
     // JWT is stateless — the session is cleared client-side; no server call.
     return delay(0);

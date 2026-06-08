@@ -1,6 +1,20 @@
 import { format, formatDistanceToNow, parseISO } from 'date-fns';
 
 import type { ISODateString } from '@shared/types';
+import { ENV } from '@shared/constants';
+
+const API_ORIGIN = ENV.API_BASE_URL.replace(/\/api\/?$/, '');
+
+/**
+ * Resolve a media URL for use in <img>. Absolute/data/blob URLs pass through;
+ * backend-relative paths (e.g. "/api/users/:id/avatar") are prefixed with the
+ * API origin so they load from the backend, not the SPA host.
+ */
+export function resolveMediaUrl(url?: string | null): string | undefined {
+  if (!url) return undefined;
+  if (/^(https?:|data:|blob:)/.test(url)) return url;
+  return `${API_ORIGIN}${url.startsWith('/') ? url : `/${url}`}`;
+}
 
 /** Format an ISO date string as e.g. "04 Jun 2026". */
 export function formatDate(value: ISODateString, pattern = 'dd MMM yyyy'): string {

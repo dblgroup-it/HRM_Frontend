@@ -16,6 +16,8 @@ export const ROUTES = {
 
   // Recruitment pipeline (Phase 2)
   candidates: '/candidates',
+  /** Public job-application page (no auth). */
+  apply: (id = ':reqId') => `/apply/${id}`,
 
   // People
   employees: '/employees',

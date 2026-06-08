@@ -1,5 +1,5 @@
 import { cn } from '@shared/lib';
-import { getInitials } from '@shared/utils';
+import { getInitials, resolveMediaUrl } from '@shared/utils';
 
 export interface AvatarProps {
   name: string;
@@ -15,6 +15,7 @@ const sizes = {
 };
 
 export function Avatar({ name, src, size = 'md', className }: AvatarProps) {
+  const resolved = resolveMediaUrl(src);
   return (
     <span
       className={cn(
@@ -24,8 +25,8 @@ export function Avatar({ name, src, size = 'md', className }: AvatarProps) {
       )}
       title={name}
     >
-      {src ? (
-        <img src={src} alt={name} className="h-full w-full object-cover" />
+      {resolved ? (
+        <img src={resolved} alt={name} className="h-full w-full object-cover" />
       ) : (
         getInitials(name)
       )}

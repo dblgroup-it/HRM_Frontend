@@ -40,6 +40,7 @@ const RequisitionDetailPage = lazy(
 const CandidatesPage = lazy(
   () => import('@modules/recruitment/pages/RecruitmentPage')
 );
+const ApplyPage = lazy(() => import('@modules/candidates/pages/ApplyPage'));
 const EmployeesPage = lazy(
   () => import('@modules/employees/pages/EmployeesPage')
 );
@@ -62,6 +63,9 @@ export function AppRouter() {
         <Route element={<PublicOnlyRoute />}>
           <Route path={ROUTES.login} element={<LoginPage />} />
         </Route>
+
+        {/* Fully public — external candidates, no auth */}
+        <Route path={ROUTES.apply()} element={<ApplyPage />} />
 
         {/* Authenticated */}
         <Route element={<ProtectedRoute />}>
