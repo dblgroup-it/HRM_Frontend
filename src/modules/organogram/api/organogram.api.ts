@@ -5,6 +5,7 @@ import type { ApiResponse } from '@shared/types';
 
 import type {
   OrganogramUnit,
+  OrgStructure,
   SeatLookupResult,
 } from '../types/organogram.types';
 import { MOCK_SEATS } from '../data/organogram.mock';
@@ -93,6 +94,18 @@ export const organogramApi = {
     return http
       .get<ApiResponse<SeatLookupResult>>('/organogram/lookup', {
         params: { unit, department, designation },
+      })
+      .then((res) => res.data);
+  },
+
+  /** Dept → Section → Designation tree (from ZingHR employee data) for a unit. */
+  structure(unit?: string): Promise<OrgStructure> {
+    if (ENV.USE_MOCK_API) {
+      return delay(MOCK_LATENCY / 2).then(() => ({ departments: [] }));
+    }
+    return http
+      .get<ApiResponse<OrgStructure>>('/employees/structure', {
+        params: unit ? { unit } : {},
       })
       .then((res) => res.data);
   },

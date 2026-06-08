@@ -44,3 +44,25 @@ export function useCreateRequisition() {
     },
   });
 }
+
+export function useUploadAttachment(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => requisitionApi.uploadAttachment(id, file),
+    onSuccess: (req) => {
+      queryClient.setQueryData(requisitionKeys.detail(id), req);
+      void queryClient.invalidateQueries({ queryKey: requisitionKeys.all });
+    },
+  });
+}
+
+export function useRemoveAttachment(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (fileId: string) => requisitionApi.removeAttachment(id, fileId),
+    onSuccess: (req) => {
+      queryClient.setQueryData(requisitionKeys.detail(id), req);
+      void queryClient.invalidateQueries({ queryKey: requisitionKeys.all });
+    },
+  });
+}

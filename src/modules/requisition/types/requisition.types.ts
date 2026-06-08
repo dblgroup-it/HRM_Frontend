@@ -86,6 +86,16 @@ export interface CandidateStats {
   total: number;
 }
 
+/** A supporting file attached to a requisition (stored on Drive). */
+export interface RequisitionAttachment {
+  name: string;
+  fileId: string;
+  url: string;
+  size: number;
+  uploadedBy?: string;
+  uploadedAt: ISODateString;
+}
+
 /** Phase 2 — Google Drive recruitment workspace (folder ids + shareable links). */
 export interface RequisitionDrive {
   rootFolderId: string;
@@ -111,6 +121,7 @@ export interface Requisition {
   totalVacantPosts: number;
   unitFactory: string;
   department: string;
+  section?: string;
   placeOfPosting: string;
   vacantDate: ISODateString | null;
   whenNeededDate: ISODateString | null;
@@ -139,6 +150,7 @@ export interface Requisition {
   roleProfile: RoleProfile | null;
   posting: JobPosting | null;
   drive?: RequisitionDrive | null;
+  attachments?: RequisitionAttachment[];
   candidateStats?: CandidateStats;
 
   raisedBy: string;
@@ -162,6 +174,7 @@ export interface CreateRequisitionPayload {
   totalVacantPosts: number;
   unitFactory: string;
   department: string;
+  section?: string;
   placeOfPosting: string;
   vacantDate: ISODateString | null;
   whenNeededDate: ISODateString | null;

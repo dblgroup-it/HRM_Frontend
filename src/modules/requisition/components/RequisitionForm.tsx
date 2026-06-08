@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -9,6 +9,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   Loader2,
+  Paperclip,
+  X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -28,6 +30,7 @@ import type { SelectOption } from '@shared/types';
 import {
   useSeatLookup,
   useOrganogramUnits,
+  useOrgStructure,
   type SeatLookupResult,
 } from '@modules/organogram';
 import { useAuth } from '@modules/auth';
@@ -47,7 +50,7 @@ import {
 } from '../constants';
 
 interface Props {
-  onSubmit: (payload: CreateRequisitionPayload) => void;
+  onSubmit: (payload: CreateRequisitionPayload, attachments: File[]) => void;
   isSubmitting?: boolean;
   onCancel?: () => void;
 }
@@ -55,6 +58,8 @@ interface Props {
 export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
   const { user } = useAuth();
   const requestedBy = user?.name ?? '';
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
 
   const {
     register,
@@ -68,7 +73,7 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
       source: 'factory',
       requirementType: 'new',
       requiredPosts: 1,
-      totalVacantPosts: 1,
+      totalVacantPosts: 0,
       priority: 'moderate',
       employmentNature: 'permanent',
       computer: 'not_applicable',
@@ -81,9 +86,12 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
   const employmentNature = watch('employmentNature');
   const unit = watch('unitFactory') ?? '';
   const department = watch('department') ?? '';
+  const section = watch('section') ?? '';
   const designation = watch('designation') ?? '';
+  const requiredPosts = Number(watch('requiredPosts')) || 0;
 
   const { data: orgUnits } = useOrganogramUnits();
+  const { data: structure } = useOrgStructure(unit);
   const { data: perms } = useMyPermissions();
 
   // The unit is the requester's assigned unit. Super users may raise for any unit.
@@ -113,30 +121,51 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allowedKey]);
 
-  // Department + designation suggestions come from the selected unit's organogram.
-  const selectedUnit = orgUnits?.find((u) => u.unit === unit);
-  const departmentSuggestions = (selectedUnit?.departments ?? []).map(
-    (d) => d.department,
-  );
-  const designationSuggestions = (
-    selectedUnit?.departments.find((d) => d.department === department)?.seats ??
-    []
-  ).map((s) => s.designation);
+  // Department → Section → Designation come from the unit's ZingHR structure.
+  const departments = structure?.departments ?? [];
+  const departmentOptions: SelectOption[] = departments.map((d) => ({
+    value: d.department,
+    label: d.department,
+  }));
+  const sections =
+    departments.find((d) => d.department === department)?.sections ?? [];
+  const sectionOptions: SelectOption[] = sections.map((s) => ({
+    value: s.section,
+    label: s.section,
+  }));
+  const designationSuggestions =
+    sections.find((s) => s.section === section)?.designations ?? [];
 
   const unitReg = register('unitFactory');
   const deptReg = register('department');
+  const sectionReg = register('section');
 
   // Live organogram check → drives New vs Replacement.
   const lookup = useSeatLookup(unit, department, designation);
-  const requirement = lookup.data?.requirement;
+  const vacant = lookup.data?.vacant ?? 0;
+  // New when the request exceeds the available vacant sanctioned seats.
+  const requirement: 'existing' | 'new' | undefined = lookup.data
+    ? requiredPosts > vacant
+      ? 'new'
+      : 'existing'
+    : undefined;
+
   useEffect(() => {
     if (requirement) setValue('requirementType', requirement);
   }, [requirement, setValue]);
 
+  // Total vacant posts is read-only — taken from the organogram (sanctioned − filled).
+  useEffect(() => {
+    if (lookup.data) setValue('totalVacantPosts', lookup.data.vacant);
+  }, [lookup.data, setValue]);
+
   const needsSbu = requirement === 'new' && source === 'factory';
 
   const submit = handleSubmit((values) =>
-    onSubmit(toPayload(values as RequisitionFormOutput, requestedBy)),
+    onSubmit(
+      toPayload(values as RequisitionFormOutput, requestedBy),
+      attachments,
+    ),
   );
 
   return (
@@ -166,6 +195,7 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
             onChange={(e) => {
               void unitReg.onChange(e);
               setValue('department', '');
+              setValue('section', '');
               setValue('designation', '');
             }}
           />
@@ -175,31 +205,40 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
             error={errors.source?.message}
             {...register('source')}
           />
-          <div>
-            <Input
-              label="Department / Section"
-              list="req-departments"
-              placeholder={
-                unit ? 'Select or type a department' : 'Pick a unit first'
-              }
-              error={errors.department?.message}
-              {...deptReg}
-              onChange={(e) => {
-                void deptReg.onChange(e);
-                setValue('designation', '');
-              }}
-            />
-            <datalist id="req-departments">
-              {departmentSuggestions.map((d) => (
-                <option key={d} value={d} />
-              ))}
-            </datalist>
-          </div>
-          <div>
+          <Select
+            label="Department"
+            placeholder={unit ? 'Select department' : 'Pick a unit first'}
+            options={departmentOptions}
+            disabled={!unit}
+            error={errors.department?.message}
+            {...deptReg}
+            onChange={(e) => {
+              void deptReg.onChange(e);
+              setValue('section', '');
+              setValue('designation', '');
+            }}
+          />
+          <Select
+            label="Section"
+            placeholder={
+              department ? 'Select section' : 'Pick a department first'
+            }
+            options={sectionOptions}
+            disabled={!department || sectionOptions.length === 0}
+            error={errors.section?.message}
+            {...sectionReg}
+            onChange={(e) => {
+              void sectionReg.onChange(e);
+              setValue('designation', '');
+            }}
+          />
+          <div className="sm:col-span-2">
             <Input
               label="Designation / Job title"
               list="req-designations"
-              placeholder="Select an existing seat or type a new one"
+              placeholder={
+                section ? 'Select or type a designation' : 'Pick a section first'
+              }
               error={errors.designation?.message}
               {...register('designation')}
             />
@@ -219,7 +258,9 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
           <Input
             label="Total no. of vacant post"
             type="number"
-            min={1}
+            readOnly
+            hint="Auto-filled from the organogram (sanctioned − filled)"
+            className="bg-slate-50 text-slate-600"
             error={errors.totalVacantPosts?.message}
             {...register('totalVacantPosts')}
           />
@@ -273,6 +314,8 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
           loading={lookup.isFetching}
           show={Boolean(unit && department && designation.trim().length > 2)}
           result={lookup.data}
+          requirement={requirement}
+          requiredPosts={requiredPosts}
           needsSbu={needsSbu}
         />
       </Section>
@@ -317,9 +360,69 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
         </div>
       </Section>
 
-      {/* C · Preferred Sources */}
+      {/* C · Attachments */}
       <Section
         letter="C"
+        icon={Paperclip}
+        title="Attachments (optional)"
+        description="Attach a detailed JD or any supporting document."
+      >
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? []);
+            setAttachments((prev) => [...prev, ...files]);
+            e.target.value = '';
+          }}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          leftIcon={<Paperclip className="h-4 w-4" />}
+          onClick={() => fileRef.current?.click()}
+        >
+          Add files
+        </Button>
+        {attachments.length > 0 && (
+          <ul className="mt-3 space-y-2">
+            {attachments.map((f, i) => (
+              <li
+                key={`${f.name}-${i}`}
+                className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+              >
+                <span className="flex min-w-0 items-center gap-2 text-slate-700">
+                  <Paperclip className="h-4 w-4 shrink-0 text-slate-400" />
+                  <span className="truncate">{f.name}</span>
+                  <span className="shrink-0 text-xs text-slate-400">
+                    {(f.size / 1024).toFixed(0)} KB
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAttachments((prev) => prev.filter((_, j) => j !== i))
+                  }
+                  className="rounded p-1 text-slate-400 hover:bg-slate-200"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-2 text-xs text-slate-400">
+          Stored in this requisition&rsquo;s Drive folder after it&rsquo;s
+          created. Up to 15 MB each.
+        </p>
+      </Section>
+
+      {/* D · Preferred Sources */}
+      <Section
+        letter="D"
         icon={Building2}
         title="Preferred Source of Candidates"
         description="How should this role be sourced?"
@@ -358,16 +461,20 @@ function OrganogramBanner({
   loading,
   show,
   result,
+  requirement,
+  requiredPosts,
   needsSbu,
 }: {
   loading: boolean;
   show: boolean;
   result?: SeatLookupResult;
+  requirement?: 'existing' | 'new';
+  requiredPosts: number;
   needsSbu: boolean;
 }) {
   if (!show) return null;
 
-  if (loading || !result) {
+  if (loading || !result || !requirement) {
     return (
       <div className="mt-5 flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-500">
         <Loader2 className="h-4 w-4 animate-spin" />
@@ -376,7 +483,21 @@ function OrganogramBanner({
     );
   }
 
-  const existing = result.requirement === 'existing';
+  const existing = requirement === 'existing';
+  const vacant = result.vacant;
+  const beyond = Math.max(0, requiredPosts - vacant);
+
+  let message: string;
+  if (existing) {
+    message = `Replacement — filling ${requiredPosts} of ${vacant} vacant seat(s) in the organogram`;
+  } else if (!result.inOrganogram) {
+    message = 'New — this position is not in the organogram';
+  } else if (vacant <= 0) {
+    message = 'New — seat is fully filled (beyond sanctioned headcount)';
+  } else {
+    message = `New — requesting ${requiredPosts}, only ${vacant} vacant in the organogram (${beyond} beyond sanctioned headcount)`;
+  }
+
   return (
     <div
       className={cn(
@@ -392,11 +513,7 @@ function OrganogramBanner({
         ) : (
           <AlertTriangle className="h-4 w-4" />
         )}
-        {existing
-          ? `Replacement — ${result.vacant} vacant seat(s) in the organogram`
-          : result.inOrganogram
-            ? 'New — seat exists but is fully filled (beyond sanctioned headcount)'
-            : 'New — this position is not in the organogram'}
+        {message}
       </p>
       {needsSbu && (
         <p className="mt-1 text-xs">
@@ -454,6 +571,7 @@ function toPayload(
     totalVacantPosts: values.totalVacantPosts,
     unitFactory: values.unitFactory,
     department: values.department,
+    section: values.section || undefined,
     placeOfPosting: values.placeOfPosting,
     vacantDate: values.vacantDate || null,
     whenNeededDate: values.whenNeededDate || null,

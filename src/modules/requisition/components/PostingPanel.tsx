@@ -3,6 +3,7 @@ import { Send, Globe, CheckCircle2 } from 'lucide-react';
 
 import {
   Badge,
+  BusyOverlay,
   Button,
   Card,
   CardBody,
@@ -140,6 +141,7 @@ export function PostingPanel({
           Publish job posting
         </Button>
       </CardBody>
+      <BusyOverlay show={post.isPending} label="Posting requisition…" />
     </Card>
   );
 }

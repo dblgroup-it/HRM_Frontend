@@ -1,6 +1,7 @@
 import { Sparkles, RefreshCw } from 'lucide-react';
 
 import {
+  BusyOverlay,
   Button,
   Card,
   CardBody,
@@ -100,6 +101,7 @@ export function RoleProfilePanel({
           </p>
         )}
       </CardBody>
+      <BusyOverlay show={generate.isPending} label="Generating role profile…" />
     </Card>
   );
 }

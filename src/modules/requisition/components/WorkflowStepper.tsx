@@ -5,17 +5,23 @@ import { cn } from '@shared/lib';
 import type { RequisitionStatus } from '../types/requisition.types';
 import { WORKFLOW_STEPS } from '../constants';
 
-/** Maps a requisition status to how far along the 4 steps it is (1–4). */
+/**
+ * The step currently awaiting action. Steps before it are complete (green),
+ * this one is current (blue), later ones are not started.
+ */
 function currentStep(status: RequisitionStatus): number {
   switch (status) {
     case 'draft':
     case 'pending_approval':
-      return 1;
     case 'rejected':
-    case 'approved':
+      // Requisition raised → approvals in progress (rejected shows red here).
       return 2;
-    case 'profile_generated':
+    case 'approved':
+      // Approvals done → role profile is next.
       return 3;
+    case 'profile_generated':
+      // Role profile done → posting is next.
+      return 4;
     case 'posted':
       return 4;
     default:

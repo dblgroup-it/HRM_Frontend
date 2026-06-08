@@ -51,8 +51,8 @@ export const REQUIREMENT_TONE: Record<RequirementType, BadgeTone> = {
 };
 
 export const SOURCE_LABEL: Record<RequisitionSource, string> = {
-  factory: 'From Factory',
-  ho: 'From Head Office',
+  factory: 'Factory',
+  ho: 'Corporate Office',
 };
 
 export const PRIORITY_LABEL: Record<Priority, string> = {

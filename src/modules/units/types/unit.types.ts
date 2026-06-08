@@ -5,6 +5,7 @@ export interface ConfigPosition {
   unitId: string;
   departmentId: string;
   designation: string;
+  section: string | null;
   category: SeatCategory;
   sanctioned: number;
   filled: number;
@@ -31,6 +32,7 @@ export interface CreateUnitInput {
 
 export interface UpsertPositionInput {
   designation: string;
+  section?: string;
   category?: SeatCategory;
   sanctioned: number;
   filled?: number;

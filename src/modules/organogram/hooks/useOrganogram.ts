@@ -16,6 +16,15 @@ export function useOrganogramUnits() {
   });
 }
 
+/** Dept → Section → Designation tree for a unit (requisition form dropdowns). */
+export function useOrgStructure(unit: string) {
+  return useQuery({
+    queryKey: ['organogram', 'structure', unit] as const,
+    queryFn: () => organogramApi.structure(unit),
+    enabled: Boolean(unit),
+  });
+}
+
 /**
  * Live seat lookup used by the requisition form to decide New vs Replacement.
  * Enabled only once unit, department and a non-trivial designation are present.

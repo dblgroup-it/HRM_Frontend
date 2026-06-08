@@ -407,6 +407,24 @@ export const requisitionApi = {
       })
       .then((res) => res.data);
   },
+
+  uploadAttachment(id: string, file: File): Promise<Requisition> {
+    const fd = new FormData();
+    fd.append('file', file);
+    return http
+      .post<ApiResponse<Requisition>>(`/requisitions/${id}/attachments`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((res) => res.data);
+  },
+
+  removeAttachment(id: string, fileId: string): Promise<Requisition> {
+    return http
+      .delete<ApiResponse<Requisition>>(
+        `/requisitions/${id}/attachments/${fileId}`
+      )
+      .then((res) => res.data);
+  },
 };
 
 function applyDecision(

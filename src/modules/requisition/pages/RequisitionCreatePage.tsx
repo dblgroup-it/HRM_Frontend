@@ -1,15 +1,48 @@
+import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 
-import { PageHeader } from '@shared/components/ui';
+import { BusyOverlay, PageHeader } from '@shared/components/ui';
 import { ROUTES } from '@app/router/paths';
 
 import { RequisitionForm } from '../components/RequisitionForm';
 import { useCreateRequisition } from '../hooks/useRequisitions';
+import { requisitionApi } from '../api/requisition.api';
+import type { CreateRequisitionPayload } from '../types/requisition.types';
 
 export default function RequisitionCreatePage() {
   const navigate = useNavigate();
   const create = useCreateRequisition();
+  // `submitting` stays true for the WHOLE flow (create → upload attachments →
+  // navigate). The ref blocks a second submit synchronously, so rapid double-
+  // clicks can't create duplicate requisitions.
+  const [submitting, setSubmitting] = useState(false);
+  const busyRef = useRef(false);
+
+  const handleSubmit = (
+    payload: CreateRequisitionPayload,
+    attachments: File[],
+  ) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setSubmitting(true);
+    create.mutate(payload, {
+      onSuccess: async (created) => {
+        for (const file of attachments) {
+          try {
+            await requisitionApi.uploadAttachment(created.id, file);
+          } catch {
+            /* best-effort — the requisition is already created */
+          }
+        }
+        navigate(ROUTES.requisitionDetail(created.id));
+      },
+      onError: () => {
+        busyRef.current = false;
+        setSubmitting(false);
+      },
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -33,15 +66,12 @@ export default function RequisitionCreatePage() {
       )}
 
       <RequisitionForm
-        isSubmitting={create.isPending}
+        isSubmitting={submitting}
         onCancel={() => navigate(ROUTES.requisitions)}
-        onSubmit={(payload) =>
-          create.mutate(payload, {
-            onSuccess: (created) =>
-              navigate(ROUTES.requisitionDetail(created.id)),
-          })
-        }
+        onSubmit={handleSubmit}
       />
+
+      <BusyOverlay show={submitting} label="Submitting requisition…" />
     </div>
   );
 }

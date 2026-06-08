@@ -26,6 +26,7 @@ import { ApprovalPanel } from '../components/ApprovalPanel';
 import { RoleProfilePanel } from '../components/RoleProfilePanel';
 import { PostingPanel } from '../components/PostingPanel';
 import { EditRequisitionModal } from '../components/EditRequisitionModal';
+import { AttachmentsPanel } from '../components/AttachmentsPanel';
 import {
   EMPLOYMENT_NATURE_LABEL,
   REQUIREMENT_LABEL,
@@ -106,7 +107,8 @@ export default function RequisitionDetailPage() {
     { label: 'Nos. of required post', value: String(req.requiredPosts) },
     { label: 'Total vacant post', value: String(req.totalVacantPosts) },
     { label: 'Unit / Factory', value: req.unitFactory },
-    { label: 'Department / Section', value: req.department },
+    { label: 'Department', value: req.department },
+    ...(req.section ? [{ label: 'Section', value: req.section }] : []),
     { label: 'Place of posting', value: req.placeOfPosting },
     {
       label: 'When needed',
@@ -230,6 +232,8 @@ export default function RequisitionDetailPage() {
               </div>
             </CardBody>
           </Card>
+
+          <AttachmentsPanel requisition={req} />
         </div>
 
         {/* Right · workflow */}

@@ -3,6 +3,7 @@ import { Check, X, Clock, Undo2, History, ArrowUpFromLine } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import {
+  BusyOverlay,
   Button,
   Card,
   CardBody,
@@ -170,6 +171,7 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
           <ActivityLog requisition={requisition} />
         )}
       </CardBody>
+      <BusyOverlay show={action.isPending} label="Submitting decision…" />
     </Card>
   );
 }

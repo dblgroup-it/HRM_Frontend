@@ -36,6 +36,19 @@ export interface OrganogramUnit {
  * Result of checking the organogram for a requested position.
  * Drives the New vs Existing (replacement) decision.
  */
+/** Dept → Section → Designation tree (from ZingHR data) for the form dropdowns. */
+export interface OrgStructureSection {
+  section: string;
+  designations: string[];
+}
+export interface OrgStructureDepartment {
+  department: string;
+  sections: OrgStructureSection[];
+}
+export interface OrgStructure {
+  departments: OrgStructureDepartment[];
+}
+
 export interface SeatLookupResult {
   /** True when a sanctioned position exists for this designation. */
   inOrganogram: boolean;

@@ -22,6 +22,7 @@ export { Avatar } from './Avatar';
 export type { AvatarProps } from './Avatar';
 
 export { Spinner, FullPageSpinner } from './Spinner';
+export { BusyOverlay } from './BusyOverlay';
 export { Skeleton } from './Skeleton';
 
 export { DataTable } from './DataTable';
