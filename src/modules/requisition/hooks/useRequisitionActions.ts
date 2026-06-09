@@ -59,6 +59,26 @@ export function useGenerateRoleProfile() {
   });
 }
 
+/** Step 3 — save manual edits to the role profile. */
+export function useUpdateRoleProfile() {
+  const sync = useSyncRequisition();
+  return useMutation({
+    mutationFn: ({
+      id,
+      input,
+    }: {
+      id: string;
+      input: {
+        summary: string;
+        jobDescription: string;
+        responsibilities: string[];
+        requirements: string[];
+      };
+    }) => requisitionApi.updateRoleProfile(id, input),
+    onSuccess: sync,
+  });
+}
+
 /** Step 4 — publish to preferred candidate sources. */
 export function usePostRequisition() {
   const sync = useSyncRequisition();

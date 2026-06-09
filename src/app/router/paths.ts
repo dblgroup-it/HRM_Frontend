@@ -16,8 +16,18 @@ export const ROUTES = {
 
   // Recruitment pipeline (Phase 2)
   candidates: '/candidates',
+  talentPool: '/talent-pool',
   /** Public job-application page (no auth). */
   apply: (id = ':reqId') => `/apply/${id}`,
+  /** Committee member's own interview marking. */
+  myInterviews: '/my-interviews',
+  /** Medical officer's clearance queue (Phase 5). */
+  medical: '/medical',
+  /** Full-page onboarding workspace for a selected candidate. */
+  onboardingManage: (candidateId = ':candidateId') =>
+    `/onboarding/manage/${candidateId}`,
+  /** Public onboarding / document-submission page (no auth). */
+  onboarding: (token = ':token') => `/onboarding/${token}`,
 
   // People
   employees: '/employees',

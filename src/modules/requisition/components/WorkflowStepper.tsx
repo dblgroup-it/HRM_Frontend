@@ -23,7 +23,8 @@ function currentStep(status: RequisitionStatus): number {
       // Role profile done → posting is next.
       return 4;
     case 'posted':
-      return 4;
+      // Posted → candidate pipeline (and the phases beyond) is now in progress.
+      return 5;
     default:
       return 1;
   }
@@ -36,8 +37,8 @@ export function WorkflowStepper({ status }: { status: RequisitionStatus }) {
   return (
     <ol className="flex items-center">
       {WORKFLOW_STEPS.map((step, index) => {
-        const isComplete = step.step < active || status === 'posted';
-        const isCurrent = step.step === active && status !== 'posted';
+        const isComplete = step.step < active;
+        const isCurrent = step.step === active;
         const isRejectedHere = rejected && step.key === 'approval';
 
         return (

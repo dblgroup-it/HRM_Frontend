@@ -41,6 +41,22 @@ const CandidatesPage = lazy(
   () => import('@modules/recruitment/pages/RecruitmentPage')
 );
 const ApplyPage = lazy(() => import('@modules/candidates/pages/ApplyPage'));
+const TalentPoolPage = lazy(
+  () => import('@modules/candidates/pages/TalentPoolPage')
+);
+const MyInterviewsPage = lazy(
+  () => import('@modules/assessment/pages/MyInterviewsPage')
+);
+const ExamPage = lazy(() => import('@modules/assessment/pages/ExamPage'));
+const OnboardingPage = lazy(
+  () => import('@modules/onboarding/pages/OnboardingPage')
+);
+const MedicalQueuePage = lazy(
+  () => import('@modules/onboarding/pages/MedicalQueuePage')
+);
+const OnboardingManagePage = lazy(
+  () => import('@modules/onboarding/pages/OnboardingManagePage')
+);
 const EmployeesPage = lazy(
   () => import('@modules/employees/pages/EmployeesPage')
 );
@@ -66,6 +82,8 @@ export function AppRouter() {
 
         {/* Fully public — external candidates, no auth */}
         <Route path={ROUTES.apply()} element={<ApplyPage />} />
+        <Route path="/exam/:token" element={<ExamPage />} />
+        <Route path={ROUTES.onboarding()} element={<OnboardingPage />} />
 
         {/* Authenticated */}
         <Route element={<ProtectedRoute />}>
@@ -91,6 +109,16 @@ export function AppRouter() {
             />
 
             <Route path={ROUTES.candidates} element={<CandidatesPage />} />
+            <Route path={ROUTES.talentPool} element={<TalentPoolPage />} />
+            <Route
+              path={ROUTES.myInterviews}
+              element={<MyInterviewsPage />}
+            />
+            <Route path={ROUTES.medical} element={<MedicalQueuePage />} />
+            <Route
+              path={ROUTES.onboardingManage()}
+              element={<OnboardingManagePage />}
+            />
 
             <Route path={ROUTES.employees} element={<EmployeesPage />} />
             <Route

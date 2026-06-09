@@ -7,13 +7,16 @@ export interface LogoProps {
   /** Render the wordmark in white (for dark backgrounds). */
   inverted?: boolean;
   className?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
 }
 
 const markSizes = {
   sm: 'h-7 w-7',
   md: 'h-9 w-9',
   lg: 'h-12 w-12',
+  xl: 'h-16 w-16',
+  '2xl': 'h-24 w-24',
+  '3xl': 'h-36 w-36',
 };
 
 /** DBL Group brand mark + optional HRM system label. */

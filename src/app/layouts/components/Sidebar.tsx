@@ -7,6 +7,7 @@ import { Logo } from '@shared/components/ui';
 import { useAuth } from '@modules/auth';
 import { useMyPermissions } from '@modules/rbac';
 import { canAccessRecruitment } from '@modules/candidates';
+import { canAccessMedical } from '@modules/onboarding';
 import { NAVIGATION } from '@app/config/navigation';
 
 interface SidebarProps {
@@ -20,6 +21,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const role = user?.role;
   const { data: perms } = useMyPermissions();
   const canSeeRecruitment = canAccessRecruitment(perms);
+  const canSeeMedical = canAccessMedical(perms);
 
   return (
     <>
@@ -54,7 +56,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             const items = section.items.filter(
               (item) =>
                 (!item.roles || (role && item.roles.includes(role))) &&
-                (!item.requiresRecruitment || canSeeRecruitment)
+                (!item.requiresRecruitment || canSeeRecruitment) &&
+                (!item.requiresMedical || canSeeMedical)
             );
             if (items.length === 0) return null;
 

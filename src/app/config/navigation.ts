@@ -1,12 +1,15 @@
 import {
   LayoutDashboard,
   ClipboardList,
+  ClipboardCheck,
+  Stethoscope,
   Network,
   SlidersHorizontal,
   Plug,
   ShieldCheck,
   Users,
   UserSearch,
+  Star,
   Bell,
   Settings,
   type LucideIcon,
@@ -23,6 +26,8 @@ export interface NavItem {
   roles?: UserRole[];
   /** Gate to recruitment roles (Corporate HR / CHRO / super user). */
   requiresRecruitment?: boolean;
+  /** Gate to medical officers (and super users). */
+  requiresMedical?: boolean;
   /** Optional short tag, e.g. phase marker. */
   badge?: string;
 }
@@ -53,6 +58,28 @@ export const NAVIGATION: NavSection[] = [
         to: ROUTES.candidates,
         icon: UserSearch,
         requiresRecruitment: true,
+      },
+      {
+        label: 'Talent Pool',
+        to: ROUTES.talentPool,
+        icon: Star,
+        requiresRecruitment: true,
+      },
+    ],
+  },
+  {
+    heading: 'My Work',
+    items: [
+      {
+        label: 'My Interviews',
+        to: ROUTES.myInterviews,
+        icon: ClipboardCheck,
+      },
+      {
+        label: 'Medical Clearance',
+        to: ROUTES.medical,
+        icon: Stethoscope,
+        requiresMedical: true,
       },
     ],
   },

@@ -382,7 +382,36 @@ export const requisitionApi = {
       );
     }
     return http
-      .post<ApiResponse<Requisition>>(`/requisitions/${id}/role-profile`)
+      .post<ApiResponse<Requisition>>(`/requisitions/${id}/role-profile`, undefined, {
+        timeout: 90_000,
+      })
+      .then((res) => res.data);
+  },
+
+  updateRoleProfile(
+    id: string,
+    input: {
+      summary: string;
+      jobDescription: string;
+      responsibilities: string[];
+      requirements: string[];
+    }
+  ): Promise<Requisition> {
+    if (ENV.USE_MOCK_API) {
+      return delay(MOCK_LATENCY).then(() =>
+        updateStore(id, (r) => ({
+          ...r,
+          status: 'profile_generated',
+          roleProfile: {
+            ...input,
+            generatedAt: new Date().toISOString(),
+            generatedBy: 'manual',
+          },
+        }))
+      );
+    }
+    return http
+      .patch<ApiResponse<Requisition>>(`/requisitions/${id}/role-profile`, input)
       .then((res) => res.data);
   },
 

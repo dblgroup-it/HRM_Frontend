@@ -2,6 +2,7 @@ import type { RequisitionDrive } from '@modules/requisition/types/requisition.ty
 
 export type CandidateStage =
   | 'applied'
+  | 'ai_shortlisted'
   | 'shortlisted'
   | 'interview'
   | 'final'
@@ -19,14 +20,31 @@ export interface Candidate {
   cvFileId: string | null;
   cvUrl: string | null;
   notes: string;
+  /** AI CV-screening match score (0-100) + rationale, null until screened. */
+  matchScore: number | null;
+  matchSummary: string;
+  screenedAt: string | null;
+  talentPool: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+/** A talent-pool candidate with its originating requisition. */
+export interface TalentPoolCandidate extends Candidate {
+  requisition: {
+    id: string;
+    code: string;
+    designation: string;
+    unit: string;
+    department: string;
+  };
 }
 
 /** Drive workspace status for a requisition. */
 export interface RecruitmentWorkspace {
   connected: boolean;
   mailConfigured?: boolean;
+  aiScreening?: boolean;
   drive: RequisitionDrive | null;
 }
 
@@ -65,4 +83,5 @@ export interface UpdateCandidateInput {
   phone?: string;
   notes?: string;
   stage?: CandidateStage;
+  talentPool?: boolean;
 }

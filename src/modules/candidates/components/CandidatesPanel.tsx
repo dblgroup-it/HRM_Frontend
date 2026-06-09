@@ -3,16 +3,18 @@ import {
   Copy,
   FolderOpen,
   FolderPlus,
-  HardDrive,
   Link2,
   Plus,
   RefreshCw,
   Search,
+  ShieldCheck,
+  Sparkles,
   Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
+  BusyOverlay,
   Button,
   Card,
   CardBody,
@@ -23,10 +25,15 @@ import {
 } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import type { Requisition } from '@modules/requisition/types/requisition.types';
+import {
+  CandidateExamsModal,
+  CandidateInterviewsModal,
+} from '@modules/assessment';
 
 import {
   useCandidates,
   useRecruitmentWorkspace,
+  useScreenAll,
   useSetupWorkspace,
   useSyncDrive,
 } from '../hooks/useCandidates';
@@ -40,11 +47,22 @@ type Tab = 'all' | CandidateStage;
 const TABS: { key: Tab; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'applied', label: 'Applied' },
+  { key: 'ai_shortlisted', label: 'AI Shortlisted' },
   { key: 'shortlisted', label: 'Shortlisted' },
   { key: 'interview', label: 'Interview' },
   { key: 'final', label: 'Final' },
   { key: 'selected', label: 'Selected' },
   { key: 'rejected', label: 'Rejected' },
+];
+
+/** Compact pipeline funnel shown above the list. */
+const FUNNEL: { key: CandidateStage; label: string; tone: string }[] = [
+  { key: 'applied', label: 'Applied', tone: 'bg-slate-400' },
+  { key: 'ai_shortlisted', label: 'AI Shortlisted', tone: 'bg-violet-500' },
+  { key: 'shortlisted', label: 'Shortlisted', tone: 'bg-sky-500' },
+  { key: 'interview', label: 'Interview', tone: 'bg-amber-500' },
+  { key: 'final', label: 'Final', tone: 'bg-indigo-500' },
+  { key: 'selected', label: 'Selected', tone: 'bg-emerald-500' },
 ];
 
 export function CandidatesPanel({
@@ -59,11 +77,15 @@ export function CandidatesPanel({
   const { data: candidates = [], isLoading } = useCandidates(reqId);
   const setup = useSetupWorkspace(reqId);
   const sync = useSyncDrive(reqId);
+  const screenAll = useScreenAll(reqId);
+  const aiOn = workspace?.aiScreening ?? false;
 
   const [tab, setTab] = useState<Tab>('all');
   const [search, setSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [emailTarget, setEmailTarget] = useState<Candidate | null>(null);
+  const [interviewTarget, setInterviewTarget] = useState<Candidate | null>(null);
+  const [examTarget, setExamTarget] = useState<Candidate | null>(null);
 
   const drive = workspace?.drive ?? requisition.drive ?? null;
   const driveConnected = workspace?.connected ?? true;
@@ -112,6 +134,25 @@ export function CandidatesPanel({
         </CardTitle>
         {canManage && drive && (
           <div className="flex items-center gap-2">
+            {aiOn && (
+              <Button
+                size="sm"
+                variant="outline"
+                leftIcon={
+                  <Sparkles
+                    className={cn(
+                      'h-4 w-4 text-violet-600',
+                      screenAll.isPending && 'animate-pulse',
+                    )}
+                  />
+                }
+                onClick={() => screenAll.mutate()}
+                disabled={screenAll.isPending}
+                title="AI-screen new applied CVs against this role"
+              >
+                {screenAll.isPending ? 'Screening…' : 'AI Screen'}
+              </Button>
+            )}
             <Button
               size="sm"
               variant="outline"
@@ -166,32 +207,73 @@ export function CandidatesPanel({
           )
         ) : (
           <div className="space-y-2">
-            <div className="grid gap-2 sm:grid-cols-2">
-              <ShareLink
-                icon={<Link2 className="h-4 w-4 shrink-0 text-brand-600" />}
-                label="Application link — for job ads"
-                hint="Branded form, no Google account needed"
-                url={applyLink}
-                onCopy={() => copy(applyLink, 'Application link')}
-                accent
-              />
-              <ShareLink
-                icon={<HardDrive className="h-4 w-4 shrink-0 text-slate-500" />}
-                label="Drive CV link — anyone can drop CVs"
-                hint="Shared “anyone with the link”"
-                url={drive.allCvFolderUrl}
-                onCopy={() => copy(drive.allCvFolderUrl, 'Drive CV link')}
-              />
-            </div>
+            <ShareLink
+              icon={<Link2 className="h-4 w-4 shrink-0 text-brand-600" />}
+              label="Application link — share this for CV collection"
+              hint="Branded form, no Google account needed"
+              url={applyLink}
+              onCopy={() => copy(applyLink, 'Application link')}
+              accent
+            />
+            <p className="flex items-start gap-1.5 text-xs text-slate-500">
+              <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+              Candidates upload through this secure form — they can&rsquo;t see or
+              delete anyone else&rsquo;s CV. The Drive folder stays private to
+              recruitment.
+            </p>
             <a
               href={drive.rootFolderUrl}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-brand-600"
             >
-              <FolderOpen className="h-3.5 w-3.5" /> Open full Drive workspace (all
-              stage folders)
+              <FolderOpen className="h-3.5 w-3.5" /> Open Drive workspace (HR only)
             </a>
+          </div>
+        )}
+
+        {/* Pipeline funnel */}
+        {drive && candidates.length > 0 && (
+          <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+            <div className="flex flex-wrap items-stretch gap-1.5">
+              {FUNNEL.map((s) => {
+                const n = counts[s.key] ?? 0;
+                const pct = candidates.length
+                  ? Math.round((n / candidates.length) * 100)
+                  : 0;
+                return (
+                  <button
+                    key={s.key}
+                    type="button"
+                    onClick={() => setTab(s.key)}
+                    style={{ flexGrow: Math.max(1, n) }}
+                    className={cn(
+                      'group min-w-[88px] rounded-lg px-3 py-2 text-left transition',
+                      tab === s.key
+                        ? 'bg-white shadow-sm ring-1 ring-brand-200'
+                        : 'hover:bg-white/70',
+                    )}
+                    title={`${n} in ${s.label}`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className={cn('h-2 w-2 rounded-full', s.tone)} />
+                      <span className="text-lg font-semibold leading-none text-slate-800">
+                        {n}
+                      </span>
+                    </div>
+                    <p className="mt-1 truncate text-[11px] font-medium text-slate-500">
+                      {s.label}
+                    </p>
+                    <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-slate-200">
+                      <div
+                        className={cn('h-full rounded-full', s.tone)}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -257,6 +339,8 @@ export function CandidatesPanel({
                       reqId={reqId}
                       canManage={canManage}
                       onEmail={setEmailTarget}
+                      onInterviews={setInterviewTarget}
+                      onExams={setExamTarget}
                     />
                   ))}
                 </div>
@@ -277,6 +361,28 @@ export function CandidatesPanel({
         designation={requisition.designation}
         open={Boolean(emailTarget)}
         onClose={() => setEmailTarget(null)}
+      />
+      {interviewTarget && (
+        <CandidateInterviewsModal
+          reqId={reqId}
+          candidate={{ id: interviewTarget.id, name: interviewTarget.name }}
+          open={Boolean(interviewTarget)}
+          onClose={() => setInterviewTarget(null)}
+        />
+      )}
+      {examTarget && (
+        <CandidateExamsModal
+          candidate={{ id: examTarget.id, name: examTarget.name }}
+          open={Boolean(examTarget)}
+          onClose={() => setExamTarget(null)}
+        />
+      )}
+
+      <BusyOverlay
+        show={screenAll.isPending}
+        variant="ai"
+        label="AI is screening CVs…"
+        sublabel="Reading each CV and matching it to the role — this can take a moment."
       />
     </Card>
   );

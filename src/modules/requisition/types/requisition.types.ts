@@ -66,6 +66,8 @@ export interface RoleProfile {
   responsibilities: string[];
   requirements: string[];
   generatedAt: ISODateString;
+  /** Whether the LLM wrote it, the template produced it, or HR edited it. */
+  generatedBy?: 'ai' | 'template' | 'manual';
 }
 
 /** Job posting record (Step 4). */
@@ -78,6 +80,7 @@ export interface JobPosting {
 /** Phase 2 — per-stage candidate counts for a requisition. */
 export interface CandidateStats {
   applied: number;
+  ai_shortlisted: number;
   shortlisted: number;
   interview: number;
   final: number;

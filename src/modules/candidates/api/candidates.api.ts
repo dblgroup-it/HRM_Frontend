@@ -8,6 +8,7 @@ import type {
   PublicApplyInput,
   PublicJobInfo,
   RecruitmentWorkspace,
+  TalentPoolCandidate,
   UpdateCandidateInput,
 } from '../types/candidate.types';
 
@@ -42,6 +43,11 @@ export const candidatesApi = {
       .get<ApiResponse<Candidate[]>>(`/requisitions/${reqId}/candidates`)
       .then((r) => r.data),
 
+  talentPool: (): Promise<TalentPoolCandidate[]> =>
+    http
+      .get<ApiResponse<TalentPoolCandidate[]>>('/candidates/talent-pool')
+      .then((r) => r.data),
+
   syncDrive: (
     reqId: string,
   ): Promise<{ imported: number; candidates: Candidate[] }> =>
@@ -67,6 +73,29 @@ export const candidatesApi = {
   update: (id: string, input: UpdateCandidateInput): Promise<Candidate> =>
     http
       .patch<ApiResponse<Candidate>>(`/candidates/${id}`, input)
+      .then((r) => r.data),
+
+  screen: (id: string): Promise<Candidate> =>
+    http
+      .post<ApiResponse<Candidate>>(`/candidates/${id}/screen`, undefined, {
+        timeout: 90_000,
+      })
+      .then((r) => r.data),
+
+  screenAll: (
+    reqId: string,
+  ): Promise<{ screened: number; shortlisted: number; candidates: Candidate[] }> =>
+    http
+      .post<
+        ApiResponse<{
+          screened: number;
+          shortlisted: number;
+          candidates: Candidate[];
+        }>
+      >(`/requisitions/${reqId}/candidates/screen`, undefined, {
+        // Bulk screening runs sequentially through every CV — allow plenty.
+        timeout: 600_000,
+      })
       .then((r) => r.data),
 
   uploadCv: (id: string, cv: File): Promise<Candidate> => {

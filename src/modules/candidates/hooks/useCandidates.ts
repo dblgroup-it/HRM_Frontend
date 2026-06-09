@@ -12,6 +12,7 @@ export const candidateKeys = {
   all: ['candidates'] as const,
   list: (reqId: string) => ['candidates', 'list', reqId] as const,
   workspace: (reqId: string) => ['candidates', 'workspace', reqId] as const,
+  talentPool: ['candidates', 'talent-pool'] as const,
 };
 
 function errMsg(error: unknown, fallback: string): string {
@@ -38,6 +39,28 @@ export function useCandidates(reqId: string, enabled = true) {
   });
 }
 
+export function useTalentPool() {
+  return useQuery({
+    queryKey: candidateKeys.talentPool,
+    queryFn: () => candidatesApi.talentPool(),
+  });
+}
+
+/** Toggle a candidate's talent-pool flag from anywhere (e.g. the Talent Pool page). */
+export function useToggleTalentPool() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { id: string; talentPool: boolean }) =>
+      candidatesApi.update(vars.id, { talentPool: vars.talentPool }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: candidateKeys.talentPool });
+      qc.invalidateQueries({ queryKey: candidateKeys.all });
+      toast.success('Talent pool updated');
+    },
+    onError: (error) => toast.error(errMsg(error, 'Could not update')),
+  });
+}
+
 export function useSetupWorkspace(reqId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -58,6 +81,7 @@ function invalidatePipeline(
   reqId: string,
 ) {
   qc.invalidateQueries({ queryKey: candidateKeys.list(reqId) });
+  qc.invalidateQueries({ queryKey: candidateKeys.talentPool });
   qc.invalidateQueries({ queryKey: ['requisitions'] });
 }
 
@@ -121,6 +145,37 @@ export function useEmailCandidate(reqId: string) {
       toast.success(`Email sent to ${res.to}`);
     },
     onError: (error) => toast.error(errMsg(error, 'Could not send the email')),
+  });
+}
+
+/** AI-screen all un-screened applied CVs in this requisition. */
+export function useScreenAll(reqId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => candidatesApi.screenAll(reqId),
+    onSuccess: (result) => {
+      invalidatePipeline(qc, reqId);
+      toast.success(
+        result.screened === 0
+          ? 'No new CVs to screen'
+          : `Screened ${result.screened} CV${result.screened > 1 ? 's' : ''} — ${result.shortlisted} AI-shortlisted`,
+      );
+    },
+    onError: (error) =>
+      toast.error(errMsg(error, 'Could not run AI screening')),
+  });
+}
+
+/** Screen (or re-screen) a single candidate. */
+export function useScreenCandidate(reqId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => candidatesApi.screen(id),
+    onSuccess: () => {
+      invalidatePipeline(qc, reqId);
+      toast.success('CV screened');
+    },
+    onError: (error) => toast.error(errMsg(error, 'Could not screen the CV')),
   });
 }
 

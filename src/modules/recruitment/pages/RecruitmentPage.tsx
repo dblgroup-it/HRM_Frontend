@@ -41,9 +41,15 @@ const STAGE_SEGMENTS: {
   dot: string;
 }[] = [
   { key: 'applied', label: 'Applied', bar: 'bg-slate-300', dot: 'bg-slate-400' },
+  {
+    key: 'ai_shortlisted',
+    label: 'AI Shortlisted',
+    bar: 'bg-violet-400',
+    dot: 'bg-violet-500',
+  },
   { key: 'shortlisted', label: 'Shortlisted', bar: 'bg-sky-400', dot: 'bg-sky-500' },
   { key: 'interview', label: 'Interview', bar: 'bg-amber-400', dot: 'bg-amber-500' },
-  { key: 'final', label: 'Final', bar: 'bg-violet-400', dot: 'bg-violet-500' },
+  { key: 'final', label: 'Final', bar: 'bg-indigo-400', dot: 'bg-indigo-500' },
   { key: 'selected', label: 'Selected', bar: 'bg-emerald-500', dot: 'bg-emerald-500' },
   { key: 'rejected', label: 'Rejected', bar: 'bg-rose-300', dot: 'bg-rose-400' },
 ];
@@ -320,9 +326,10 @@ const FUNNEL: {
   color: string;
 }[] = [
   { key: 'applied', abbr: 'Ap', label: 'Applied', color: 'bg-slate-400' },
+  { key: 'ai_shortlisted', abbr: 'AI', label: 'AI Shortlisted', color: 'bg-violet-500' },
   { key: 'shortlisted', abbr: 'Sh', label: 'Shortlisted', color: 'bg-sky-500' },
   { key: 'interview', abbr: 'In', label: 'Interview', color: 'bg-amber-500' },
-  { key: 'final', abbr: 'Fi', label: 'Final', color: 'bg-violet-500' },
+  { key: 'final', abbr: 'Fi', label: 'Final', color: 'bg-indigo-500' },
   { key: 'selected', abbr: 'Se', label: 'Selected', color: 'bg-emerald-500' },
 ];
 

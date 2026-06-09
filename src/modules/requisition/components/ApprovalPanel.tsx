@@ -158,7 +158,7 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
 
         {allDone && (
           <p className="mt-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
-            ✓ Fully approved — ready to generate the role profile.
+            ✓ {APPROVED_MESSAGE[requisition.status] ?? APPROVED_MESSAGE.approved}
           </p>
         )}
         {isRejected && (
@@ -175,6 +175,13 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
     </Card>
   );
 }
+
+/** Post-approval status message — updates as Corporate HR moves the requisition on. */
+const APPROVED_MESSAGE: Record<string, string> = {
+  approved: 'Fully approved — ready to generate the role profile.',
+  profile_generated: 'Role profile ready — continue to post the vacancy.',
+  posted: 'Vacancy posted — now collecting candidates.',
+};
 
 const ACTION_LABEL: Record<ApprovalDecision, string> = {
   approved: 'approved',

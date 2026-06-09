@@ -18,6 +18,9 @@ import { formatDate } from '@shared/utils';
 import { ROUTES } from '@app/router/paths';
 
 import { CandidatesPanel, canAccessRecruitment } from '@modules/candidates';
+import { AssessmentPanel } from '@modules/assessment';
+import { OnboardingTab } from '@modules/onboarding';
+import { cn } from '@shared/lib';
 
 import { useRequisition } from '../hooks/useRequisitions';
 import { RequisitionStatusBadge } from '../components/RequisitionStatusBadge';
@@ -42,6 +45,7 @@ export default function RequisitionDetailPage() {
   const { data: req, isLoading, isError } = useRequisition(id);
   const { data: perms } = useMyPermissions();
   const [editOpen, setEditOpen] = useState(false);
+  const [tab, setTab] = useState<TabKey | null>(null);
 
   // Return to wherever the user came from (Candidates, Requisitions, …).
   const nav = (location.state ?? null) as {
@@ -133,6 +137,34 @@ export default function RequisitionDetailPage() {
     ...(req.others ? [{ label: 'Others', value: req.others }] : []),
   ];
 
+  // Lifecycle-ordered tabs (only the ones that apply to this requisition).
+  const tabs: { key: TabKey; label: string }[] = [
+    { key: 'details', label: 'Details' },
+    { key: 'approvals', label: 'Approvals' },
+    ...(showProfile ? [{ key: 'posting' as const, label: 'Profile & Posting' }] : []),
+    ...(showCandidates
+      ? [{ key: 'recruitment' as const, label: 'Recruitment' }]
+      : []),
+    ...(showCandidates && canCorporateHrContinue
+      ? [{ key: 'assessment' as const, label: 'Assessment' }]
+      : []),
+    ...(showCandidates && canCorporateHrContinue
+      ? [{ key: 'onboarding' as const, label: 'Onboarding' }]
+      : []),
+  ];
+  const defaultTab: TabKey =
+    req.status === 'posted'
+      ? showCandidates
+        ? 'recruitment'
+        : 'posting'
+      : req.status === 'approved' || req.status === 'profile_generated'
+        ? 'posting'
+        : req.status === 'draft'
+          ? 'details'
+          : 'approvals';
+  const activeTab: TabKey =
+    tab && tabs.some((t) => t.key === tab) ? tab : defaultTab;
+
   return (
     <div className="space-y-6">
       <Link
@@ -180,71 +212,92 @@ export default function RequisitionDetailPage() {
         onClose={() => setEditOpen(false)}
       />
 
-      {/* Workflow progress */}
+      {/* Workflow progress — the lifecycle at a glance, always visible */}
       <Card>
         <CardBody>
           <WorkflowStepper status={req.status} />
         </CardBody>
       </Card>
 
-      {/* Candidate pipeline — prominent for posted requisitions */}
-      {showCandidates && (
-        <CandidatesPanel requisition={req} canManage={canCorporateHrContinue} />
+      {/* Lifecycle tabs */}
+      <div className="flex flex-wrap gap-1 border-b border-slate-200">
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setTab(t.key)}
+            className={cn(
+              '-mb-px border-b-2 px-4 py-2 text-sm font-medium transition',
+              activeTab === t.key
+                ? 'border-brand-600 text-brand-700'
+                : 'border-transparent text-slate-500 hover:text-slate-800',
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      {activeTab === 'details' && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <DetailCard title="A · Vacancy Information" rows={vacancy} />
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>B · Job Analysis</CardTitle>
+              </CardHeader>
+              <CardBody className="space-y-4">
+                <div>
+                  <p className="text-xs text-slate-400">Job description</p>
+                  <p className="mt-0.5 text-sm text-slate-700">
+                    {req.jobDescription}
+                  </p>
+                </div>
+                {jobAnalysis.map((r) => (
+                  <FieldRow key={r.label} {...r} />
+                ))}
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>C · Preferred Sources</CardTitle>
+              </CardHeader>
+              <CardBody>
+                <div className="flex flex-wrap gap-1.5">
+                  {req.preferredSources.length > 0 ? (
+                    req.preferredSources.map((s) => (
+                      <Badge key={s} tone="neutral">
+                        {PREFERRED_SOURCE_LABEL[s]}
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-sm text-slate-400">
+                      Not specified
+                    </span>
+                  )}
+                </div>
+              </CardBody>
+            </Card>
+
+            <AttachmentsPanel requisition={req} />
+          </div>
+        </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Left · the form */}
-        <div className="space-y-6 lg:col-span-1">
-          <DetailCard title="A · Vacancy Information" rows={vacancy} />
-
-          <Card>
-            <CardHeader>
-              <CardTitle>B · Job Analysis</CardTitle>
-            </CardHeader>
-            <CardBody className="space-y-4">
-              <div>
-                <p className="text-xs text-slate-400">Job description</p>
-                <p className="mt-0.5 text-sm text-slate-700">
-                  {req.jobDescription}
-                </p>
-              </div>
-              {jobAnalysis.map((r) => (
-                <FieldRow key={r.label} {...r} />
-              ))}
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>C · Preferred Sources</CardTitle>
-            </CardHeader>
-            <CardBody>
-              <div className="flex flex-wrap gap-1.5">
-                {req.preferredSources.length > 0 ? (
-                  req.preferredSources.map((s) => (
-                    <Badge key={s} tone="neutral">
-                      {PREFERRED_SOURCE_LABEL[s]}
-                    </Badge>
-                  ))
-                ) : (
-                  <span className="text-sm text-slate-400">Not specified</span>
-                )}
-              </div>
-            </CardBody>
-          </Card>
-
-          <AttachmentsPanel requisition={req} />
-        </div>
-
-        {/* Right · workflow */}
-        <div className="space-y-6 lg:col-span-2">
+      {activeTab === 'approvals' && (
+        <div className="space-y-6">
           <ApprovalPanel requisition={req} />
-          {showProfile && (
-            <RoleProfilePanel
-              requisition={req}
-              canContinue={canCorporateHrContinue}
-            />
-          )}
+        </div>
+      )}
+
+      {activeTab === 'posting' && showProfile && (
+        <div className="space-y-6">
+          <RoleProfilePanel
+            requisition={req}
+            canContinue={canCorporateHrContinue}
+          />
           {showPosting && (
             <PostingPanel
               requisition={req}
@@ -252,10 +305,30 @@ export default function RequisitionDetailPage() {
             />
           )}
         </div>
-      </div>
+      )}
+
+      {activeTab === 'recruitment' && showCandidates && (
+        <CandidatesPanel requisition={req} canManage={canCorporateHrContinue} />
+      )}
+
+      {activeTab === 'assessment' && showCandidates && canCorporateHrContinue && (
+        <AssessmentPanel requisition={req} />
+      )}
+
+      {activeTab === 'onboarding' && showCandidates && canCorporateHrContinue && (
+        <OnboardingTab reqId={req.id} canManage={canCorporateHrContinue} />
+      )}
     </div>
   );
 }
+
+type TabKey =
+  | 'details'
+  | 'approvals'
+  | 'posting'
+  | 'recruitment'
+  | 'assessment'
+  | 'onboarding';
 
 interface Row {
   label: string;

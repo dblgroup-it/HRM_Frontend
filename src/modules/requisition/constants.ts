@@ -154,6 +154,9 @@ export const WORKFLOW_STEPS = [
   { key: 'approval', label: 'Approvals', step: 2 },
   { key: 'profile', label: 'Role Profile', step: 3 },
   { key: 'posting', label: 'Job Posting', step: 4 },
+  { key: 'candidates', label: 'Candidates', step: 5 },
+  { key: 'assessment', label: 'Assessment', step: 6 },
+  { key: 'onboarding', label: 'Onboarding', step: 7 },
 ] as const;
 
 // --- Select option helpers ---------------------------------------------------
