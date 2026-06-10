@@ -14,11 +14,41 @@ import { formatCompact } from '@shared/utils';
 
 import type { DashboardStat } from '../types/dashboard.types';
 
-const META: Record<string, { icon: LucideIcon; chip: string }> = {
-  employees: { icon: Users, chip: 'bg-brand-50 text-brand-600' },
-  activeEmployees: { icon: UserCheck, chip: 'bg-emerald-50 text-emerald-600' },
-  openRequisitions: { icon: ClipboardList, chip: 'bg-amber-50 text-amber-600' },
-  vacantSeats: { icon: Building2, chip: 'bg-violet-50 text-violet-600' },
+const META: Record<
+  string,
+  { icon: LucideIcon; chip: string; card: string; value: string }
+> = {
+  employees: {
+    icon: Users,
+    chip: 'bg-brand-100 text-brand-700',
+    card: 'bg-gradient-to-br from-brand-50 to-white border-brand-100',
+    value: 'text-brand-900',
+  },
+  activeEmployees: {
+    icon: UserCheck,
+    chip: 'bg-emerald-100 text-emerald-700',
+    card: 'bg-gradient-to-br from-emerald-50 to-white border-emerald-100',
+    value: 'text-emerald-900',
+  },
+  openRequisitions: {
+    icon: ClipboardList,
+    chip: 'bg-amber-100 text-amber-700',
+    card: 'bg-gradient-to-br from-amber-50 to-white border-amber-100',
+    value: 'text-amber-900',
+  },
+  vacantSeats: {
+    icon: Building2,
+    chip: 'bg-violet-100 text-violet-700',
+    card: 'bg-gradient-to-br from-violet-50 to-white border-violet-100',
+    value: 'text-violet-900',
+  },
+};
+
+const FALLBACK = {
+  icon: Users,
+  chip: 'bg-brand-100 text-brand-700',
+  card: 'bg-gradient-to-br from-brand-50 to-white border-brand-100',
+  value: 'text-brand-900',
 };
 
 export function StatsGrid({
@@ -30,30 +60,32 @@ export function StatsGrid({
 }) {
   if (isLoading || !stats) {
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-[124px] rounded-2xl" />
+          <Skeleton key={i} className="h-[112px] rounded-2xl sm:h-[124px]" />
         ))}
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
       {stats.map((stat) => {
-        const meta =
-          META[stat.key] ?? { icon: Users, chip: 'bg-brand-50 text-brand-600' };
+        const meta = META[stat.key] ?? FALLBACK;
         const Icon = meta.icon;
         const up = (stat.trend ?? 0) >= 0;
         return (
           <div
             key={stat.key}
-            className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_28px_-16px_rgba(16,24,40,0.25)]"
+            className={cn(
+              'group rounded-2xl border p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-16px_rgba(16,24,40,0.28)] sm:p-5',
+              meta.card,
+            )}
           >
             <div className="flex items-start justify-between">
               <span
                 className={cn(
-                  'flex h-11 w-11 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105',
+                  'flex h-10 w-10 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105 sm:h-11 sm:w-11',
                   meta.chip,
                 )}
               >
@@ -77,10 +109,17 @@ export function StatsGrid({
                 </span>
               )}
             </div>
-            <p className="mt-4 text-3xl font-bold tracking-tight text-ink-dark">
+            <p
+              className={cn(
+                'mt-3 text-2xl font-bold tracking-tight sm:mt-4 sm:text-3xl',
+                meta.value,
+              )}
+            >
               {formatCompact(stat.value)}
             </p>
-            <p className="mt-0.5 text-sm text-slate-500">{stat.label}</p>
+            <p className="mt-0.5 text-xs font-medium text-slate-600 sm:text-sm">
+              {stat.label}
+            </p>
           </div>
         );
       })}

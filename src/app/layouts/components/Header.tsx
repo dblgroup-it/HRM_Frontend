@@ -194,7 +194,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur lg:px-6">
+    <header className="sticky top-0 z-20 bg-slate-100/80 px-3 backdrop-blur sm:px-4 lg:px-5">
       <div className="grid min-h-[64px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
         <div className="flex min-w-0 items-center">
           <button
@@ -221,7 +221,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             }}
             onFocus={() => setSearchOpen(true)}
             placeholder="Search employees…"
-            className="h-10 w-full rounded-full border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/10"
+            className="h-11 w-full rounded-full bg-white pl-11 pr-4 text-sm text-slate-700 shadow-sm outline-none ring-1 ring-slate-200/70 transition placeholder:text-slate-400 hover:ring-slate-300 focus:bg-white focus:ring-2 focus:ring-brand-500/40"
           />
 
           {searchOpen && query.trim().length > 0 && (

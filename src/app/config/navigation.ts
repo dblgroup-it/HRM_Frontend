@@ -29,6 +29,8 @@ export interface NavItem {
   requiresRecruitment?: boolean;
   /** Gate to medical officers (and super users). */
   requiresMedical?: boolean;
+  /** Gate to management / Corporate HR / CHRO / super (AI insights). */
+  requiresInsights?: boolean;
   /** Optional short tag, e.g. phase marker. */
   badge?: string;
 }
@@ -43,6 +45,13 @@ export const NAVIGATION: NavSection[] = [
     heading: 'Overview',
     items: [
       { label: 'Dashboard', to: ROUTES.dashboard, icon: LayoutDashboard },
+      // {
+      //   label: 'AI Insights',
+      //   to: ROUTES.insights,
+      //   icon: Sparkles,
+      //   requiresInsights: true,
+      //   badge: 'AI',
+      // },
     ],
   },
   {

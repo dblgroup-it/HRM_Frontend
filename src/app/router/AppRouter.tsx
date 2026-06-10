@@ -60,6 +60,7 @@ const MedicalQueuePage = lazy(
 const OnboardingManagePage = lazy(
   () => import('@modules/onboarding/pages/OnboardingManagePage')
 );
+const InsightsPage = lazy(() => import('@modules/insights/pages/InsightsPage'));
 const EmployeesPage = lazy(
   () => import('@modules/employees/pages/EmployeesPage')
 );
@@ -119,6 +120,7 @@ export function AppRouter() {
               element={<MyInterviewsPage />}
             />
             <Route path={ROUTES.medical} element={<MedicalQueuePage />} />
+            <Route path={ROUTES.insights} element={<InsightsPage />} />
             <Route
               path={ROUTES.onboardingManage()}
               element={<OnboardingManagePage />}

@@ -22,19 +22,18 @@ export default function DashboardPage() {
         </p>
       ) : (
         <>
-          {/* New requisitions land here — kept top as the priority feed. */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2">
+          {/* Two independent columns so neither side forces an empty gap. */}
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+            {/* Left (2/3): the priority feed + department breakdown */}
+            <div className="space-y-6 lg:col-span-2">
               <RequisitionQueue requisitions={data.requisitions} />
-            </div>
-            <OrganogramSnapshot summary={data.summary} />
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2">
               <DepartmentBreakdown departments={data.departments} />
             </div>
-            <RecentHires hires={data.recentHires} />
+            {/* Right (1/3): capacity + recent hires */}
+            <div className="space-y-6">
+              <OrganogramSnapshot summary={data.summary} />
+              <RecentHires hires={data.recentHires} />
+            </div>
           </div>
         </>
       )}

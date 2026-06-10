@@ -8,6 +8,7 @@ import { useAuth } from '@modules/auth';
 import { useMyPermissions } from '@modules/rbac';
 import { canAccessRecruitment } from '@modules/candidates';
 import { canAccessMedical } from '@modules/onboarding';
+import { canAccessInsights } from '@modules/insights';
 import { NAVIGATION } from '@app/config/navigation';
 
 interface SidebarProps {
@@ -30,6 +31,7 @@ export function Sidebar({
   const { data: perms } = useMyPermissions();
   const canSeeRecruitment = canAccessRecruitment(perms);
   const canSeeMedical = canAccessMedical(perms);
+  const canSeeInsights = canAccessInsights(perms, role);
 
   return (
     <>
@@ -44,14 +46,14 @@ export function Sidebar({
 
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-slate-200 bg-white shadow-xl transition-all duration-300 ease-out lg:static lg:translate-x-0 lg:shadow-none',
+          'fixed inset-y-0 left-0 z-40 flex w-72 flex-col bg-white shadow-xl transition-all duration-300 ease-out lg:static lg:translate-x-0 lg:bg-transparent lg:shadow-none',
           collapsed ? 'lg:w-20' : 'lg:w-72',
           open ? 'translate-x-0' : '-translate-x-full'
         )}
       >
         <div
           className={cn(
-            'relative border-b border-slate-100 px-5 py-6 transition-all duration-300',
+            'relative px-5 py-6 transition-all duration-300',
             collapsed && 'lg:px-3 lg:py-5'
           )}
         >
@@ -113,7 +115,8 @@ export function Sidebar({
               (item) =>
                 (!item.roles || (role && item.roles.includes(role))) &&
                 (!item.requiresRecruitment || canSeeRecruitment) &&
-                (!item.requiresMedical || canSeeMedical)
+                (!item.requiresMedical || canSeeMedical) &&
+                (!item.requiresInsights || canSeeInsights)
             );
             if (items.length === 0) return null;
 
@@ -128,7 +131,7 @@ export function Sidebar({
                 >
                   {section.heading}
                 </p>
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   {items.map((item) => (
                     <NavLink
                       key={item.to}
@@ -138,34 +141,24 @@ export function Sidebar({
                       title={collapsed ? item.label : undefined}
                       className={({ isActive }) =>
                         cn(
-                          'group relative flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
+                          'group flex min-h-10 items-center gap-3 rounded-full px-3.5 py-2 text-sm transition-all duration-200',
                           collapsed && 'lg:justify-center lg:gap-0 lg:px-2',
                           isActive
-                            ? 'bg-brand-50 text-brand-700'
-                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            ? 'bg-brand-100 font-semibold text-brand-800 shadow-sm ring-1 ring-brand-200'
+                            : 'font-medium text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm'
                         )
                       }
                     >
                       {({ isActive }) => (
                         <>
-                          <span
+                          <item.icon
                             className={cn(
-                              'absolute inset-y-2 left-0 w-1 rounded-r-full transition-opacity duration-200',
+                              'h-5 w-5 shrink-0 transition-colors',
                               isActive
-                                ? 'bg-brand-600 opacity-100'
-                                : 'bg-slate-300 opacity-0'
+                                ? 'text-brand-700'
+                                : 'text-slate-500 group-hover:text-slate-700'
                             )}
                           />
-                          <span
-                            className={cn(
-                              'grid h-8 w-8 shrink-0 place-items-center rounded-md transition-colors',
-                              isActive
-                                ? 'bg-white text-brand-700 shadow-sm'
-                                : 'bg-slate-100 text-slate-500 group-hover:text-slate-700'
-                            )}
-                          >
-                            <item.icon className="h-[18px] w-[18px]" />
-                          </span>
                           <span
                             className={cn(
                               'flex-1 truncate transition-all duration-200',
@@ -178,7 +171,7 @@ export function Sidebar({
                           {item.badge && (
                             <span
                               className={cn(
-                                'rounded-md px-1.5 py-0.5 text-[10px] font-semibold',
+                                'rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
                                 collapsed && 'lg:hidden',
                                 isActive
                                   ? 'bg-brand-100 text-brand-700'
@@ -200,7 +193,7 @@ export function Sidebar({
 
         <div
           className={cn(
-            'border-t border-slate-100 p-4 transition-all duration-300',
+            'p-4 transition-all duration-300',
             collapsed && 'lg:px-2'
           )}
         >

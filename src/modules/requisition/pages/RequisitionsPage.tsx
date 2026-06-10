@@ -1,17 +1,26 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ClipboardList, Plus, Search, Clock, CheckCircle2, Send } from 'lucide-react';
+import {
+  CheckCircle2,
+  ClipboardList,
+  Clock,
+  Plus,
+  Search,
+  Send,
+  type LucideIcon,
+} from 'lucide-react';
 
 import {
-  Card,
   Button,
+  Card,
   Input,
   Pagination,
   PageHeader,
   Select,
-  StatCard,
 } from '@shared/components/ui';
+import { cn } from '@shared/lib';
 import { useDebounce } from '@shared/hooks';
+import { formatCompact } from '@shared/utils';
 import type { SelectOption } from '@shared/types';
 import { ROUTES } from '@app/router/paths';
 import { useOrganogramUnits } from '@modules/organogram';
@@ -23,12 +32,17 @@ import type { RequisitionStatus } from '../types/requisition.types';
 
 const PAGE_SIZE = 8;
 
-const STATUS_OPTIONS: SelectOption[] = [
-  { label: 'All statuses', value: 'all' },
-  ...Object.entries(STATUS_CONFIG).map(([value, cfg]) => ({
-    value,
-    label: cfg.label,
-  })),
+type Tone = 'brand' | 'amber' | 'sky' | 'emerald';
+const STAT_TONE: Record<Tone, { card: string; chip: string; value: string }> = {
+  brand: { card: 'from-brand-50 to-white border-brand-100', chip: 'bg-brand-100 text-brand-700', value: 'text-brand-900' },
+  amber: { card: 'from-amber-50 to-white border-amber-100', chip: 'bg-amber-100 text-amber-700', value: 'text-amber-900' },
+  sky: { card: 'from-sky-50 to-white border-sky-100', chip: 'bg-sky-100 text-sky-700', value: 'text-sky-900' },
+  emerald: { card: 'from-emerald-50 to-white border-emerald-100', chip: 'bg-emerald-100 text-emerald-700', value: 'text-emerald-900' },
+};
+
+const STATUS_CHIPS: { key: string; label: string }[] = [
+  { key: 'all', label: 'All' },
+  ...Object.entries(STATUS_CONFIG).map(([key, cfg]) => ({ key, label: cfg.label })),
 ];
 
 export default function RequisitionsPage() {
@@ -40,6 +54,7 @@ export default function RequisitionsPage() {
   const [page, setPage] = useState(1);
 
   const debouncedSearch = useDebounce(search, 350);
+  const resetPage = () => setPage(1);
 
   const filters = useMemo(
     () => ({
@@ -49,17 +64,40 @@ export default function RequisitionsPage() {
       page,
       pageSize: PAGE_SIZE,
     }),
-    [debouncedSearch, status, unitFactory, page]
+    [debouncedSearch, status, unitFactory, page],
   );
-
   const { data, isLoading, isFetching } = useRequisitions(filters);
-  const resetPage = () => setPage(1);
+
+  // Separate fetch (ignores the status filter) so the tiles + chips show live
+  // counts per status regardless of what's currently filtered.
+  const countFilters = useMemo(
+    () => ({
+      search: debouncedSearch,
+      status: 'all' as const,
+      unitFactory,
+      page: 1,
+      pageSize: 1000,
+    }),
+    [debouncedSearch, unitFactory],
+  );
+  const { data: allData } = useRequisitions(countFilters);
+
+  const counts = useMemo(() => {
+    const items = allData?.items ?? [];
+    const byStatus: Record<string, number> = {};
+    for (const r of items) byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
+    return {
+      total: allData?.meta.total ?? 0,
+      byStatus,
+      pending: byStatus['pending_approval'] ?? 0,
+      approved: (byStatus['approved'] ?? 0) + (byStatus['profile_generated'] ?? 0),
+      posted: byStatus['posted'] ?? 0,
+    };
+  }, [allData]);
+
   const unitFilterOptions: SelectOption[] = [
     { label: 'All accessible units', value: 'all' },
-    ...(orgUnits ?? []).map((unit) => ({
-      label: unit.unit,
-      value: unit.unit,
-    })),
+    ...(orgUnits ?? []).map((unit) => ({ label: unit.unit, value: unit.unit })),
   ];
 
   return (
@@ -77,20 +115,17 @@ export default function RequisitionsPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard
-          label="Total Requisitions"
-          value={data?.meta.total ?? '—'}
-          icon={ClipboardList}
-          accent="brand"
-        />
-        <StatCard label="Pending Approval" value="1" icon={Clock} accent="amber" />
-        <StatCard label="Approved" value="3" icon={CheckCircle2} accent="sky" />
-        <StatCard label="Posted" value="1" icon={Send} accent="emerald" />
+      {/* Stat tiles */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <StatTile label="Total Requisitions" value={counts.total} icon={ClipboardList} tone="brand" />
+        <StatTile label="Pending Approval" value={counts.pending} icon={Clock} tone="amber" />
+        <StatTile label="Approved" value={counts.approved} icon={CheckCircle2} tone="sky" />
+        <StatTile label="Posted" value={counts.posted} icon={Send} tone="emerald" />
       </div>
 
       <Card>
-        <div className="grid grid-cols-1 gap-3 border-b border-slate-100 p-4 sm:grid-cols-2 lg:grid-cols-[1fr_220px_220px]">
+        {/* Search + unit */}
+        <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-[1fr_240px]">
           <Input
             placeholder="Search designation, code, unit…"
             leftIcon={<Search className="h-4 w-4" />}
@@ -108,20 +143,48 @@ export default function RequisitionsPage() {
               resetPage();
             }}
           />
-          <Select
-            options={STATUS_OPTIONS}
-            value={status}
-            onChange={(e) => {
-              setStatus(e.target.value);
-              resetPage();
-            }}
-          />
         </div>
 
-        <RequisitionTable
-          requisitions={data?.items ?? []}
-          isLoading={isLoading || isFetching}
-        />
+        {/* Status filter chips */}
+        <div className="scrollbar-thin flex gap-1.5 overflow-x-auto px-4 pb-3">
+          {STATUS_CHIPS.map((c) => {
+            const count = c.key === 'all' ? counts.total : counts.byStatus[c.key] ?? 0;
+            const active = status === c.key;
+            return (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => {
+                  setStatus(c.key);
+                  resetPage();
+                }}
+                className={cn(
+                  'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition',
+                  active
+                    ? 'bg-brand-600 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                )}
+              >
+                {c.label}
+                <span
+                  className={cn(
+                    'rounded-full px-1.5 text-[10px] font-semibold',
+                    active ? 'bg-white/20' : 'bg-white text-slate-500',
+                  )}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="border-t border-slate-100">
+          <RequisitionTable
+            requisitions={data?.items ?? []}
+            isLoading={isLoading || isFetching}
+          />
+        </div>
 
         {data && data.meta.total > 0 && (
           <Pagination
@@ -133,6 +196,36 @@ export default function RequisitionsPage() {
           />
         )}
       </Card>
+    </div>
+  );
+}
+
+function StatTile({
+  label,
+  value,
+  icon: Icon,
+  tone,
+}: {
+  label: string;
+  value: number;
+  icon: LucideIcon;
+  tone: Tone;
+}) {
+  const t = STAT_TONE[tone];
+  return (
+    <div
+      className={cn(
+        'rounded-2xl border bg-gradient-to-br p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)] sm:p-5',
+        t.card,
+      )}
+    >
+      <span className={cn('flex h-9 w-9 items-center justify-center rounded-xl sm:h-10 sm:w-10', t.chip)}>
+        <Icon className="h-5 w-5" />
+      </span>
+      <p className={cn('mt-3 text-2xl font-bold tracking-tight sm:text-3xl', t.value)}>
+        {formatCompact(value)}
+      </p>
+      <p className="mt-0.5 text-xs font-medium text-slate-600 sm:text-sm">{label}</p>
     </div>
   );
 }

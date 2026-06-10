@@ -11,5 +11,8 @@ export function useDashboard() {
   return useQuery({
     queryKey: dashboardKeys.all,
     queryFn: () => dashboardApi.getDashboard(),
+    // A dashboard should reflect current data — always refetch when opened.
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 }

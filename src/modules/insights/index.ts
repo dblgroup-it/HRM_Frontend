@@ -1,0 +1,1 @@
+export { canAccessInsights } from './access';

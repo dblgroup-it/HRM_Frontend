@@ -30,6 +30,9 @@ export const ROUTES = {
   /** Public onboarding / document-submission page (no auth). */
   onboarding: (token = ':token') => `/onboarding/${token}`,
 
+  // AI HR Insights (ask-your-data, digest, bottlenecks)
+  insights: '/insights',
+
   // People
   employees: '/employees',
   employeeDetail: (id = ':id') => `/employees/${id}`,

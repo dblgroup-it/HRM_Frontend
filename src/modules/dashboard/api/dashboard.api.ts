@@ -47,7 +47,7 @@ function buildRecentHires(
 ): RecentHire[] {
   return [...employees]
     .sort((a, b) => +new Date(b.joinedAt) - +new Date(a.joinedAt))
-    .slice(0, 5);
+    .slice(0, 7);
 }
 
 function buildRequisitionSnapshots(

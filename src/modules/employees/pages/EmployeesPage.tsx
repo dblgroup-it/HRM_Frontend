@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Users, UserCheck, ClipboardList, Building2 } from 'lucide-react';
-
 import {
-  Button,
-  Card,
-  PageHeader,
-  Pagination,
-  StatCard,
-} from '@shared/components/ui';
+  Plus,
+  Users,
+  UserCheck,
+  ClipboardList,
+  Building2,
+  type LucideIcon,
+} from 'lucide-react';
+
+import { Button, Card, PageHeader, Pagination } from '@shared/components/ui';
+import { cn } from '@shared/lib';
+import { formatCompact } from '@shared/utils';
 import { useDebounce } from '@shared/hooks';
 
 import { useEmployees } from '../hooks/useEmployees';
@@ -61,31 +64,11 @@ export default function EmployeesPage() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Total Workforce"
-          value={dashboard?.summary.totalEmployees ?? '—'}
-          icon={Users}
-          accent="brand"
-        />
-        <StatCard
-          label="Active Employees"
-          value={dashboard?.summary.activeEmployees ?? '—'}
-          icon={UserCheck}
-          accent="emerald"
-        />
-        <StatCard
-          label="Open Requisitions"
-          value={dashboard?.summary.openRequisitions ?? '—'}
-          icon={ClipboardList}
-          accent="amber"
-        />
-        <StatCard
-          label="Vacant Seats"
-          value={dashboard?.summary.vacantSeats ?? '—'}
-          icon={Building2}
-          accent="violet"
-        />
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <StatTile label="Total Workforce" value={dashboard?.summary.totalEmployees} icon={Users} tone="brand" />
+        <StatTile label="Active Employees" value={dashboard?.summary.activeEmployees} icon={UserCheck} tone="emerald" />
+        <StatTile label="Open Requisitions" value={dashboard?.summary.openRequisitions} icon={ClipboardList} tone="amber" />
+        <StatTile label="Vacant Seats" value={dashboard?.summary.vacantSeats} icon={Building2} tone="violet" />
       </div>
 
       <Card>
@@ -124,6 +107,39 @@ export default function EmployeesPage() {
           />
         )}
       </Card>
+    </div>
+  );
+}
+
+type Tone = 'brand' | 'emerald' | 'amber' | 'violet';
+const STAT_TONE: Record<Tone, { card: string; chip: string; value: string }> = {
+  brand: { card: 'from-brand-50 to-white border-brand-100', chip: 'bg-brand-100 text-brand-700', value: 'text-brand-900' },
+  emerald: { card: 'from-emerald-50 to-white border-emerald-100', chip: 'bg-emerald-100 text-emerald-700', value: 'text-emerald-900' },
+  amber: { card: 'from-amber-50 to-white border-amber-100', chip: 'bg-amber-100 text-amber-700', value: 'text-amber-900' },
+  violet: { card: 'from-violet-50 to-white border-violet-100', chip: 'bg-violet-100 text-violet-700', value: 'text-violet-900' },
+};
+
+function StatTile({
+  label,
+  value,
+  icon: Icon,
+  tone,
+}: {
+  label: string;
+  value?: number;
+  icon: LucideIcon;
+  tone: Tone;
+}) {
+  const t = STAT_TONE[tone];
+  return (
+    <div className={cn('rounded-2xl border bg-gradient-to-br p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)] sm:p-5', t.card)}>
+      <span className={cn('flex h-9 w-9 items-center justify-center rounded-xl sm:h-10 sm:w-10', t.chip)}>
+        <Icon className="h-5 w-5" />
+      </span>
+      <p className={cn('mt-3 text-2xl font-bold tracking-tight sm:text-3xl', t.value)}>
+        {value === undefined ? '—' : formatCompact(value)}
+      </p>
+      <p className="mt-0.5 text-xs font-medium text-slate-600 sm:text-sm">{label}</p>
     </div>
   );
 }
