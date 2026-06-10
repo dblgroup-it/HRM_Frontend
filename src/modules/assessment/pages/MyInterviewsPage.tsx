@@ -2,9 +2,11 @@ import { useState } from 'react';
 import {
   CalendarClock,
   CheckCircle2,
+  ChevronDown,
   ClipboardCheck,
   Lock,
   MapPin,
+  MessageSquareText,
 } from 'lucide-react';
 
 import {
@@ -21,7 +23,10 @@ import {
 import { formatDate } from '@shared/utils';
 
 import { useMyInterviews, useSubmitEvaluation } from '../hooks/useAssessment';
-import type { MyInterviewRound } from '../types/assessment.types';
+import type {
+  InterviewQuestion,
+  MyInterviewRound,
+} from '../types/assessment.types';
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -115,6 +120,10 @@ function InterviewMarkCard({ round }: { round: MyInterviewRound }) {
           )}
         </div>
 
+        {(round.interviewQuestions?.length ?? 0) > 0 && (
+          <QuestionsHint questions={round.interviewQuestions} />
+        )}
+
         {round.rubric.length === 0 ? (
           <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
             No rubric set for this position yet — ask Corporate HR to add scoring
@@ -176,5 +185,51 @@ function InterviewMarkCard({ round }: { round: MyInterviewRound }) {
         )}
       </CardBody>
     </Card>
+  );
+}
+
+function QuestionsHint({ questions }: { questions: InterviewQuestion[] }) {
+  const [open, setOpen] = useState(false);
+  const groups = new Map<string, string[]>();
+  for (const q of questions) {
+    const a = groups.get(q.category) ?? [];
+    a.push(q.question);
+    groups.set(q.category, a);
+  }
+  return (
+    <div className="rounded-lg border border-violet-100 bg-violet-50/40">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium text-violet-700"
+      >
+        <span className="flex items-center gap-1.5">
+          <MessageSquareText className="h-4 w-4" /> Suggested interview questions (
+          {questions.length})
+        </span>
+        <ChevronDown
+          className={`h-4 w-4 transition ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {open && (
+        <div className="space-y-2 px-3 pb-3">
+          {[...groups.entries()].map(([cat, qs]) => (
+            <div key={cat}>
+              <p className="text-xs font-semibold uppercase tracking-wide text-violet-500">
+                {cat}
+              </p>
+              <ul className="mt-0.5 space-y-0.5">
+                {qs.map((q, i) => (
+                  <li key={i} className="flex gap-1.5 text-xs text-slate-600">
+                    <span className="text-slate-300">{i + 1}.</span>
+                    {q}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

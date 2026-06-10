@@ -1,7 +1,4 @@
-import { Download } from 'lucide-react';
-
-import { Button, PageHeader, FullPageSpinner } from '@shared/components/ui';
-import { useAuth } from '@modules/auth';
+import { FullPageSpinner } from '@shared/components/ui';
 
 import { useDashboard } from '../hooks/useDashboard';
 import { StatsGrid } from '../components/StatsGrid';
@@ -11,21 +8,10 @@ import { OrganogramSnapshot } from '../components/OrganogramSnapshot';
 import { RequisitionQueue } from '../components/RequisitionQueue';
 
 export default function DashboardPage() {
-  const { user } = useAuth();
   const { data, isLoading, isError } = useDashboard();
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={`Welcome back, ${user?.name?.split(' ')[0] ?? 'there'}`}
-        description="Live snapshot across workforce, organogram, and requisition flow."
-        actions={
-          <Button variant="outline" leftIcon={<Download className="h-4 w-4" />}>
-            Export snapshot
-          </Button>
-        }
-      />
-
       <StatsGrid stats={data?.stats} isLoading={isLoading} />
 
       {isLoading ? (
@@ -36,16 +22,19 @@ export default function DashboardPage() {
         </p>
       ) : (
         <>
+          {/* New requisitions land here — kept top as the priority feed. */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2">
-              <DepartmentBreakdown departments={data.departments} />
+              <RequisitionQueue requisitions={data.requisitions} />
             </div>
             <OrganogramSnapshot summary={data.summary} />
           </div>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <DepartmentBreakdown departments={data.departments} />
+            </div>
             <RecentHires hires={data.recentHires} />
-            <RequisitionQueue requisitions={data.requisitions} />
           </div>
         </>
       )}

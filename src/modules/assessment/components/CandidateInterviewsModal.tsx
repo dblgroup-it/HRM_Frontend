@@ -1,7 +1,16 @@
 import { useState } from 'react';
-import { CalendarClock, Check, MapPin, Trash2, Users } from 'lucide-react';
+import {
+  CalendarClock,
+  Check,
+  MapPin,
+  Search,
+  Trash2,
+  Users,
+  X,
+} from 'lucide-react';
 
 import {
+  Avatar,
   Badge,
   Button,
   Checkbox,
@@ -12,8 +21,11 @@ import {
 } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
+import { useDebounce } from '@shared/hooks';
+import { useEmployees } from '@modules/employees';
 
 import {
+  useAddCommitteeMember,
   useAssessmentSetup,
   useCandidateInterviews,
   useRemoveInterview,
@@ -59,18 +71,19 @@ export function CandidateInterviewsModal({
   const [mode, setMode] = useState<InterviewModeKey>('physical');
   const [scheduledAt, setScheduledAt] = useState('');
   const [location, setLocation] = useState('');
-  const [panel, setPanel] = useState<string[]>([]);
+  // Panel is per-session: each interview can have a different (or the same) set.
+  const [panel, setPanel] = useState<{ userId: string; name: string }[]>([]);
   const [notifyCandidate, setNotifyCandidate] = useState(true);
   const [notifyPanel, setNotifyPanel] = useState(true);
 
   const committee = setup?.committee ?? [];
-
-  const togglePanelist = (userId: string) =>
+  const inPanel = (userId: string) => panel.some((p) => p.userId === userId);
+  const addPanelist = (userId: string, name: string) =>
     setPanel((prev) =>
-      prev.includes(userId)
-        ? prev.filter((u) => u !== userId)
-        : [...prev, userId],
+      prev.some((p) => p.userId === userId) ? prev : [...prev, { userId, name }],
     );
+  const removePanelist = (userId: string) =>
+    setPanel((prev) => prev.filter((p) => p.userId !== userId));
 
   const submit = () => {
     schedule.mutate(
@@ -79,7 +92,7 @@ export function CandidateInterviewsModal({
         mode,
         scheduledAt: scheduledAt || undefined,
         location: location.trim() || undefined,
-        panelistUserIds: panel,
+        panelistUserIds: panel.map((p) => p.userId),
         notifyCandidate,
         notifyPanel,
       },
@@ -160,26 +173,73 @@ export function CandidateInterviewsModal({
 
           <div className="mt-4">
             <p className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700">
-              <Users className="h-4 w-4 text-slate-400" /> Panel (committee
-              members)
+              <Users className="h-4 w-4 text-slate-400" /> Panel for this interview
             </p>
-            {committee.length === 0 ? (
-              <p className="text-xs text-amber-600">
-                No committee yet — add members in the requisition&rsquo;s
-                Assessment &amp; Committee panel first.
+
+            {/* Selected interviewers for THIS session */}
+            {panel.length === 0 ? (
+              <p className="text-xs text-slate-400">
+                No interviewers added yet — add from the committee or search below.
               </p>
             ) : (
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {committee.map((m) => (
-                  <Checkbox
-                    key={m.userId}
-                    label={`${m.name}${m.designation ? ` · ${m.designation}` : ''}`}
-                    checked={panel.includes(m.userId)}
-                    onChange={() => togglePanelist(m.userId)}
-                  />
+              <div className="flex flex-wrap gap-1.5">
+                {panel.map((p) => (
+                  <span
+                    key={p.userId}
+                    className="inline-flex items-center gap-1 rounded-full bg-brand-50 py-0.5 pl-2.5 pr-1 text-xs font-medium text-brand-700"
+                  >
+                    {p.name}
+                    <button
+                      type="button"
+                      onClick={() => removePanelist(p.userId)}
+                      className="rounded-full p-0.5 hover:bg-brand-100"
+                      title="Remove from this panel"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
                 ))}
               </div>
             )}
+
+            {/* Quick-add from the requisition's committee pool */}
+            {committee.some((m) => !inPanel(m.userId)) && (
+              <div className="mt-2">
+                <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                  Quick add from committee
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {committee
+                    .filter((m) => !inPanel(m.userId))
+                    .map((m) => (
+                      <button
+                        key={m.userId}
+                        type="button"
+                        onClick={() => addPanelist(m.userId, m.name)}
+                        className="inline-flex items-center gap-1 rounded-full border border-slate-200 px-2.5 py-0.5 text-xs text-slate-600 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700"
+                      >
+                        + {m.name}
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Search anyone — adds to this session (and the committee pool for reuse) */}
+            <div className="mt-2">
+              <PanelMemberPicker
+                reqId={reqId}
+                existingUserIds={[
+                  ...committee.map((m) => m.userId),
+                  ...panel.map((p) => p.userId),
+                ]}
+                onAdded={(userId, name) => addPanelist(userId, name)}
+              />
+            </div>
+            <p className="mt-1 text-xs text-slate-400">
+              Each session can have different interviewers — or reuse the same
+              people.
+            </p>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-4">
@@ -208,6 +268,74 @@ export function CandidateInterviewsModal({
         </div>
       </div>
     </Modal>
+  );
+}
+
+/** Inline employee search to add interviewers to the committee from the modal. */
+function PanelMemberPicker({
+  reqId,
+  existingUserIds,
+  onAdded,
+}: {
+  reqId: string;
+  existingUserIds: string[];
+  onAdded: (userId: string, name: string) => void;
+}) {
+  const [q, setQ] = useState('');
+  const [open, setOpen] = useState(false);
+  const debounced = useDebounce(q, 300);
+  const { data } = useEmployees({ search: debounced, page: 1, pageSize: 6 });
+  const add = useAddCommitteeMember(reqId);
+
+  const results = (data?.items ?? []).filter(
+    (e) => e.userId && !existingUserIds.includes(e.userId),
+  );
+
+  return (
+    <div className="relative">
+      <Input
+        value={q}
+        onChange={(e) => {
+          setQ(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        placeholder="Add an interviewer to the panel…"
+        leftIcon={<Search className="h-4 w-4" />}
+      />
+      {open && debounced.length > 0 && results.length > 0 && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+            {results.map((e) => (
+              <button
+                key={e.id}
+                type="button"
+                onClick={() => {
+                  if (e.userId) {
+                    add.mutate({ memberUserId: e.userId });
+                    onAdded(e.userId, e.name);
+                  }
+                  setQ('');
+                  setOpen(false);
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50"
+              >
+                <Avatar name={e.name} size="sm" />
+                <span className="min-w-0">
+                  <span className="block truncate font-medium text-slate-800">
+                    {e.name}
+                  </span>
+                  <span className="block truncate text-xs text-slate-400">
+                    {[e.jobTitle, e.department].filter(Boolean).join(' · ')}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 

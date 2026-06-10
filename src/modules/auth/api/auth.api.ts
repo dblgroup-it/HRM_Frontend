@@ -3,7 +3,12 @@ import { http } from '@shared/api';
 import { delay } from '@shared/utils';
 import type { ApiResponse } from '@shared/types';
 
-import type { AuthSession, AuthUser, LoginCredentials } from '../types/auth.types';
+import type {
+  AuthSession,
+  AuthUser,
+  LoginCredentials,
+  LoginResult,
+} from '../types/auth.types';
 
 /** Seed account for the mock authentication flow. */
 const DEMO_USER: AuthUser = {
@@ -45,13 +50,23 @@ async function mockMe(): Promise<AuthUser> {
  * issues real HTTP requests through the shared axios client.
  */
 export const authApi = {
-  login(credentials: LoginCredentials): Promise<AuthSession> {
+  login(credentials: LoginCredentials): Promise<LoginResult> {
     if (ENV.USE_MOCK_API) return mockLogin(credentials);
     return http
-      .post<ApiResponse<AuthSession>>('/auth/login', {
+      .post<ApiResponse<LoginResult>>('/auth/login', {
         identifier: credentials.email,
         password: credentials.password,
       })
+      .then((res) => res.data);
+  },
+
+  /** Second login step — verify a 2FA code with the challenge token. */
+  verifyTwoFactor(input: {
+    challengeToken: string;
+    code: string;
+  }): Promise<AuthSession> {
+    return http
+      .post<ApiResponse<AuthSession>>('/auth/login/2fa', input)
       .then((res) => res.data);
   },
 

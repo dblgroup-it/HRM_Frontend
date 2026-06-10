@@ -73,3 +73,10 @@ export function useDeleteAssignment() {
     onSuccess: invalidate,
   });
 }
+
+/** Super-user only: reset a user's password to its default. */
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: (userId: string) => rbacApi.resetPassword(userId),
+  });
+}

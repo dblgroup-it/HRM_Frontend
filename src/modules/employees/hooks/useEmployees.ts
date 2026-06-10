@@ -11,11 +11,15 @@ export const employeeKeys = {
 };
 
 /** Paginated, filterable employee list. */
-export function useEmployees(filters: EmployeeFilters) {
+export function useEmployees(
+  filters: EmployeeFilters,
+  options: { enabled?: boolean } = {}
+) {
   return useQuery({
     queryKey: employeeKeys.list(filters),
     queryFn: () => employeeApi.list(filters),
     placeholderData: keepPreviousData,
+    enabled: options.enabled ?? true,
   });
 }
 

@@ -41,12 +41,12 @@ export function NotificationBell() {
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="relative rounded-lg border border-slate-200 bg-white p-2 text-slate-500 hover:border-slate-300 hover:bg-slate-50"
+        className="relative grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
         aria-label="Notifications"
       >
         <Bell className="h-5 w-5" />
         {unread > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white ring-2 ring-white">
             {unread > 9 ? '9+' : unread}
           </span>
         )}
@@ -92,13 +92,13 @@ export function NotificationBell() {
                     onClick={() => onItem(n)}
                     className={cn(
                       'flex w-full gap-3 border-b border-slate-50 px-4 py-3 text-left transition last:border-0 hover:bg-slate-50',
-                      !n.read && 'bg-brand-50/40',
+                      !n.read && 'bg-brand-50/40'
                     )}
                   >
                     <span
                       className={cn(
                         'mt-1.5 h-2 w-2 shrink-0 rounded-full ring-4 ring-transparent',
-                        n.read ? 'bg-transparent' : 'bg-brand-500',
+                        n.read ? 'bg-transparent' : 'bg-brand-500'
                       )}
                     />
                     <div className="min-w-0">

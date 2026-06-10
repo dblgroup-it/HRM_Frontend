@@ -87,6 +87,14 @@ export function useSetPlan(reqId: string) {
   );
 }
 
+export function useGenerateQuestions(reqId: string) {
+  return useSetupMutation(
+    reqId,
+    () => assessmentApi.generateQuestions(reqId),
+    'Interview questions generated',
+  );
+}
+
 // --- interviews ---
 
 export function useCandidateInterviews(candidateId: string, enabled = true) {

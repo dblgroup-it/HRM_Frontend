@@ -25,6 +25,9 @@ const IntegrationsPage = lazy(
 const AccessControlPage = lazy(
   () => import('@modules/rbac/pages/AccessControlPage')
 );
+const AiSettingsPage = lazy(
+  () => import('@modules/settings/pages/AiSettingsPage')
+);
 
 // Phase 1 · Manpower Requisition
 const RequisitionsPage = lazy(
@@ -97,6 +100,7 @@ export function AppRouter() {
               element={<AccessControlPage />}
             />
             <Route path={ROUTES.integrations} element={<IntegrationsPage />} />
+            <Route path={ROUTES.aiSettings} element={<AiSettingsPage />} />
 
             <Route path={ROUTES.requisitions} element={<RequisitionsPage />} />
             <Route

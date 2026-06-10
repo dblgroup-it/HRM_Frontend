@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Users, UserCheck, ClipboardList, Building2 } from 'lucide-react';
 
 import {
@@ -19,10 +20,18 @@ import { useDashboard } from '@modules/dashboard/hooks/useDashboard';
 const PAGE_SIZE = 50;
 
 export default function EmployeesPage() {
-  const [search, setSearch] = useState('');
+  const [params] = useSearchParams();
+  const urlQuery = params.get('q') ?? '';
+  const [search, setSearch] = useState(urlQuery);
   const [department, setDepartment] = useState('all');
   const [status, setStatus] = useState('all');
   const [page, setPage] = useState(1);
+
+  // Drive the search from the top-bar global search (?q=…).
+  useEffect(() => {
+    setSearch(urlQuery);
+    setPage(1);
+  }, [urlQuery]);
 
   const debouncedSearch = useDebounce(search, 350);
 

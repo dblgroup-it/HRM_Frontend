@@ -61,6 +61,15 @@ export const assessmentApi = {
       )
       .then((r) => r.data),
 
+  generateQuestions: (reqId: string): Promise<AssessmentSetup> =>
+    http
+      .post<ApiResponse<AssessmentSetup>>(
+        `/requisitions/${reqId}/interview-questions`,
+        undefined,
+        { timeout: 90_000 },
+      )
+      .then((r) => r.data),
+
   // --- interviews ---
   candidateInterviews: (candidateId: string): Promise<InterviewRoundView[]> =>
     http

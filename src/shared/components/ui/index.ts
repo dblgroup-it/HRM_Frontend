@@ -13,6 +13,9 @@ export type { TextareaProps } from './Textarea';
 export { Checkbox } from './Checkbox';
 export type { CheckboxProps } from './Checkbox';
 
+export { SegmentedToggle } from './SegmentedToggle';
+export type { SegmentedToggleProps } from './SegmentedToggle';
+
 export { Card, CardHeader, CardTitle, CardBody, CardFooter } from './Card';
 
 export { Badge } from './Badge';

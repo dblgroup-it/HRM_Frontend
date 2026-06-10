@@ -215,7 +215,7 @@ export default function RequisitionDetailPage() {
       {/* Workflow progress — the lifecycle at a glance, always visible */}
       <Card>
         <CardBody>
-          <WorkflowStepper status={req.status} />
+          <WorkflowStepper status={req.status} pipeline={req.pipeline} />
         </CardBody>
       </Card>
 

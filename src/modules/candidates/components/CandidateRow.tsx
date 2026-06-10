@@ -249,8 +249,9 @@ export function CandidateRow({
           )}
         >
           {STAGE_ORDER.map((s) => (
-            <option key={s} value={s}>
+            <option key={s} value={s} disabled={s === 'ai_shortlisted'}>
               {STAGE_META[s].label}
+              {s === 'ai_shortlisted' ? ' (AI only)' : ''}
             </option>
           ))}
         </select>

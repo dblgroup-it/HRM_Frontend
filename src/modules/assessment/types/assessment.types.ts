@@ -22,10 +22,17 @@ export interface AssessmentComponentView {
   maxScore: number;
 }
 
+export interface InterviewQuestion {
+  category: string;
+  question: string;
+}
+
 export interface AssessmentSetup {
   committee: CommitteeMemberView[];
   rubric: RubricCriterionView[];
   plan: AssessmentComponentView[];
+  aiEnabled: boolean;
+  interviewQuestions: InterviewQuestion[];
 }
 
 export interface RubricCriterionInput {
@@ -86,6 +93,7 @@ export interface MyInterviewRound {
   candidate: { id: string; name: string; email: string; phone: string };
   requisition: { id: string; code: string; designation: string; unit: string };
   rubric: { id: string; label: string; maxScore: number }[];
+  interviewQuestions: InterviewQuestion[];
   myEvaluation: {
     scores: Record<string, number>;
     comments: string;

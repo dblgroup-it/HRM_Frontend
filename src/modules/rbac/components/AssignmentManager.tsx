@@ -1,5 +1,15 @@
 import { useMemo, useState } from 'react';
-import { Plus, Trash2, Search, X, UserPlus, Building2, Globe } from 'lucide-react';
+import {
+  Building2,
+  Globe,
+  KeyRound,
+  Plus,
+  Search,
+  Trash2,
+  UserPlus,
+  X,
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 import {
   Avatar,
@@ -22,6 +32,8 @@ import {
   useAssignments,
   useCreateAssignment,
   useDeleteAssignment,
+  useMyPermissions,
+  useResetPassword,
   useRoles,
 } from '../hooks/useRbac';
 import type { RoleAssignment } from '../types/rbac.types';
@@ -38,8 +50,27 @@ export function AssignmentManager() {
   const { data: roles } = useRoles();
   const { data: units } = useUnitsConfig();
   const { data: assignments, isLoading } = useAssignments();
+  const { data: perms } = useMyPermissions();
+  const isSuper = Boolean(perms?.isSuperUser);
   const createAssignment = useCreateAssignment();
   const deleteAssignment = useDeleteAssignment();
+  const resetPassword = useResetPassword();
+
+  const handleReset = (userId: string, name: string, code: string) => {
+    if (
+      !window.confirm(
+        `Reset ${name}'s password back to their employee code (${code})? Any 2FA will also be turned off.`,
+      )
+    )
+      return;
+    resetPassword.mutate(userId, {
+      onSuccess: (d) =>
+        toast.success(`${d.name}'s password reset to: ${d.defaultPassword}`, {
+          duration: 8000,
+        }),
+      onError: (e) => toast.error((e as Error).message || 'Could not reset'),
+    });
+  };
 
   const [roleId, setRoleId] = useState('');
   const [unitId, setUnitId] = useState('');
@@ -71,10 +102,26 @@ export function AssignmentManager() {
     );
   };
 
-  // Group assignments by unit (global first, then alphabetical).
+  const [filter, setFilter] = useState('');
+
+  // Unique people with any access (drives the summary count).
+  const peopleCount = useMemo(
+    () => new Set((assignments ?? []).map((a) => a.user.employeeCode)).size,
+    [assignments],
+  );
+
+  // Group assignments by unit (global first, then alphabetical), filtered.
   const groups = useMemo(() => {
+    const term = filter.trim().toLowerCase();
+    const matches = (a: RoleAssignment) =>
+      !term ||
+      a.user.name.toLowerCase().includes(term) ||
+      a.user.employeeCode.toLowerCase().includes(term) ||
+      a.role.name.toLowerCase().includes(term);
+
     const map = new Map<string, { label: string; items: RoleAssignment[] }>();
     for (const a of assignments ?? []) {
+      if (!matches(a)) continue;
       const key = a.unit ? a.unit.name : GLOBAL_KEY;
       const label = a.unit ? a.unit.name : 'Global · all units';
       if (!map.has(key)) map.set(key, { label, items: [] });
@@ -83,39 +130,53 @@ export function AssignmentManager() {
     return [...map.entries()].sort((x, y) =>
       x[0] === GLOBAL_KEY ? -1 : y[0] === GLOBAL_KEY ? 1 : x[1].label.localeCompare(y[1].label),
     );
-  }, [assignments]);
+  }, [assignments, filter]);
 
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Assign a role</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <UserPlus className="h-4 w-4 text-brand-600" />
+            Grant access
+          </CardTitle>
         </CardHeader>
         <CardBody className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Select
-              label="Role"
-              options={roleOptions}
-              value={roleId}
-              onChange={(e) => { setRoleId(e.target.value); setUnitId(''); }}
-            />
-            {needsUnit ? (
+          {/* Step 1 — person */}
+          <div>
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              1 · Choose a person
+            </p>
+            <EmployeePicker picked={picked} onPick={setPicked} />
+          </div>
+
+          {/* Step 2 — role (+ unit) */}
+          <div>
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              2 · Choose a role
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Select
-                label="Unit"
-                options={unitOptions}
-                value={unitId}
-                onChange={(e) => setUnitId(e.target.value)}
+                options={roleOptions}
+                value={roleId}
+                disabled={!picked}
+                onChange={(e) => { setRoleId(e.target.value); setUnitId(''); }}
               />
-            ) : (
-              <div className="flex items-end">
-                <p className="pb-2 text-xs text-slate-400">
-                  {selectedRole
-                    ? 'Global role — applies to all units'
-                    : 'Pick a role first'}
-                </p>
-              </div>
-            )}
-            <div className="flex items-end">
+              {needsUnit ? (
+                <Select
+                  options={unitOptions}
+                  value={unitId}
+                  onChange={(e) => setUnitId(e.target.value)}
+                />
+              ) : (
+                <div className="flex items-center">
+                  <p className="text-xs text-slate-400">
+                    {selectedRole
+                      ? 'Global role — applies to all units'
+                      : 'Applies after you pick a role'}
+                  </p>
+                </div>
+              )}
               <Button
                 fullWidth
                 disabled={!canAssign}
@@ -123,12 +184,23 @@ export function AssignmentManager() {
                 leftIcon={<Plus className="h-4 w-4" />}
                 onClick={submit}
               >
-                Assign
+                Grant access
               </Button>
             </div>
           </div>
 
-          <EmployeePicker picked={picked} onPick={setPicked} />
+          {picked && roleId && (
+            <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+              {picked.name} will be able to sign in as{' '}
+              <span className="font-semibold">{selectedRole?.name}</span>
+              {needsUnit && unitId
+                ? ` for ${units?.find((u) => u.id === unitId)?.name}`
+                : needsUnit
+                  ? ' (pick a unit)'
+                  : ' across all units'}
+              .
+            </p>
+          )}
 
           {createAssignment.isError && (
             <p className="text-sm text-red-600">
@@ -138,14 +210,33 @@ export function AssignmentManager() {
         </CardBody>
       </Card>
 
-      {/* Who has access — grouped by unit */}
+      {/* Who has access */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-semibold text-slate-700">
+            People with access
+          </p>
+          <Badge tone="brand">{peopleCount} can sign in</Badge>
+        </div>
+        <div className="w-full sm:w-64">
+          <Input
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Filter by name, code or role…"
+            leftIcon={<Search className="h-4 w-4" />}
+          />
+        </div>
+      </div>
+
       {isLoading ? (
         <FullPageSpinner label="Loading assignments…" />
       ) : groups.length === 0 ? (
         <Card>
           <CardBody>
             <p className="py-6 text-center text-sm text-slate-400">
-              No role assignments yet.
+              {filter
+                ? 'No one matches your filter.'
+                : 'No one has access yet — grant a role above.'}
             </p>
           </CardBody>
         </Card>
@@ -185,8 +276,24 @@ export function AssignmentManager() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <Badge tone="brand">{a.role.name}</Badge>
+                    {isSuper && (
+                      <button
+                        title="Reset password to default (employee code)"
+                        disabled={resetPassword.isPending}
+                        onClick={() =>
+                          handleReset(
+                            a.user.id,
+                            a.user.name,
+                            a.user.employeeCode,
+                          )
+                        }
+                        className="rounded-md p-1.5 text-slate-400 hover:bg-amber-50 hover:text-amber-600 disabled:opacity-50"
+                      >
+                        <KeyRound className="h-4 w-4" />
+                      </button>
+                    )}
                     <button
                       title="Remove assignment"
                       onClick={() => deleteAssignment.mutate(a.id)}

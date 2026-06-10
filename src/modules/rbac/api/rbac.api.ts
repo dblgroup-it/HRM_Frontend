@@ -49,4 +49,15 @@ export const rbacApi = {
       .delete<ApiResponse<{ id: string }>>(`/role-assignments/${id}`)
       .then((res) => res.data);
   },
+
+  /** Super-user only: reset a user's password to its default (employee code). */
+  resetPassword(
+    userId: string,
+  ): Promise<{ ok: boolean; name: string; defaultPassword: string }> {
+    return http
+      .post<ApiResponse<{ ok: boolean; name: string; defaultPassword: string }>>(
+        `/auth/users/${userId}/reset-password`,
+      )
+      .then((res) => res.data);
+  },
 };

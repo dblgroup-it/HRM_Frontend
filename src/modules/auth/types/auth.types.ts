@@ -24,3 +24,19 @@ export interface AuthSession {
   user: AuthUser;
   token: string;
 }
+
+/** Returned by login when the account has 2FA — prompts the code step. */
+export interface TwoFactorChallenge {
+  twoFactorRequired: true;
+  method: 'email' | 'totp' | string;
+  challengeToken: string;
+  email?: string;
+}
+
+export type LoginResult = AuthSession | TwoFactorChallenge;
+
+export function isTwoFactorChallenge(
+  r: LoginResult,
+): r is TwoFactorChallenge {
+  return (r as TwoFactorChallenge).twoFactorRequired === true;
+}

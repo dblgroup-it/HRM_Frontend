@@ -8,6 +8,7 @@ export const ROUTES = {
   unitConfig: '/configuration/units',
   accessControl: '/configuration/access',
   integrations: '/configuration/integrations',
+  aiSettings: '/configuration/ai',
 
   // Phase 1 · Manpower Requisition
   requisitions: '/requisitions',

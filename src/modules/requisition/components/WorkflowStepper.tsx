@@ -2,14 +2,21 @@ import { Check } from 'lucide-react';
 
 import { cn } from '@shared/lib';
 
-import type { RequisitionStatus } from '../types/requisition.types';
+import type {
+  PipelineProgress,
+  RequisitionStatus,
+} from '../types/requisition.types';
 import { WORKFLOW_STEPS } from '../constants';
 
 /**
  * The step currently awaiting action. Steps before it are complete (green),
- * this one is current (blue), later ones are not started.
+ * this one is current (blue), later ones are not started. Once posted, progress
+ * is derived from real candidate/onboarding state (not just the status field).
  */
-function currentStep(status: RequisitionStatus): number {
+function currentStep(
+  status: RequisitionStatus,
+  pipeline?: PipelineProgress,
+): number {
   switch (status) {
     case 'draft':
     case 'pending_approval':
@@ -23,15 +30,24 @@ function currentStep(status: RequisitionStatus): number {
       // Role profile done → posting is next.
       return 4;
     case 'posted':
-      // Posted → candidate pipeline (and the phases beyond) is now in progress.
-      return 5;
+      // Posted → advance through the live pipeline.
+      if (pipeline?.onboarded) return 8; // all steps complete (incl. onboarding)
+      if (pipeline?.inOnboarding) return 7; // onboarding in progress
+      if (pipeline?.inAssessment) return 6; // assessment in progress
+      return 5; // collecting candidates
     default:
       return 1;
   }
 }
 
-export function WorkflowStepper({ status }: { status: RequisitionStatus }) {
-  const active = currentStep(status);
+export function WorkflowStepper({
+  status,
+  pipeline,
+}: {
+  status: RequisitionStatus;
+  pipeline?: PipelineProgress;
+}) {
+  const active = currentStep(status, pipeline);
   const rejected = status === 'rejected';
 
   return (

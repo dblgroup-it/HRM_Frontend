@@ -78,6 +78,14 @@ export interface JobPosting {
 }
 
 /** Phase 2 — per-stage candidate counts for a requisition. */
+/** Furthest pipeline progress across candidates — drives the lifecycle stepper. */
+export interface PipelineProgress {
+  hasCandidates: boolean;
+  inAssessment: boolean;
+  inOnboarding: boolean;
+  onboarded: boolean;
+}
+
 export interface CandidateStats {
   applied: number;
   ai_shortlisted: number;
@@ -155,6 +163,7 @@ export interface Requisition {
   drive?: RequisitionDrive | null;
   attachments?: RequisitionAttachment[];
   candidateStats?: CandidateStats;
+  pipeline?: PipelineProgress;
 
   raisedBy: string;
   createdAt: ISODateString;

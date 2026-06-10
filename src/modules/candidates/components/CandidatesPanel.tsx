@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Copy,
+  ExternalLink,
   FolderOpen,
   FolderPlus,
   Link2,
@@ -82,6 +83,7 @@ export function CandidatesPanel({
 
   const [tab, setTab] = useState<Tab>('all');
   const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<'recent' | 'match' | 'name'>('recent');
   const [addOpen, setAddOpen] = useState(false);
   const [emailTarget, setEmailTarget] = useState<Candidate | null>(null);
   const [interviewTarget, setInterviewTarget] = useState<Candidate | null>(null);
@@ -106,7 +108,7 @@ export function CandidatesPanel({
 
   const visible = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return candidates.filter((c) => {
+    const filtered = candidates.filter((c) => {
       if (tab !== 'all' && c.stage !== tab) return false;
       if (!term) return true;
       return (
@@ -115,7 +117,17 @@ export function CandidatesPanel({
         c.phone.toLowerCase().includes(term)
       );
     });
-  }, [candidates, tab, search]);
+    if (sort === 'match') {
+      // Highest AI match first; unscored candidates sink to the bottom.
+      return [...filtered].sort(
+        (a, b) => (b.matchScore ?? -1) - (a.matchScore ?? -1),
+      );
+    }
+    if (sort === 'name') {
+      return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return filtered; // 'recent' — API already returns newest first
+  }, [candidates, tab, search, sort]);
 
   const copy = async (value: string, label: string) => {
     await navigator.clipboard.writeText(value);
@@ -206,29 +218,57 @@ export function CandidatesPanel({
             </p>
           )
         ) : (
-          <div className="space-y-2">
-            <ShareLink
-              icon={<Link2 className="h-4 w-4 shrink-0 text-brand-600" />}
-              label="Application link — share this for CV collection"
-              hint="Branded form, no Google account needed"
-              url={applyLink}
-              onCopy={() => copy(applyLink, 'Application link')}
-              accent
-            />
-            <p className="flex items-start gap-1.5 text-xs text-slate-500">
-              <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
-              Candidates upload through this secure form — they can&rsquo;t see or
-              delete anyone else&rsquo;s CV. The Drive folder stays private to
-              recruitment.
+          <div className="overflow-hidden rounded-xl border border-brand-100 bg-gradient-to-br from-brand-50/70 to-white p-4">
+            <div className="mb-1.5 flex flex-wrap items-center gap-2">
+              <Link2 className="h-4 w-4 text-brand-600" />
+              <p className="text-sm font-semibold text-slate-800">Collect CVs</p>
+              {aiOn && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+                  <Sparkles className="h-3 w-3" /> AI auto-screens new CVs
+                </span>
+              )}
+            </div>
+            <p className="mb-3 text-xs text-slate-500">
+              Share this link in job ads. Candidates apply on a branded form — no
+              Google account needed, and they can&rsquo;t see or delete anyone
+              else&rsquo;s CV.
             </p>
-            <a
-              href={drive.rootFolderUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-brand-600"
-            >
-              <FolderOpen className="h-3.5 w-3.5" /> Open Drive workspace (HR only)
-            </a>
+            <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
+              <code className="min-w-0 flex-1 truncate text-xs text-slate-600">
+                {applyLink}
+              </code>
+              <button
+                type="button"
+                onClick={() => copy(applyLink, 'Application link')}
+                className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-brand-600"
+                title="Copy link"
+              >
+                <Copy className="h-4 w-4" />
+              </button>
+              <a
+                href={applyLink}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-brand-600"
+                title="Open application page"
+              >
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600">
+                <ShieldCheck className="h-3.5 w-3.5" /> Secure &amp; private to
+                recruitment
+              </span>
+              <a
+                href={drive.rootFolderUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-brand-600"
+              >
+                <FolderOpen className="h-3.5 w-3.5" /> Open Drive (HR only)
+              </a>
+            </div>
           </div>
         )}
 
@@ -308,13 +348,27 @@ export function CandidatesPanel({
                   </button>
                 ))}
               </div>
-              <div className="ml-auto w-full sm:w-56">
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search candidates…"
-                  leftIcon={<Search className="h-4 w-4" />}
-                />
+              <div className="ml-auto flex items-center gap-2">
+                <select
+                  value={sort}
+                  onChange={(e) =>
+                    setSort(e.target.value as 'recent' | 'match' | 'name')
+                  }
+                  className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-600 focus:ring-2 focus:ring-brand-500/30"
+                  title="Sort candidates"
+                >
+                  <option value="recent">Newest</option>
+                  <option value="match">Best AI match</option>
+                  <option value="name">Name (A–Z)</option>
+                </select>
+                <div className="w-full sm:w-52">
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search candidates…"
+                    leftIcon={<Search className="h-4 w-4" />}
+                  />
+                </div>
               </div>
             </div>
 
@@ -385,57 +439,5 @@ export function CandidatesPanel({
         sublabel="Reading each CV and matching it to the role — this can take a moment."
       />
     </Card>
-  );
-}
-
-function ShareLink({
-  icon,
-  label,
-  hint,
-  url,
-  onCopy,
-  accent,
-}: {
-  icon: ReactNode;
-  label: string;
-  hint: string;
-  url: string;
-  onCopy: () => void;
-  accent?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        'flex items-center gap-2 rounded-lg border p-2.5',
-        accent ? 'border-brand-100 bg-brand-50/50' : 'border-slate-200 bg-slate-50',
-      )}
-    >
-      {icon}
-      <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-          {label}
-        </p>
-        <a
-          href={url}
-          target="_blank"
-          rel="noreferrer"
-          className={cn(
-            'block truncate text-xs hover:underline',
-            accent ? 'text-brand-700' : 'text-slate-500',
-          )}
-          title={hint}
-        >
-          {url}
-        </a>
-      </div>
-      <button
-        type="button"
-        onClick={onCopy}
-        className="rounded-md p-1.5 text-slate-400 hover:bg-white hover:text-brand-600"
-        title="Copy link"
-      >
-        <Copy className="h-4 w-4" />
-      </button>
-    </div>
   );
 }

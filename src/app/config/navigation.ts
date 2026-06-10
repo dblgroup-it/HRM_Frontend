@@ -7,6 +7,7 @@ import {
   SlidersHorizontal,
   Plug,
   ShieldCheck,
+  Sparkles,
   Users,
   UserSearch,
   Star,
@@ -100,6 +101,12 @@ export const NAVIGATION: NavSection[] = [
         label: 'Access Control',
         to: ROUTES.accessControl,
         icon: ShieldCheck,
+        roles: ['admin'],
+      },
+      {
+        label: 'AI Settings',
+        to: ROUTES.aiSettings,
+        icon: Sparkles,
         roles: ['admin'],
       },
       {
