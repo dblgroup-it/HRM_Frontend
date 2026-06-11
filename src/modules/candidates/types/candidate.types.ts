@@ -48,6 +48,23 @@ export interface RecruitmentWorkspace {
   drive: RequisitionDrive | null;
 }
 
+/** AI side-by-side ranking of interview/final-stage candidates. */
+export interface FinalistRanking {
+  id: string;
+  name: string;
+  stage: string;
+  matchScore: number | null;
+  rank: number;
+  strengths: string[];
+  risks: string[];
+  verdict: string;
+}
+
+export interface FinalistComparison {
+  recommendation: string;
+  ranking: FinalistRanking[];
+}
+
 export interface EmailCandidateInput {
   subject: string;
   message: string;

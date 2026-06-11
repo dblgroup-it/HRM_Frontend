@@ -7,6 +7,7 @@ import {
   Lock,
   MapPin,
   MessageSquareText,
+  Video,
 } from 'lucide-react';
 
 import {
@@ -113,10 +114,21 @@ function InterviewMarkCard({ round }: { round: MyInterviewRound }) {
             <CalendarClock className="h-3.5 w-3.5" />
             {round.scheduledAt ? formatDate(round.scheduledAt) : 'Time TBD'}
           </span>
-          {round.location && (
-            <span className="inline-flex items-center gap-1">
-              <MapPin className="h-3.5 w-3.5" /> {round.location}
-            </span>
+          {round.meetLink ? (
+            <a
+              href={round.meetLink}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 font-medium text-emerald-600 hover:underline"
+            >
+              <Video className="h-3.5 w-3.5" /> Join Google Meet
+            </a>
+          ) : (
+            round.location && (
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5" /> {round.location}
+              </span>
+            )
           )}
         </div>
 

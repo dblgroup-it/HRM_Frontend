@@ -97,7 +97,7 @@ export function Sidebar({
             className={cn(
               'mt-4 text-center text-xs font-semibold uppercase tracking-[0.14em] text-slate-600 transition-all duration-200',
               collapsed &&
-                'lg:pointer-events-none lg:h-0 lg:overflow-hidden lg:opacity-0'
+              'lg:pointer-events-none lg:h-0 lg:overflow-hidden lg:opacity-0'
             )}
           >
             DBL HRM · Recruitment Suite
@@ -126,7 +126,7 @@ export function Sidebar({
                   className={cn(
                     'px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400 transition-all duration-200',
                     collapsed &&
-                      'lg:pointer-events-none lg:h-0 lg:overflow-hidden lg:p-0 lg:opacity-0'
+                    'lg:pointer-events-none lg:h-0 lg:overflow-hidden lg:p-0 lg:opacity-0'
                   )}
                 >
                   {section.heading}
@@ -163,7 +163,7 @@ export function Sidebar({
                             className={cn(
                               'flex-1 truncate transition-all duration-200',
                               collapsed &&
-                                'lg:pointer-events-none lg:w-0 lg:flex-none lg:opacity-0'
+                              'lg:pointer-events-none lg:w-0 lg:flex-none lg:opacity-0'
                             )}
                           >
                             {item.label}
@@ -200,7 +200,7 @@ export function Sidebar({
           {collapsed ? (
             <>
               <p className="text-[11px] font-medium text-slate-400 lg:hidden">
-                v1.0.0 · {APP_META.company}
+                IT Team · {APP_META.company}
               </p>
               <p className="hidden text-center text-[11px] font-medium text-slate-400 lg:block">
                 v1
@@ -208,7 +208,7 @@ export function Sidebar({
             </>
           ) : (
             <p className="text-[11px] font-medium text-slate-400">
-              v1.0.0 · {APP_META.company}
+              IT Team · {APP_META.company}
             </p>
           )}
         </div>

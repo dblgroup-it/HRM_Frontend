@@ -7,10 +7,13 @@ import {
   Link2,
   Plus,
   RefreshCw,
+  Scale,
   Search,
   ShieldCheck,
   Sparkles,
+  Trophy,
   Users,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -33,12 +36,17 @@ import {
 
 import {
   useCandidates,
+  useCompareFinalists,
   useRecruitmentWorkspace,
   useScreenAll,
   useSetupWorkspace,
   useSyncDrive,
 } from '../hooks/useCandidates';
-import type { Candidate, CandidateStage } from '../types/candidate.types';
+import type {
+  Candidate,
+  CandidateStage,
+  FinalistComparison,
+} from '../types/candidate.types';
 import { CandidateRow } from './CandidateRow';
 import { AddCandidateModal } from './AddCandidateModal';
 import { EmailCandidateModal } from './EmailCandidateModal';
@@ -79,7 +87,12 @@ export function CandidatesPanel({
   const setup = useSetupWorkspace(reqId);
   const sync = useSyncDrive(reqId);
   const screenAll = useScreenAll(reqId);
+  const compare = useCompareFinalists(reqId);
   const aiOn = workspace?.aiScreening ?? false;
+  const [comparison, setComparison] = useState<FinalistComparison | null>(null);
+  const finalistCount = candidates.filter(
+    (c) => c.stage === 'interview' || c.stage === 'final',
+  ).length;
 
   const [tab, setTab] = useState<Tab>('all');
   const [search, setSearch] = useState('');
@@ -146,6 +159,22 @@ export function CandidatesPanel({
         </CardTitle>
         {canManage && drive && (
           <div className="flex items-center gap-2">
+            {aiOn && finalistCount >= 2 && (
+              <Button
+                size="sm"
+                variant="outline"
+                leftIcon={<Scale className="h-4 w-4 text-indigo-600" />}
+                onClick={() =>
+                  compare.mutate(undefined, {
+                    onSuccess: setComparison,
+                  })
+                }
+                disabled={compare.isPending}
+                title="AI side-by-side comparison of interview/final candidates"
+              >
+                {compare.isPending ? 'Comparing…' : 'AI Compare'}
+              </Button>
+            )}
             {aiOn && (
               <Button
                 size="sm"
@@ -317,6 +346,14 @@ export function CandidatesPanel({
           </div>
         )}
 
+        {/* AI finalist comparison */}
+        {comparison && (
+          <ComparisonPanel
+            comparison={comparison}
+            onClose={() => setComparison(null)}
+          />
+        )}
+
         {/* Tabs + search */}
         {drive && (
           <>
@@ -438,6 +475,111 @@ export function CandidatesPanel({
         label="AI is screening CVs…"
         sublabel="Reading each CV and matching it to the role — this can take a moment."
       />
+      <BusyOverlay
+        show={compare.isPending}
+        variant="ai"
+        label="AI is comparing finalists…"
+        sublabel="Weighing CV screening, exam scores and interview panel marks side by side."
+      />
     </Card>
+  );
+}
+
+/** Ranked side-by-side result of the AI finalist comparison. */
+function ComparisonPanel({
+  comparison,
+  onClose,
+}: {
+  comparison: FinalistComparison;
+  onClose: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/80 to-white p-4">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <p className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+          <Scale className="h-4 w-4 text-indigo-600" />
+          AI finalist comparison
+          <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
+            Advisory
+          </span>
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          title="Dismiss"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      {comparison.recommendation && (
+        <p className="mb-3 rounded-lg bg-white/80 p-3 text-sm leading-relaxed text-slate-700 ring-1 ring-indigo-100">
+          {comparison.recommendation}
+        </p>
+      )}
+
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {comparison.ranking.map((r) => (
+          <div
+            key={r.id}
+            className={cn(
+              'rounded-lg border bg-white p-3',
+              r.rank === 1
+                ? 'border-emerald-300 ring-1 ring-emerald-200'
+                : 'border-slate-200',
+            )}
+          >
+            <div className="mb-2 flex items-center gap-2">
+              <span
+                className={cn(
+                  'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold',
+                  r.rank === 1
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-slate-100 text-slate-600',
+                )}
+              >
+                {r.rank === 1 ? <Trophy className="h-3.5 w-3.5" /> : r.rank}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-800">
+                {r.name}
+              </span>
+              {r.matchScore != null && (
+                <span className="text-xs font-medium text-violet-600">
+                  {r.matchScore}%
+                </span>
+              )}
+            </div>
+            {r.verdict && (
+              <p className="mb-2 text-xs italic text-slate-500">{r.verdict}</p>
+            )}
+            {r.strengths.length > 0 && (
+              <ul className="space-y-0.5">
+                {r.strengths.map((s, i) => (
+                  <li key={i} className="flex gap-1.5 text-xs text-emerald-700">
+                    <span className="shrink-0">+</span>
+                    <span>{s}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {r.risks.length > 0 && (
+              <ul className="mt-1 space-y-0.5">
+                {r.risks.map((s, i) => (
+                  <li key={i} className="flex gap-1.5 text-xs text-rose-600">
+                    <span className="shrink-0">−</span>
+                    <span>{s}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-[11px] text-slate-400">
+        Based on CV screening, exam scores and interview panel marks — the final
+        decision is yours.
+      </p>
+    </div>
   );
 }

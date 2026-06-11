@@ -182,7 +182,7 @@ export default function RequisitionDetailPage() {
             <h1 className="text-xl font-semibold text-slate-900">
               {req.designation}
             </h1>
-            <RequisitionStatusBadge status={req.status} />
+            <RequisitionStatusBadge status={req.status} pipeline={req.pipeline} />
             <Badge tone={PRIORITY_TONE[req.priority]} dot>
               {PRIORITY_LABEL[req.priority]}
             </Badge>

@@ -5,6 +5,7 @@ import type {
   Candidate,
   CreateCandidateInput,
   EmailCandidateInput,
+  FinalistComparison,
   PublicApplyInput,
   PublicJobInfo,
   RecruitmentWorkspace,
@@ -96,6 +97,15 @@ export const candidatesApi = {
         // Bulk screening runs sequentially through every CV — allow plenty.
         timeout: 600_000,
       })
+      .then((r) => r.data),
+
+  compareFinalists: (reqId: string): Promise<FinalistComparison> =>
+    http
+      .post<ApiResponse<FinalistComparison>>(
+        `/requisitions/${reqId}/candidates/compare`,
+        undefined,
+        { timeout: 120_000 },
+      )
       .then((r) => r.data),
 
   uploadCv: (id: string, cv: File): Promise<Candidate> => {

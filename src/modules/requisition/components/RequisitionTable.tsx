@@ -73,7 +73,7 @@ export function RequisitionTable({ requisitions, isLoading }: Props) {
     {
       key: 'status',
       header: 'Status',
-      render: (r) => <RequisitionStatusBadge status={r.status} />,
+      render: (r) => <RequisitionStatusBadge status={r.status} pipeline={r.pipeline} />,
     },
   ];
 
@@ -118,7 +118,7 @@ export function RequisitionTable({ requisitions, isLoading }: Props) {
                     {r.code} · {SOURCE_LABEL[r.source]}
                   </p>
                 </div>
-                <RequisitionStatusBadge status={r.status} />
+                <RequisitionStatusBadge status={r.status} pipeline={r.pipeline} />
               </div>
 
               <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">

@@ -11,6 +11,21 @@ export interface OnboardingDoc {
   createdAt: string;
 }
 
+export type CrossCheckSeverity = 'info' | 'warning' | 'critical';
+export type CrossCheckVerdict = 'consistent' | 'minor_issues' | 'discrepancies';
+
+export interface CrossCheckFinding {
+  doc: string;
+  severity: CrossCheckSeverity;
+  detail: string;
+}
+
+export interface CrossCheckResult {
+  verdict: CrossCheckVerdict;
+  overview: string;
+  findings: CrossCheckFinding[];
+}
+
 export interface OnboardingView {
   id: string;
   candidateId: string;
@@ -26,7 +41,10 @@ export interface OnboardingView {
   medicalNote: string;
   medicalClearedAt: string | null;
   hrVerifiedAt: string | null;
+  crossCheck: CrossCheckResult | null;
+  crossCheckedAt: string | null;
   archivedAt: string | null;
+  archiveFolderUrl: string | null;
   itEmail: string;
   itAssetId: string;
   itNotifiedAt: string | null;
@@ -41,6 +59,9 @@ export interface OnboardingCandidate {
   email: string;
   phone: string;
   stage: string;
+  source: string;
+  matchScore: number | null;
+  matchSummary: string;
   requisitionId: string;
   designation: string;
   code: string;

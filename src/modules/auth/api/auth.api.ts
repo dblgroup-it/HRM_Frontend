@@ -92,8 +92,12 @@ export const authApi = {
   },
 
   logout(): Promise<void> {
-    // JWT is stateless — the session is cleared client-side; no server call.
-    return delay(0);
+    // Invalidate the token server-side (bumps the user's token version), then
+    // the caller clears local state. Best-effort — never block sign-out on it.
+    return http
+      .post<ApiResponse<{ ok: true }>>('/auth/logout')
+      .then(() => undefined)
+      .catch(() => undefined);
   },
 };
 

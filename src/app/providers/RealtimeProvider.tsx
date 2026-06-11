@@ -106,7 +106,49 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       transports: ['websocket', 'polling'],
     });
 
-    // Live data — patch open requisition caches immediately, then refetch.
+    // Coalesce bursts of change events into ONE refetch (e.g. bulk AI screening
+    // emits many candidate:changed events) so we never trigger a refetch storm.
+    const pending = new Set<string>();
+    let flushTimer: ReturnType<typeof setTimeout> | undefined;
+    const flush = () => {
+      flushTimer = undefined;
+      const keys = [...pending];
+      pending.clear();
+      for (const k of keys) {
+        if (k === 'req') {
+          void queryClient.invalidateQueries({
+            queryKey: requisitionKeys.all,
+            refetchType: 'active',
+          });
+        } else if (k === 'org') {
+          void queryClient.invalidateQueries({
+            queryKey: ['organogram'],
+            refetchType: 'active',
+          });
+        } else if (k === 'notif') {
+          void queryClient.invalidateQueries({
+            queryKey: notificationKeys.all,
+            refetchType: 'active',
+          });
+        } else if (k === 'cand:all') {
+          void queryClient.invalidateQueries({
+            queryKey: candidateKeys.all,
+            refetchType: 'active',
+          });
+        } else if (k.startsWith('cand:')) {
+          void queryClient.invalidateQueries({
+            queryKey: candidateKeys.list(k.slice(5)),
+            refetchType: 'active',
+          });
+        }
+      }
+    };
+    const schedule = (...keys: string[]) => {
+      keys.forEach((k) => pending.add(k));
+      if (!flushTimer) flushTimer = setTimeout(flush, 400);
+    };
+
+    // Live data — patch open requisition caches immediately, refetch (debounced).
     socket.on('requisition:changed', (payload?: RequisitionChangedPayload) => {
       const requisition = payload?.record;
       if (requisition) {
@@ -127,15 +169,10 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
               : old
         );
       }
-
-      void queryClient.invalidateQueries({
-        queryKey: requisitionKeys.all,
-        refetchType: 'active',
-      });
-      void queryClient.invalidateQueries({ queryKey: ['organogram'] });
+      schedule('req', 'org');
     });
 
-    // Targeted notification → sound + toast + bell refresh.
+    // Targeted notification → sound + toast (immediate) + bell refresh (debounced).
     socket.on('notification', (n: AppNotification) => {
       const played = tryPlayNotificationSound();
       if (!played) pendingSoundRef.current = true;
@@ -145,27 +182,18 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
           ? { label: 'View', onClick: () => navigate(n.link as string) }
           : undefined,
       });
-      void queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+      schedule('notif');
     });
 
-    socket.on('notification:read', () => {
-      void queryClient.invalidateQueries({ queryKey: notificationKeys.all });
-    });
+    socket.on('notification:read', () => schedule('notif'));
 
     // Candidate pipeline changed (payload.id is the requisition id).
     socket.on('candidate:changed', (payload?: { id?: string }) => {
-      if (payload?.id) {
-        void queryClient.invalidateQueries({
-          queryKey: candidateKeys.list(payload.id),
-        });
-      } else {
-        void queryClient.invalidateQueries({ queryKey: candidateKeys.all });
-      }
-      // Refresh requisition lists/cards so their stage counts stay live.
-      void queryClient.invalidateQueries({ queryKey: requisitionKeys.all });
+      schedule(payload?.id ? `cand:${payload.id}` : 'cand:all', 'req');
     });
 
     return () => {
+      if (flushTimer) clearTimeout(flushTimer);
       socket.disconnect();
       unlockEvents.forEach((eventName) =>
         document.removeEventListener(eventName, unlockAudio)

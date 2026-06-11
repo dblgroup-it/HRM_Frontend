@@ -6,13 +6,12 @@ export const dashboardKeys = {
   all: ['dashboard'] as const,
 };
 
-/** Fetches aggregated HR dashboard data. */
+/** Fetches aggregated HR dashboard data (the backend caches it ~45s too). */
 export function useDashboard() {
   return useQuery({
     queryKey: dashboardKeys.all,
     queryFn: () => dashboardApi.getDashboard(),
-    // A dashboard should reflect current data — always refetch when opened.
-    staleTime: 0,
-    refetchOnMount: 'always',
+    staleTime: 45_000,
+    refetchOnWindowFocus: false,
   });
 }

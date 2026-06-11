@@ -45,6 +45,15 @@ export const onboardingApi = {
       })
       .then((r) => r.data),
 
+  crossCheck: (candidateId: string): Promise<OnboardingResult> =>
+    http
+      .post<ApiResponse<OnboardingResult>>(
+        `/candidates/${candidateId}/onboarding/cross-check`,
+        undefined,
+        { timeout: 90_000 },
+      )
+      .then((r) => r.data),
+
   sendOffer: (candidateId: string): Promise<{ onboarding: OnboardingView }> =>
     http
       .post<ApiResponse<{ onboarding: OnboardingView }>>(

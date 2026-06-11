@@ -179,6 +179,15 @@ export function useScreenCandidate(reqId: string) {
   });
 }
 
+/** AI side-by-side comparison of interview/final-stage candidates. */
+export function useCompareFinalists(reqId: string) {
+  return useMutation({
+    mutationFn: () => candidatesApi.compareFinalists(reqId),
+    onError: (error) =>
+      toast.error(errMsg(error, 'Could not run the AI comparison')),
+  });
+}
+
 export function useSyncDrive(reqId: string) {
   const qc = useQueryClient();
   return useMutation({

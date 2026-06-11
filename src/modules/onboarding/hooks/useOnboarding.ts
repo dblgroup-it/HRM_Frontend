@@ -79,6 +79,14 @@ export function useSummarizeDoc(candidateId: string) {
   );
 }
 
+export function useCrossCheck(candidateId: string) {
+  return useCandidateAction(
+    candidateId,
+    () => onboardingApi.crossCheck(candidateId),
+    { success: 'Cross-check complete', fallback: 'Cross-check failed' },
+  );
+}
+
 export function useVerifyDoc(candidateId: string) {
   return useCandidateAction(
     candidateId,

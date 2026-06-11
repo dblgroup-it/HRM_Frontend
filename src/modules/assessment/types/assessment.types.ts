@@ -76,6 +76,8 @@ export interface InterviewRoundView {
   scheduledAt: string | null;
   location: string;
   status: InterviewStatusKey;
+  meetLink: string | null;
+  calendarSynced: boolean;
   panelists: InterviewPanelistView[];
   evaluations: EvaluationView[];
   evaluationCount: number;
@@ -89,6 +91,7 @@ export interface MyInterviewRound {
   mode: InterviewModeKey;
   scheduledAt: string | null;
   location: string;
+  meetLink: string | null;
   status: InterviewStatusKey;
   candidate: { id: string; name: string; email: string; phone: string };
   requisition: { id: string; code: string; designation: string; unit: string };

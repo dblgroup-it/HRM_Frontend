@@ -12,7 +12,8 @@ export function canAccessInsights(
   role?: string,
 ): boolean {
   if (perms?.isSuperUser) return true;
-  if (role && ['admin', 'hr_manager', 'management'].includes(role)) return true;
+  // 'management' is excluded — ZingHR stamps every synced employee MANAGEMENT.
+  if (role && ['admin', 'hr_manager'].includes(role)) return true;
   return (perms?.roles ?? []).some(
     (r) => r.key === 'corporate_hr' || r.key === 'chro' || r.key === 'super_user',
   );
