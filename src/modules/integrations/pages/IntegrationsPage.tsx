@@ -22,6 +22,7 @@ import {
   useZingHrLogs,
 } from '../hooks/useZingHr';
 import { SyncTerminal } from '../components/SyncTerminal';
+import { AutomationPanel } from '../components/AutomationPanel';
 import type { ZingHrSyncLog } from '../types/zinghr.types';
 
 export default function IntegrationsPage() {
@@ -74,6 +75,8 @@ export default function IntegrationsPage() {
         title="Integrations"
         description="External systems connected to the HRM platform."
       />
+
+      <AutomationPanel />
 
       <Card>
         <CardHeader>

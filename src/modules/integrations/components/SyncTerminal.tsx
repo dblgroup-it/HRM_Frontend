@@ -5,9 +5,13 @@ import { TerminalSquare } from 'lucide-react';
 export function SyncTerminal({
   lines,
   running,
+  title = 'ZingHR sync · console',
+  height = 'h-72',
 }: {
   lines: string[];
   running: boolean;
+  title?: string;
+  height?: string;
 }) {
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -19,9 +23,7 @@ export function SyncTerminal({
     <div className="overflow-hidden rounded-lg border border-slate-800 bg-slate-900">
       <div className="flex items-center gap-2 border-b border-slate-800 px-3 py-2">
         <TerminalSquare className="h-4 w-4 text-slate-400" />
-        <span className="text-xs font-medium text-slate-300">
-          ZingHR sync · console
-        </span>
+        <span className="text-xs font-medium text-slate-300">{title}</span>
         {running && (
           <span className="ml-auto flex items-center gap-1.5 text-xs text-emerald-400">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
@@ -29,7 +31,9 @@ export function SyncTerminal({
           </span>
         )}
       </div>
-      <div className="scrollbar-thin h-72 overflow-y-auto px-3 py-2 font-mono text-xs leading-relaxed">
+      <div
+        className={`scrollbar-thin ${height} overflow-y-auto px-3 py-2 font-mono text-xs leading-relaxed`}
+      >
         {lines.length === 0 ? (
           <p className="text-slate-500">Waiting for output…</p>
         ) : (
