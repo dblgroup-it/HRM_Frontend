@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  CalendarClock,
   Copy,
   ExternalLink,
   FolderOpen,
@@ -30,6 +31,7 @@ import {
 import { cn } from '@shared/lib';
 import type { Requisition } from '@modules/requisition/types/requisition.types';
 import {
+  BulkInterviewModal,
   CandidateExamsModal,
   CandidateInterviewsModal,
 } from '@modules/assessment';
@@ -77,9 +79,11 @@ const FUNNEL: { key: CandidateStage; label: string; tone: string }[] = [
 export function CandidatesPanel({
   requisition,
   canManage,
+  onGoToAssessment,
 }: {
   requisition: Requisition;
   canManage: boolean;
+  onGoToAssessment?: () => void;
 }) {
   const reqId = requisition.id;
   const { data: workspace } = useRecruitmentWorkspace(reqId);
@@ -101,6 +105,8 @@ export function CandidatesPanel({
   const [emailTarget, setEmailTarget] = useState<Candidate | null>(null);
   const [interviewTarget, setInterviewTarget] = useState<Candidate | null>(null);
   const [examTarget, setExamTarget] = useState<Candidate | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const drive = workspace?.drive ?? requisition.drive ?? null;
   const driveConnected = workspace?.connected ?? true;
@@ -409,6 +415,31 @@ export function CandidatesPanel({
               </div>
             </div>
 
+            {/* Bulk action bar — appears when ≥1 candidate selected */}
+            {canManage && selectedIds.size > 0 && (
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-brand-200 bg-brand-50 px-4 py-2.5">
+                <span className="text-sm font-medium text-brand-700">
+                  {selectedIds.size} candidate{selectedIds.size === 1 ? '' : 's'} selected
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    leftIcon={<CalendarClock className="h-3.5 w-3.5" />}
+                    onClick={() => setBulkOpen(true)}
+                  >
+                    Schedule Interview Day
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedIds(new Set())}
+                    className="text-xs text-brand-600 hover:underline"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* List */}
             <div className="overflow-hidden rounded-lg border border-slate-200">
               {isLoading ? (
@@ -422,19 +453,122 @@ export function CandidatesPanel({
                     : 'No candidates match this filter.'}
                 </p>
               ) : (
-                <div className="max-h-[32rem] divide-y divide-slate-100 overflow-y-auto">
-                  {visible.map((c) => (
-                    <CandidateRow
-                      key={c.id}
-                      candidate={c}
-                      reqId={reqId}
-                      canManage={canManage}
-                      onEmail={setEmailTarget}
-                      onInterviews={setInterviewTarget}
-                      onExams={setExamTarget}
-                    />
-                  ))}
-                </div>
+                <>
+                  {/* Select-all header */}
+                  {canManage && (() => {
+                    const allSel = visible.length > 0 && visible.every((c) => selectedIds.has(c.id));
+                    const someSel = visible.some((c) => selectedIds.has(c.id));
+
+                    const STAGE_CHIPS: { stage: CandidateStage; label: string; cls: string }[] = [
+                      { stage: 'ai_shortlisted', label: 'AI Shortlisted', cls: 'bg-violet-100 text-violet-700 hover:bg-violet-200 ring-violet-200' },
+                      { stage: 'shortlisted',    label: 'Shortlisted',    cls: 'bg-sky-100 text-sky-700 hover:bg-sky-200 ring-sky-200' },
+                      { stage: 'interview',      label: 'Interview',      cls: 'bg-amber-100 text-amber-700 hover:bg-amber-200 ring-amber-200' },
+                    ];
+
+                    return (
+                      <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedIds((prev) => {
+                              const next = new Set(prev);
+                              if (allSel) visible.forEach((c) => next.delete(c.id));
+                              else visible.forEach((c) => next.add(c.id));
+                              return next;
+                            })
+                          }
+                          title={allSel ? 'Deselect all' : 'Select all'}
+                          className={cn(
+                            'relative h-[18px] w-[18px] shrink-0 rounded-[4px] border-2 transition-all duration-200',
+                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500',
+                            allSel || someSel
+                              ? 'border-brand-600 scale-100'
+                              : 'border-slate-300 bg-white hover:border-brand-400 hover:scale-105',
+                          )}
+                          style={allSel || someSel ? {
+                            background: 'linear-gradient(135deg, #1877c0 0%, #1055a0 100%)',
+                            boxShadow: '0 1px 4px rgba(24,119,192,0.30)',
+                          } : undefined}
+                        >
+                          <svg viewBox="0 0 10 8" className="absolute inset-0 m-auto h-[10px] w-[10px]" fill="none">
+                            {someSel && !allSel ? (
+                              <line x1="1" y1="4" x2="9" y2="4" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                            ) : (
+                              <polyline
+                                points="1,4 3.5,6.5 9,1"
+                                stroke="white"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeDasharray="14"
+                                style={{
+                                  strokeDashoffset: allSel ? 0 : 14,
+                                  transition: 'stroke-dashoffset 0.22s cubic-bezier(0.65,0,0.35,1) 0.04s',
+                                }}
+                              />
+                            )}
+                          </svg>
+                        </button>
+                        <span className="shrink-0 text-xs text-slate-400">
+                          {selectedIds.size > 0
+                            ? `${selectedIds.size} of ${visible.length} selected`
+                            : 'Select all · or hover any row'}
+                        </span>
+                        {/* One-click stage quick-select chips */}
+                        {STAGE_CHIPS.map(({ stage: s, label, cls }) => {
+                          const stageRows = visible.filter((c) => c.stage === s);
+                          if (stageRows.length === 0) return null;
+                          const allChipSel = stageRows.every((c) => selectedIds.has(c.id));
+                          return (
+                            <button
+                              key={s}
+                              type="button"
+                              title={allChipSel ? `Deselect all ${label}` : `Select all ${label}`}
+                              onClick={() =>
+                                setSelectedIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (allChipSel) stageRows.forEach((c) => next.delete(c.id));
+                                  else stageRows.forEach((c) => next.add(c.id));
+                                  return next;
+                                })
+                              }
+                              className={cn(
+                                'inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ring-1 ring-inset transition-all duration-150',
+                                cls,
+                                allChipSel && 'ring-2',
+                              )}
+                            >
+                              {label} ({stageRows.length})
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                  <div className="max-h-[32rem] divide-y divide-slate-100 overflow-y-auto">
+                    {visible.map((c) => (
+                      <CandidateRow
+                        key={c.id}
+                        candidate={c}
+                        reqId={reqId}
+                        canManage={canManage}
+                        selected={selectedIds.has(c.id)}
+                        isSelectMode={selectedIds.size > 0}
+                        onSelect={(cand, checked) => {
+                          setSelectedIds((prev) => {
+                            const next = new Set(prev);
+                            if (checked) next.add(cand.id);
+                            else next.delete(cand.id);
+                            return next;
+                          });
+                        }}
+                        onEmail={setEmailTarget}
+                        onInterviews={setInterviewTarget}
+                        onExams={setExamTarget}
+                      />
+                    ))}
+                  </div>
+                </>
               )}
             </div>
           </>
@@ -459,6 +593,7 @@ export function CandidatesPanel({
           candidate={{ id: interviewTarget.id, name: interviewTarget.name }}
           open={Boolean(interviewTarget)}
           onClose={() => setInterviewTarget(null)}
+          onGoToSetup={onGoToAssessment}
         />
       )}
       {examTarget && (
@@ -468,6 +603,18 @@ export function CandidatesPanel({
           onClose={() => setExamTarget(null)}
         />
       )}
+
+      <BulkInterviewModal
+        reqId={reqId}
+        candidates={candidates
+          .filter((c) => selectedIds.has(c.id))
+          .map((c) => ({ id: c.id, name: c.name }))}
+        open={bulkOpen}
+        onClose={() => {
+          setBulkOpen(false);
+          setSelectedIds(new Set());
+        }}
+      />
 
       <BusyOverlay
         show={screenAll.isPending}

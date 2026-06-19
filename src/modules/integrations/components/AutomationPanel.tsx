@@ -53,11 +53,13 @@ export function AutomationPanel() {
   const { data: status } = useQuery({
     queryKey: STATUS_KEY,
     queryFn: automationApi.status,
+    refetchOnWindowFocus: false,
   });
   const { data: logData } = useQuery({
     queryKey: ['automation', 'logs'],
     queryFn: automationApi.logs,
-    refetchInterval: 5000, // live console while the page is open
+    refetchOnWindowFocus: false,
+    // Invalidated on mutation success — no continuous polling needed
   });
   const pauseMut = useMutation({
     mutationFn: (vars: { job: AutomationJob; days?: number }) =>

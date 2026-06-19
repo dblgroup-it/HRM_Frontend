@@ -17,6 +17,7 @@ export function useSyncStatus() {
   return useQuery({
     queryKey: zinghrKeys.status,
     queryFn: () => zinghrApi.status(),
+    refetchOnWindowFocus: false,
     refetchInterval: (query) =>
       query.state.data?.status === 'running' ? 1500 : false,
   });
@@ -26,6 +27,7 @@ export function useZingHrLogs() {
   return useQuery({
     queryKey: zinghrKeys.logs,
     queryFn: () => zinghrApi.logs(),
+    refetchOnWindowFocus: false,
   });
 }
 

@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Pencil } from 'lucide-react';
 
 import { useMyPermissions } from '@modules/rbac';
 
 import {
   Badge,
+  BusyOverlay,
   Button,
   Card,
   CardBody,
@@ -42,10 +43,34 @@ import {
 export default function RequisitionDetailPage() {
   const { id = '' } = useParams();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { data: req, isLoading, isError } = useRequisition(id);
   const { data: perms } = useMyPermissions();
   const [editOpen, setEditOpen] = useState(false);
-  const [tab, setTab] = useState<TabKey | null>(null);
+  const [tab, setTab] = useState<TabKey | null>(
+    (searchParams.get('tab') as TabKey | null) ?? null,
+  );
+  // 'working' = Publish clicked, Drive not ready yet
+  // 'done'    = Drive workspace arrived — show success for 1.5 s before hiding
+  const [drivePhase, setDrivePhase] = useState<'idle' | 'working' | 'done'>('idle');
+
+  // Keep tab in sync when URL ?tab= changes (e.g. link from a modal on the same page)
+  useEffect(() => {
+    const t = searchParams.get('tab') as TabKey | null;
+    if (t) setTab(t);
+  }, [searchParams]);
+
+  // Switch to 'done' as soon as Drive workspace arrives
+  useEffect(() => {
+    if (drivePhase === 'working' && req?.drive) setDrivePhase('done');
+  }, [drivePhase, req?.drive]);
+
+  // Hold the 'done' label for 1.5 s, then dismiss
+  useEffect(() => {
+    if (drivePhase !== 'done') return;
+    const id = setTimeout(() => setDrivePhase('idle'), 1500);
+    return () => clearTimeout(id);
+  }, [drivePhase]);
 
   // Return to wherever the user came from (Candidates, Requisitions, …).
   const nav = (location.state ?? null) as {
@@ -154,7 +179,7 @@ export default function RequisitionDetailPage() {
   ];
   const defaultTab: TabKey =
     req.status === 'posted'
-      ? showCandidates
+      ? showCandidates && req.drive  // wait for Drive to be ready before switching
         ? 'recruitment'
         : 'posting'
       : req.status === 'approved' || req.status === 'profile_generated'
@@ -166,7 +191,20 @@ export default function RequisitionDetailPage() {
     tab && tabs.some((t) => t.key === tab) ? tab : defaultTab;
 
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-6">
+      <BusyOverlay
+        show={drivePhase !== 'idle'}
+        label={
+          drivePhase === 'done'
+            ? 'Drive workspace ready!'
+            : 'Setting up Google Drive workspace…'
+        }
+        sublabel={
+          drivePhase === 'done'
+            ? 'Switching to recruitment view…'
+            : 'Creating folders and sharing CV collection link…'
+        }
+      />
       <Link
         to={backTo}
         className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-600"
@@ -302,13 +340,20 @@ export default function RequisitionDetailPage() {
             <PostingPanel
               requisition={req}
               canContinue={canCorporateHrContinue}
+              onPosting={() => setDrivePhase('working')}
             />
           )}
         </div>
       )}
 
       {activeTab === 'recruitment' && showCandidates && (
-        <CandidatesPanel requisition={req} canManage={canCorporateHrContinue} />
+        <CandidatesPanel
+          requisition={req}
+          canManage={canCorporateHrContinue}
+          onGoToAssessment={
+            canCorporateHrContinue ? () => setTab('assessment') : undefined
+          }
+        />
       )}
 
       {activeTab === 'assessment' && showCandidates && canCorporateHrContinue && (

@@ -1,4 +1,83 @@
-import { Loader2, Sparkles } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Sparkles } from 'lucide-react';
+
+import { Spinner } from './Spinner';
+
+const SLIDE_MS = 180;
+
+/**
+ * Ticker-style label swap: old text slides up out, new text rises from below.
+ * Uses a two-row wrapper that translates up by one row — no opacity overlap.
+ */
+function AnimatedLabel({
+  text,
+  textClass,
+  rowH,
+}: {
+  text: string;
+  textClass: string;
+  rowH: number; // px height of one text row
+}) {
+  const [current, setCurrent] = useState(text);
+  const [prev, setPrev] = useState<string | null>(null);
+  const prevRef = useRef(text);
+
+  useEffect(() => {
+    if (text === prevRef.current) return;
+    const old = prevRef.current;
+    prevRef.current = text;
+    setPrev(old);
+    setCurrent(text);
+    const id = setTimeout(() => setPrev(null), SLIDE_MS + 30);
+    return () => clearTimeout(id);
+  }, [text]);
+
+  const row = (label: string) => (
+    <div
+      style={{
+        height: rowH,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        whiteSpace: 'nowrap',
+      }}
+      className={textClass}
+    >
+      {label}
+    </div>
+  );
+
+  return (
+    <>
+      {/* Inject keyframe once — only present while overlay is visible */}
+      <style>{`
+        @keyframes _overlayTicker {
+          from { transform: translateY(0); }
+          to   { transform: translateY(-50%); }
+        }
+      `}</style>
+
+      <div style={{ height: rowH, overflow: 'hidden' }}>
+        {prev !== null ? (
+          /* Two-row stack: prev on top, current below. Slide up one row. */
+          <div
+            key={current}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              animation: `_overlayTicker ${SLIDE_MS}ms cubic-bezier(0.4,0,0.2,1) forwards`,
+            }}
+          >
+            {row(prev)}
+            {row(current)}
+          </div>
+        ) : (
+          row(current)
+        )}
+      </div>
+    </>
+  );
+}
 
 /** Full-screen blocking overlay shown during a slow, click-sensitive action. */
 export function BusyOverlay({
@@ -24,12 +103,22 @@ export function BusyOverlay({
           </span>
         </div>
       ) : (
-        <Loader2 className="h-9 w-9 animate-spin text-brand-600" />
+        <Spinner size={130} />
       )}
       {label && (
-        <p className="text-base font-semibold text-slate-700">{label}</p>
+        <AnimatedLabel
+          text={label}
+          rowH={28}
+          textClass="text-base font-semibold text-slate-700"
+        />
       )}
-      {sublabel && <p className="-mt-2 text-sm text-slate-500">{sublabel}</p>}
+      {sublabel && (
+        <AnimatedLabel
+          text={sublabel}
+          rowH={20}
+          textClass="text-sm text-slate-500"
+        />
+      )}
     </div>
   );
 }

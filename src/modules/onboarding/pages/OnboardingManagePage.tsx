@@ -28,12 +28,12 @@ import {
   Card,
   CardBody,
   FullPageSpinner,
-  Input,
   type BadgeTone,
 } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import { ROUTES } from '@app/router/paths';
 import { useUpdateCandidate } from '@modules/candidates';
+import { OfferLetterModal } from '../components/OfferLetterModal';
 
 import { onboardingKeys } from '../hooks/useOnboarding';
 import {
@@ -380,6 +380,14 @@ function Flow({
 
   const [itEmail, setItEmail] = useState(ob.itEmail);
   const [itAsset, setItAsset] = useState(ob.itAssetId);
+  const [offerLetterOpen, setOfferLetterOpen] = useState(false);
+  const [manualChecks, setManualChecks] = useState<Set<string>>(new Set());
+  const toggleCheck = (key: string) =>
+    setManualChecks((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
 
   const allVerified =
     ob.docs.length > 0 && ob.docs.every((d) => d.status === 'verified');
@@ -513,6 +521,13 @@ function Flow({
         )}
       </Stage>
 
+      {/* Offer letter modal */}
+      <OfferLetterModal
+        candidate={result.candidate}
+        open={offerLetterOpen}
+        onClose={() => setOfferLetterOpen(false)}
+      />
+
       {/* 3 · Offer letter */}
       <Stage n={3} state={stateOf(2)} title="Offer letter" icon={Send}>
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -525,19 +540,28 @@ function Flow({
               </Badge>
             ) : (
               <span className="text-slate-500">
-                Send the templated offer letter to the candidate by email.
+                Preview and send the offer letter to the candidate.
               </span>
             )}
           </div>
-          <Button
-            isLoading={sendOffer.isPending}
-            disabled={noEmail}
-            title={emailHint}
-            leftIcon={<Mail className="h-4 w-4" />}
-            onClick={() => sendOffer.mutate(undefined)}
-          >
-            {ob.offerSentAt ? 'Resend offer' : 'Send offer'}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              leftIcon={<FileText className="h-4 w-4" />}
+              onClick={() => setOfferLetterOpen(true)}
+            >
+              Preview offer letter
+            </Button>
+            <Button
+              isLoading={sendOffer.isPending}
+              disabled={noEmail}
+              title={emailHint}
+              leftIcon={<Mail className="h-4 w-4" />}
+              onClick={() => sendOffer.mutate(undefined)}
+            >
+              {ob.offerSentAt ? 'Resend offer' : 'Send offer'}
+            </Button>
+          </div>
         </div>
         {noEmail ? (
           <Hint>{emailHint}</Hint>
@@ -657,33 +681,107 @@ function Flow({
         last
       >
         {ob.itNotifiedAt ? (
-          <div className="space-y-1 text-sm">
+          <div className="space-y-3">
             <Badge tone="success">Onboarded {fmt(ob.itNotifiedAt)}</Badge>
-            <p className="text-slate-600">
-              Work email: <span className="font-medium">{ob.itEmail || '—'}</span>{' '}
-              · Asset: <span className="font-medium">{ob.itAssetId || '—'}</span>
-            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {[
+                { label: 'Work email', value: ob.itEmail || '—', icon: Mail },
+                { label: 'Asset / device ID', value: ob.itAssetId || '—', icon: Laptop },
+              ].map(({ label, value, icon: Icon }) => (
+                <div
+                  key={label}
+                  className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+                >
+                  <Icon className="h-4 w-4 shrink-0 text-brand-500" />
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</p>
+                    <p className="mt-0.5 truncate text-sm font-semibold text-slate-800">{value}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Provisioning checklist */}
+            <div className="rounded-xl border border-slate-200 divide-y divide-slate-100">
+              {[
+                { key: 'email', label: 'Work email account created', done: Boolean(ob.itEmail) },
+                { key: 'asset', label: 'Laptop / device assigned', done: Boolean(ob.itAssetId) },
+                { key: 'access_card', label: 'Access card issued', done: false },
+                { key: 'sys_access', label: 'System / software access granted', done: false },
+                { key: 'orientation', label: 'Orientation scheduled', done: false },
+              ].map(({ key, label, done: autoDone }) => {
+                const d = autoDone || manualChecks.has(key);
+                return (
+                  <div key={key} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                    <button
+                      type="button"
+                      onClick={() => !autoDone && toggleCheck(key)}
+                      disabled={autoDone}
+                      className={cn(
+                        'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors',
+                        d
+                          ? 'border-emerald-500 bg-emerald-500 text-white'
+                          : 'border-slate-300 text-transparent hover:border-emerald-400',
+                      )}
+                      title={d ? undefined : 'Mark as complete'}
+                    >
+                      <Check className="h-3 w-3" strokeWidth={3} />
+                    </button>
+                    <span className={cn('flex-1', d ? 'text-slate-700' : 'text-slate-500')}>{label}</span>
+                    {d ? (
+                      <span className="text-[11px] font-medium text-emerald-600">Completed</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => toggleCheck(key)}
+                        className="text-[11px] font-medium text-brand-600 hover:underline"
+                      >
+                        Mark as complete
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <p className="text-sm text-slate-500">
               {itWebhook
-                ? 'Fires the IT webhook with the new hire’s details; the issued email & asset id are written back automatically (you can override them below).'
-                : 'Enter the work email and asset id issued by IT.'}
+                ? "Fires the IT webhook with the new hire's details; the issued email & asset ID are written back automatically."
+                : 'Enter the work email and asset ID issued by the IT team.'}
             </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Input
-                label="Work email"
-                placeholder="name@dbl-group.com"
-                value={itEmail}
-                onChange={(e) => setItEmail(e.target.value)}
-              />
-              <Input
-                label="Asset / device id"
-                placeholder="LAP-00123"
-                value={itAsset}
-                onChange={(e) => setItAsset(e.target.value)}
-              />
+            {/* Provisioning items visual checklist */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50/60 divide-y divide-slate-100">
+              {[
+                { label: 'Work email account', icon: Mail, field: 'email' },
+                { label: 'Laptop / device assignment', icon: Laptop, field: 'asset' },
+                { label: 'Access card', icon: ShieldCheck, field: null },
+                { label: 'System / software access', icon: Lock, field: null },
+              ].map(({ label, icon: Icon, field }) => (
+                <div key={label} className="flex items-center gap-3 px-4 py-2.5">
+                  <Icon className="h-4 w-4 shrink-0 text-slate-400" />
+                  <span className="flex-1 text-sm text-slate-600">{label}</span>
+                  {field === 'email' ? (
+                    <input
+                      type="email"
+                      placeholder="name@dbl-group.com"
+                      value={itEmail}
+                      onChange={(e) => setItEmail(e.target.value)}
+                      className="w-48 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                    />
+                  ) : field === 'asset' ? (
+                    <input
+                      type="text"
+                      placeholder="LAP-00123"
+                      value={itAsset}
+                      onChange={(e) => setItAsset(e.target.value)}
+                      className="w-48 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                    />
+                  ) : (
+                    <span className="text-[11px] text-slate-400">Handled by IT team</span>
+                  )}
+                </div>
+              ))}
             </div>
             <Button
               isLoading={notifyIt.isPending}
@@ -697,7 +795,7 @@ function Flow({
                 })
               }
             >
-              Notify IT &amp; finish
+              Notify IT &amp; complete onboarding
             </Button>
             {!ob.hrVerifiedAt && (
               <Hint tone="amber">Complete HR verification before notifying IT.</Hint>

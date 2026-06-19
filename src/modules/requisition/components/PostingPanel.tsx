@@ -21,9 +21,11 @@ import { usePostRequisition } from '../hooks/useRequisitionActions';
 export function PostingPanel({
   requisition,
   canContinue,
+  onPosting,
 }: {
   requisition: Requisition;
   canContinue: boolean;
+  onPosting?: () => void;
 }) {
   const [selected, setSelected] = useState<PreferredSource[]>(
     requisition.preferredSources.length
@@ -134,9 +136,10 @@ export function PostingPanel({
           disabled={!canPost}
           isLoading={post.isPending}
           leftIcon={<Send className="h-4 w-4" />}
-          onClick={() =>
-            post.mutate({ id: requisition.id, sources: selected, closingDate })
-          }
+          onClick={() => {
+            onPosting?.();
+            post.mutate({ id: requisition.id, sources: selected, closingDate });
+          }}
         >
           Publish job posting
         </Button>

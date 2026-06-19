@@ -6,17 +6,21 @@ import type {
   AddExamQuestionInput,
   AssessmentComponentInput,
   AssessmentSetup,
+  BulkScheduleInput,
+  EvaluationSummaryResult,
   ExamAttemptsResult,
   ExamBank,
   ExamTypeKey,
   MyInterviewRound,
   RubricCriterionInput,
   ScheduleInterviewInput,
+  ScorecardEntry,
   SubmitEvaluationInput,
 } from '../types/assessment.types';
 
 export const assessmentKeys = {
   setup: (reqId: string) => ['assessment', reqId] as const,
+  scorecard: (reqId: string) => ['assessment-scorecard', reqId] as const,
   interviews: (candidateId: string) =>
     ['interviews', 'candidate', candidateId] as const,
   myInterviews: ['my-interviews'] as const,
@@ -95,6 +99,37 @@ export function useGenerateQuestions(reqId: string) {
   );
 }
 
+// --- scorecard + deliberation notes ---
+
+export function useScorecard(reqId: string, enabled = true) {
+  return useQuery<ScorecardEntry[]>({
+    queryKey: assessmentKeys.scorecard(reqId),
+    queryFn: () => assessmentApi.getScorecard(reqId),
+    enabled: Boolean(reqId) && enabled,
+  });
+}
+
+export function useSaveNotes(reqId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (notes: string) => assessmentApi.saveNotes(reqId, notes),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: assessmentKeys.setup(reqId) });
+      toast.success('Deliberation notes saved');
+    },
+    onError: (error) => toast.error(errMsg(error, 'Could not save notes')),
+  });
+}
+
+export function useGenerateEvaluationSummary() {
+  return useMutation<EvaluationSummaryResult, unknown, string>({
+    mutationFn: (candidateId: string) =>
+      assessmentApi.generateEvaluationSummary(candidateId),
+    onError: (error) =>
+      toast.error(errMsg(error, 'Could not generate summary')),
+  });
+}
+
 // --- interviews ---
 
 export function useCandidateInterviews(candidateId: string, enabled = true) {
@@ -120,6 +155,23 @@ export function useScheduleInterview(candidateId: string) {
   });
 }
 
+export function useBulkScheduleInterviews() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: BulkScheduleInput) =>
+      assessmentApi.bulkScheduleInterviews(input),
+    onSuccess: (rounds) => {
+      qc.invalidateQueries({ queryKey: ['interviews'] });
+      qc.invalidateQueries({ queryKey: ['candidates'] });
+      toast.success(
+        `${rounds.length} interview${rounds.length === 1 ? '' : 's'} scheduled`,
+      );
+    },
+    onError: (error) =>
+      toast.error(errMsg(error, 'Could not schedule interviews')),
+  });
+}
+
 export function useRemoveInterview(candidateId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -130,6 +182,39 @@ export function useRemoveInterview(candidateId: string) {
       toast.success('Interview removed');
     },
     onError: (error) => toast.error(errMsg(error, 'Could not remove')),
+  });
+}
+
+export function useUpdateInterview(candidateId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { roundId: string; status: string }) =>
+      assessmentApi.updateInterview(vars.roundId, { status: vars.status }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: assessmentKeys.interviews(candidateId) });
+      toast.success('Interview marked as completed');
+    },
+    onError: (error) => toast.error(errMsg(error, 'Could not update interview')),
+  });
+}
+
+export function useSendInterviewQuestions(candidateId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (roundId: string) => assessmentApi.sendInterviewQuestions(roundId),
+    onSuccess: (data) => {
+      if (data.note) {
+        toast.info('Mail is not configured — questions not sent');
+      } else {
+        toast.success(
+          `Questions sent to ${data.sent} interviewer${data.sent === 1 ? '' : 's'}`,
+        );
+      }
+      if (candidateId) {
+        void qc.invalidateQueries({ queryKey: assessmentKeys.interviews(candidateId) });
+      }
+    },
+    onError: (error) => toast.error(errMsg(error, 'Could not send questions')),
   });
 }
 

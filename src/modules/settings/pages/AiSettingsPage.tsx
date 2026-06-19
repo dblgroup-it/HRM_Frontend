@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  FileSearch,
   Filter,
   Sparkles,
   Target,
@@ -28,9 +29,11 @@ interface AiSettings {
   shortlistThreshold: number;
   autoScreen: boolean;
   autoRoleProfile: boolean;
+  autoEvalSummary: boolean;
   provider: string;
   configured: boolean;
 }
+
 
 const PRESETS = [
   { label: 'Lenient', value: 40 },
@@ -49,12 +52,14 @@ export default function AiSettingsPage() {
   const [threshold, setThreshold] = useState(60);
   const [autoScreen, setAutoScreen] = useState(true);
   const [autoRoleProfile, setAutoRoleProfile] = useState(false);
+  const [autoEvalSummary, setAutoEvalSummary] = useState(false);
 
   useEffect(() => {
     if (data) {
       setThreshold(data.shortlistThreshold);
       setAutoScreen(data.autoScreen);
       setAutoRoleProfile(data.autoRoleProfile);
+      setAutoEvalSummary(data.autoEvalSummary);
     }
   }, [data]);
 
@@ -62,7 +67,8 @@ export default function AiSettingsPage() {
     !!data &&
     (threshold !== data.shortlistThreshold ||
       autoScreen !== data.autoScreen ||
-      autoRoleProfile !== data.autoRoleProfile);
+      autoRoleProfile !== data.autoRoleProfile ||
+      autoEvalSummary !== data.autoEvalSummary);
 
   const save = useMutation({
     mutationFn: () =>
@@ -71,6 +77,7 @@ export default function AiSettingsPage() {
           shortlistThreshold: threshold,
           autoScreen,
           autoRoleProfile,
+          autoEvalSummary,
         })
         .then((r) => r.data),
     onSuccess: (d) => {
@@ -213,13 +220,21 @@ export default function AiSettingsPage() {
                 Automation
               </CardTitle>
             </CardHeader>
-            <CardBody>
+            <CardBody className="space-y-5">
               <SettingRow
                 icon={Wand2}
                 title="Auto-generate role profile on approval"
                 desc="When a requisition is fully approved, generate its AI role profile automatically."
                 value={autoRoleProfile}
                 onChange={setAutoRoleProfile}
+              />
+              <Divider />
+              <SettingRow
+                icon={FileSearch}
+                title="Auto-generate evaluation summary"
+                desc="When Corporate HR opens a candidate's interview panel, AI immediately synthesises all panel marks and comments into a summary. Turn off to generate on-demand only."
+                value={autoEvalSummary}
+                onChange={setAutoEvalSummary}
               />
             </CardBody>
           </Card>
@@ -237,6 +252,7 @@ export default function AiSettingsPage() {
               Save settings
             </Button>
           </div>
+
         </>
       )}
     </div>

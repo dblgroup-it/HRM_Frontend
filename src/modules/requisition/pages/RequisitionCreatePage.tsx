@@ -25,6 +25,7 @@ export default function RequisitionCreatePage() {
   ) => {
     if (busyRef.current) return;
     busyRef.current = true;
+    const startedAt = Date.now();
     setSubmitting(true);
     create.mutate(payload, {
       onSuccess: async (created) => {
@@ -35,6 +36,9 @@ export default function RequisitionCreatePage() {
             /* best-effort — the requisition is already created */
           }
         }
+        // Hold the loader for at least 1 s so the overlay is actually visible
+        const remaining = 1000 - (Date.now() - startedAt);
+        if (remaining > 0) await new Promise((r) => setTimeout(r, remaining));
         navigate(ROUTES.requisitionDetail(created.id));
       },
       onError: () => {
@@ -71,7 +75,7 @@ export default function RequisitionCreatePage() {
         onSubmit={handleSubmit}
       />
 
-      <BusyOverlay show={submitting} label="Submitting requisition…" />
+      <BusyOverlay show={submitting} label="Submitting to sign-off chain…" />
     </div>
   );
 }

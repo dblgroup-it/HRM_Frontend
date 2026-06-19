@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Check, X, Clock, Undo2, History, ArrowUpFromLine } from 'lucide-react';
 import type { ReactNode } from 'react';
 
@@ -24,8 +24,20 @@ import { useApprovalAction } from '../hooks/useRequisitionActions';
 
 export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
   const [note, setNote] = useState('');
+  const [overlayVisible, setOverlayVisible] = useState(false);
+  const lastDecisionRef = useRef<ApprovalDecision | null>(null);
   const action = useApprovalAction();
   const { data: perms } = useMyPermissions();
+
+  // Keep the overlay visible for at least 1 s so fast responses don't flicker
+  useEffect(() => {
+    if (action.isPending) {
+      setOverlayVisible(true);
+      return;
+    }
+    const id = setTimeout(() => setOverlayVisible(false), 1000);
+    return () => clearTimeout(id);
+  }, [action.isPending]);
 
   const chain = requisition.approvalChain;
   const nextPendingIndex = chain.findIndex((s) => s.status === 'pending');
@@ -45,11 +57,13 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
         (r.unitId === null || (r.unitName ?? '').toLowerCase() === unit)
     );
 
-  const act = (decision: ApprovalDecision) =>
+  const act = (decision: ApprovalDecision) => {
+    lastDecisionRef.current = decision;
     action.mutate(
       { id: requisition.id, decision, note },
       { onSuccess: () => setNote('') }
     );
+  };
 
   return (
     <Card>
@@ -171,7 +185,10 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
           <ActivityLog requisition={requisition} />
         )}
       </CardBody>
-      <BusyOverlay show={action.isPending} label="Submitting decision…" />
+      <BusyOverlay
+        show={overlayVisible}
+        label={DECISION_OVERLAY_LABEL[lastDecisionRef.current ?? ''] ?? 'Submitting decision…'}
+      />
     </Card>
   );
 }
@@ -181,6 +198,14 @@ const APPROVED_MESSAGE: Record<string, string> = {
   approved: 'Fully approved — ready to generate the role profile.',
   profile_generated: 'Role profile ready — continue to post the vacancy.',
   posted: 'Vacancy posted — now collecting candidates.',
+};
+
+const DECISION_OVERLAY_LABEL: Record<string, string> = {
+  approved: 'Approving requisition…',
+  rejected: 'Rejecting requisition…',
+  need_more_info: 'Sending back for clarification…',
+  escalate: 'Escalating to CHRO…',
+  escalated: 'Escalating to CHRO…',
 };
 
 const ACTION_LABEL: Record<ApprovalDecision, string> = {

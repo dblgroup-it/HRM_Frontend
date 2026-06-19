@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Building2,
   Globe,
@@ -42,6 +42,8 @@ interface PickedEmployee {
   userId: string;
   name: string;
   code: string;
+  /** Employee's own unit from ZingHR — used to auto-fill the unit selector. */
+  unitName?: string;
 }
 
 const GLOBAL_KEY = '__global__';
@@ -78,6 +80,16 @@ export function AssignmentManager() {
 
   const selectedRole = roles?.find((r) => r.id === roleId);
   const needsUnit = selectedRole?.scope === 'UNIT';
+
+  // Auto-fill the unit from the employee's own ZingHR unit whenever the role
+  // switches to UNIT-scoped or a new employee is picked. Still fully editable.
+  useEffect(() => {
+    if (!needsUnit || !picked?.unitName || !units?.length) return;
+    const match = units.find(
+      (u) => u.name.toLowerCase() === picked.unitName!.toLowerCase(),
+    );
+    if (match) setUnitId(match.id);
+  }, [needsUnit, picked, units]);
 
   const roleOptions: SelectOption[] = [
     { value: '', label: 'Select a role…' },
@@ -160,14 +172,29 @@ export function AssignmentManager() {
                 options={roleOptions}
                 value={roleId}
                 disabled={!picked}
-                onChange={(e) => { setRoleId(e.target.value); setUnitId(''); }}
+                onChange={(e) => {
+                  const newId = e.target.value;
+                  setRoleId(newId);
+                  // Clear unit when switching to global; effect re-fills on UNIT roles.
+                  const newRole = roles?.find((r) => r.id === newId);
+                  if (newRole?.scope !== 'UNIT') setUnitId('');
+                }}
               />
               {needsUnit ? (
-                <Select
-                  options={unitOptions}
-                  value={unitId}
-                  onChange={(e) => setUnitId(e.target.value)}
-                />
+                <div className="space-y-0.5">
+                  <Select
+                    options={unitOptions}
+                    value={unitId}
+                    onChange={(e) => setUnitId(e.target.value)}
+                  />
+                  {unitId && picked?.unitName &&
+                    units?.find((u) => u.id === unitId)?.name.toLowerCase() ===
+                      picked.unitName.toLowerCase() && (
+                    <p className="px-1 text-[10px] text-slate-400">
+                      Auto-filled from employee's unit · change if needed
+                    </p>
+                  )}
+                </div>
               ) : (
                 <div className="flex items-center">
                   <p className="text-xs text-slate-400">
@@ -335,6 +362,9 @@ function EmployeePicker({
           <UserPlus className="h-4 w-4 text-brand-600" />
           <span className="font-medium text-slate-800">{picked.name}</span>
           <span className="text-slate-400">· {picked.code}</span>
+          {picked.unitName && (
+            <span className="text-slate-400">· {picked.unitName}</span>
+          )}
         </div>
         <button
           onClick={() => onPick(null)}
@@ -367,6 +397,7 @@ function EmployeePicker({
                   userId: emp.userId,
                   name: emp.name,
                   code: emp.employeeCode,
+                  unitName: emp.location !== '—' ? emp.location : undefined,
                 })
               }
               className="flex w-full items-center gap-3 border-b border-slate-50 px-3 py-2 text-left last:border-0 hover:bg-slate-50 disabled:opacity-50"
@@ -376,6 +407,7 @@ function EmployeePicker({
                 <p className="text-sm font-medium text-slate-800">{emp.name}</p>
                 <p className="text-xs text-slate-400">
                   {emp.employeeCode} · {emp.jobTitle}
+                  {emp.location && emp.location !== '—' ? ` · ${emp.location}` : ''}
                 </p>
               </div>
             </button>

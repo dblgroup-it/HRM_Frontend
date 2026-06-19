@@ -5,6 +5,8 @@ import type {
   AddExamQuestionInput,
   AssessmentComponentInput,
   AssessmentSetup,
+  BulkScheduleInput,
+  EvaluationSummaryResult,
   ExamAttemptsResult,
   ExamAttemptView,
   ExamBank,
@@ -14,6 +16,7 @@ import type {
   PublicExam,
   RubricCriterionInput,
   ScheduleInterviewInput,
+  ScorecardEntry,
   SubmitEvaluationInput,
 } from '../types/assessment.types';
 
@@ -94,6 +97,29 @@ export const assessmentApi = {
       .delete<ApiResponse<{ id: string }>>(`/interviews/${roundId}`)
       .then((r) => r.data),
 
+  updateInterview: (
+    roundId: string,
+    data: { status?: string },
+  ): Promise<{ id: string }> =>
+    http
+      .patch<ApiResponse<{ id: string }>>(`/interviews/${roundId}`, data)
+      .then((r) => r.data),
+
+  bulkScheduleInterviews: (input: BulkScheduleInput): Promise<InterviewRoundView[]> =>
+    http
+      .post<ApiResponse<InterviewRoundView[]>>('/interviews/bulk', input)
+      .then((r) => r.data),
+
+  sendInterviewQuestions: (
+    roundId: string,
+  ): Promise<{ sent: number; total: number; note?: string }> =>
+    http
+      .post<ApiResponse<{ sent: number; total: number; note?: string }>>(
+        `/interviews/${roundId}/send-questions`,
+        undefined,
+      )
+      .then((r) => r.data),
+
   // --- committee marking ---
   myInterviews: (): Promise<MyInterviewRound[]> =>
     http
@@ -153,6 +179,31 @@ export const assessmentApi = {
         `/exam-attempts/${attemptId}/grade`,
         undefined,
         { timeout: 90_000 },
+      )
+      .then((r) => r.data),
+
+  // --- scorecard + deliberation notes ---
+  getScorecard: (reqId: string): Promise<ScorecardEntry[]> =>
+    http
+      .get<ApiResponse<ScorecardEntry[]>>(
+        `/requisitions/${reqId}/assessment/scorecard`,
+      )
+      .then((r) => r.data),
+
+  saveNotes: (reqId: string, notes: string): Promise<{ ok: boolean }> =>
+    http
+      .patch<ApiResponse<{ ok: boolean }>>(
+        `/requisitions/${reqId}/assessment/notes`,
+        { notes },
+      )
+      .then((r) => r.data),
+
+  generateEvaluationSummary: (candidateId: string): Promise<EvaluationSummaryResult> =>
+    http
+      .post<ApiResponse<EvaluationSummaryResult>>(
+        `/candidates/${candidateId}/evaluation-summary`,
+        undefined,
+        { timeout: 60_000 },
       )
       .then((r) => r.data),
 

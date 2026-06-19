@@ -68,6 +68,9 @@ export function CandidateRow({
   candidate,
   reqId,
   canManage,
+  selected = false,
+  isSelectMode = false,
+  onSelect,
   onEmail,
   onInterviews,
   onExams,
@@ -75,6 +78,9 @@ export function CandidateRow({
   candidate: Candidate;
   reqId: string;
   canManage: boolean;
+  selected?: boolean;
+  isSelectMode?: boolean;
+  onSelect?: (c: Candidate, checked: boolean) => void;
   onEmail: (c: Candidate) => void;
   onInterviews: (c: Candidate) => void;
   onExams: (c: Candidate) => void;
@@ -91,7 +97,51 @@ export function CandidateRow({
   const meta = STAGE_META[candidate.stage];
 
   return (
-    <div className="flex flex-wrap items-center gap-3 px-4 py-3 transition hover:bg-slate-50/70">
+    <div
+      className={cn(
+        'group/row flex flex-wrap items-center gap-3 px-4 py-3 transition-colors duration-150 hover:bg-slate-50/60',
+        selected && 'bg-brand-50/50',
+      )}
+    >
+      {/* Custom animated checkbox — shown on hover or when selection mode is active */}
+      {canManage && onSelect && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onSelect(candidate, !selected); }}
+          title={selected ? 'Deselect' : 'Select'}
+          className={cn(
+            'relative h-[18px] w-[18px] shrink-0 rounded-[4px] border-2 transition-all duration-200',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1',
+            selected
+              ? 'scale-100 opacity-100'
+              : isSelectMode
+                ? 'scale-100 opacity-100 border-slate-300 bg-white hover:border-brand-400'
+                : 'scale-75 opacity-0 group-hover/row:scale-100 group-hover/row:opacity-100 group-hover/row:border-brand-400',
+            selected
+              ? 'border-brand-600'
+              : 'border-slate-300 bg-white',
+          )}
+          style={selected ? {
+            background: 'linear-gradient(135deg, #1877c0 0%, #1055a0 100%)',
+            boxShadow: '0 1px 4px rgba(24,119,192,0.35)',
+          } : undefined}
+        >
+          <svg viewBox="0 0 10 8" className="absolute inset-0 m-auto h-[10px] w-[10px]" fill="none">
+            <polyline
+              points="1,4 3.5,6.5 9,1"
+              stroke="white"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray="14"
+              style={{
+                strokeDashoffset: selected ? 0 : 14,
+                transition: 'stroke-dashoffset 0.22s cubic-bezier(0.65,0,0.35,1) 0.04s',
+              }}
+            />
+          </svg>
+        </button>
+      )}
       <Avatar name={candidate.name} size="sm" />
 
       <div className="min-w-[140px] flex-1">
@@ -320,6 +370,11 @@ export function CandidateRow({
         variant="ai"
         label={`AI is analysing ${candidate.name}'s CV…`}
         sublabel="Scoring the match and pulling contact details from the CV."
+      />
+      <BusyOverlay
+        show={update.isPending && update.variables?.input?.stage !== undefined}
+        label={`Moving ${candidate.name} to ${STAGE_META[update.variables?.input?.stage ?? candidate.stage]?.label ?? ''}…`}
+        sublabel="Shifting the CV to the matching Drive folder."
       />
     </div>
   );

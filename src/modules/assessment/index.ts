@@ -1,4 +1,5 @@
 export { AssessmentPanel } from './components/AssessmentPanel';
+export { BulkInterviewModal } from './components/BulkInterviewModal';
 export { CandidateInterviewsModal } from './components/CandidateInterviewsModal';
 export { CandidateExamsModal } from './components/CandidateExamsModal';
 export { ExamBankModal } from './components/ExamBankModal';

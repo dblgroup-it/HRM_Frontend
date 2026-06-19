@@ -32,7 +32,23 @@ export interface AssessmentSetup {
   rubric: RubricCriterionView[];
   plan: AssessmentComponentView[];
   aiEnabled: boolean;
+  autoEvalSummary: boolean;
   interviewQuestions: InterviewQuestion[];
+  deliberationNotes: string | null;
+}
+
+export interface ScorecardEntry {
+  candidateId: string;
+  candidateName: string;
+  stage: string;
+  cvScore: number | null;
+  examScores: Record<string, number>;
+  interviewAvg: number | null;
+  combined: number | null;
+}
+
+export interface EvaluationSummaryResult {
+  summary: string;
 }
 
 export interface RubricCriterionInput {
@@ -67,6 +83,17 @@ export interface EvaluationView {
   comments: string;
 }
 
+export interface BulkScheduleInput {
+  candidateIds: string[];
+  kind: InterviewKindKey;
+  mode: InterviewModeKey;
+  scheduledAts?: string[];
+  location?: string;
+  panelistUserIds: string[];
+  notifyCandidate?: boolean;
+  notifyPanel?: boolean;
+}
+
 export interface InterviewRoundView {
   id: string;
   candidateId: string;
@@ -78,6 +105,7 @@ export interface InterviewRoundView {
   status: InterviewStatusKey;
   meetLink: string | null;
   calendarSynced: boolean;
+  questionsSentAt: string | null;
   panelists: InterviewPanelistView[];
   evaluations: EvaluationView[];
   evaluationCount: number;
