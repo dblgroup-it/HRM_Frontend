@@ -52,6 +52,7 @@ import type {
 import { CandidateRow } from './CandidateRow';
 import { AddCandidateModal } from './AddCandidateModal';
 import { EmailCandidateModal } from './EmailCandidateModal';
+import { PostToBdJobsModal } from '@modules/integrations/bdjobs';
 
 type Tab = 'all' | CandidateStage;
 
@@ -107,6 +108,7 @@ export function CandidatesPanel({
   const [examTarget, setExamTarget] = useState<Candidate | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [bdJobsOpen, setBdJobsOpen] = useState(false);
 
   const drive = workspace?.drive ?? requisition.drive ?? null;
   const driveConnected = workspace?.connected ?? true;
@@ -212,6 +214,15 @@ export function CandidatesPanel({
               disabled={sync.isPending}
             >
               Sync
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setBdJobsOpen(true)}
+              className="border-[#e8753c] text-[#e8753c] hover:bg-orange-50"
+              title="Post this job to BDJobs"
+            >
+              🅱 BDJobs
             </Button>
             <Button
               size="sm"
@@ -614,6 +625,12 @@ export function CandidatesPanel({
           setBulkOpen(false);
           setSelectedIds(new Set());
         }}
+      />
+
+      <PostToBdJobsModal
+        open={bdJobsOpen}
+        onClose={() => setBdJobsOpen(false)}
+        requisition={requisition}
       />
 
       <BusyOverlay

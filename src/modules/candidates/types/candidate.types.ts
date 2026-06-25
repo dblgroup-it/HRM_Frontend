@@ -20,6 +20,7 @@ export interface Candidate {
   cvFileId: string | null;
   cvUrl: string | null;
   notes: string;
+  salaryExpectation: string;
   /** AI CV-screening match score (0-100) + rationale, null until screened. */
   matchScore: number | null;
   matchSummary: string;
@@ -85,6 +86,7 @@ export interface PublicApplyInput {
   name: string;
   email: string;
   phone?: string;
+  salaryExpectation?: string;
 }
 
 export interface CreateCandidateInput {

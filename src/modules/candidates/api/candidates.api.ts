@@ -143,6 +143,7 @@ export const candidatesApi = {
     fd.append('name', input.name);
     fd.append('email', input.email);
     if (input.phone) fd.append('phone', input.phone);
+    if (input.salaryExpectation) fd.append('salaryExpectation', input.salaryExpectation);
     fd.append('cv', cv);
     return http
       .post<ApiResponse<{ ok: boolean }>>(`/apply/${reqId}`, fd, MULTIPART)

@@ -167,6 +167,9 @@ export function CandidateRow({
         </div>
         <p className="truncate text-xs text-slate-400">
           {contact || 'No contact details'}
+          {candidate.salaryExpectation && (
+            <span className="ml-2 text-slate-400">· Expected: <span className="font-medium text-slate-500">{candidate.salaryExpectation}</span></span>
+          )}
         </p>
         {candidate.matchSummary && (
           <div className="mt-1">

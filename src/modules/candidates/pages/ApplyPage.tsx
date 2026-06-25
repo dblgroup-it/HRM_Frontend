@@ -37,11 +37,17 @@ export default function ApplyPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [salaryExpectation, setSalaryExpectation] = useState('');
   const [cv, setCv] = useState<File | null>(null);
   const [error, setError] = useState('');
 
   const apply = useMutation({
-    mutationFn: () => candidatesApi.apply(reqId, { name, email, phone }, cv as File),
+    mutationFn: () =>
+      candidatesApi.apply(
+        reqId,
+        { name, email, phone, salaryExpectation: salaryExpectation.trim() || undefined },
+        cv as File,
+      ),
     onError: (e) => setError(errMsg(e, 'Something went wrong. Please try again.')),
   });
 
@@ -137,6 +143,12 @@ export default function ApplyPage() {
                   placeholder="01XXXXXXXXX"
                 />
               </div>
+              <Input
+                label="Expected Salary (BDT)"
+                value={salaryExpectation}
+                onChange={(e) => setSalaryExpectation(e.target.value)}
+                placeholder="e.g. 40,000 or Negotiable"
+              />
 
               <div>
                 <p className="mb-1.5 text-sm font-medium text-slate-700">
