@@ -32,6 +32,7 @@ interface BackendEmployee {
   lineManagerName: string | null;
   lineManagerCode: string | null;
   lineManagerId: string | null;
+  avatarUrl: string | null;
   source: string;
   status: string;
 }
@@ -53,7 +54,7 @@ function mapEmployee(e: BackendEmployee): Employee {
     location: e.unitName ?? '—',
     salary: 0,
     joinedAt: e.joiningDate ?? new Date().toISOString(),
-    avatarUrl: null,
+    avatarUrl: e.avatarUrl ?? null,
     manager: e.lineManagerName ?? undefined,
     managerCode: e.lineManagerCode,
     managerId: e.lineManagerId,

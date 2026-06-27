@@ -1,8 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { candidatesApi } from '../api/candidates.api';
 import type {
+  CandidateFilters,
   CreateCandidateInput,
   EmailCandidateInput,
   UpdateCandidateInput,
@@ -31,11 +32,41 @@ export function useRecruitmentWorkspace(reqId: string, enabled = true) {
   });
 }
 
-export function useCandidates(reqId: string, enabled = true) {
+export function useCandidates(reqId: string, filters: CandidateFilters = {}, enabled = true) {
   return useQuery({
-    queryKey: candidateKeys.list(reqId),
-    queryFn: () => candidatesApi.list(reqId),
+    queryKey: [...candidateKeys.list(reqId), filters],
+    queryFn: () => candidatesApi.list(reqId, filters),
     enabled: Boolean(reqId) && enabled,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useScreeningStatus(reqId: string, active: boolean) {
+  return useQuery({
+    queryKey: ['screening-status', reqId],
+    queryFn: () => candidatesApi.screeningStatus(reqId),
+    enabled: Boolean(reqId) && active,
+    refetchInterval: active ? 2_000 : false,
+  });
+}
+
+export function useExportCandidates(reqId: string) {
+  return useMutation({
+    mutationFn: (filters: CandidateFilters) => candidatesApi.exportCsv(reqId, filters),
+    onSuccess: () => toast.success('CSV downloaded'),
+    onError: (error) => toast.error(errMsg(error, 'Could not export candidates')),
+  });
+}
+
+export function useBulkReject(reqId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (maxScore: number) => candidatesApi.bulkReject(reqId, maxScore),
+    onSuccess: (result) => {
+      invalidatePipeline(qc, reqId);
+      toast.success(`Rejected ${result.rejected} candidate${result.rejected === 1 ? '' : 's'}`);
+    },
+    onError: (error) => toast.error(errMsg(error, 'Could not bulk-reject candidates')),
   });
 }
 
@@ -148,21 +179,18 @@ export function useEmailCandidate(reqId: string) {
   });
 }
 
-/** AI-screen all un-screened applied CVs in this requisition. */
+/** Silently mark a candidate as viewed (fire-and-forget, no toast). */
+export function useMarkViewed() {
+  return useMutation({
+    mutationFn: (id: string) => candidatesApi.markViewed(id),
+  });
+}
+
+/** Kick off AI screening for a requisition (returns immediately, runs in background). */
 export function useScreenAll(reqId: string) {
-  const qc = useQueryClient();
   return useMutation({
     mutationFn: () => candidatesApi.screenAll(reqId),
-    onSuccess: (result) => {
-      invalidatePipeline(qc, reqId);
-      toast.success(
-        result.screened === 0
-          ? 'No new CVs to screen'
-          : `Screened ${result.screened} CV${result.screened > 1 ? 's' : ''} — ${result.shortlisted} AI-shortlisted`,
-      );
-    },
-    onError: (error) =>
-      toast.error(errMsg(error, 'Could not run AI screening')),
+    onError: (error) => toast.error(errMsg(error, 'Could not start AI screening')),
   });
 }
 

@@ -74,6 +74,8 @@ const NotificationsPage = lazy(
   () => import('@modules/notifications/pages/NotificationsPage')
 );
 const NotFoundPage = lazy(() => import('@app/router/NotFoundPage'));
+const CareersPage = lazy(() => import('@modules/candidates/pages/CareersPage'));
+const ApplicationStatusPage = lazy(() => import('@modules/candidates/pages/ApplicationStatusPage'));
 
 export function AppRouter() {
   return (
@@ -85,6 +87,8 @@ export function AppRouter() {
         </Route>
 
         {/* Fully public — external candidates, no auth */}
+        <Route path={ROUTES.careers} element={<CareersPage />} />
+        <Route path={ROUTES.applyStatus} element={<ApplicationStatusPage />} />
         <Route path={ROUTES.apply()} element={<ApplyPage />} />
         <Route path="/exam/:token" element={<ExamPage />} />
         <Route path={ROUTES.onboarding()} element={<OnboardingPage />} />

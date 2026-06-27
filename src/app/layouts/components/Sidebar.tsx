@@ -132,7 +132,41 @@ export function Sidebar({
                   {section.heading}
                 </p>
                 <div className="space-y-0.5">
-                  {items.map((item) => (
+                  {items.map((item) =>
+                    item.external ? (
+                      <a
+                        key={item.to}
+                        href={item.to}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={collapsed ? item.label : undefined}
+                        className={cn(
+                          'group flex min-h-10 items-center gap-3 rounded-full px-3.5 py-2 text-sm transition-all duration-200',
+                          collapsed && 'lg:justify-center lg:gap-0 lg:px-2',
+                          'font-medium text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm'
+                        )}
+                      >
+                        <item.icon className="h-5 w-5 shrink-0 text-slate-500 transition-colors group-hover:text-slate-700" />
+                        <span
+                          className={cn(
+                            'flex-1 truncate transition-all duration-200',
+                            collapsed && 'lg:pointer-events-none lg:w-0 lg:flex-none lg:opacity-0'
+                          )}
+                        >
+                          {item.label}
+                        </span>
+                        {item.badge && (
+                          <span
+                            className={cn(
+                              'rounded-full px-1.5 py-0.5 text-[10px] font-semibold bg-accent-100 text-accent-700',
+                              collapsed && 'lg:hidden'
+                            )}
+                          >
+                            {item.badge}
+                          </span>
+                        )}
+                      </a>
+                    ) : (
                     <NavLink
                       key={item.to}
                       to={item.to}

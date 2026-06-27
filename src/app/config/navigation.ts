@@ -13,6 +13,8 @@ import {
   Star,
   Bell,
   Settings,
+  Briefcase,
+  Search,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -33,6 +35,8 @@ export interface NavItem {
   requiresInsights?: boolean;
   /** Optional short tag, e.g. phase marker. */
   badge?: string;
+  /** Opens in a new browser tab instead of navigating inside the app. */
+  external?: boolean;
 }
 
 export interface NavSection {
@@ -96,6 +100,25 @@ export const NAVIGATION: NavSection[] = [
   {
     heading: 'People',
     items: [{ label: 'Employees', to: ROUTES.employees, icon: Users }],
+  },
+  {
+    heading: 'Public Sites',
+    items: [
+      {
+        label: 'Careers Page',
+        to: ROUTES.careers,
+        icon: Briefcase,
+        external: true,
+        badge: '↗',
+      },
+      {
+        label: 'Application Tracker',
+        to: ROUTES.applyStatus,
+        icon: Search,
+        external: true,
+        badge: '↗',
+      },
+    ],
   },
   {
     heading: 'Configuration',

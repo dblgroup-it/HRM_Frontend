@@ -25,6 +25,9 @@ export interface Candidate {
   matchScore: number | null;
   matchSummary: string;
   screenedAt: string | null;
+  viewedAt: string | null;
+  /** How many requisitions this candidate's email has been used to apply to. */
+  applyCount: number;
   talentPool: boolean;
   createdAt: string;
   updatedAt: string;
@@ -82,6 +85,28 @@ export interface PublicJobInfo {
   employmentNature: string;
 }
 
+export interface CareerListing {
+  id: string;
+  code: string;
+  designation: string;
+  department: string;
+  unitFactory: string;
+  placeOfPosting: string;
+  employmentNature: string;
+  requiredPosts: number;
+  summary: string | null;
+  postedAt: string;
+}
+
+export interface ApplicationStatus {
+  requisitionId: string;
+  code: string;
+  designation: string;
+  unitFactory: string;
+  stage: string;
+  appliedAt: string;
+}
+
 export interface PublicApplyInput {
   name: string;
   email: string;
@@ -94,6 +119,67 @@ export interface CreateCandidateInput {
   email?: string;
   phone?: string;
   notes?: string;
+}
+
+export interface ApplyHistoryEntry {
+  candidateId: string;
+  requisitionId: string;
+  code: string;
+  designation: string;
+  department: string;
+  unitFactory: string;
+  postedAt: string;
+  appliedAt: string;
+  viewed: boolean;
+  stage: string;
+}
+
+export interface ApplyHistory {
+  name: string;
+  email: string | null;
+  total: number;
+  applications: ApplyHistoryEntry[];
+}
+
+export interface CandidateFilters {
+  page?: number;
+  pageSize?: number;
+  stage?: string;
+  minScore?: number | null;
+  search?: string;
+  sortBy?: 'recent' | 'match' | 'name';
+}
+
+export interface CandidateStats {
+  total: number;
+  notViewed: number;
+  finalists: number;
+  stageCounts: Record<string, number>;
+  band90: number;
+  band75: number;
+  band50: number;
+  band25: number;
+  unscreened: number;
+}
+
+export interface CandidateMeta {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface CandidatePage {
+  items: Candidate[];
+  meta: CandidateMeta;
+  stats: CandidateStats;
+}
+
+export interface ScreeningStatus {
+  active: boolean;
+  done: number;
+  total: number;
+  shortlisted: number;
 }
 
 export interface UpdateCandidateInput {

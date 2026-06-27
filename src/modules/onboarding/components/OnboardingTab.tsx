@@ -25,9 +25,9 @@ export function OnboardingTab({
   reqId: string;
   canManage: boolean;
 }) {
-  const { data: candidates = [], isLoading } = useCandidates(reqId);
+  const { data: candidatePage, isLoading } = useCandidates(reqId, { stage: 'selected', pageSize: 200 });
 
-  const selected = candidates.filter((c) => c.stage === 'selected');
+  const selected = candidatePage?.items ?? [];
 
   return (
     <Card>

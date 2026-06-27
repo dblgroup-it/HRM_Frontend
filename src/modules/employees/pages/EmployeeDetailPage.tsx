@@ -100,7 +100,6 @@ export default function EmployeeDetailPage() {
               {employee.jobTitle} · {employee.department}
             </p>
           </div>
-          <Button variant="outline">Edit profile</Button>
         </CardBody>
       </Card>
 

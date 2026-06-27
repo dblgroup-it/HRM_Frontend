@@ -20,6 +20,10 @@ export const ROUTES = {
   talentPool: '/talent-pool',
   /** Public job-application page (no auth). */
   apply: (id = ':reqId') => `/apply/${id}`,
+  /** Public careers listing — all open positions at DBL Group. */
+  careers: '/careers',
+  /** Public application status tracker — candidate enters email to check stage. */
+  applyStatus: '/apply/status',
   /** Committee member's own interview marking. */
   myInterviews: '/my-interviews',
   /** Medical officer's clearance queue (Phase 5). */

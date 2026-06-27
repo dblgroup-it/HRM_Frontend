@@ -1,4 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense } from 'react';
+
+const ApplyHistoryModal = lazy(() =>
+  import('./ApplyHistoryModal').then((m) => ({ default: m.ApplyHistoryModal })),
+);
 import { useNavigate } from 'react-router-dom';
 import {
   CalendarClock,
@@ -17,6 +21,7 @@ import { cn } from '@shared/lib';
 import { ROUTES } from '@app/router/paths';
 
 import {
+  useMarkViewed,
   useRemoveCandidate,
   useScreenCandidate,
   useUpdateCandidate,
@@ -24,7 +29,8 @@ import {
 } from '../hooks/useCandidates';
 import type { Candidate, CandidateStage } from '../types/candidate.types';
 
-const ACCEPT = '.pdf,.doc,.docx,.png,.jpg,.jpeg';
+const ACCEPT = '.pdf,application/pdf';
+const MAX_PDF_BYTES = 5 * 1024 * 1024;
 
 const STAGE_META: Record<CandidateStage, { label: string; tone: string }> = {
   applied: { label: 'Applied', tone: 'bg-slate-100 text-slate-600' },
@@ -89,15 +95,41 @@ export function CandidateRow({
   const upload = useUploadCv(reqId);
   const remove = useRemoveCandidate(reqId);
   const screen = useScreenCandidate(reqId);
+  const markViewed = useMarkViewed();
   const navigate = useNavigate();
+  const rowRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [showFullSummary, setShowFullSummary] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  // Optimistic: treat as viewed once the row enters viewport (even before server confirms).
+  const [seenLocally, setSeenLocally] = useState(Boolean(candidate.viewedAt));
+
+  // Fire mark-viewed once when the row enters viewport for the first time.
+  useEffect(() => {
+    if (seenLocally) return;
+    const el = rowRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setSeenLocally(true);
+          markViewed.mutate(candidate.id);
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.5 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [candidate.id, seenLocally]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const contact = [candidate.email, candidate.phone].filter(Boolean).join(' · ');
   const meta = STAGE_META[candidate.stage];
+  const isNew = !seenLocally;
 
   return (
     <div
+      ref={rowRef}
       className={cn(
         'group/row flex flex-wrap items-center gap-3 px-4 py-3 transition-colors duration-150 hover:bg-slate-50/60',
         selected && 'bg-brand-50/50',
@@ -146,6 +178,9 @@ export function CandidateRow({
 
       <div className="min-w-[140px] flex-1">
         <div className="flex items-center gap-2">
+          {isNew && (
+            <span className="inline-flex h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" title="Not yet viewed" />
+          )}
           <p className="truncate text-sm font-medium text-slate-800">
             {candidate.name}
           </p>
@@ -164,6 +199,16 @@ export function CandidateRow({
           <span className="hidden shrink-0 rounded-full bg-slate-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-400 sm:inline">
             {SOURCE_LABEL[candidate.source] ?? candidate.source}
           </span>
+          {candidate.applyCount > 1 && (
+            <button
+              type="button"
+              onClick={() => setHistoryOpen(true)}
+              className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-600 hover:bg-amber-100 transition"
+              title="View full application history"
+            >
+              Applied {candidate.applyCount}×
+            </button>
+          )}
         </div>
         <p className="truncate text-xs text-slate-400">
           {contact || 'No contact details'}
@@ -363,7 +408,11 @@ export function CandidateRow({
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) upload.mutate({ id: candidate.id, cv: file });
+          if (file) {
+            if (file.type !== 'application/pdf') { alert('Only PDF files are accepted.'); e.target.value = ''; return; }
+            if (file.size > MAX_PDF_BYTES) { alert('File must be under 5 MB.'); e.target.value = ''; return; }
+            upload.mutate({ id: candidate.id, cv: file });
+          }
           e.target.value = '';
         }}
       />
@@ -379,6 +428,16 @@ export function CandidateRow({
         label={`Moving ${candidate.name} to ${STAGE_META[update.variables?.input?.stage ?? candidate.stage]?.label ?? ''}…`}
         sublabel="Shifting the CV to the matching Drive folder."
       />
+
+      {historyOpen && (
+        <Suspense fallback={null}>
+          <ApplyHistoryModal
+            candidateId={candidate.id}
+            candidateName={candidate.name}
+            onClose={() => setHistoryOpen(false)}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

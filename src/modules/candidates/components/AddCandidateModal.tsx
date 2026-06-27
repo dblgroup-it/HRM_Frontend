@@ -5,7 +5,8 @@ import { Button, Input, Modal, Textarea } from '@shared/components/ui';
 
 import { useCreateCandidate } from '../hooks/useCandidates';
 
-const ACCEPT = '.pdf,.doc,.docx,.png,.jpg,.jpeg';
+const ACCEPT = '.pdf,application/pdf';
+const MAX_PDF_BYTES = 5 * 1024 * 1024;
 
 export function AddCandidateModal({
   reqId,
@@ -110,7 +111,15 @@ export function AddCandidateModal({
             type="file"
             accept={ACCEPT}
             className="hidden"
-            onChange={(e) => setCv(e.target.files?.[0] ?? null)}
+            onChange={(e) => {
+                const f = e.target.files?.[0] ?? null;
+                if (f && (f.type !== 'application/pdf' || f.size > MAX_PDF_BYTES)) {
+                  alert(f.type !== 'application/pdf' ? 'Only PDF files are accepted.' : 'File must be under 5 MB.');
+                  e.target.value = '';
+                  return;
+                }
+                setCv(f);
+              }}
           />
           {cv ? (
             <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
