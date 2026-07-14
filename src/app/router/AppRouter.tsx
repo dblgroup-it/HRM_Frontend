@@ -51,6 +51,9 @@ const MyInterviewsPage = lazy(
   () => import('@modules/assessment/pages/MyInterviewsPage')
 );
 const ExamPage = lazy(() => import('@modules/assessment/pages/ExamPage'));
+const EvaluateByTokenPage = lazy(
+  () => import('@modules/assessment/pages/EvaluateByTokenPage'),
+);
 const OnboardingPage = lazy(
   () => import('@modules/onboarding/pages/OnboardingPage')
 );
@@ -91,6 +94,7 @@ export function AppRouter() {
         <Route path={ROUTES.applyStatus} element={<ApplicationStatusPage />} />
         <Route path={ROUTES.apply()} element={<ApplyPage />} />
         <Route path="/exam/:token" element={<ExamPage />} />
+        <Route path="/evaluate/:token" element={<EvaluateByTokenPage />} />
         <Route path={ROUTES.onboarding()} element={<OnboardingPage />} />
 
         {/* Authenticated */}

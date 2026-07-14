@@ -71,6 +71,33 @@ export interface BdJobsFormData {
   publishLinkedIn: boolean;
 }
 
+/** Admin-editable BDJobs configuration (secrets are write-only). */
+export interface BdJobsSettingsInput {
+  enabled: boolean;
+  baseUrl: string;
+  companyId: string;
+  authToken: string;
+  decodeId: string;
+  signatureFormat: string;
+  specialInstruction: string;
+  otherBenefits: string;
+  deadlineDays: number;
+  applyOnlineDefault: boolean;
+  publicApplyBaseUrl: string;
+  entryLevelMaxYears: number;
+  midLevelMaxYears: number;
+}
+
+/** What the settings screen receives — credentials masked, never in full. */
+export type BdJobsSettingsView = Omit<
+  BdJobsSettingsInput,
+  'authToken' | 'decodeId'
+> & {
+  authTokenMasked: string;
+  decodeIdMasked: string;
+  configured: boolean;
+};
+
 export interface BdJobsPost {
   id: string;
   requisitionId: string;

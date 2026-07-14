@@ -13,6 +13,7 @@ import type {
   ExamTypeKey,
   InterviewRoundView,
   MyInterviewRound,
+  PublicEvalData,
   PublicExam,
   RubricCriterionInput,
   ScheduleInterviewInput,
@@ -217,5 +218,29 @@ export const assessmentApi = {
   ): Promise<{ ok: boolean }> =>
     http
       .post<ApiResponse<{ ok: boolean }>>(`/exam/${token}`, { answers })
+      .then((r) => r.data),
+
+  // public — one-click panelist evaluation (no login)
+  publicEval: (token: string): Promise<PublicEvalData> =>
+    http.get<ApiResponse<PublicEvalData>>(`/eval/${token}`).then((r) => r.data),
+
+  submitPublicEval: (
+    token: string,
+    input: SubmitEvaluationInput,
+  ): Promise<{ ok: boolean; total: number }> =>
+    http
+      .post<ApiResponse<{ ok: boolean; total: number }>>(`/eval/${token}`, input)
+      .then((r) => r.data),
+
+  // resend eval link for a panelist (Corp HR only)
+  resendEvalToken: (
+    roundId: string,
+    panelistUserId: string,
+  ): Promise<{ evalLink: string }> =>
+    http
+      .post<ApiResponse<{ evalLink: string }>>(
+        `/interviews/${roundId}/eval-token/${panelistUserId}/resend`,
+        undefined,
+      )
       .then((r) => r.data),
 };

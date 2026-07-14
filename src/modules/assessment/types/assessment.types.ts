@@ -73,6 +73,32 @@ export interface InterviewPanelistView {
   name: string;
   designation: string | null;
   hasMarked: boolean;
+  tokenStatus: 'sent' | 'opened' | 'submitted' | null;
+  evalLink: string | null;
+}
+
+export interface PublicEvalInterview {
+  kind: string;
+  mode: string;
+  scheduledAt: string | null;
+  location: string;
+  designation: string;
+  unit: string;
+}
+
+export interface PublicEvalData {
+  status: string;
+  alreadySubmitted: boolean;
+  panelistName: string;
+  candidate: { name: string };
+  interview: PublicEvalInterview;
+  rubric: { id: string; label: string; maxScore: number }[];
+  interviewQuestions: { category: string; question: string }[];
+  submittedEval: {
+    scores: Record<string, number>;
+    comments: string;
+    total: number;
+  } | null;
 }
 
 export interface EvaluationView {

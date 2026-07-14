@@ -78,6 +78,8 @@ export function BulkInterviewModal({
       setIntervalMin(30);
       setSlotsMode('same');
       setPanel([]);
+      setLocation('');
+      setLocationError(false);
       setNotifyCandidate(true);
       setNotifyPanel(true);
     }
@@ -94,6 +96,8 @@ export function BulkInterviewModal({
   const [startTime, setStartTime] = useState('09:00');
   const [intervalMin, setIntervalMin] = useState(30);
 
+  const [location, setLocation] = useState('');
+  const [locationError, setLocationError] = useState(false);
   const [notifyCandidate, setNotifyCandidate] = useState(true);
   const [notifyPanel, setNotifyPanel] = useState(true);
 
@@ -121,12 +125,18 @@ export function BulkInterviewModal({
 
   const submit = () => {
     if (candidates.length === 0 || panel.length === 0) return;
+    if (mode !== 'online' && !location.trim()) {
+      setLocationError(true);
+      return;
+    }
+    setLocationError(false);
     bulkSchedule.mutate(
       {
         candidateIds: candidates.map((c) => c.id),
         kind,
         mode,
         scheduledAts: date ? (slots.filter(Boolean) as string[]) : undefined,
+        location: location.trim() || undefined,
         panelistUserIds: panel.map((p) => p.userId),
         notifyCandidate,
         notifyPanel,
@@ -194,12 +204,32 @@ export function BulkInterviewModal({
                 { value: 'online', label: 'Online', icon: <Video className="h-3.5 w-3.5" /> },
               ]}
               value={mode === 'online' ? 'online' : 'physical'}
-              onChange={(v) => setMode(v as InterviewModeKey)}
+              onChange={(v) => { setMode(v as InterviewModeKey); setLocation(''); setLocationError(false); }}
             />
           </div>
 
           {/* Time allocation */}
           <div className="overflow-hidden rounded-xl border border-slate-200">
+            {/* Venue — only for in-person */}
+            {mode !== 'online' && (
+              <div className="border-b border-slate-100 p-3">
+                <label className="mb-1 block text-[11px] font-medium text-slate-400">
+                  Venue <span className="text-rose-500">*</span>
+                </label>
+                <Input
+                  placeholder="e.g. HQ Conference Room, Factory Training Hall"
+                  value={location}
+                  onChange={(e) => { setLocation(e.target.value); if (e.target.value.trim()) setLocationError(false); }}
+                  leftIcon={<Building2 className="h-4 w-4" />}
+                  className={locationError ? 'border-rose-400 focus:ring-rose-400' : ''}
+                />
+                {locationError && (
+                  <p className="mt-1 text-[11px] font-medium text-rose-600">
+                    Venue is required for in-person interviews
+                  </p>
+                )}
+              </div>
+            )}
             {/* Date + time + slot mode — single compact row */}
             <div className="grid grid-cols-2 gap-3 p-3 sm:grid-cols-[1fr_1fr_auto]">
               <div>
@@ -355,7 +385,7 @@ export function BulkInterviewModal({
             <Button
               onClick={submit}
               isLoading={bulkSchedule.isPending}
-              disabled={candidates.length === 0 || panel.length === 0}
+              disabled={candidates.length === 0 || panel.length === 0 || (mode !== 'online' && !location.trim())}
               leftIcon={<CalendarClock className="h-4 w-4" />}
             >
               Schedule {candidates.length} interview{candidates.length === 1 ? '' : 's'}

@@ -25,7 +25,10 @@ import type { SelectOption } from '@shared/types';
 import { ROUTES } from '@app/router/paths';
 import { useOrganogramUnits } from '@modules/organogram';
 
-import { useRequisitions } from '../hooks/useRequisitions';
+import {
+  useRequisitions,
+  useRequisitionStats,
+} from '../hooks/useRequisitions';
 import { RequisitionTable } from '../components/RequisitionTable';
 import { STATUS_CONFIG } from '../constants';
 import type { RequisitionStatus } from '../types/requisition.types';
@@ -68,32 +71,29 @@ export default function RequisitionsPage() {
   );
   const { data, isLoading, isFetching } = useRequisitions(filters);
 
-  // Separate fetch (ignores the status filter) so the tiles + chips show live
-  // counts per status regardless of what's currently filtered.
+  // Counts come from a DB aggregate (ignores the status filter) so the tiles +
+  // chips stay live without paging every requisition into the browser.
   const countFilters = useMemo(
     () => ({
       search: debouncedSearch,
       status: 'all' as const,
       unitFactory,
-      page: 1,
-      pageSize: 1000,
     }),
     [debouncedSearch, unitFactory],
   );
-  const { data: allData } = useRequisitions(countFilters);
+  const { data: statsData } = useRequisitionStats(countFilters);
 
   const counts = useMemo(() => {
-    const items = allData?.items ?? [];
-    const byStatus: Record<string, number> = {};
-    for (const r of items) byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
+    const byStatus = statsData?.byStatus ?? {};
     return {
-      total: allData?.meta.total ?? 0,
+      total: statsData?.total ?? 0,
       byStatus,
       pending: byStatus['pending_approval'] ?? 0,
-      approved: (byStatus['approved'] ?? 0) + (byStatus['profile_generated'] ?? 0),
+      approved:
+        (byStatus['approved'] ?? 0) + (byStatus['profile_generated'] ?? 0),
       posted: byStatus['posted'] ?? 0,
     };
-  }, [allData]);
+  }, [statsData]);
 
   const unitFilterOptions: SelectOption[] = [
     { label: 'All accessible units', value: 'all' },

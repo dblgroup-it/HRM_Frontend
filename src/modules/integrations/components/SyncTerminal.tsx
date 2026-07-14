@@ -13,10 +13,13 @@ export function SyncTerminal({
   title?: string;
   height?: string;
 }) {
-  const endRef = useRef<HTMLDivElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
 
+  // Scroll the log box itself — scrollIntoView would drag the whole page down
+  // to the terminal whenever new lines arrive (or on first render).
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: 'end' });
+    const box = boxRef.current;
+    if (box) box.scrollTop = box.scrollHeight;
   }, [lines.length]);
 
   return (
@@ -32,6 +35,7 @@ export function SyncTerminal({
         )}
       </div>
       <div
+        ref={boxRef}
         className={`scrollbar-thin ${height} overflow-y-auto px-3 py-2 font-mono text-xs leading-relaxed`}
       >
         {lines.length === 0 ? (
@@ -48,7 +52,6 @@ export function SyncTerminal({
             <span className="animate-pulse">▋</span>
           </div>
         )}
-        <div ref={endRef} />
       </div>
     </div>
   );

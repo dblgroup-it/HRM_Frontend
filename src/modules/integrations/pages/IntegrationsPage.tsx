@@ -44,6 +44,7 @@ import {
 } from '../hooks/useZingHr';
 import { SyncTerminal } from '../components/SyncTerminal';
 import { AutomationPanel } from '../components/AutomationPanel';
+import { BdJobsSettingsCard } from '../bdjobs';
 import type { ZingHrSyncLog } from '../types/zinghr.types';
 
 interface NotificationSettings {
@@ -223,6 +224,9 @@ export default function IntegrationsPage() {
 
       {/* ── Automation ──────────────────────────────────────────────── */}
       <AutomationPanel />
+
+      {/* ── BDJobs job export ───────────────────────────────────────── */}
+      <BdJobsSettingsCard />
 
       {/* ── ZingHR Sync ─────────────────────────────────────────────── */}
       <Card>

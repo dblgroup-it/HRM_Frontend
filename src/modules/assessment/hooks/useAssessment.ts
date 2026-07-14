@@ -322,3 +322,40 @@ export function usePublicExam(token: string) {
     retry: false,
   });
 }
+
+// --- one-click panelist evaluation ---
+
+export function usePublicEval(token: string) {
+  return useQuery({
+    queryKey: ['public-eval', token],
+    queryFn: () => assessmentApi.publicEval(token),
+    enabled: Boolean(token),
+    retry: false,
+  });
+}
+
+export function useSubmitPublicEval(token: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SubmitEvaluationInput) =>
+      assessmentApi.submitPublicEval(token, input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['public-eval', token] });
+    },
+    onError: (error) =>
+      toast.error(errMsg(error, 'Could not submit your evaluation')),
+  });
+}
+
+export function useResendEvalToken(candidateId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { roundId: string; panelistUserId: string }) =>
+      assessmentApi.resendEvalToken(vars.roundId, vars.panelistUserId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: assessmentKeys.interviews(candidateId) });
+      toast.success('New evaluation link generated');
+    },
+    onError: (error) => toast.error(errMsg(error, 'Could not resend link')),
+  });
+}

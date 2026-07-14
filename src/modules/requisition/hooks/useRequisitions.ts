@@ -15,6 +15,8 @@ export const requisitionKeys = {
   all: ['requisitions'] as const,
   list: (filters: RequisitionFilters) =>
     [...requisitionKeys.all, 'list', filters] as const,
+  stats: (filters: RequisitionFilters) =>
+    [...requisitionKeys.all, 'stats', filters] as const,
   detail: (id: string) => [...requisitionKeys.all, 'detail', id] as const,
 };
 
@@ -22,6 +24,15 @@ export function useRequisitions(filters: RequisitionFilters) {
   return useQuery({
     queryKey: requisitionKeys.list(filters),
     queryFn: () => requisitionApi.list(filters),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** Status counts for the tiles/chips (counted in the DB, not by paging rows). */
+export function useRequisitionStats(filters: RequisitionFilters) {
+  return useQuery({
+    queryKey: requisitionKeys.stats(filters),
+    queryFn: () => requisitionApi.stats(filters),
     placeholderData: keepPreviousData,
   });
 }

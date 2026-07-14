@@ -288,6 +288,25 @@ export const requisitionApi = {
       .then((res) => res.data);
   },
 
+  /** Status counts for the list page's tiles — counted server-side. */
+  stats(
+    filters: RequisitionFilters = {},
+  ): Promise<{ total: number; byStatus: Record<string, number> }> {
+    if (ENV.USE_MOCK_API) {
+      return delay(MOCK_LATENCY).then(() => {
+        const byStatus: Record<string, number> = {};
+        for (const r of STORE) byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
+        return { total: STORE.length, byStatus };
+      });
+    }
+    return http
+      .get<ApiResponse<{ total: number; byStatus: Record<string, number> }>>(
+        '/requisitions/stats',
+        { params: filters },
+      )
+      .then((res) => res.data);
+  },
+
   getById(id: string): Promise<Requisition> {
     if (ENV.USE_MOCK_API) {
       return delay(MOCK_LATENCY).then(() => {

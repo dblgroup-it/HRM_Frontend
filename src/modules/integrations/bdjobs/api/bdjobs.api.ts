@@ -8,6 +8,8 @@ import type {
   BdJobsIndustry,
   BdJobsLocation,
   BdJobsPost,
+  BdJobsSettingsInput,
+  BdJobsSettingsView,
   BdJobsSkill,
 } from '../types/bdjobs.types';
 
@@ -53,6 +55,39 @@ export const bdJobsApi = {
   getStatus: (): Promise<{ configured: boolean }> =>
     http
       .get<ApiResponse<{ configured: boolean }>>('/integrations/bdjobs/status')
+      .then((r) => r.data),
+
+  // --- admin configuration ---
+  getSettings: (): Promise<BdJobsSettingsView> =>
+    http
+      .get<ApiResponse<BdJobsSettingsView>>('/integrations/bdjobs/settings')
+      .then((r) => r.data),
+
+  updateSettings: (
+    input: Partial<BdJobsSettingsInput>,
+  ): Promise<BdJobsSettingsView> =>
+    http
+      .patch<ApiResponse<BdJobsSettingsView>>(
+        '/integrations/bdjobs/settings',
+        input,
+      )
+      .then((r) => r.data),
+
+  /** Tests the values currently in the form; blank secrets use the saved ones. */
+  testConnection: (
+    creds: Partial<
+      Pick<
+        BdJobsSettingsInput,
+        'baseUrl' | 'companyId' | 'authToken' | 'decodeId' | 'signatureFormat'
+      >
+    > = {},
+  ): Promise<{ ok: boolean; message: string }> =>
+    http
+      .post<ApiResponse<{ ok: boolean; message: string }>>(
+        '/integrations/bdjobs/test',
+        creds,
+        { timeout: 30_000 },
+      )
       .then((r) => r.data),
 
   getPost: (reqId: string): Promise<BdJobsPost | null> =>

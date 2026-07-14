@@ -9,10 +9,13 @@ import {
   CalendarClock,
   Check,
   CheckCircle2,
+  Circle,
+  ClipboardCopy,
   Lightbulb,
   Mail,
   MapPin,
   RefreshCw,
+  RotateCcw,
   Search,
   SendHorizonal,
   Sparkles,
@@ -40,6 +43,7 @@ import {
   useCandidateInterviews,
   useGenerateEvaluationSummary,
   useRemoveInterview,
+  useResendEvalToken,
   useScheduleInterview,
   useSendInterviewQuestions,
   useUpdateInterview,
@@ -136,6 +140,7 @@ export function CandidateInterviewsModal({
   const [panel, setPanel] = useState<{ userId: string; name: string }[]>([]);
   const [notifyCandidate, setNotifyCandidate] = useState(true);
   const [notifyPanel, setNotifyPanel] = useState(true);
+  const [locationError, setLocationError] = useState(false);
 
   const kindAutoSetRef = useRef(false);
   useEffect(() => {
@@ -186,6 +191,12 @@ export function CandidateInterviewsModal({
     setPanel((prev) => prev.filter((p) => p.userId !== userId));
 
   const submit = () => {
+    // Venue is required for in-person interviews
+    if (mode !== 'online' && !customLink && !location.trim()) {
+      setLocationError(true);
+      return;
+    }
+    setLocationError(false);
     schedule.mutate(
       {
         kind, mode,
@@ -194,7 +205,7 @@ export function CandidateInterviewsModal({
         panelistUserIds: panel.map((p) => p.userId),
         notifyCandidate, notifyPanel,
       },
-      { onSuccess: () => { setScheduledAt(''); setLocation(''); setPanel([]); } },
+      { onSuccess: () => { setScheduledAt(''); setLocation(''); setPanel([]); setLocationError(false); } },
     );
   };
 
@@ -397,7 +408,7 @@ export function CandidateInterviewsModal({
                       { value: 'online',   label: 'Online',    icon: <Video className="h-3.5 w-3.5" /> },
                     ]}
                     value={mode === 'online' ? 'online' : 'physical'}
-                    onChange={(v) => { setMode(v as InterviewModeKey); setCustomLink(false); setLocation(''); }}
+                    onChange={(v) => { setMode(v as InterviewModeKey); setCustomLink(false); setLocation(''); setLocationError(false); }}
                   />
                 </div>
               </FormStep>
@@ -423,10 +434,16 @@ export function CandidateInterviewsModal({
                   ) : (
                     <div>
                       <Input
-                        placeholder={mode === 'online' ? 'https://… (Teams, Zoom…)' : 'Venue — e.g. HQ, Room 3'}
+                        placeholder={mode === 'online' ? 'https://… (Teams, Zoom…)' : 'Venue — e.g. HQ, Board Room 3 *'}
                         value={location}
-                        onChange={(e) => setLocation(e.target.value)}
+                        onChange={(e) => { setLocation(e.target.value); if (e.target.value.trim()) setLocationError(false); }}
+                        className={locationError && mode !== 'online' ? 'border-rose-400 focus:ring-rose-400' : ''}
                       />
+                      {locationError && mode !== 'online' && (
+                        <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-rose-600">
+                          <MapPin className="h-3 w-3" /> Venue is required for in-person interviews
+                        </p>
+                      )}
                       {mode === 'online' && (
                         <button type="button" onClick={() => { setCustomLink(false); setLocation(''); }}
                           className="mt-1 text-[11px] text-slate-400 underline-offset-2 hover:text-brand-600 hover:underline">
@@ -669,6 +686,7 @@ function RoundRow({
 }) {
   const update = useUpdateInterview(candidateId);
   const sendQ = useSendInterviewQuestions(candidateId);
+  const resendToken = useResendEvalToken(candidateId);
   const maxTotal = rubric.reduce((s, c) => s + c.maxScore, 0);
   const avg =
     round.evaluations.length > 0
@@ -750,18 +768,71 @@ function RoundRow({
             </span>
           )}
         </div>
-        {/* Panelists */}
+        {/* Panelists with eval-token status */}
         {round.panelists.length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-1">
+          <div className="mt-2 space-y-1.5">
             {round.panelists.map((p) => (
-              <span key={p.id}
-                className={cn(
-                  'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium',
-                  p.hasMarked ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500',
+              <div key={p.id} className="flex items-center gap-2">
+                {/* Name + status chip */}
+                <span className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium',
+                  p.hasMarked
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : p.tokenStatus === 'opened'
+                      ? 'bg-amber-50 text-amber-700'
+                      : 'bg-slate-100 text-slate-600',
                 )}>
-                {p.hasMarked && <Check className="h-2.5 w-2.5" />}
-                {p.name}
-              </span>
+                  {p.hasMarked ? (
+                    <Check className="h-3 w-3" />
+                  ) : p.tokenStatus === 'opened' ? (
+                    <Circle className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />
+                  ) : (
+                    <Circle className="h-2.5 w-2.5 fill-slate-300 text-slate-300" />
+                  )}
+                  {p.name}
+                  {!p.hasMarked && p.tokenStatus && (
+                    <span className={cn(
+                      'rounded-full px-1.5 py-0.5 text-[9px] font-semibold',
+                      p.tokenStatus === 'opened'
+                        ? 'bg-amber-100 text-amber-600'
+                        : 'bg-slate-200 text-slate-500',
+                    )}>
+                      {p.tokenStatus === 'opened' ? 'Opened' : 'Sent'}
+                    </span>
+                  )}
+                </span>
+
+                {/* Action buttons — only for pending panelists */}
+                {!p.hasMarked && (
+                  <div className="ml-auto flex items-center gap-1.5">
+                    {p.evalLink && (
+                      <button
+                        type="button"
+                        onClick={() => void navigator.clipboard.writeText(p.evalLink!)}
+                        className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[10px] font-semibold text-brand-700 transition hover:bg-brand-100 active:scale-95"
+                      >
+                        <ClipboardCopy className="h-3 w-3" />
+                        Copy link
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={resendToken.isPending}
+                      onClick={() =>
+                        resendToken.mutate(
+                          { roundId: round.id, panelistUserId: p.userId },
+                          { onSuccess: (d) => void navigator.clipboard.writeText(d.evalLink) },
+                        )
+                      }
+                      title="Generate a fresh evaluation link and copy it"
+                      className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-700 transition hover:bg-amber-100 active:scale-95 disabled:opacity-40"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      New link
+                    </button>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         )}
