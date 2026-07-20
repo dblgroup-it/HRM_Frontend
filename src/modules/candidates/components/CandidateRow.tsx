@@ -8,12 +8,14 @@ import {
   CalendarClock,
   FileQuestion,
   FileText,
+  Flag,
   Mail,
   Sparkles,
   Star,
   Trash2,
   Upload,
   UserCheck,
+  X,
 } from 'lucide-react';
 
 import { Avatar, BusyOverlay } from '@shared/components/ui';
@@ -21,9 +23,11 @@ import { cn } from '@shared/lib';
 import { ROUTES } from '@app/router/paths';
 
 import {
+  useFlagCandidate,
   useMarkViewed,
   useRemoveCandidate,
   useScreenCandidate,
+  useUnflagCandidate,
   useUpdateCandidate,
   useUploadCv,
 } from '../hooks/useCandidates';
@@ -95,12 +99,16 @@ export function CandidateRow({
   const upload = useUploadCv(reqId);
   const remove = useRemoveCandidate(reqId);
   const screen = useScreenCandidate(reqId);
+  const flag = useFlagCandidate(reqId);
+  const unflag = useUnflagCandidate(reqId);
   const markViewed = useMarkViewed();
   const navigate = useNavigate();
   const rowRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [showFullSummary, setShowFullSummary] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [flagModalOpen, setFlagModalOpen] = useState(false);
+  const [flagReason, setFlagReason] = useState('');
   // Optimistic: treat as viewed once the row enters viewport (even before server confirms).
   const [seenLocally, setSeenLocally] = useState(Boolean(candidate.viewedAt));
 
@@ -131,8 +139,9 @@ export function CandidateRow({
     <div
       ref={rowRef}
       className={cn(
-        'group/row flex flex-wrap items-center gap-3 px-4 py-3 transition-colors duration-150 hover:bg-slate-50/60',
+        'group/row relative flex flex-wrap items-center gap-3 px-4 py-3 transition-colors duration-150 hover:bg-slate-50/60',
         selected && 'bg-brand-50/50',
+        candidate.isRedFlagged && 'bg-rose-50/60 hover:bg-rose-50/80 border-l-[3px] border-rose-500 pl-[13px]',
       )}
     >
       {/* Custom animated checkbox — shown on hover or when selection mode is active */}
@@ -209,6 +218,12 @@ export function CandidateRow({
               Applied {candidate.applyCount}×
             </button>
           )}
+          {candidate.isRedFlagged && (
+            <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-700">
+              <Flag className="h-2.5 w-2.5" fill="currentColor" />
+              Red flag
+            </span>
+          )}
         </div>
         <p className="truncate text-xs text-slate-400">
           {contact || 'No contact details'}
@@ -216,6 +231,11 @@ export function CandidateRow({
             <span className="ml-2 text-slate-400">· Expected: <span className="font-medium text-slate-500">{candidate.salaryExpectation}</span></span>
           )}
         </p>
+        {candidate.isRedFlagged && candidate.redFlagReason && (
+          <div className="mt-1.5 max-w-xs rounded-r-lg border-l-4 border-amber-400 bg-amber-50 px-3 py-1.5">
+            <p className="text-xs leading-snug text-amber-800">{candidate.redFlagReason}</p>
+          </div>
+        )}
         {candidate.matchSummary && (
           <div className="mt-1">
             <p
@@ -393,6 +413,23 @@ export function CandidateRow({
       {canManage && (
         <button
           type="button"
+          title={candidate.isRedFlagged ? `Red-flagged: ${candidate.redFlagReason ?? ''}` : 'Mark as red flag'}
+          onClick={() => candidate.isRedFlagged ? unflag.mutate(candidate.id) : setFlagModalOpen(true)}
+          disabled={flag.isPending || unflag.isPending}
+          className={cn(
+            'rounded-md p-1.5 transition-colors disabled:opacity-50',
+            candidate.isRedFlagged
+              ? 'text-rose-500 hover:bg-rose-50'
+              : 'text-slate-300 hover:bg-rose-50 hover:text-rose-400',
+          )}
+        >
+          <Flag className="h-4 w-4" fill={candidate.isRedFlagged ? 'currentColor' : 'none'} />
+        </button>
+      )}
+
+      {canManage && (
+        <button
+          type="button"
           title="Remove candidate"
           onClick={() => remove.mutate(candidate.id)}
           className="rounded-md p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-500"
@@ -437,6 +474,78 @@ export function CandidateRow({
             onClose={() => setHistoryOpen(false)}
           />
         </Suspense>
+      )}
+
+      {flagModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setFlagModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h3 className="flex items-center gap-2 text-base font-semibold text-rose-700">
+                  <Flag className="h-4 w-4" fill="currentColor" />
+                  Red-flag {candidate.name}
+                </h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Future applications from this email / phone will be auto-flagged. You can remove the flag later.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFlagModalOpen(false)}
+                className="shrink-0 rounded-md p-1 text-slate-400 hover:bg-slate-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <label className="block text-sm font-medium text-slate-700">
+              Reason <span className="text-rose-500">*</span>
+            </label>
+            <textarea
+              rows={3}
+              value={flagReason}
+              onChange={(e) => setFlagReason(e.target.value)}
+              placeholder="Why is this candidate being red-flagged? (min. 5 characters)"
+              className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-200 resize-none"
+            />
+            <p className="mt-1 text-right text-xs text-slate-400">{flagReason.length}/1000</p>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setFlagModalOpen(false)}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={flagReason.trim().length < 5 || flag.isPending}
+                onClick={() => {
+                  flag.mutate(
+                    { id: candidate.id, reason: flagReason.trim() },
+                    {
+                      onSuccess: () => {
+                        setFlagModalOpen(false);
+                        setFlagReason('');
+                      },
+                    },
+                  );
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-50"
+              >
+                <Flag className="h-3.5 w-3.5" />
+                {flag.isPending ? 'Flagging…' : 'Red-flag candidate'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

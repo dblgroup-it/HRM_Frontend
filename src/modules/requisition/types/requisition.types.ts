@@ -178,6 +178,32 @@ export interface RequisitionSignatories {
 }
 
 /** Payload accepted by the create endpoint. */
+/** AI quick-fill result — mirrors the form fields; nothing is saved yet. */
+export interface RequisitionDraft {
+  designation: string;
+  unitFactory: string;
+  department: string;
+  section: string;
+  source: RequisitionSource;
+  requiredPosts: number;
+  placeOfPosting: string;
+  vacantDate: string;
+  whenNeededDate: string;
+  priority: 'top' | 'moderate' | 'ordinary';
+  employmentNature: 'permanent' | 'temporary' | 'contractual';
+  contractualPurpose: string;
+  jobDescription: string;
+  education: string;
+  experience: string;
+  others: string;
+  computer: 'not_applicable' | 'desktop' | 'laptop';
+  computerReason: string;
+  seating: 'existing' | 'new';
+  preferredSources: PreferredSource[];
+  /** What the AI assumed or couldn't determine — shown to the user. */
+  notes: string;
+}
+
 export interface CreateRequisitionPayload {
   designation: string;
   requirementType: RequirementType;

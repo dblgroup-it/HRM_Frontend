@@ -41,7 +41,11 @@ import {
   type RequisitionFormValues,
   type RequisitionFormOutput,
 } from '../schemas/requisition.schema';
-import type { CreateRequisitionPayload } from '../types/requisition.types';
+import type {
+  CreateRequisitionPayload,
+  RequisitionDraft,
+} from '../types/requisition.types';
+import { AiQuickFill } from './AiQuickFill';
 import {
   EMPLOYMENT_NATURE_OPTIONS,
   PREFERRED_SOURCES,
@@ -161,6 +165,63 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
 
   const needsSbu = requirement === 'new' && source === 'factory';
 
+  // --- AI quick-fill ------------------------------------------------------
+  // Department/Section are <Select>s whose options only exist once the unit's
+  // structure has loaded, so the draft is applied in stages: unit + plain
+  // fields now, then department, then section as each option list arrives.
+  const [pendingDraft, setPendingDraft] = useState<RequisitionDraft | null>(
+    null,
+  );
+
+  const applyDraft = (d: RequisitionDraft) => {
+    if (d.unitFactory) setValue('unitFactory', d.unitFactory);
+    setValue('designation', d.designation);
+    setValue('source', d.source);
+    setValue('requiredPosts', d.requiredPosts);
+    setValue('placeOfPosting', d.placeOfPosting);
+    if (d.vacantDate) setValue('vacantDate', d.vacantDate);
+    if (d.whenNeededDate) setValue('whenNeededDate', d.whenNeededDate);
+    setValue('priority', d.priority);
+    setValue('employmentNature', d.employmentNature);
+    setValue('contractualPurpose', d.contractualPurpose);
+    setValue('jobDescription', d.jobDescription);
+    setValue('education', d.education);
+    setValue('experience', d.experience);
+    setValue('others', d.others);
+    setValue('computer', d.computer);
+    setValue('computerReason', d.computerReason);
+    setValue('seating', d.seating);
+    setValue('preferredSources', d.preferredSources);
+    // Cascading selects are filled by the effects below.
+    setPendingDraft(d);
+  };
+
+  const departmentReady =
+    pendingDraft?.department &&
+    departments.some((x) => x.department === pendingDraft.department);
+
+  useEffect(() => {
+    if (departmentReady && pendingDraft) {
+      setValue('department', pendingDraft.department);
+    }
+  }, [departmentReady, pendingDraft, setValue]);
+
+  const sectionReady =
+    pendingDraft &&
+    department === pendingDraft.department &&
+    (!pendingDraft.section ||
+      sections.some((s) => s.section === pendingDraft.section));
+
+  useEffect(() => {
+    if (!pendingDraft || !sectionReady) return;
+    if (pendingDraft.section) setValue('section', pendingDraft.section);
+    // Re-assert the designation: changing unit/department/section clears it.
+    if (pendingDraft.designation) {
+      setValue('designation', pendingDraft.designation);
+    }
+    setPendingDraft(null);
+  }, [sectionReady, pendingDraft, setValue]);
+
   const submit = handleSubmit((values) =>
     onSubmit(
       toPayload(values as RequisitionFormOutput, requestedBy),
@@ -170,6 +231,9 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
 
   return (
     <form onSubmit={submit} className="space-y-6" noValidate>
+      {/* Floating AI assistant — drafts the form from a one-line description */}
+      <AiQuickFill onDrafted={applyDraft} />
+
       {/* A · Vacancy Information */}
       <Section
         letter="A"

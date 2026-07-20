@@ -29,6 +29,9 @@ export interface Candidate {
   /** How many requisitions this candidate's email has been used to apply to. */
   applyCount: number;
   talentPool: boolean;
+  isRedFlagged: boolean;
+  redFlagReason: string | null;
+  redFlaggedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

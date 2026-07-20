@@ -166,6 +166,14 @@ export const candidatesApi = {
       .then((r) => r.data);
   },
 
+  flag: (id: string, reason: string): Promise<{ ok: boolean }> =>
+    http
+      .post<ApiResponse<{ ok: boolean }>>(`/candidates/${id}/flag`, { reason })
+      .then((r) => r.data),
+
+  unflag: (id: string): Promise<{ ok: boolean }> =>
+    http.delete<ApiResponse<{ ok: boolean }>>(`/candidates/${id}/flag`).then((r) => r.data),
+
   remove: (id: string): Promise<{ id: string }> =>
     http.delete<ApiResponse<{ id: string }>>(`/candidates/${id}`).then((r) => r.data),
 

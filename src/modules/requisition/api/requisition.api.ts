@@ -9,6 +9,7 @@ import type {
   CreateRequisitionPayload,
   PreferredSource,
   Requisition,
+  RequisitionDraft,
   RequisitionFilters,
   RequisitionSignatories,
   RequisitionSource,
@@ -285,6 +286,17 @@ export const requisitionApi = {
       .get<ApiResponse<Paginated<Requisition>>>('/requisitions', {
         params: filters,
       })
+      .then((res) => res.data);
+  },
+
+  /** AI quick-fill: plain-language vacancy description → drafted form values. */
+  draft(prompt: string): Promise<RequisitionDraft> {
+    return http
+      .post<ApiResponse<RequisitionDraft>>(
+        '/requisitions/draft',
+        { prompt },
+        { timeout: 90_000 },
+      )
       .then((res) => res.data);
   },
 

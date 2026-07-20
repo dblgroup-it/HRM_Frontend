@@ -232,3 +232,28 @@ export function useSyncDrive(reqId: string) {
       toast.error(errMsg(error, 'Could not sync CVs from Drive')),
   });
 }
+
+export function useFlagCandidate(reqId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      candidatesApi.flag(id, reason),
+    onSuccess: () => {
+      invalidatePipeline(qc, reqId);
+      toast.success('Candidate red-flagged');
+    },
+    onError: (error) => toast.error(errMsg(error, 'Could not flag the candidate')),
+  });
+}
+
+export function useUnflagCandidate(reqId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => candidatesApi.unflag(id),
+    onSuccess: () => {
+      invalidatePipeline(qc, reqId);
+      toast.success('Red flag removed');
+    },
+    onError: (error) => toast.error(errMsg(error, 'Could not remove flag')),
+  });
+}
