@@ -56,7 +56,7 @@ export interface ActivityLogEntry {
   actor: string;
   action: ApprovalDecision;
   note: string;
-  at: ISODateString;
+  createdAt: ISODateString;
 }
 
 /** AI output (Step 3) — structured role profile derived from the form. */
@@ -135,7 +135,7 @@ export interface Requisition {
   section?: string;
   placeOfPosting: string;
   vacantDate: ISODateString | null;
-  whenNeededDate: ISODateString | null;
+  neededDate: ISODateString | null;
   priority: Priority;
   employmentNature: EmploymentNature;
   contractualPurpose: string;
@@ -188,7 +188,7 @@ export interface RequisitionDraft {
   requiredPosts: number;
   placeOfPosting: string;
   vacantDate: string;
-  whenNeededDate: string;
+  neededDate: string;
   priority: 'top' | 'moderate' | 'ordinary';
   employmentNature: 'permanent' | 'temporary' | 'contractual';
   contractualPurpose: string;
@@ -215,7 +215,7 @@ export interface CreateRequisitionPayload {
   section?: string;
   placeOfPosting: string;
   vacantDate: ISODateString | null;
-  whenNeededDate: ISODateString | null;
+  neededDate: ISODateString | null;
   priority: Priority;
   employmentNature: EmploymentNature;
   contractualPurpose: string;
@@ -243,7 +243,7 @@ export interface UpdateRequisitionInput {
   requiredPosts?: number;
   totalVacantPosts?: number;
   placeOfPosting?: string;
-  whenNeededDate?: string;
+  neededDate?: string;
   priority?: Priority;
   employmentNature?: EmploymentNature;
   contractualPurpose?: string;

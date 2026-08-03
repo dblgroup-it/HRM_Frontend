@@ -1,4 +1,3 @@
-export { default as AccessControlPage } from './pages/AccessControlPage';
 export {
   useMyPermissions,
   useRoles,

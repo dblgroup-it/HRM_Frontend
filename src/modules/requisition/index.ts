@@ -1,7 +1,3 @@
-export { default as RequisitionsPage } from './pages/RequisitionsPage';
-export { default as RequisitionCreatePage } from './pages/RequisitionCreatePage';
-export { default as RequisitionDetailPage } from './pages/RequisitionDetailPage';
-
 export { RequisitionForm } from './components/RequisitionForm';
 export { RequisitionTable } from './components/RequisitionTable';
 export { RequisitionStatusBadge } from './components/RequisitionStatusBadge';

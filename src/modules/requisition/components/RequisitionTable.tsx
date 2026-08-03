@@ -68,7 +68,7 @@ export function RequisitionTable({ requisitions, isLoading }: Props) {
     {
       key: 'whenNeeded',
       header: 'When Needed',
-      render: (r) => (r.whenNeededDate ? formatDate(r.whenNeededDate) : '—'),
+      render: (r) => (r.neededDate ? formatDate(r.neededDate) : '—'),
     },
     {
       key: 'status',
@@ -140,10 +140,10 @@ export function RequisitionTable({ requisitions, isLoading }: Props) {
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
                   {r.requiredPosts} post{r.requiredPosts === 1 ? '' : 's'}
                 </span>
-                {r.whenNeededDate && (
+                {r.neededDate && (
                   <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
                     <CalendarClock className="h-3 w-3" />
-                    {formatDate(r.whenNeededDate)}
+                    {formatDate(r.neededDate)}
                   </span>
                 )}
                 <ChevronRight className="ml-auto h-4 w-4 text-slate-300" />

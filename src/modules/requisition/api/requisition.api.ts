@@ -77,7 +77,7 @@ let STORE: Requisition[] = [
     department: 'Production & QC',
     placeOfPosting: 'Shreehatta Economic Zone, Moulvibazar',
     vacantDate: null,
-    whenNeededDate: '2026-05-20',
+    neededDate: '2026-05-20',
     priority: 'top',
     employmentNature: 'permanent',
     contractualPurpose: '',
@@ -99,7 +99,7 @@ let STORE: Requisition[] = [
         actor: 'Mohammad Abdul Latif',
         action: 'approved',
         note: 'Raised against vacant sanctioned seats.',
-        at: '2026-04-25T10:00:00Z',
+        createdAt: '2026-04-25T10:00:00Z',
       },
     ],
     roleProfile: null,
@@ -120,7 +120,7 @@ let STORE: Requisition[] = [
     department: 'Merchandising',
     placeOfPosting: 'Kashimpur, Gazipur',
     vacantDate: null,
-    whenNeededDate: '2026-06-15',
+    neededDate: '2026-06-15',
     priority: 'moderate',
     employmentNature: 'permanent',
     contractualPurpose: '',
@@ -173,7 +173,7 @@ let STORE: Requisition[] = [
     department: 'Human Resources',
     placeOfPosting: 'DBL Group HQ, Dhaka',
     vacantDate: null,
-    whenNeededDate: '2026-06-10',
+    neededDate: '2026-06-10',
     priority: 'moderate',
     employmentNature: 'permanent',
     contractualPurpose: '',
@@ -497,7 +497,7 @@ function applyDecision(
 
   const now = new Date().toISOString();
   const actor = r.approvalChain[idx].assignee || CURRENT_USER;
-  const log = [...r.activityLog, { actor, action: decision, note, at: now }];
+  const log = [...r.activityLog, { actor, action: decision, note, createdAt: now }];
 
   if (decision === 'rejected') {
     const chain = r.approvalChain.map((s, i) =>

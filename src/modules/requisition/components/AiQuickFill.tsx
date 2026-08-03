@@ -10,7 +10,7 @@ import { requisitionApi } from '../api/requisition.api';
 import type { RequisitionDraft } from '../types/requisition.types';
 
 const EXAMPLES = [
-  'One executive for production at JTML, urgent',
+  'One executive for production at JTML in Sylhet EZ, urgent',
   '2 senior officers for quality control, permanent',
   'Assistant manager for maintenance, 5 years experience',
 ];

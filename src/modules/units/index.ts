@@ -1,4 +1,3 @@
-export { default as UnitConfigPage } from './pages/UnitConfigPage';
 export {
   useUnitsConfig,
   useCreateUnit,

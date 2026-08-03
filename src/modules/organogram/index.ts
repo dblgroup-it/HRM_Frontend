@@ -1,4 +1,3 @@
-export { default as OrganogramPage } from './pages/OrganogramPage';
 export {
   useOrganogramUnits,
   useOrgStructure,

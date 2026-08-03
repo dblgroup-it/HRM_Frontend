@@ -1,4 +1,3 @@
-export { default as IntegrationsPage } from './pages/IntegrationsPage';
 export {
   useStartSync,
   useSyncStatus,

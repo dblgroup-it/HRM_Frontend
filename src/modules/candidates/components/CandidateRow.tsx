@@ -68,6 +68,7 @@ function matchTone(score: number): string {
 
 const SOURCE_LABEL: Record<string, string> = {
   application: 'Applied online',
+  bdjobs: 'BDJobs',
   drive: 'Drive link',
   upload: 'Uploaded',
   manual: 'Added manually',

@@ -3,8 +3,6 @@ export { BulkInterviewModal } from './components/BulkInterviewModal';
 export { CandidateInterviewsModal } from './components/CandidateInterviewsModal';
 export { CandidateExamsModal } from './components/CandidateExamsModal';
 export { ExamBankModal } from './components/ExamBankModal';
-export { default as MyInterviewsPage } from './pages/MyInterviewsPage';
-export { default as ExamPage } from './pages/ExamPage';
 export {
   assessmentKeys,
   useAssessmentSetup,

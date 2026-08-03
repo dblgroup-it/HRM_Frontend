@@ -233,7 +233,7 @@ function ActivityLog({ requisition }: { requisition: Requisition }) {
             )}
             <span className="text-slate-400">
               {' '}
-              · {formatRelative(entry.at)}
+              · {formatRelative(entry.createdAt)}
             </span>
           </li>
         ))}

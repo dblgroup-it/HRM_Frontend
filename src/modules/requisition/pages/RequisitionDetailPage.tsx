@@ -141,7 +141,7 @@ export default function RequisitionDetailPage() {
     { label: 'Place of posting', value: req.placeOfPosting },
     {
       label: 'When needed',
-      value: req.whenNeededDate ? formatDate(req.whenNeededDate) : '—',
+      value: req.neededDate ? formatDate(req.neededDate) : '—',
     },
     {
       label: 'Vacant date',

@@ -40,8 +40,8 @@ export function EditRequisitionModal({
   const [placeOfPosting, setPlaceOfPosting] = useState(
     requisition.placeOfPosting,
   );
-  const [whenNeededDate, setWhenNeededDate] = useState(
-    requisition.whenNeededDate?.slice(0, 10) ?? '',
+  const [neededDate, setWhenNeededDate] = useState(
+    requisition.neededDate?.slice(0, 10) ?? '',
   );
   const [priority, setPriority] = useState<Priority>(requisition.priority);
   const [employmentNature, setEmploymentNature] = useState<EmploymentNature>(
@@ -62,7 +62,7 @@ export function EditRequisitionModal({
           requiredPosts: Number(requiredPosts) || 1,
           totalVacantPosts: Number(totalVacantPosts) || 1,
           placeOfPosting,
-          whenNeededDate: whenNeededDate || undefined,
+          neededDate: neededDate || undefined,
           priority,
           employmentNature,
           jobDescription,
@@ -116,7 +116,7 @@ export function EditRequisitionModal({
           <Input
             label="When needed"
             type="date"
-            value={whenNeededDate}
+            value={neededDate}
             onChange={(e) => setWhenNeededDate(e.target.value)}
           />
           <Select

@@ -180,7 +180,7 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
     setValue('requiredPosts', d.requiredPosts);
     setValue('placeOfPosting', d.placeOfPosting);
     if (d.vacantDate) setValue('vacantDate', d.vacantDate);
-    if (d.whenNeededDate) setValue('whenNeededDate', d.whenNeededDate);
+    if (d.neededDate) setValue('neededDate', d.neededDate);
     setValue('priority', d.priority);
     setValue('employmentNature', d.employmentNature);
     setValue('contractualPurpose', d.contractualPurpose);
@@ -346,8 +346,8 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
             label="When needed (date)"
             type="date"
             hint="Fresher — 4 weeks · Experienced — 8 weeks lead time"
-            error={errors.whenNeededDate?.message}
-            {...register('whenNeededDate')}
+            error={errors.neededDate?.message}
+            {...register('neededDate')}
           />
           <Select
             label="Priority"
@@ -638,7 +638,7 @@ function toPayload(
     section: values.section || undefined,
     placeOfPosting: values.placeOfPosting,
     vacantDate: values.vacantDate || null,
-    whenNeededDate: values.whenNeededDate || null,
+    neededDate: values.neededDate || null,
     priority: values.priority,
     employmentNature: values.employmentNature,
     contractualPurpose: values.contractualPurpose ?? '',

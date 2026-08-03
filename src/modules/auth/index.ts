@@ -1,4 +1,3 @@
-export { default as LoginPage } from './pages/LoginPage';
 export { LoginForm } from './components/LoginForm';
 export { useAuth } from './hooks/useAuth';
 export { useLogin } from './hooks/useLogin';

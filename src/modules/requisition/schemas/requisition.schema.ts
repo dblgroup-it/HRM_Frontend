@@ -22,7 +22,7 @@ export const requisitionSchema = z
     section: z.string().optional(),
     placeOfPosting: z.string().min(2, 'Place of posting is required'),
     vacantDate: z.string().optional(),
-    whenNeededDate: z.string().optional(),
+    neededDate: z.string().optional(),
     priority: z.enum(['top', 'moderate', 'ordinary']),
     employmentNature: z.enum(['permanent', 'temporary', 'contractual']),
     contractualPurpose: z.string().optional(),
