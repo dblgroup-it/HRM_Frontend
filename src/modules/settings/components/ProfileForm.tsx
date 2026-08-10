@@ -1,15 +1,17 @@
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { toast } from 'sonner';
 
 import { Button, Input } from '@shared/components/ui';
 import { useAuth } from '@modules/auth';
+import { authApi } from '@modules/auth/api/auth.api';
+import { useAuthStore } from '@modules/auth/store/auth.store';
 
 import { profileSchema, type ProfileFormValues } from '../schemas/profile.schema';
 
 export function ProfileForm() {
   const { user } = useAuth();
-  const [saved, setSaved] = useState(false);
+  const updateUser = useAuthStore((s) => s.updateUser);
 
   const {
     register,
@@ -20,20 +22,30 @@ export function ProfileForm() {
     defaultValues: {
       name: user?.name ?? '',
       email: user?.email ?? '',
-      phone: '+880 1711 100100',
-      jobTitle: user?.jobTitle ?? '',
+      phone: user?.phone ?? '',
     },
   });
 
-  const onSubmit = handleSubmit(async () => {
-    // Simulate a save round-trip.
-    await new Promise((r) => setTimeout(r, 700));
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+  const onSubmit = handleSubmit(async (values) => {
+    try {
+      const updated = await authApi.updateProfile(values);
+      updateUser({ name: updated.name, email: updated.email, phone: updated.phone });
+      toast.success('Profile updated');
+    } catch {
+      toast.error('Could not update profile');
+    }
   });
 
   return (
     <form onSubmit={onSubmit} className="space-y-5">
+      {user?.jobTitle && (
+        <div>
+          <p className="mb-1 text-xs font-medium text-slate-500">Job title</p>
+          <p className="text-sm text-slate-700">{user.jobTitle}</p>
+          <p className="mt-0.5 text-xs text-slate-400">Synced from ZingHR — contact IT to update.</p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <Input label="Full name" error={errors.name?.message} {...register('name')} />
         <Input
@@ -43,23 +55,11 @@ export function ProfileForm() {
           {...register('email')}
         />
         <Input label="Phone" error={errors.phone?.message} {...register('phone')} />
-        <Input
-          label="Job title"
-          error={errors.jobTitle?.message}
-          {...register('jobTitle')}
-        />
       </div>
 
-      <div className="flex items-center gap-3">
-        <Button type="submit" isLoading={isSubmitting}>
-          Save changes
-        </Button>
-        {saved && (
-          <span className="text-sm text-emerald-600">
-            Profile updated successfully.
-          </span>
-        )}
-      </div>
+      <Button type="submit" isLoading={isSubmitting}>
+        Save changes
+      </Button>
     </form>
   );
 }

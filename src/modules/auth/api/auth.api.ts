@@ -91,6 +91,12 @@ export const authApi = {
       .then((res) => res.data);
   },
 
+  updateProfile(dto: { name?: string; email?: string; phone?: string }): Promise<AuthUser> {
+    return http
+      .patch<ApiResponse<AuthUser>>('/auth/me', dto)
+      .then((res) => res.data);
+  },
+
   logout(): Promise<void> {
     // Invalidate the token server-side (bumps the user's token version), then
     // the caller clears local state. Best-effort — never block sign-out on it.
