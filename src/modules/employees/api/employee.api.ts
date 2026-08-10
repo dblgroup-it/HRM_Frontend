@@ -117,6 +117,14 @@ function applyFilters(
   };
 }
 
+export interface UpdateEmployeeInput {
+  name?: string;
+  phone?: string;
+  email?: string;
+  gender?: string;
+  dateOfBirth?: string;
+}
+
 export const employeeApi = {
   list(filters: EmployeeFilters = {}): Promise<Paginated<Employee>> {
     if (ENV.USE_MOCK_API) {
@@ -144,6 +152,12 @@ export const employeeApi = {
     }
     return http
       .get<ApiResponse<BackendEmployee>>(`/employees/${id}`)
+      .then((res) => mapEmployee(res.data));
+  },
+
+  update(id: string, dto: UpdateEmployeeInput): Promise<Employee> {
+    return http
+      .patch<ApiResponse<BackendEmployee>>(`/employees/${id}`, dto)
       .then((res) => mapEmployee(res.data));
   },
 };
