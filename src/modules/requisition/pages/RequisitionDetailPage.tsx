@@ -19,7 +19,7 @@ import { formatDate } from '@shared/utils';
 import { ROUTES } from '@app/router/paths';
 
 import { CandidatesPanel, canAccessRecruitment } from '@modules/candidates';
-import { AssessmentPanel } from '@modules/assessment';
+import { AssessmentPanel, InterviewsPanel } from '@modules/assessment';
 import { OnboardingTab } from '@modules/onboarding';
 import { cn } from '@shared/lib';
 
@@ -169,6 +169,9 @@ export default function RequisitionDetailPage() {
     ...(showProfile ? [{ key: 'posting' as const, label: 'Profile & Posting' }] : []),
     ...(showCandidates
       ? [{ key: 'recruitment' as const, label: 'Recruitment' }]
+      : []),
+    ...(showCandidates && canCorporateHrContinue
+      ? [{ key: 'interviews' as const, label: 'Interviews' }]
       : []),
     ...(showCandidates && canCorporateHrContinue
       ? [{ key: 'assessment' as const, label: 'Assessment' }]
@@ -356,6 +359,10 @@ export default function RequisitionDetailPage() {
         />
       )}
 
+      {activeTab === 'interviews' && showCandidates && canCorporateHrContinue && (
+        <InterviewsPanel requisition={req} />
+      )}
+
       {activeTab === 'assessment' && showCandidates && canCorporateHrContinue && (
         <AssessmentPanel requisition={req} />
       )}
@@ -372,6 +379,7 @@ type TabKey =
   | 'approvals'
   | 'posting'
   | 'recruitment'
+  | 'interviews'
   | 'assessment'
   | 'onboarding';
 

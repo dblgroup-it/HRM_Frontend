@@ -15,6 +15,7 @@ import type {
   PublicJobInfo,
   RecruitmentWorkspace,
   ScreeningStatus,
+  TalentBankSearchResponse,
   TalentPoolCandidate,
   UpdateCandidateInput,
 } from '../types/candidate.types';
@@ -61,6 +62,16 @@ export const candidatesApi = {
   talentPool: (): Promise<TalentPoolCandidate[]> =>
     http
       .get<ApiResponse<TalentPoolCandidate[]>>('/candidates/talent-pool')
+      .then((r) => r.data),
+
+  talentBankSearch: (query: string): Promise<TalentBankSearchResponse> =>
+    http
+      .post<ApiResponse<TalentBankSearchResponse>>('/candidates/talent-pool/search', { query })
+      .then((r) => r.data),
+
+  copyToRequisition: (id: string, requisitionId: string): Promise<Candidate> =>
+    http
+      .post<ApiResponse<Candidate>>(`/candidates/${id}/copy-to-requisition`, { requisitionId })
       .then((r) => r.data),
 
   syncDrive: (

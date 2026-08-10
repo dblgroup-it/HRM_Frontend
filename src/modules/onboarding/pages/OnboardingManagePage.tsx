@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
+  BadgeCheck,
   Check,
   Copy,
   ExternalLink,
@@ -33,6 +34,12 @@ import {
 import { cn } from '@shared/lib';
 import { ROUTES } from '@app/router/paths';
 import { useUpdateCandidate } from '@modules/candidates';
+import {
+  type BoardApproval,
+  SendApprovalModal,
+  useBoardApprovalStatus,
+  useHrBoardApprove,
+} from '@modules/board';
 import { OfferLetterModal } from '../components/OfferLetterModal';
 
 import { onboardingKeys } from '../hooks/useOnboarding';
@@ -96,6 +103,8 @@ function progressOf(ob: OnboardingView | null): number {
 export default function OnboardingManagePage() {
   const { candidateId = '' } = useParams();
   const { data, isLoading, isError } = useOnboarding(candidateId);
+  const { data: boardApproval } = useBoardApprovalStatus(candidateId, Boolean(candidateId));
+  const isBoardApproved = boardApproval?.status === 'approved';
   const start = useStartOnboarding(candidateId);
 
   if (isLoading) return <FullPageSpinner label="Loading onboarding…" />;
@@ -217,8 +226,9 @@ export default function OnboardingManagePage() {
             mailOn={data.mailConfigured}
             itWebhook={data.itWebhook}
             result={data}
+            isBoardApproved={isBoardApproved}
           />
-          <Sidebar result={data} ob={ob} />
+          <Sidebar result={data} ob={ob} boardApproval={boardApproval} />
         </div>
       )}
     </div>
@@ -229,15 +239,33 @@ export default function OnboardingManagePage() {
 function Sidebar({
   result,
   ob,
+  boardApproval,
 }: {
   result: OnboardingResult;
   ob: OnboardingView;
+  boardApproval?: BoardApproval | null;
 }) {
   const c = result.candidate;
+  const [showBoardModal, setShowBoardModal] = useState(false);
+  const [showHrForm, setShowHrForm] = useState(false);
+  const [hrNote, setHrNote] = useState('');
+  const hrApprove = useHrBoardApprove(c.id);
+
+  const isApproved = boardApproval?.status === 'approved';
+  const approvedVotes = boardApproval?.votes.filter((v) => v.status === 'approved') ?? [];
+  const pendingCount = boardApproval?.votes.filter((v) => v.status === 'pending').length ?? 0;
+
   const copyLink = async () => {
     await navigator.clipboard.writeText(ob.submissionLink);
     toast.success('Link copied');
   };
+
+  const confirmHrApprove = () => {
+    hrApprove.mutate(hrNote.trim() || undefined, {
+      onSuccess: () => { setShowHrForm(false); setHrNote(''); },
+    });
+  };
+
   return (
     <aside className="space-y-4 self-start lg:sticky lg:top-6">
       {/* Quick actions */}
@@ -272,8 +300,134 @@ function Sidebar({
               <ExternalLink className="h-4 w-4" /> Open archive folder
             </a>
           )}
+
+          {/* ── Board Approval ── */}
+          <div className="mt-1 border-t border-slate-100 pt-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Board Approval
+            </p>
+
+            {isApproved ? (
+              <div className="space-y-2">
+                {/* Approved badge */}
+                <div className="flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5">
+                  <BadgeCheck className="h-4 w-4 shrink-0 text-emerald-600" />
+                  <div className="min-w-0">
+                    <p className="text-[12px] font-semibold text-emerald-700">Board Approved</p>
+                    <p className="text-[11px] text-emerald-600">
+                      {boardApproval?.hrApprovedBy
+                        ? `By HR · ${boardApproval.hrApprovedBy.name}`
+                        : approvedVotes[0]
+                          ? `${approvedVotes[0].member.name}`
+                          : 'Approved'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* HR remarks */}
+                {boardApproval?.hrApprovalNote && (
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                    <p className="text-[11px] italic leading-relaxed text-slate-600">
+                      "{boardApproval.hrApprovalNote}"
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-slate-400">
+                      — {boardApproval.hrApprovedBy?.name}
+                    </p>
+                  </div>
+                )}
+
+                {/* Board vote notes (if approved via vote with notes) */}
+                {!boardApproval?.hrApprovedBy && approvedVotes[0]?.notes && (
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                    <p className="text-[11px] italic leading-relaxed text-slate-600">
+                      "{approvedVotes[0].notes}"
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-slate-400">
+                      — {approvedVotes[0].member.name}
+                    </p>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setShowBoardModal(true)}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-medium text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+                >
+                  <Send className="h-3 w-3" /> Resend to members
+                </button>
+              </div>
+            ) : showHrForm ? (
+              <div className="space-y-2">
+                <textarea
+                  value={hrNote}
+                  onChange={(e) => setHrNote(e.target.value)}
+                  rows={2}
+                  placeholder="Remarks (optional)…"
+                  className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-800 placeholder:text-slate-400 focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-100"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setShowHrForm(false); setHrNote(''); }}
+                    className="flex-1 rounded-xl border border-slate-200 py-2 text-[12px] font-medium text-slate-500 hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={hrApprove.isPending}
+                    onClick={confirmHrApprove}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2 text-[12px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                  >
+                    <BadgeCheck className="h-3.5 w-3.5" />
+                    {hrApprove.isPending ? 'Saving…' : 'Confirm'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {/* Pending status */}
+                {boardApproval && (
+                  <p className="text-center text-[11px] text-amber-600">
+                    {approvedVotes.length}/{boardApproval.votes.length} approved · {pendingCount} pending
+                  </p>
+                )}
+                {!boardApproval && (
+                  <p className="text-[11px] text-slate-400">
+                    Board approval required before HR final verification.
+                  </p>
+                )}
+                {/* Action buttons */}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowBoardModal(true)}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <Send className="h-3.5 w-3.5 text-brand-500" />
+                    {boardApproval ? 'Resend' : 'Send to Board'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowHrForm(true)}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 py-2 text-[12px] font-semibold text-emerald-700 hover:bg-emerald-100"
+                  >
+                    <UserCheck className="h-3.5 w-3.5" />
+                    HR Approve
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </CardBody>
       </Card>
+
+      {showBoardModal && (
+        <SendApprovalModal
+          candidateId={c.id}
+          onClose={() => setShowBoardModal(false)}
+        />
+      )}
 
       {/* Candidate */}
       <Card>
@@ -363,6 +517,7 @@ function Flow({
   mailOn,
   itWebhook,
   result,
+  isBoardApproved,
 }: {
   candidateId: string;
   ob: OnboardingView;
@@ -371,6 +526,7 @@ function Flow({
   mailOn: boolean;
   itWebhook: boolean;
   result: OnboardingResult;
+  isBoardApproved: boolean;
 }) {
   const sendLink = useSendOnboardingLink(candidateId);
   const sendOffer = useSendOffer(candidateId);
@@ -407,7 +563,7 @@ function Flow({
     false,
     false,
     !ob.offerAcceptedAt,
-    ob.medicalStatus !== 'cleared',
+    ob.medicalStatus !== 'cleared' || !isBoardApproved,
     !ob.hrVerifiedAt,
   ];
   const currentIdx = doneFlags.findIndex((d, i) => !d && !lockedFlags[i]);
@@ -606,7 +762,7 @@ function Flow({
         state={stateOf(4)}
         title="HR final verification & archive"
         icon={FolderArchive}
-        lockReason="Unlocks after medical clearance."
+        lockReason="Unlocks after medical clearance and board approval."
       >
         {!ob.hrVerifiedAt ? (
           <div className="flex flex-wrap items-center justify-between gap-3">

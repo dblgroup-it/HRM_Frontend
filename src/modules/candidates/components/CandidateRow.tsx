@@ -32,6 +32,7 @@ import {
   useUploadCv,
 } from '../hooks/useCandidates';
 import type { Candidate, CandidateStage } from '../types/candidate.types';
+import { MatchPopover } from './MatchPopover';
 
 const ACCEPT = '.pdf,application/pdf';
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
@@ -59,11 +60,10 @@ const STAGE_ORDER: CandidateStage[] = [
   'rejected',
 ];
 
-/** Colour a match score: strong / fair / weak. */
-function matchTone(score: number): string {
-  if (score >= 75) return 'bg-emerald-100 text-emerald-700';
-  if (score >= 60) return 'bg-amber-100 text-amber-700';
-  return 'bg-slate-100 text-slate-500';
+function matchChip(score: number) {
+  if (score >= 75) return { fill: '#bbf7d0', empty: '#f0fdf4', text: '#065f46', border: '#6ee7b760', icon: '#10b981', label: 'Strong' };
+  if (score >= 55) return { fill: '#fde68a', empty: '#fffbeb', text: '#78350f', border: '#fcd34d60', icon: '#f59e0b', label: 'Good' };
+  return { fill: '#e2e8f0', empty: '#f8fafc', text: '#475569', border: '#cbd5e160', icon: '#94a3b8', label: 'Partial' };
 }
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -109,6 +109,8 @@ export function CandidateRow({
   const [showFullSummary, setShowFullSummary] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [flagModalOpen, setFlagModalOpen] = useState(false);
+  const [matchOpen, setMatchOpen] = useState(false);
+  const [matchAnchor, setMatchAnchor] = useState<HTMLElement | null>(null);
   const [flagReason, setFlagReason] = useState('');
   // Optimistic: treat as viewed once the row enters viewport (even before server confirms).
   const [seenLocally, setSeenLocally] = useState(Boolean(candidate.viewedAt));
@@ -194,18 +196,32 @@ export function CandidateRow({
           <p className="truncate text-sm font-medium text-slate-800">
             {candidate.name}
           </p>
-          {candidate.matchScore !== null && (
-            <span
-              title={candidate.matchSummary || 'AI match score'}
-              className={cn(
-                'inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
-                matchTone(candidate.matchScore),
-              )}
-            >
-              <Sparkles className="h-2.5 w-2.5" />
-              {candidate.matchScore}%
-            </span>
-          )}
+          {candidate.matchScore !== null && (() => {
+            const s = candidate.matchScore!;
+            const cfg = matchChip(s);
+            const fillPct = Math.max(s, 8); // minimum 8% so icon always visible
+            return (
+              <button
+                type="button"
+                title={candidate.matchDetails ? 'Click to view AI match breakdown' : (candidate.matchSummary || 'AI match score')}
+                onClick={(e) => { e.stopPropagation(); if (candidate.matchDetails) { setMatchAnchor(e.currentTarget); setMatchOpen(true); } }}
+                className={cn(
+                  'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-[3px] transition-all duration-150',
+                  candidate.matchDetails ? 'cursor-pointer hover:brightness-[0.97] active:scale-[0.97]' : 'cursor-default',
+                )}
+                style={{
+                  background: `linear-gradient(to right, ${cfg.fill} ${fillPct}%, ${cfg.empty} ${fillPct}%)`,
+                  border: `1px solid ${cfg.border}`,
+                }}
+              >
+                <Sparkles className="h-2.5 w-2.5 shrink-0" style={{ color: cfg.icon }} />
+                <span className="text-[10px] font-bold tabular-nums" style={{ color: cfg.text }}>{s}%</span>
+                {candidate.matchDetails && (
+                  <span className="text-[9px] font-medium" style={{ color: cfg.text, opacity: 0.6 }}>{cfg.label}</span>
+                )}
+              </button>
+            );
+          })()}
           <span className="hidden shrink-0 rounded-full bg-slate-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-400 sm:inline">
             {SOURCE_LABEL[candidate.source] ?? candidate.source}
           </span>
@@ -228,8 +244,10 @@ export function CandidateRow({
         </div>
         <p className="truncate text-xs text-slate-400">
           {contact || 'No contact details'}
-          {candidate.salaryExpectation && (
-            <span className="ml-2 text-slate-400">· Expected: <span className="font-medium text-slate-500">{candidate.salaryExpectation}</span></span>
+          {candidate.salaryExpectation != null && (
+            <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-100">
+              ৳ {candidate.salaryExpectation.toLocaleString()} expected
+            </span>
           )}
         </p>
         {candidate.isRedFlagged && candidate.redFlagReason && (
@@ -389,7 +407,7 @@ export function CandidateRow({
         <button
           type="button"
           title={
-            candidate.talentPool ? 'Remove from talent pool' : 'Add to talent pool'
+            candidate.talentPool ? 'Remove from Talent Bank' : 'Add to Talent Bank'
           }
           onClick={() =>
             update.mutate({
@@ -466,6 +484,18 @@ export function CandidateRow({
         label={`Moving ${candidate.name} to ${STAGE_META[update.variables?.input?.stage ?? candidate.stage]?.label ?? ''}…`}
         sublabel="Shifting the CV to the matching Drive folder."
       />
+
+      {candidate.matchDetails && (
+        <MatchPopover
+          open={matchOpen}
+          anchor={matchAnchor}
+          onClose={() => setMatchOpen(false)}
+          candidateName={candidate.name}
+          matchScore={candidate.matchScore ?? 0}
+          matchSummary={candidate.matchSummary}
+          criteria={candidate.matchDetails}
+        />
+      )}
 
       {historyOpen && (
         <Suspense fallback={null}>

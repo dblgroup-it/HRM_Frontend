@@ -15,6 +15,7 @@ import {
   Settings,
   Briefcase,
   Search,
+  UsersRound,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -74,7 +75,7 @@ export const NAVIGATION: NavSection[] = [
         requiresRecruitment: true,
       },
       {
-        label: 'Talent Pool',
+        label: 'Talent Bank',
         to: ROUTES.talentPool,
         icon: Star,
         requiresRecruitment: true,
@@ -146,6 +147,12 @@ export const NAVIGATION: NavSection[] = [
         to: ROUTES.integrations,
         icon: Plug,
         roles: ['admin', 'hr_manager'],
+      },
+      {
+        label: 'Board Groups',
+        to: ROUTES.boardGroups,
+        icon: UsersRound,
+        requiresRecruitment: true,
       },
     ],
   },

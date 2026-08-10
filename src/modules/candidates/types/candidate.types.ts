@@ -9,6 +9,14 @@ export type CandidateStage =
   | 'selected'
   | 'rejected';
 
+export interface MatchCriterion {
+  label: string;
+  weight: number;
+  requirement: string;
+  applicant: string;
+  score: number;
+}
+
 export interface Candidate {
   id: string;
   requisitionId: string;
@@ -20,10 +28,11 @@ export interface Candidate {
   cvFileId: string | null;
   cvUrl: string | null;
   notes: string;
-  salaryExpectation: string;
+  salaryExpectation: number | null;
   /** AI CV-screening match score (0-100) + rationale, null until screened. */
   matchScore: number | null;
   matchSummary: string;
+  matchDetails: MatchCriterion[] | null;
   screenedAt: string | null;
   viewedAt: string | null;
   /** How many requisitions this candidate's email has been used to apply to. */
@@ -142,6 +151,17 @@ export interface ApplyHistory {
   email: string | null;
   total: number;
   applications: ApplyHistoryEntry[];
+}
+
+export interface TalentBankSearchHit extends TalentPoolCandidate {
+  relevance: number;
+  reason: string;
+}
+
+export interface TalentBankSearchResponse {
+  results: TalentBankSearchHit[];
+  summary: string;
+  query: string;
 }
 
 export interface CandidateFilters {

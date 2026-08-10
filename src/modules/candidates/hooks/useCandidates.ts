@@ -77,6 +77,25 @@ export function useTalentPool() {
   });
 }
 
+export function useTalentBankSearch() {
+  return useMutation({
+    mutationFn: (query: string) => candidatesApi.talentBankSearch(query),
+  });
+}
+
+export function useCopyToRequisition() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { id: string; requisitionId: string }) =>
+      candidatesApi.copyToRequisition(vars.id, vars.requisitionId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['requisitions'] });
+      toast.success('Candidate added to the requisition pipeline');
+    },
+    onError: (error) => toast.error(errMsg(error, 'Could not add candidate to requisition')),
+  });
+}
+
 /** Toggle a candidate's talent-pool flag from anywhere (e.g. the Talent Pool page). */
 export function useToggleTalentPool() {
   const qc = useQueryClient();

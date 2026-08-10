@@ -41,6 +41,11 @@ export const ROUTES = {
   employees: '/employees',
   employeeDetail: (id = ':id') => `/employees/${id}`,
 
+  // Board approval
+  boardGroups: '/configuration/board-groups',
+  /** Public board-member approval page (no auth). */
+  boardVote: (token = ':token') => `/board-vote/${token}`,
+
   // System
   settings: '/settings',
   notifications: '/notifications',

@@ -19,6 +19,8 @@ const OrganogramPage = lazy(
 const UnitConfigPage = lazy(
   () => import('@modules/units/pages/UnitConfigPage')
 );
+const BoardGroupsPage = lazy(() => import('@modules/board/pages/BoardGroupsPage'));
+const BoardVotePage   = lazy(() => import('@modules/board/pages/BoardVotePage'));
 const IntegrationsPage = lazy(
   () => import('@modules/integrations/pages/IntegrationsPage')
 );
@@ -96,6 +98,7 @@ export function AppRouter() {
         <Route path="/exam/:token" element={<ExamPage />} />
         <Route path="/evaluate/:token" element={<EvaluateByTokenPage />} />
         <Route path={ROUTES.onboarding()} element={<OnboardingPage />} />
+        <Route path={ROUTES.boardVote()} element={<BoardVotePage />} />
 
         {/* Authenticated */}
         <Route element={<ProtectedRoute />}>
@@ -110,6 +113,7 @@ export function AppRouter() {
             />
             <Route path={ROUTES.integrations} element={<IntegrationsPage />} />
             <Route path={ROUTES.aiSettings} element={<AiSettingsPage />} />
+            <Route path={ROUTES.boardGroups} element={<BoardGroupsPage />} />
 
             <Route path={ROUTES.requisitions} element={<RequisitionsPage />} />
             <Route
