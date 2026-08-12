@@ -7,6 +7,7 @@ import { Toaster } from 'sonner';
 import { queryClient } from '@shared/api';
 import { ErrorBoundary } from '@shared/components/feedback';
 
+import { AuthSync } from './AuthSync';
 import { RealtimeProvider } from './RealtimeProvider';
 
 /** Aggregates every global provider in one place. */
@@ -15,6 +16,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
+          <AuthSync />
           <RealtimeProvider>{children}</RealtimeProvider>
         </BrowserRouter>
         <Toaster position="top-right" closeButton richColors />

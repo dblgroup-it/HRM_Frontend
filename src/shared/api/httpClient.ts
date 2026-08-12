@@ -4,7 +4,10 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from 'axios';
 
-import { ENV, STORAGE_KEYS } from '@shared/constants';
+import { AUTH_UNAUTHORIZED_EVENT, ENV, STORAGE_KEYS } from '@shared/constants';
+
+/** Login attempts return 401 on bad credentials — that's not a dead session. */
+const AUTH_ATTEMPT_PATHS = ['/auth/login', '/auth/login/2fa'];
 
 /**
  * Pre-configured Axios instance.
@@ -31,12 +34,19 @@ httpClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-/** Normalize errors and handle 401 globally. */
+/** Normalize errors and handle 401 globally — an expired/invalid token
+ * ends the session immediately instead of leaving a broken authenticated
+ * shell up until the next manual refresh. */
 httpClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (axios.isAxiosError(error) && error.response?.status === 401) {
-      localStorage.removeItem(STORAGE_KEYS.AUTH);
+      const url = error.config?.url ?? '';
+      const isLoginAttempt = AUTH_ATTEMPT_PATHS.some((p) => url.includes(p));
+      if (!isLoginAttempt) {
+        localStorage.removeItem(STORAGE_KEYS.AUTH);
+        window.dispatchEvent(new Event(AUTH_UNAUTHORIZED_EVENT));
+      }
     }
     return Promise.reject(normalizeError(error));
   }
