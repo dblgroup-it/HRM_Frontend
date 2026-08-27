@@ -2,20 +2,12 @@ import { http } from '@shared/api';
 import type { ApiResponse } from '@shared/types';
 
 import type {
-  AddExamQuestionInput,
-  AssessmentComponentInput,
   AssessmentSetup,
   BulkScheduleInput,
   EvaluationSummaryResult,
-  ExamAttemptsResult,
-  ExamAttemptView,
-  ExamBank,
-  ExamTypeKey,
   InterviewRoundView,
   MyInterviewRound,
   PublicEvalData,
-  PublicExam,
-  RubricCriterionInput,
   ScheduleInterviewInput,
   ScorecardEntry,
   SubmitEvaluationInput,
@@ -42,36 +34,6 @@ export const assessmentApi = {
   removeMember: (memberId: string): Promise<AssessmentSetup> =>
     http
       .delete<ApiResponse<AssessmentSetup>>(`/committee/${memberId}`)
-      .then((r) => r.data),
-
-  setRubric: (
-    reqId: string,
-    criteria: RubricCriterionInput[],
-  ): Promise<AssessmentSetup> =>
-    http
-      .put<ApiResponse<AssessmentSetup>>(`/requisitions/${reqId}/rubric`, {
-        criteria,
-      })
-      .then((r) => r.data),
-
-  setPlan: (
-    reqId: string,
-    components: AssessmentComponentInput[],
-  ): Promise<AssessmentSetup> =>
-    http
-      .put<ApiResponse<AssessmentSetup>>(
-        `/requisitions/${reqId}/assessment-plan`,
-        { components },
-      )
-      .then((r) => r.data),
-
-  generateQuestions: (reqId: string): Promise<AssessmentSetup> =>
-    http
-      .post<ApiResponse<AssessmentSetup>>(
-        `/requisitions/${reqId}/interview-questions`,
-        undefined,
-        { timeout: 90_000 },
-      )
       .then((r) => r.data),
 
   // --- interviews ---
@@ -111,16 +73,6 @@ export const assessmentApi = {
       .post<ApiResponse<InterviewRoundView[]>>('/interviews/bulk', input)
       .then((r) => r.data),
 
-  sendInterviewQuestions: (
-    roundId: string,
-  ): Promise<{ sent: number; total: number; note?: string }> =>
-    http
-      .post<ApiResponse<{ sent: number; total: number; note?: string }>>(
-        `/interviews/${roundId}/send-questions`,
-        undefined,
-      )
-      .then((r) => r.data),
-
   // --- committee marking ---
   myInterviews: (): Promise<MyInterviewRound[]> =>
     http
@@ -135,51 +87,6 @@ export const assessmentApi = {
       .post<ApiResponse<MyInterviewRound[]>>(
         `/interviews/${roundId}/evaluation`,
         input,
-      )
-      .then((r) => r.data),
-
-  // --- online exams ---
-  examBank: (reqId: string): Promise<ExamBank> =>
-    http
-      .get<ApiResponse<ExamBank>>(`/requisitions/${reqId}/exam-bank`)
-      .then((r) => r.data),
-
-  addExamQuestion: (
-    reqId: string,
-    input: AddExamQuestionInput,
-  ): Promise<ExamBank> =>
-    http
-      .post<ApiResponse<ExamBank>>(`/requisitions/${reqId}/exam-questions`, input)
-      .then((r) => r.data),
-
-  removeExamQuestion: (qid: string): Promise<ExamBank> =>
-    http
-      .delete<ApiResponse<ExamBank>>(`/exam-questions/${qid}`)
-      .then((r) => r.data),
-
-  candidateExams: (candidateId: string): Promise<ExamAttemptsResult> =>
-    http
-      .get<ApiResponse<ExamAttemptsResult>>(`/candidates/${candidateId}/exams`)
-      .then((r) => r.data),
-
-  createExamAttempt: (
-    candidateId: string,
-    examType: ExamTypeKey,
-    notifyCandidate: boolean,
-  ): Promise<ExamAttemptView & { link: string }> =>
-    http
-      .post<ApiResponse<ExamAttemptView & { link: string }>>(
-        `/candidates/${candidateId}/exams`,
-        { examType, notifyCandidate },
-      )
-      .then((r) => r.data),
-
-  gradeExam: (attemptId: string): Promise<ExamAttemptsResult> =>
-    http
-      .post<ApiResponse<ExamAttemptsResult>>(
-        `/exam-attempts/${attemptId}/grade`,
-        undefined,
-        { timeout: 90_000 },
       )
       .then((r) => r.data),
 
@@ -206,18 +113,6 @@ export const assessmentApi = {
         undefined,
         { timeout: 60_000 },
       )
-      .then((r) => r.data),
-
-  // public (candidate)
-  publicExam: (token: string): Promise<PublicExam> =>
-    http.get<ApiResponse<PublicExam>>(`/exam/${token}`).then((r) => r.data),
-
-  submitExam: (
-    token: string,
-    answers: Record<string, string>,
-  ): Promise<{ ok: boolean }> =>
-    http
-      .post<ApiResponse<{ ok: boolean }>>(`/exam/${token}`, { answers })
       .then((r) => r.data),
 
   // public — one-click panelist evaluation (no login)

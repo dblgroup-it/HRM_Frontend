@@ -82,6 +82,7 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
               step={step}
               isLast={index === chain.length - 1}
               isNext={index === nextPendingIndex && !isRejected}
+              leadsToActive={index === nextPendingIndex - 1 && !isRejected}
             >
               {index === nextPendingIndex &&
                 !isRejected &&
@@ -214,6 +215,7 @@ const ACTION_LABEL: Record<ApprovalDecision, string> = {
   need_more_info: 'requested more info',
   escalate: 'escalated to CHRO',
   escalated: 'escalated to CHRO',
+  edited: 'made an edit',
 };
 
 function ActivityLog({ requisition }: { requisition: Requisition }) {
@@ -246,11 +248,13 @@ function ChainRow({
   step,
   isLast,
   isNext,
+  leadsToActive,
   children,
 }: {
   step: ApprovalStep;
   isLast: boolean;
   isNext: boolean;
+  leadsToActive: boolean;
   children?: ReactNode;
 }) {
   const approved = step.status === 'approved';
@@ -261,13 +265,13 @@ function ChainRow({
       <div className="flex flex-col items-center">
         <span
           className={cn(
-            'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2',
+            'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-300',
             approved
-              ? 'border-accent-500 bg-accent-500 text-white'
+              ? 'animate-loader-pop border-accent-500 bg-accent-500 text-white'
               : rejected
                 ? 'border-red-500 bg-red-500 text-white'
                 : isNext
-                  ? 'border-brand-600 bg-brand-50 text-brand-600'
+                  ? 'animate-pulse border-brand-600 bg-brand-50 text-brand-600'
                   : 'border-slate-200 bg-white text-slate-300'
           )}
         >
@@ -283,7 +287,11 @@ function ChainRow({
           <span
             className={cn(
               'my-1 w-0.5 flex-1',
-              approved ? 'bg-accent-300' : 'bg-slate-200'
+              approved
+                ? 'bg-accent-300 transition-colors duration-700 ease-out'
+                : leadsToActive
+                  ? 'animate-flow-down bg-gradient-to-b from-brand-200 via-brand-500 to-brand-200 bg-[length:100%_50%]'
+                  : 'bg-slate-200 transition-colors duration-700 ease-out'
             )}
           />
         )}

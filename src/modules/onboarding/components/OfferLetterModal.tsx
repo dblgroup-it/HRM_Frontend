@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom';
 import { FileText, Printer, X } from 'lucide-react';
 import { Button } from '@shared/components/ui';
+import { formatCurrency } from '@shared/utils';
 import type { OnboardingCandidate } from '../types/onboarding.types';
 
 interface Props {
@@ -139,7 +140,12 @@ ${el.innerHTML}
                   ['Reporting to', '[Line Manager Name & Designation]'],
                   ['Date of Joining', '[To be confirmed]'],
                   ['Probation Period', '6 months (extendable)'],
-                  ['Gross Salary', '[As per offer discussion]'],
+                  [
+                    'Gross Salary',
+                    candidate.proposedSalary != null
+                      ? `${formatCurrency(candidate.proposedSalary)} / month`
+                      : '[As per offer discussion]',
+                  ],
                   ['Work Hours', 'As per company policy'],
                   ['Leave Entitlement', 'As per DBL Group HR Policy'],
                 ].map(([label, value]) => (

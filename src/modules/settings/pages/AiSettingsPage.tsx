@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  FileSearch,
   Filter,
+  GraduationCap,
   Sparkles,
   Target,
   Wand2,
@@ -29,9 +29,13 @@ interface AiSettings {
   shortlistThreshold: number;
   autoScreen: boolean;
   autoRoleProfile: boolean;
-  autoEvalSummary: boolean;
   provider: string;
   configured: boolean;
+}
+
+interface ScreeningSettings {
+  writtenTestPassPct: number;
+  aiTestPassPct: number;
 }
 
 
@@ -52,14 +56,12 @@ export default function AiSettingsPage() {
   const [threshold, setThreshold] = useState(60);
   const [autoScreen, setAutoScreen] = useState(true);
   const [autoRoleProfile, setAutoRoleProfile] = useState(false);
-  const [autoEvalSummary, setAutoEvalSummary] = useState(false);
 
   useEffect(() => {
     if (data) {
       setThreshold(data.shortlistThreshold);
       setAutoScreen(data.autoScreen);
       setAutoRoleProfile(data.autoRoleProfile);
-      setAutoEvalSummary(data.autoEvalSummary);
     }
   }, [data]);
 
@@ -67,8 +69,7 @@ export default function AiSettingsPage() {
     !!data &&
     (threshold !== data.shortlistThreshold ||
       autoScreen !== data.autoScreen ||
-      autoRoleProfile !== data.autoRoleProfile ||
-      autoEvalSummary !== data.autoEvalSummary);
+      autoRoleProfile !== data.autoRoleProfile);
 
   const save = useMutation({
     mutationFn: () =>
@@ -77,7 +78,6 @@ export default function AiSettingsPage() {
           shortlistThreshold: threshold,
           autoScreen,
           autoRoleProfile,
-          autoEvalSummary,
         })
         .then((r) => r.data),
     onSuccess: (d) => {
@@ -85,6 +85,44 @@ export default function AiSettingsPage() {
         old ? { ...old, ...d } : old,
       );
       toast.success('AI settings saved');
+    },
+    onError: (e) => toast.error((e as Error).message || 'Could not save'),
+  });
+
+  // --- Screening pass marks (Written Test + AI Proficiency Test) -----------
+  const { data: screening, isLoading: screeningLoading } = useQuery({
+    queryKey: ['settings', 'screening'],
+    queryFn: () =>
+      http.get<ApiResponse<ScreeningSettings>>('/settings/screening').then((r) => r.data),
+  });
+
+  const [writtenPassPct, setWrittenPassPct] = useState(50);
+  const [aiPassPct, setAiPassPct] = useState(50);
+
+  useEffect(() => {
+    if (screening) {
+      setWrittenPassPct(screening.writtenTestPassPct);
+      setAiPassPct(screening.aiTestPassPct);
+    }
+  }, [screening]);
+
+  const screeningDirty =
+    !!screening &&
+    (writtenPassPct !== screening.writtenTestPassPct || aiPassPct !== screening.aiTestPassPct);
+
+  const saveScreening = useMutation({
+    mutationFn: () =>
+      http
+        .patch<ApiResponse<ScreeningSettings>>('/settings/screening', {
+          writtenTestPassPct: writtenPassPct,
+          aiTestPassPct: aiPassPct,
+        })
+        .then((r) => r.data),
+    onSuccess: (d) => {
+      qc.setQueryData<ScreeningSettings>(['settings', 'screening'], (old) =>
+        old ? { ...old, ...d } : old,
+      );
+      toast.success('Screening pass marks saved');
     },
     onError: (e) => toast.error((e as Error).message || 'Could not save'),
   });
@@ -228,14 +266,51 @@ export default function AiSettingsPage() {
                 value={autoRoleProfile}
                 onChange={setAutoRoleProfile}
               />
-              <Divider />
-              <SettingRow
-                icon={FileSearch}
-                title="Auto-generate evaluation summary"
-                desc="When Corporate HR opens a candidate's interview panel, AI immediately synthesises all panel marks and comments into a summary. Turn off to generate on-demand only."
-                value={autoEvalSummary}
-                onChange={setAutoEvalSummary}
-              />
+            </CardBody>
+          </Card>
+
+          {/* Screening pass marks */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <GraduationCap className="h-4 w-4 text-violet-600" />
+                Screening Test Pass Marks
+              </CardTitle>
+            </CardHeader>
+            <CardBody className="space-y-6">
+              {screeningLoading || !screening ? (
+                <div className="flex justify-center py-6">
+                  <Spinner />
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs text-slate-400">
+                    Minimum % of marks a candidate must score on each Salary Fixation
+                    pre-interview test to pass. Below this, the candidate is disqualified
+                    and interviewer scoring is blocked.
+                  </p>
+                  <PassMarkSlider label="Written Test" value={writtenPassPct} onChange={setWrittenPassPct} />
+                  <Divider />
+                  <PassMarkSlider
+                    label="AI Proficiency Test"
+                    value={aiPassPct}
+                    onChange={setAiPassPct}
+                  />
+                  <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                    <p className="text-xs text-slate-400">
+                      {screeningDirty ? 'You have unsaved changes.' : 'All changes saved.'}
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={() => saveScreening.mutate()}
+                      isLoading={saveScreening.isPending}
+                      disabled={!screeningDirty}
+                    >
+                      Save pass marks
+                    </Button>
+                  </div>
+                </>
+              )}
             </CardBody>
           </Card>
 
@@ -261,6 +336,41 @@ export default function AiSettingsPage() {
 
 function Divider() {
   return <div className="h-px bg-slate-100" />;
+}
+
+function PassMarkSlider({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-slate-800">{label}</p>
+        <span className="rounded-lg bg-violet-600 px-2.5 py-1 text-sm font-bold text-white">
+          {value}%
+        </span>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        step={5}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="mt-2 h-2 w-full cursor-pointer appearance-none rounded-full bg-gradient-to-r from-rose-200 via-amber-200 to-emerald-300 accent-violet-600"
+      />
+      <div className="mt-1 flex justify-between text-[10px] text-slate-400">
+        <span>0%</span>
+        <span>50%</span>
+        <span>100%</span>
+      </div>
+    </div>
+  );
 }
 
 function SettingRow({

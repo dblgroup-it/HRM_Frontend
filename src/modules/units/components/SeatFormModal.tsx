@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { Button, Input, Modal, Select } from '@shared/components/ui';
+import { useGradeValues } from '@modules/organogram';
 
 import type { ConfigPosition, SeatCategory } from '../types/unit.types';
 import { useUpdatePosition, useUpsertPosition } from '../hooks/useUnits';
@@ -29,10 +30,12 @@ export function SeatFormModal({
   const upsert = useUpsertPosition();
   const update = useUpdatePosition();
   const editing = Boolean(position);
+  const { data: gradeValues } = useGradeValues();
 
   const [section, setSection] = useState('');
   const [designation, setDesignation] = useState('');
   const [category, setCategory] = useState<SeatCategory>('OFFICER');
+  const [grade, setGrade] = useState('');
   const [sanctioned, setSanctioned] = useState('1');
   const [filled, setFilled] = useState('0');
 
@@ -41,6 +44,7 @@ export function SeatFormModal({
     setSection(position?.section ?? '');
     setDesignation(position?.designation ?? '');
     setCategory(position?.category ?? 'OFFICER');
+    setGrade(position?.grade ?? '');
     setSanctioned(String(position?.sanctioned ?? 1));
     setFilled(String(position?.filled ?? 0));
   }, [open, position]);
@@ -54,6 +58,7 @@ export function SeatFormModal({
       designation: designation.trim(),
       section: section.trim() || undefined,
       category,
+      grade: grade.trim() || undefined,
       sanctioned: Number(sanctioned) || 0,
       filled: Number(filled) || 0,
     };
@@ -105,13 +110,29 @@ export function SeatFormModal({
           value={designation}
           onChange={(e) => setDesignation(e.target.value)}
         />
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <Select
             label="Category"
             options={CATEGORY_OPTIONS}
             value={category}
             onChange={(e) => setCategory(e.target.value as SeatCategory)}
           />
+          <div>
+            <Input
+              label="Grade"
+              list="seat-grade-suggestions"
+              placeholder="e.g. M4"
+              value={grade}
+              onChange={(e) => setGrade(e.target.value)}
+            />
+            <datalist id="seat-grade-suggestions">
+              {(gradeValues ?? []).map((g) => (
+                <option key={g} value={g} />
+              ))}
+            </datalist>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
           <Input
             label="Sanctioned"
             type="number"

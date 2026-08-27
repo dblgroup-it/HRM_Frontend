@@ -4,8 +4,6 @@ import {
   AlertTriangle,
   CalendarClock,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   Clock,
   MapPin,
   MessageSquare,
@@ -17,6 +15,7 @@ import { cn } from '@shared/lib';
 import { Spinner } from '@shared/components/ui';
 
 import { usePublicEval, useSubmitPublicEval } from '../hooks/useAssessment';
+import { CriteriaScoringSection } from '../components/CriteriaScoringSection';
 
 // ---------------------------------------------------------------------------
 // helpers
@@ -54,7 +53,6 @@ export default function EvaluateByTokenPage() {
 
   const [scores, setScores] = useState<Record<string, number>>({});
   const [comments, setComments] = useState('');
-  const [questionsOpen, setQuestionsOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
   // --- loading ---
@@ -89,9 +87,9 @@ export default function EvaluateByTokenPage() {
   // --- already submitted ---
   if (submitted || data.alreadySubmitted) {
     const ev = data.submittedEval;
-    const maxTotal = data.rubric.reduce((s, c) => s + c.maxScore, 0);
+    const maxTotal = data.criteria.reduce((s, c) => s + c.max, 0);
     const total = ev?.total ?? 0;
-    const totalPct = maxTotal > 0 ? Math.round((total / maxTotal) * 100) : 0;
+    const totalPct = maxTotal > 0 ? Math.round((total / maxTotal) * 1000) / 10 : 0;
     const colors = pctColors(totalPct);
 
     return (
@@ -109,42 +107,19 @@ export default function EvaluateByTokenPage() {
             </p>
             {ev && (
               <div className={cn('mt-5 rounded-full px-5 py-2 text-sm font-bold', colors.badge)}>
-                {total} / {maxTotal} &nbsp;·&nbsp; {totalPct}%
+                {total.toFixed(1)} / {maxTotal} &nbsp;·&nbsp; {totalPct.toFixed(1)}%
               </div>
             )}
           </div>
 
-          {/* score breakdown */}
-          {ev && data.rubric.length > 0 && (
+          {ev && (
+            <CriteriaScoringSection criteria={data.criteria} scores={ev.scores} readOnly />
+          )}
+
+          {ev?.comments && (
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-slate-400">Score breakdown</p>
-              <div className="space-y-3">
-                {data.rubric.map((c) => {
-                  const s = ev.scores[c.id] ?? 0;
-                  const p = c.maxScore > 0 ? s / c.maxScore : 0;
-                  const col = pctColors(Math.round(p * 100));
-                  return (
-                    <div key={c.id}>
-                      <div className="mb-1 flex items-center justify-between text-sm">
-                        <span className="font-medium text-slate-700">{c.label}</span>
-                        <span className={cn('font-bold tabular-nums', col.text)}>
-                          {s}
-                          <span className="text-xs font-normal text-slate-400"> / {c.maxScore}</span>
-                        </span>
-                      </div>
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                        <div className={cn('h-full rounded-full transition-all', col.fill)} style={{ width: `${p * 100}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {ev.comments && (
-                <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Your comments</p>
-                  <p className="text-sm italic leading-relaxed text-slate-600">"{ev.comments}"</p>
-                </div>
-              )}
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Your comments</p>
+              <p className="text-sm italic leading-relaxed text-slate-600">"{ev.comments}"</p>
             </div>
           )}
         </div>
@@ -153,25 +128,19 @@ export default function EvaluateByTokenPage() {
   }
 
   // --- main form ---
-  const maxTotal = data.rubric.reduce((s, c) => s + c.maxScore, 0);
-  const currentTotal = data.rubric.reduce((s, c) => s + (scores[c.id] ?? 0), 0);
-  const pct = maxTotal > 0 ? Math.round((currentTotal / maxTotal) * 100) : 0;
+  const maxTotal = data.criteria.reduce((s, c) => s + c.max, 0);
+  const currentTotal = data.criteria.reduce((s, c) => s + (scores[c.key] ?? 0), 0);
+  const pct = maxTotal > 0 ? Math.round((currentTotal / maxTotal) * 1000) / 10 : 0;
   const totalColors = pctColors(pct);
-  const canSubmit = !submit.isPending && (maxTotal === 0 || currentTotal > 0);
 
-  const setScore = (id: string, delta: number, max: number) =>
-    setScores((prev) => ({ ...prev, [id]: Math.max(0, Math.min(max, (prev[id] ?? 0) + delta)) }));
+  const complete = data.criteria.every((c) => typeof scores[c.key] === 'number');
+  const canSubmit = !submit.isPending && complete;
 
   const handleSubmit = () =>
-    submit.mutate({ scores, comments: comments.trim() || undefined }, { onSuccess: () => setSubmitted(true) });
-
-  // group questions by category
-  const grouped = new Map<string, { category: string; question: string }[]>();
-  for (const q of data.interviewQuestions) {
-    const arr = grouped.get(q.category) ?? [];
-    arr.push(q);
-    grouped.set(q.category, arr);
-  }
+    submit.mutate(
+      { scores, comments: comments.trim() || undefined },
+      { onSuccess: () => setSubmitted(true) },
+    );
 
   return (
     <Shell>
@@ -226,140 +195,32 @@ export default function EvaluateByTokenPage() {
           </div>
         </div>
 
-        {/* ② Interview questions */}
-        {data.interviewQuestions.length > 0 && (
-          <div className="overflow-hidden rounded-2xl bg-amber-50 ring-1 ring-amber-200/60">
-            <button
-              type="button"
-              onClick={() => setQuestionsOpen((v) => !v)}
-              className="flex w-full items-center justify-between px-5 py-4 text-left"
-            >
-              <span className="flex items-center gap-2 text-sm font-semibold text-amber-800">
-                <MessageSquare className="h-4 w-4" />
-                Interview Questions
-                <span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-bold text-amber-800">
-                  {data.interviewQuestions.length}
-                </span>
+        {/* ③ Scoring */}
+        <CriteriaScoringSection
+          criteria={data.criteria}
+          scores={scores}
+          onChange={(key, value) => setScores((prev) => ({ ...prev, [key]: value }))}
+        />
+
+        {/* Total (desktop) */}
+        <div className="rounded-2xl bg-white px-6 py-5 ring-1 ring-slate-200/60 shadow-sm">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-slate-600">Total score</p>
+            <p className={cn('text-2xl font-extrabold tabular-nums', totalColors.text)}>
+              {currentTotal.toFixed(1)}
+              <span className="ml-1 text-base font-semibold text-slate-300">/ {maxTotal}</span>
+              <span className={cn('ml-3 rounded-full px-3 py-0.5 text-sm font-bold', totalColors.badge)}>
+                {pct.toFixed(1)}%
               </span>
-              {questionsOpen
-                ? <ChevronUp className="h-4 w-4 text-amber-500" />
-                : <ChevronDown className="h-4 w-4 text-amber-500" />}
-            </button>
-
-            {questionsOpen && (
-              <div className="border-t border-amber-200/60 px-5 pb-5 pt-4 space-y-5">
-                {[...grouped.entries()].map(([cat, qs]) => (
-                  <div key={cat}>
-                    <p className="mb-2.5 text-[10px] font-bold uppercase tracking-widest text-amber-600">{cat}</p>
-                    <ol className="space-y-2.5">
-                      {qs.map((q, i) => (
-                        <li key={i} className="flex gap-3 text-sm text-amber-900">
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-200 text-[10px] font-bold text-amber-700">
-                            {i + 1}
-                          </span>
-                          <span className="leading-relaxed">{q.question}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                ))}
-              </div>
-            )}
+            </p>
           </div>
-        )}
-
-        {/* ③ Rubric scoring */}
-        {data.rubric.length === 0 ? (
-          <div className="rounded-2xl bg-white px-6 py-8 text-center ring-1 ring-slate-200/60">
-            <p className="text-sm text-slate-400">No scoring rubric has been set up for this interview.</p>
+          <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-slate-100">
+            <div
+              className={cn('h-full rounded-full transition-all duration-300', totalColors.bar)}
+              style={{ width: `${pct}%` }}
+            />
           </div>
-        ) : (
-          <>
-            <div className="px-1">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Score each criterion</p>
-            </div>
-
-            <div className="space-y-3">
-              {data.rubric.map((c) => {
-                const val = scores[c.id] ?? 0;
-                const criPct = c.maxScore > 0 ? Math.round((val / c.maxScore) * 100) : 0;
-                const col = pctColors(criPct);
-
-                return (
-                  <div
-                    key={c.id}
-                    className={cn(
-                      'rounded-2xl border-l-4 bg-white px-5 py-4 shadow-sm ring-1 ring-slate-200/60 transition-colors duration-200',
-                      col.border,
-                    )}
-                  >
-                    {/* Label + fraction */}
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-slate-700">{c.label}</p>
-                      <span className={cn('text-sm font-bold tabular-nums', col.text)}>
-                        {val}
-                        <span className="text-xs font-normal text-slate-400"> / {c.maxScore}</span>
-                      </span>
-                    </div>
-
-                    {/* Score bar */}
-                    <div className="my-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                      <div
-                        className={cn('h-full rounded-full transition-all duration-200', col.fill)}
-                        style={{ width: `${criPct}%` }}
-                      />
-                    </div>
-
-                    {/* Stepper */}
-                    <div className="flex items-center justify-between">
-                      <button
-                        type="button"
-                        onClick={() => setScore(c.id, -1, c.maxScore)}
-                        disabled={val === 0}
-                        className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-xl font-bold text-slate-500 transition hover:bg-rose-100 hover:text-rose-600 active:scale-95 disabled:opacity-30"
-                      >
-                        −
-                      </button>
-
-                      <span className="w-16 text-center text-4xl font-extrabold tabular-nums text-slate-900">
-                        {val}
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={() => setScore(c.id, 1, c.maxScore)}
-                        disabled={val === c.maxScore}
-                        className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-xl font-bold text-slate-500 transition hover:bg-emerald-100 hover:text-emerald-600 active:scale-95 disabled:opacity-30"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Total (desktop) */}
-            <div className="rounded-2xl bg-white px-6 py-5 ring-1 ring-slate-200/60 shadow-sm">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-600">Total score</p>
-                <p className={cn('text-2xl font-extrabold tabular-nums', totalColors.text)}>
-                  {currentTotal}
-                  <span className="ml-1 text-base font-semibold text-slate-300">/ {maxTotal}</span>
-                  <span className={cn('ml-3 rounded-full px-3 py-0.5 text-sm font-bold', totalColors.badge)}>
-                    {pct}%
-                  </span>
-                </p>
-              </div>
-              <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className={cn('h-full rounded-full transition-all duration-300', totalColors.bar)}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-            </div>
-          </>
-        )}
+        </div>
 
         {/* ④ Comments */}
         <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200/60 shadow-sm">
@@ -384,8 +245,8 @@ export default function EvaluateByTokenPage() {
         {/* ⑤ Submit (desktop) */}
         <div className="hidden sm:block">
           <SubmitButton canSubmit={canSubmit} pending={submit.isPending} onSubmit={handleSubmit} />
-          {!canSubmit && !submit.isPending && maxTotal > 0 && (
-            <p className="mt-2 text-center text-xs text-slate-400">Score at least one criterion to unlock submission.</p>
+          {!canSubmit && !submit.isPending && (
+            <p className="mt-2 text-center text-xs text-slate-400">Score all criteria to unlock submission.</p>
           )}
           {submit.isError && (
             <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-700">
@@ -402,8 +263,8 @@ export default function EvaluateByTokenPage() {
           <div className="mb-2 flex items-center justify-between text-xs">
             <span className="font-medium text-slate-500">Total</span>
             <span className={cn('font-bold tabular-nums', totalColors.text)}>
-              {currentTotal} / {maxTotal}
-              <span className={cn('ml-2 rounded-full px-2 py-0.5 text-[10px]', totalColors.badge)}>{pct}%</span>
+              {currentTotal.toFixed(1)} / {maxTotal}
+              <span className={cn('ml-2 rounded-full px-2 py-0.5 text-[10px]', totalColors.badge)}>{pct.toFixed(1)}%</span>
             </span>
           </div>
           <div className="mb-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">

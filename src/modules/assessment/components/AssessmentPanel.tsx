@@ -1,25 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   BarChart3,
-  Check,
   ClipboardCheck,
-  Copy,
-  FileQuestion,
-  ListChecks,
-  MessageSquareText,
   RefreshCw,
   Search,
-  Sparkles,
-  Trash2,
   Users,
   X,
 } from 'lucide-react';
-import { toast } from 'sonner';
 
 import {
   Avatar,
   Badge,
-  Button,
   Card,
   CardBody,
   Input,
@@ -28,36 +19,16 @@ import {
 import { cn } from '@shared/lib';
 import { useDebounce } from '@shared/hooks';
 import { useEmployees } from '@modules/employees';
+import { useCandidates } from '@modules/candidates';
 import type { Requisition } from '@modules/requisition/types/requisition.types';
 
 import {
   useAddCommitteeMember,
   useAssessmentSetup,
-  useGenerateQuestions,
   useRemoveCommitteeMember,
   useScorecard,
-  useSetPlan,
-  useSetRubric,
 } from '../hooks/useAssessment';
-import type {
-  AssessmentTypeKey,
-  InterviewQuestion,
-  RubricCriterionView,
-} from '../types/assessment.types';
-import { ExamBankModal } from './ExamBankModal';
-
-const ASSESSMENT_TYPES: {
-  key: AssessmentTypeKey;
-  label: string;
-  mode: string;
-  hint: string;
-  color: string;
-}[] = [
-  { key: 'written', label: 'Written exam',     mode: 'Online',   hint: 'MCQ + written, AI-graded', color: 'text-blue-600 bg-blue-50 border-blue-200' },
-  { key: 'excel',   label: 'Excel exam',       mode: 'Online',   hint: 'Spreadsheet skills',        color: 'text-emerald-600 bg-emerald-50 border-emerald-200' },
-  { key: 'skill',   label: 'Skill / technical', mode: 'Offline',  hint: 'Hands-on test',            color: 'text-orange-600 bg-orange-50 border-orange-200' },
-  { key: 'viva',    label: 'Viva / interview',  mode: 'Physical', hint: 'Panel interview',           color: 'text-violet-600 bg-violet-50 border-violet-200' },
-];
+import { PreInterviewTestsPanel } from './PreInterviewTestsPanel';
 
 const STAGE_COLORS: Record<string, string> = {
   ai_shortlisted: 'bg-violet-100 text-violet-700',
@@ -68,222 +39,227 @@ const STAGE_COLORS: Record<string, string> = {
   rejected:       'bg-rose-100 text-rose-500',
 };
 
+const RANK_MEDAL: Record<number, string> = {
+  0: 'bg-amber-400 text-white',
+  1: 'bg-slate-300 text-white',
+  2: 'bg-orange-300 text-white',
+};
+
 export function AssessmentPanel({ requisition }: { requisition: Requisition }) {
   const reqId = requisition.id;
   const { data: setup, isLoading } = useAssessmentSetup(reqId);
-  const setPlan = useSetPlan(reqId);
   const removeMember = useRemoveCommitteeMember(reqId);
-  const [examOpen, setExamOpen] = useState(false);
+  const { data: candidatePage } = useCandidates(reqId, { pageSize: 200 });
+  const { data: scorecardRows } = useScorecard(reqId);
 
   if (isLoading || !setup) {
-    return (
-      <Card>
-        <CardBody className="flex justify-center py-12">
-          <Spinner />
-        </CardBody>
-      </Card>
-    );
+    return <TabSkeleton />;
   }
 
-  const planTypes = new Set(setup.plan.map((p) => p.type));
-  const togglePlan = (type: AssessmentTypeKey) => {
-    const next = new Set(planTypes);
-    if (next.has(type)) next.delete(type);
-    else next.add(type);
-    setPlan.mutate(
-      [...next].map((t) => ({
-        type: t,
-        maxScore: setup.plan.find((p) => p.type === t)?.maxScore ?? 100,
-      })),
-    );
-  };
-
-  const questions = setup.interviewQuestions ?? [];
+  const pipelineCount = (candidatePage?.items ?? []).filter((c) => c.stage !== 'rejected').length;
+  const evaluatedCount = scorecardRows?.length ?? 0;
+  const combinedScores = (scorecardRows ?? []).map((r) => r.combined).filter((v): v is number => v !== null);
+  const avgCombined = combinedScores.length > 0
+    ? Math.round((combinedScores.reduce((a, b) => a + b, 0) / combinedScores.length) * 10) / 10
+    : null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
 
-      {/* ── Top stat strip ───────────────────────────────── */}
+      {/* ── Overview stat strip ─────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          { label: 'Committee',       value: setup.committee.length, icon: Users,         ok: setup.committee.length > 0 },
-          { label: 'Assessment types', value: setup.plan.length,      icon: ListChecks,    ok: setup.plan.length > 0 },
-          { label: 'Rubric criteria',  value: setup.rubric.length,    icon: ClipboardCheck,ok: setup.rubric.length > 0 },
-          { label: 'AI questions',     value: questions.length,        icon: MessageSquareText, ok: questions.length > 0 },
-        ].map(({ label, value, icon: Icon, ok }) => (
-          <div
-            key={label}
-            className={cn(
-              'flex items-center gap-3 rounded-xl border px-4 py-3',
-              ok ? 'border-emerald-200 bg-emerald-50/60' : 'border-slate-200 bg-white',
-            )}
-          >
-            <span className={cn(
-              'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
-              ok ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400',
-            )}>
-              <Icon className="h-4 w-4" />
-            </span>
-            <div>
-              <p className={cn('text-lg font-bold leading-none', ok ? 'text-emerald-700' : 'text-slate-700')}>{value}</p>
-              <p className="mt-0.5 text-[11px] text-slate-500">{label}</p>
-            </div>
-            {ok && <Check className="ml-auto h-3.5 w-3.5 text-emerald-500" />}
-          </div>
-        ))}
+        <StatTile delay={0} icon={Users} label="Committee" value={setup.committee.length} ok={setup.committee.length > 0} />
+        <StatTile delay={60} icon={ClipboardCheck} label="In pipeline" value={pipelineCount} ok={pipelineCount > 0} />
+        <StatTile delay={120} icon={BarChart3} label="Evaluated" value={evaluatedCount} ok={evaluatedCount > 0} />
+        <StatTile
+          delay={180}
+          icon={BarChart3}
+          label="Avg combined score"
+          value={avgCombined ?? 0}
+          suffix="%"
+          decimals={1}
+          ok={avgCombined !== null}
+        />
       </div>
 
-      {/* ── Row 1: Committee + Assessment plan ───────────── */}
-      <div className="grid gap-4 lg:grid-cols-2">
-
-        {/* Committee */}
-        <Card>
-          <CardBody className="space-y-3">
-            <SectionHead icon={Users} title="Interview committee" />
-            <CommitteePicker
-              reqId={reqId}
-              existingUserIds={setup.committee.map((m) => m.userId)}
-            />
-            <div className="space-y-2">
-              {setup.committee.length === 0 ? (
-                <EmptyHint>Search and add interviewers above.</EmptyHint>
-              ) : (
-                setup.committee.map((m) => (
-                  <div
-                    key={m.id}
-                    className="flex items-center gap-2.5 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2"
-                  >
-                    <Avatar name={m.name} size="sm" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-slate-800">{m.name}</p>
-                      <p className="truncate text-[11px] text-slate-400">
-                        {[m.designation, m.department].filter(Boolean).join(' · ') || m.employeeCode}
-                      </p>
-                    </div>
-                    <Badge tone="neutral">{m.role}</Badge>
-                    <button
-                      type="button"
-                      title="Remove"
-                      onClick={() => removeMember.mutate(m.id)}
-                      className="rounded p-1 text-slate-300 hover:bg-rose-50 hover:text-rose-500"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardBody>
-        </Card>
-
-        {/* Assessment plan */}
-        <Card>
-          <CardBody className="space-y-3">
-            <SectionHead icon={ListChecks} title="Assessment plan" />
-            <div className="grid gap-2 sm:grid-cols-2">
-              {ASSESSMENT_TYPES.map((t) => {
-                const on = planTypes.has(t.key);
-                return (
-                  <button
-                    key={t.key}
-                    type="button"
-                    onClick={() => togglePlan(t.key)}
-                    disabled={setPlan.isPending}
-                    className={cn(
-                      'flex items-start gap-2.5 rounded-xl border p-3 text-left transition-all duration-150',
-                      on
-                        ? `${t.color} ring-1`
-                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50',
-                    )}
-                  >
-                    <span className={cn(
-                      'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
-                      on ? 'border-current bg-current' : 'border-slate-300',
-                    )}>
-                      {on && <Check className="h-3 w-3 text-white" />}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium leading-snug">{t.label}</span>
-                      <span className="block text-[11px] text-slate-400 mt-0.5">{t.hint}</span>
-                    </span>
-                    <span className={cn(
-                      'ml-auto shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold',
-                      on ? 'bg-white/60' : 'bg-slate-100 text-slate-400',
-                    )}>
-                      {t.mode}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </CardBody>
-        </Card>
-      </div>
-
-      {/* ── Row 2: Rubric + AI Questions ─────────────────── */}
-      <div className="grid gap-4 lg:grid-cols-2">
-
-        {/* Scoring rubric */}
-        <Card>
-          <CardBody className="space-y-3">
-            <SectionHead icon={ClipboardCheck} title="Scoring rubric" />
-            <RubricEditor reqId={reqId} criteria={setup.rubric} />
-          </CardBody>
-        </Card>
-
-        {/* AI interview questions */}
-        <Card>
-          <CardBody className="space-y-3">
-            <div className="flex items-center justify-between">
-              <SectionHead icon={MessageSquareText} title="AI interview questions" />
-              <Button
-                size="sm"
-                variant="outline"
-                leftIcon={<FileQuestion className="h-3.5 w-3.5" />}
-                onClick={() => setExamOpen(true)}
-              >
-                Exam bank
-              </Button>
-            </div>
-            <QuestionsBlock
-              reqId={reqId}
-              questions={questions}
-              aiEnabled={Boolean(setup.aiEnabled)}
-            />
-          </CardBody>
-        </Card>
-      </div>
-
-      {/* ── Candidate scorecard ───────────────────────────── */}
-      <Card>
+      {/* ── 1. Interview committee ──────────────────────────── */}
+      <Card
+        className="animate-rise-in overflow-hidden opacity-0 transition-all duration-300 [animation-delay:80ms] [animation-fill-mode:forwards] hover:-translate-y-0.5 hover:shadow-xl hover:shadow-brand-900/5"
+      >
         <CardBody className="space-y-3">
-          <SectionHead icon={BarChart3} title="Candidate scorecard" desc="CV match · exam · interview scores, normalised 0–100" />
+          <SectionHead
+            step={1}
+            icon={Users}
+            title="Interview committee"
+            desc="Who's on the panel for this requisition."
+          />
+          <CommitteePicker
+            reqId={reqId}
+            existingUserIds={setup.committee.map((m) => m.userId)}
+          />
+          {setup.committee.length === 0 ? (
+            <EmptyHint>Search and add interviewers above.</EmptyHint>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {setup.committee.map((m, i) => (
+                <div
+                  key={m.id}
+                  style={{ animationDelay: `${i * 40}ms` }}
+                  className="group flex animate-fade-in items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pl-1 pr-2 opacity-0 shadow-sm transition-all duration-200 [animation-fill-mode:forwards] hover:-translate-y-0.5 hover:border-rose-200 hover:bg-rose-50/40 hover:shadow-md"
+                >
+                  <Avatar name={m.name} size="sm" />
+                  <div className="min-w-0 leading-tight">
+                    <p className="max-w-[140px] truncate text-xs font-semibold text-slate-800">{m.name}</p>
+                    <p className="truncate text-[10px] text-slate-400">
+                      {[m.designation, m.department].filter(Boolean).join(' · ') || m.employeeCode}
+                    </p>
+                  </div>
+                  <Badge tone="neutral">{m.role}</Badge>
+                  <button
+                    type="button"
+                    title="Remove"
+                    onClick={() => removeMember.mutate(m.id)}
+                    className="rounded-full p-1 text-slate-300 opacity-0 transition-all duration-150 hover:scale-110 hover:bg-rose-100 hover:text-rose-600 group-hover:opacity-100"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardBody>
+      </Card>
+
+      {/* ── 2. Pre-interview screening tests ────────────────── */}
+      <Card
+        className="animate-rise-in overflow-hidden opacity-0 transition-all duration-300 [animation-delay:160ms] [animation-fill-mode:forwards] hover:-translate-y-0.5 hover:shadow-xl hover:shadow-brand-900/5"
+      >
+        <CardBody className="space-y-3">
+          <SectionHead
+            step={2}
+            icon={ClipboardCheck}
+            title="Pre-Interview Screening Tests"
+            desc="Written Test marks + AI Proficiency Test — assign to one candidate or many, before scheduling interviews."
+          />
+          <PreInterviewTestsPanel reqId={reqId} />
+        </CardBody>
+      </Card>
+
+      {/* ── 3. Candidate scorecard ──────────────────────────── */}
+      <Card
+        className="animate-rise-in overflow-hidden opacity-0 transition-all duration-300 [animation-delay:240ms] [animation-fill-mode:forwards] hover:-translate-y-0.5 hover:shadow-xl hover:shadow-brand-900/5"
+      >
+        <CardBody className="space-y-3">
+          <SectionHead
+            step={3}
+            icon={BarChart3}
+            title="Candidate scorecard"
+            desc="CV match · interview scores, normalised 0–100."
+          />
           <ScorecardBlock reqId={reqId} />
         </CardBody>
       </Card>
+    </div>
+  );
+}
 
-      <ExamBankModal reqId={reqId} open={examOpen} onClose={() => setExamOpen(false)} />
+/* ── Animated count-up (professional dashboard touch) ────── */
+function useCountUp(target: number, decimals = 0, durationMs = 700) {
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    let raf: number;
+    const start = performance.now();
+    const factor = 10 ** decimals;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / durationMs);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplay(Math.round(target * eased * factor) / factor);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, decimals, durationMs]);
+  return display;
+}
+
+/* ── Overview stat tile ──────────────────────────────────── */
+function StatTile({
+  icon: Icon,
+  label,
+  value,
+  suffix = '',
+  ok,
+  delay = 0,
+  decimals = 0,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: number;
+  suffix?: string;
+  ok: boolean;
+  delay?: number;
+  decimals?: number;
+}) {
+  const animated = useCountUp(value, decimals);
+  return (
+    <div
+      style={{ animationDelay: `${delay}ms` }}
+      className={cn(
+        'group relative animate-rise-in overflow-hidden rounded-2xl border p-4 opacity-0 shadow-sm transition-all duration-300 [animation-fill-mode:forwards]',
+        'hover:-translate-y-1 hover:shadow-xl',
+        ok
+          ? 'border-emerald-200/70 bg-gradient-to-br from-emerald-50 via-white to-white hover:shadow-emerald-900/10'
+          : 'border-slate-200 bg-white hover:shadow-slate-900/5',
+      )}
+    >
+      <div className={cn(
+        'pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full blur-2xl transition-opacity duration-300 group-hover:opacity-70',
+        ok ? 'bg-emerald-300/30 opacity-40' : 'bg-slate-300/20 opacity-0',
+      )} />
+      <div className="relative flex items-center gap-3">
+        <span className={cn(
+          'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-inner transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3',
+          ok ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white' : 'bg-slate-100 text-slate-400',
+        )}>
+          <Icon className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <p className={cn('text-2xl font-extrabold leading-none tabular-nums', ok ? 'text-emerald-700' : 'text-slate-700')}>
+            {ok ? `${animated.toFixed(decimals)}${suffix}` : '—'}
+          </p>
+          <p className="mt-1 truncate text-[11px] font-medium text-slate-500">{label}</p>
+        </div>
+      </div>
     </div>
   );
 }
 
 /* ── Shared section header ─────────────────────────────── */
 function SectionHead({
+  step,
   icon: Icon,
   title,
   desc,
 }: {
+  step: number;
   icon: React.ElementType;
   title: string;
   desc?: string;
 }) {
   return (
-    <div>
-      <h3 className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
-        <Icon className="h-4 w-4 text-brand-600" />
-        {title}
-      </h3>
-      {desc && <p className="mt-0.5 text-[11px] text-slate-400">{desc}</p>}
+    <div className="flex items-start gap-3">
+      <span className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-xs font-bold text-white shadow-md shadow-brand-500/30">
+        {step}
+      </span>
+      <div>
+        <h3 className="flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+          <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+            <Icon className="h-3.5 w-3.5" />
+          </span>
+          {title}
+        </h3>
+        {desc && <p className="mt-1 text-[11px] text-slate-400">{desc}</p>}
+      </div>
     </div>
   );
 }
@@ -296,92 +272,58 @@ function EmptyHint({ children }: { children: React.ReactNode }) {
   );
 }
 
-/* ── AI Questions block ────────────────────────────────── */
-function groupQuestions(questions: InterviewQuestion[]) {
-  const map = new Map<string, string[]>();
-  for (const q of questions) {
-    const arr = map.get(q.category) ?? [];
-    arr.push(q.question);
-    map.set(q.category, arr);
-  }
-  return [...map.entries()];
+/* ── Loading skeleton (shimmer) ──────────────────────────── */
+function Shimmer({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        'animate-shimmer rounded-md bg-gradient-to-r from-slate-100 via-slate-200 to-slate-100 bg-[length:200%_100%]',
+        className,
+      )}
+    />
+  );
 }
 
-function QuestionsBlock({
-  reqId,
-  questions,
-  aiEnabled,
-}: {
-  reqId: string;
-  questions: InterviewQuestion[];
-  aiEnabled: boolean;
-}) {
-  const generate = useGenerateQuestions(reqId);
-  const groups = groupQuestions(questions);
-
-  const copyAll = async () => {
-    const text = groups
-      .map(([cat, qs]) => `${cat}\n${qs.map((q, i) => `  ${i + 1}. ${q}`).join('\n')}`)
-      .join('\n\n');
-    await navigator.clipboard.writeText(text);
-    toast.success('Questions copied');
-  };
-
+function TabSkeleton() {
   return (
-    <div className="space-y-3">
-      {questions.length === 0 ? (
-        <EmptyHint>
-          {aiEnabled
-            ? 'Generate role-specific questions for the interview panel.'
-            : 'AI is not configured — questions cannot be generated.'}
-        </EmptyHint>
-      ) : (
-        <div className="max-h-64 space-y-3 overflow-y-auto pr-1">
-          {groups.map(([category, qs]) => (
-            <div key={category}>
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-violet-600">
-                {category}
-              </p>
-              <ul className="space-y-1">
-                {qs.map((q, i) => (
-                  <li key={i} className="flex gap-2 text-sm text-slate-600">
-                    <span className="shrink-0 text-slate-300">{i + 1}.</span>
-                    {q}
-                  </li>
-                ))}
-              </ul>
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="flex items-center gap-3">
+              <Shimmer className="h-10 w-10 shrink-0 rounded-xl" />
+              <div className="flex-1 space-y-1.5">
+                <Shimmer className="h-5 w-12" />
+                <Shimmer className="h-2.5 w-16" />
+              </div>
             </div>
-          ))}
-        </div>
-      )}
-      <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-        <Button
-          size="sm"
-          variant={questions.length > 0 ? 'outline' : 'primary'}
-          isLoading={generate.isPending}
-          disabled={!aiEnabled}
-          leftIcon={<Sparkles className="h-3.5 w-3.5" />}
-          onClick={() => generate.mutate(undefined)}
-        >
-          {questions.length > 0 ? 'Regenerate' : 'Generate questions'}
-        </Button>
-        {questions.length > 0 && (
-          <Button
-            size="sm"
-            variant="ghost"
-            leftIcon={<Copy className="h-3.5 w-3.5" />}
-            onClick={copyAll}
-          >
-            Copy all
-          </Button>
-        )}
+          </div>
+        ))}
       </div>
+      {[0, 1, 2].map((i) => (
+        <Card key={i} className="overflow-hidden">
+          <CardBody className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Shimmer className="h-7 w-7 rounded-full" />
+              <Shimmer className="h-4 w-40" />
+            </div>
+            <Shimmer className="h-9 w-full rounded-lg" />
+            <Shimmer className="h-24 w-full rounded-xl" />
+          </CardBody>
+        </Card>
+      ))}
     </div>
   );
 }
 
 /* ── Scorecard ─────────────────────────────────────────── */
-function ScoreBar({ value }: { value: number | null }) {
+function ScoreBar({ value, delay = 0 }: { value: number | null; delay?: number }) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setReady(true), delay);
+    return () => clearTimeout(t);
+  }, [delay]);
+
   if (value === null) return <span className="text-xs text-slate-300">—</span>;
   const color =
     value >= 75 ? 'bg-emerald-500' : value >= 50 ? 'bg-amber-400' : 'bg-rose-400';
@@ -389,12 +331,12 @@ function ScoreBar({ value }: { value: number | null }) {
     <div className="flex items-center gap-2">
       <div className="h-1.5 w-14 overflow-hidden rounded-full bg-slate-100">
         <div
-          className={cn('h-full rounded-full transition-all', color)}
-          style={{ width: `${Math.min(value, 100)}%` }}
+          className={cn('h-full rounded-full transition-all duration-700 ease-out', color)}
+          style={{ width: ready ? `${Math.min(value, 100)}%` : '0%' }}
         />
       </div>
-      <span className="w-6 text-right text-xs font-semibold tabular-nums text-slate-600">
-        {value}
+      <span className="w-9 shrink-0 text-right text-xs font-semibold tabular-nums text-slate-600">
+        {value.toFixed(1)}
       </span>
     </div>
   );
@@ -410,12 +352,11 @@ function ScorecardBlock({ reqId }: { reqId: string }) {
   if (!rows || rows.length === 0) {
     return (
       <EmptyHint>
-        No evaluated candidates yet — scores appear once candidates have been screened, examined, or interviewed.
+        No evaluated candidates yet — scores appear once candidates have been screened or interviewed.
       </EmptyHint>
     );
   }
 
-  const examTypes = Array.from(new Set(rows.flatMap((r) => Object.keys(r.examScores)))).sort();
   const sorted = [...rows].sort((a, b) => (b.combined ?? -1) - (a.combined ?? -1));
 
   return (
@@ -437,21 +378,34 @@ function ScorecardBlock({ reqId }: { reqId: string }) {
               <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">Candidate</th>
               <th className="px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-400">Stage</th>
               <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">CV %</th>
-              {examTypes.map((t) => (
-                <th key={t} className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400 capitalize">{t}</th>
-              ))}
+              <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">AI Test</th>
               <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">Interview</th>
               <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">Combined</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50 bg-white">
             {sorted.map((row, idx) => (
-              <tr key={row.candidateId} className={cn('transition-colors hover:bg-slate-50/70', idx === 0 && 'bg-emerald-50/30')}>
+              <tr
+                key={row.candidateId}
+                style={{ animationDelay: `${idx * 35}ms` }}
+                className={cn(
+                  'animate-fade-in opacity-0 transition-colors duration-150 hover:bg-slate-50/70 [animation-fill-mode:forwards]',
+                  idx === 0 && 'bg-emerald-50/30',
+                )}
+              >
                 <td className="px-3 py-2.5">
-                  <div className="flex items-center gap-2">
-                    {idx === 0 && (
-                      <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-bold text-white">#1</span>
-                    )}
+                  <div className="flex items-center gap-2.5">
+                    <span className="relative shrink-0">
+                      <Avatar name={row.candidateName} size="sm" />
+                      {idx < 3 && (
+                        <span className={cn(
+                          'absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold ring-2 ring-white',
+                          RANK_MEDAL[idx],
+                        )}>
+                          {idx + 1}
+                        </span>
+                      )}
+                    </span>
                     <span className="max-w-[140px] truncate font-medium text-slate-800">{row.candidateName}</span>
                   </div>
                 </td>
@@ -463,12 +417,10 @@ function ScorecardBlock({ reqId }: { reqId: string }) {
                     {row.stage.replace('_', ' ')}
                   </span>
                 </td>
-                <td className="px-3 py-2.5"><ScoreBar value={row.cvScore} /></td>
-                {examTypes.map((t) => (
-                  <td key={t} className="px-3 py-2.5"><ScoreBar value={row.examScores[t] ?? null} /></td>
-                ))}
-                <td className="px-3 py-2.5"><ScoreBar value={row.interviewAvg} /></td>
-                <td className="px-3 py-2.5"><ScoreBar value={row.combined} /></td>
+                <td className="px-3 py-2.5"><ScoreBar value={row.cvScore} delay={idx * 35} /></td>
+                <td className="px-3 py-2.5"><ScoreBar value={row.aiProficiencyScore} delay={idx * 35} /></td>
+                <td className="px-3 py-2.5"><ScoreBar value={row.interviewAvg} delay={idx * 35} /></td>
+                <td className="px-3 py-2.5"><ScoreBar value={row.combined} delay={idx * 35} /></td>
               </tr>
             ))}
           </tbody>
@@ -485,11 +437,22 @@ function CommitteePicker({ reqId, existingUserIds }: { reqId: string; existingUs
   const debounced = useDebounce(q, 300);
   const { data } = useEmployees({ search: debounced, page: 1, pageSize: 6 });
   const add = useAddCommitteeMember(reqId);
+  const wrapRef = useRef<HTMLDivElement>(null);
 
   const results = (data?.items ?? []).filter((e) => e.userId && !existingUserIds.includes(e.userId));
 
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (wrapRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
   return (
-    <div className="relative">
+    <div ref={wrapRef} className="relative">
       <Input
         value={q}
         onChange={(e) => { setQ(e.target.value); setOpen(true); }}
@@ -498,101 +461,30 @@ function CommitteePicker({ reqId, existingUserIds }: { reqId: string; existingUs
         leftIcon={<Search className="h-4 w-4" />}
       />
       {open && debounced.length > 0 && results.length > 0 && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
-            {results.map((e) => (
-              <button
-                key={e.id}
-                type="button"
-                onClick={() => {
-                  if (e.userId) add.mutate({ memberUserId: e.userId });
-                  setQ('');
-                  setOpen(false);
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-slate-50"
-              >
-                <Avatar name={e.name} size="sm" />
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium text-slate-800">{e.name}</span>
-                  <span className="block truncate text-xs text-slate-400">
-                    {[e.jobTitle, e.department].filter(Boolean).join(' · ')}
-                  </span>
+        <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+          {results.map((e) => (
+            <button
+              key={e.id}
+              type="button"
+              onClick={() => {
+                if (e.userId) add.mutate({ memberUserId: e.userId });
+                setQ('');
+                setOpen(false);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-slate-50"
+            >
+              <Avatar name={e.name} size="sm" />
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium text-slate-800">{e.name}</span>
+                <span className="block truncate text-xs text-slate-400">
+                  {[e.jobTitle, e.department].filter(Boolean).join(' · ')}
                 </span>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-/* ── Rubric editor ─────────────────────────────────────── */
-function RubricEditor({ reqId, criteria }: { reqId: string; criteria: RubricCriterionView[] }) {
-  const setRubric = useSetRubric(reqId);
-  const [label, setLabel] = useState('');
-  const [maxScore, setMaxScore] = useState('10');
-
-  const persist = (next: { label: string; maxScore: number }[]) => setRubric.mutate(next);
-
-  const add = () => {
-    if (label.trim().length < 1) return;
-    persist([
-      ...criteria.map((c) => ({ label: c.label, maxScore: c.maxScore })),
-      { label: label.trim(), maxScore: Number(maxScore) || 10 },
-    ]);
-    setLabel('');
-    setMaxScore('10');
-  };
-
-  const remove = (id: string) =>
-    persist(criteria.filter((c) => c.id !== id).map((c) => ({ label: c.label, maxScore: c.maxScore })));
-
-  const total = criteria.reduce((s, c) => s + c.maxScore, 0);
-
-  return (
-    <div className="space-y-2">
-      {criteria.length === 0 ? (
-        <EmptyHint>No criteria yet — add what panelists score (e.g. Technical, Communication).</EmptyHint>
-      ) : (
-        <div className="space-y-1.5">
-          {criteria.map((c) => (
-            <div key={c.id} className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-1.5 text-sm">
-              <span className="flex-1 text-slate-700">{c.label}</span>
-              <span className="text-xs font-semibold text-slate-400">/ {c.maxScore}</span>
-              <button
-                type="button"
-                onClick={() => remove(c.id)}
-                className="rounded p-0.5 text-slate-300 hover:bg-rose-50 hover:text-rose-500"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
+              </span>
+            </button>
           ))}
-          <p className="text-right text-[11px] font-semibold text-slate-400">Total: {total} pts</p>
         </div>
       )}
-      <div className="flex items-end gap-2 pt-1">
-        <Input
-          placeholder="e.g. Technical knowledge"
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && add()}
-        />
-        <div className="w-20 shrink-0">
-          <Input
-            type="number"
-            min={1}
-            placeholder="Max"
-            value={maxScore}
-            onChange={(e) => setMaxScore(e.target.value)}
-          />
-        </div>
-        <Button onClick={add} isLoading={setRubric.isPending} disabled={label.trim().length < 1}>
-          Add
-        </Button>
-      </div>
     </div>
   );
 }
+

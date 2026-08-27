@@ -2,6 +2,7 @@ export { RequisitionForm } from './components/RequisitionForm';
 export { RequisitionTable } from './components/RequisitionTable';
 export { RequisitionStatusBadge } from './components/RequisitionStatusBadge';
 export { WorkflowStepper } from './components/WorkflowStepper';
+export { FacilitiesPanel } from './components/FacilitiesPanel';
 
 export {
   useRequisitions,
@@ -13,7 +14,10 @@ export {
   useApprovalAction,
   useGenerateRoleProfile,
   usePostRequisition,
+  useUpdateFacilities,
 } from './hooks/useRequisitionActions';
+
+export { FACILITY_META, FACILITY_OPTION_LABEL } from './constants';
 
 export { requisitionApi } from './api/requisition.api';
 export type {
@@ -31,4 +35,7 @@ export type {
   RequisitionFilters,
   CreateRequisitionPayload,
   RoleProfile,
+  FacilityKey,
+  FacilityDecision,
+  Facilities,
 } from './types/requisition.types';

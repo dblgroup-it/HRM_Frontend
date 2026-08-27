@@ -1,3 +1,5 @@
+import type { Facilities } from '@modules/requisition/types/requisition.types';
+
 export type DocStatus = 'pending' | 'verified' | 'rejected';
 export type MedicalStatus = 'pending' | 'cleared' | 'rejected';
 
@@ -24,6 +26,10 @@ export interface CrossCheckResult {
   verdict: CrossCheckVerdict;
   overview: string;
   findings: CrossCheckFinding[];
+  /** Missing/'ai' = the AI cross-check ran; 'manual' = HR recorded their own verdict instead. */
+  source?: 'ai' | 'manual';
+  /** Set only when source is 'manual'. */
+  reviewedBy?: string;
 }
 
 export interface OnboardingView {
@@ -35,6 +41,10 @@ export interface OnboardingView {
   submissionLink: string;
   /** docs_pending | docs_submitted | offer_sent | offer_accepted | medical | hr_final | onboarded */
   status: string;
+  /** HR skipped waiting for the candidate to submit documents. */
+  docsSkippedAt: string | null;
+  /** HR skipped individually verifying every submitted document. */
+  verificationSkippedAt: string | null;
   offerSentAt: string | null;
   offerAcceptedAt: string | null;
   medicalStatus: MedicalStatus;
@@ -67,6 +77,11 @@ export interface OnboardingCandidate {
   code: string;
   unit: string;
   department: string;
+  /** From Salary Fixation, once finalized — null until then. */
+  proposedSalary: number | null;
+  salaryJobGrade: string | null;
+  /** Laptop/Desktop, Transport, Dormitory, Seating — requested + HR's confirm/skip decision. */
+  facilities: Facilities | null;
 }
 
 export interface OnboardingResult {
@@ -77,6 +92,42 @@ export interface OnboardingResult {
   requiredDocs: string[];
   candidate: OnboardingCandidate;
   onboarding: OnboardingView | null;
+}
+
+export interface MedicalExam {
+  dateOfBirth: string | null;
+  dutyPosition: string;
+  refNo: string;
+  registrationNo: string;
+  examDate: string | null;
+  issueDate: string | null;
+  consultantName: string;
+  height: string;
+  weight: string;
+  pulse: string;
+  bloodPressure: string;
+  visionRightEye: string;
+  visionLeftEye: string;
+  visionWithGlass: boolean | null;
+  colorVisionYellow: string;
+  colorVisionRed: string;
+  colorVisionGreen: string;
+  colorVisionBlue: string;
+  hearingRightEar: string;
+  hearingLeftEar: string;
+  speech: string;
+  extremities: string;
+  noAnemiaJaundiceEtc: boolean | null;
+  stableNormotensiveNondiabetic: boolean | null;
+  urineTestClear: boolean | null;
+  hepatitisBNegative: boolean | null;
+  liverFunctionNormal: boolean | null;
+  pastIllnessHistory: string;
+  familyHistoryDmHtn: boolean | null;
+  familyHistoryDetail: string;
+  bloodGroup: string;
+  fitToJoin: boolean | null;
+  remarks: string;
 }
 
 export interface MedicalQueueItem extends OnboardingView {

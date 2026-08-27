@@ -59,7 +59,13 @@ function lookup(
     ) ?? null;
 
   if (!seat) {
-    return { inOrganogram: false, vacant: 0, requirement: 'new', seat: null };
+    return {
+      inOrganogram: false,
+      vacant: 0,
+      requirement: 'new',
+      seat: null,
+      gradeReference: [],
+    };
   }
 
   const vacant = seat.sanctioned - seat.filled;
@@ -68,6 +74,7 @@ function lookup(
     vacant,
     requirement: vacant > 0 ? 'existing' : 'new',
     seat,
+    gradeReference: [],
   };
 }
 
@@ -95,6 +102,16 @@ export const organogramApi = {
       .get<ApiResponse<SeatLookupResult>>('/organogram/lookup', {
         params: { unit, department, designation },
       })
+      .then((res) => res.data);
+  },
+
+  /** Distinct grade values already in use (Employee + Position) — for the grade input's suggestions. */
+  gradeValues(): Promise<string[]> {
+    if (ENV.USE_MOCK_API) {
+      return delay(MOCK_LATENCY / 2).then(() => []);
+    }
+    return http
+      .get<ApiResponse<string[]>>('/organogram/grade-values')
       .then((res) => res.data);
   },
 

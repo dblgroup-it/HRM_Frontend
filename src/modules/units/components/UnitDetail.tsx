@@ -342,6 +342,7 @@ function DepartmentBlock({ department }: { department: ConfigDepartment }) {
                         {pos.category.toLowerCase()}
                       </p>
                     </div>
+                    {pos.grade && <Badge tone="brand">{pos.grade}</Badge>}
                     <span className="text-sm text-slate-500">
                       {pos.filled}/{pos.sanctioned}
                     </span>

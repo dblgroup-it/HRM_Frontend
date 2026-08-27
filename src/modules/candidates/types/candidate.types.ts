@@ -29,6 +29,11 @@ export interface Candidate {
   cvUrl: string | null;
   notes: string;
   salaryExpectation: number | null;
+  /** Finalized salary fixation result — null until Salary Fixation is finalized for this candidate. */
+  proposedSalary: number | null;
+  salaryJobGrade: string | null;
+  /** docs_pending | docs_submitted | offer_sent | offer_accepted | medical | hr_final | onboarded — null until onboarding starts. */
+  onboardingStatus: string | null;
   /** AI CV-screening match score (0-100) + rationale, null until screened. */
   matchScore: number | null;
   matchSummary: string;
@@ -164,6 +169,13 @@ export interface TalentBankSearchResponse {
   query: string;
 }
 
+/** A Talent Bank candidate the AI has automatically matched to a requisition. */
+export interface TalentBankMatchCandidate extends TalentBankSearchHit {
+  matchedAt: string;
+  /** Live status against THIS requisition's own pipeline. */
+  pipelineStatus: 'not_added' | 'in_pipeline' | 'removed';
+}
+
 export interface CandidateFilters {
   page?: number;
   pageSize?: number;
@@ -212,4 +224,5 @@ export interface UpdateCandidateInput {
   notes?: string;
   stage?: CandidateStage;
   talentPool?: boolean;
+  salaryExpectation?: number | null;
 }

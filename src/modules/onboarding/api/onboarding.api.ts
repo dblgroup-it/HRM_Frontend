@@ -2,6 +2,7 @@ import { http } from '@shared/api';
 import type { ApiResponse } from '@shared/types';
 
 import type {
+  MedicalExam,
   MedicalQueueItem,
   MedicalStatus,
   OnboardingResult,
@@ -54,6 +55,18 @@ export const onboardingApi = {
       )
       .then((r) => r.data),
 
+  manualCrossCheck: (
+    candidateId: string,
+    verdict: string,
+    note?: string,
+  ): Promise<OnboardingResult> =>
+    http
+      .post<ApiResponse<OnboardingResult>>(
+        `/candidates/${candidateId}/onboarding/cross-check/manual`,
+        { verdict, note },
+      )
+      .then((r) => r.data),
+
   sendOffer: (candidateId: string): Promise<{ onboarding: OnboardingView }> =>
     http
       .post<ApiResponse<{ onboarding: OnboardingView }>>(
@@ -65,6 +78,29 @@ export const onboardingApi = {
     http
       .post<ApiResponse<{ onboarding: OnboardingView }>>(
         `/candidates/${candidateId}/onboarding/hr-verify`,
+      )
+      .then((r) => r.data),
+
+  markOfferAcceptedManually: (
+    candidateId: string,
+  ): Promise<{ onboarding: OnboardingView }> =>
+    http
+      .post<ApiResponse<{ onboarding: OnboardingView }>>(
+        `/candidates/${candidateId}/onboarding/offer/mark-accepted`,
+      )
+      .then((r) => r.data),
+
+  skipDocs: (candidateId: string): Promise<{ onboarding: OnboardingView }> =>
+    http
+      .post<ApiResponse<{ onboarding: OnboardingView }>>(
+        `/candidates/${candidateId}/onboarding/skip-docs`,
+      )
+      .then((r) => r.data),
+
+  skipVerification: (candidateId: string): Promise<{ onboarding: OnboardingView }> =>
+    http
+      .post<ApiResponse<{ onboarding: OnboardingView }>>(
+        `/candidates/${candidateId}/onboarding/skip-verification`,
       )
       .then((r) => r.data),
 
@@ -102,6 +138,41 @@ export const onboardingApi = {
         body,
       )
       .then((r) => r.data),
+
+  getMedicalExam: (onboardingId: string): Promise<MedicalExam> =>
+    http
+      .get<ApiResponse<MedicalExam>>(`/onboarding/${onboardingId}/medical-exam`)
+      .then((r) => r.data),
+
+  upsertMedicalExam: (
+    onboardingId: string,
+    body: Partial<MedicalExam>,
+  ): Promise<MedicalExam> =>
+    http
+      .patch<ApiResponse<MedicalExam>>(
+        `/onboarding/${onboardingId}/medical-exam`,
+        body,
+      )
+      .then((r) => r.data),
+
+  uploadMedicalReport: (
+    onboardingId: string,
+    file: File,
+  ): Promise<{ id: string; label: string; url: string; mimeType: string; createdAt: string }> => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return http
+      .post<
+        ApiResponse<{
+          id: string;
+          label: string;
+          url: string;
+          mimeType: string;
+          createdAt: string;
+        }>
+      >(`/onboarding/${onboardingId}/medical-report`, fd, MULTIPART)
+      .then((r) => r.data);
+  },
 
   // --- public (candidate, by token) ---
   publicGet: (token: string): Promise<PublicOnboarding> =>

@@ -89,6 +89,10 @@ export default {
           '0%': { 'background-position': '-200% 0' },
           '100%': { 'background-position': '200% 0' },
         },
+        'flow-down': {
+          '0%': { 'background-position': '0% 0%' },
+          '100%': { 'background-position': '0% 200%' },
+        },
         'loader-pop': {
           '0%':   { opacity: '0', transform: 'scale(0.45)' },
           '65%':  { opacity: '1', transform: 'scale(1.08)' },
@@ -113,6 +117,7 @@ export default {
         'spin-slow': 'spin-slow 22s linear infinite',
         float: 'float 6s ease-in-out infinite',
         shimmer: 'shimmer 2.5s linear infinite',
+        'flow-down': 'flow-down 1.2s linear infinite',
         'loader-pop': 'loader-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) both',
         'text-up-out': 'text-up-out 0.2s ease forwards',
         'text-up-in':  'text-up-in  0.2s ease forwards',

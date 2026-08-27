@@ -1,5 +1,18 @@
 import { z } from 'zod';
 
+const facilityItemSchema = z.object({
+  requested: z.boolean().default(false),
+  option: z.string().optional(),
+  note: z.string().optional(),
+});
+
+const facilitiesSchema = z.object({
+  laptopDesktop: facilityItemSchema,
+  transport: facilityItemSchema,
+  dormitory: facilityItemSchema,
+  seating: facilityItemSchema,
+});
+
 export const requisitionSchema = z
   .object({
     // A · Vacancy Information
@@ -34,9 +47,7 @@ export const requisitionSchema = z
     others: z.string().optional(),
 
     // C · Logistics Requirement
-    computer: z.enum(['not_applicable', 'desktop', 'laptop']),
-    computerReason: z.string().optional(),
-    seating: z.enum(['existing', 'new']),
+    facilities: facilitiesSchema,
 
     // E · Group HR
     preferredSources: z

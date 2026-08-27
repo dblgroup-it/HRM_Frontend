@@ -7,6 +7,8 @@ import type {
   ApprovalDecision,
   ApprovalStep,
   CreateRequisitionPayload,
+  Facilities,
+  FacilityKey,
   PreferredSource,
   Requisition,
   RequisitionDraft,
@@ -20,6 +22,44 @@ import type {
 import { APPROVAL_ROLE_META, buildApprovalRoles } from '../constants';
 
 const CURRENT_USER = 'Ayesha Rahman';
+
+/** Build a full Facilities object for mock data — every request auto-confirmed by HR. */
+function mockFacilities(requests: Partial<Record<FacilityKey, { requested: boolean; option?: string; note?: string }>>): Facilities {
+  const keys: FacilityKey[] = ['laptopDesktop', 'transport', 'dormitory', 'seating'];
+  const out = {} as Facilities;
+  for (const key of keys) {
+    const r = requests[key];
+    out[key] = {
+      requested: r?.requested ?? false,
+      option: r?.option ?? null,
+      note: r?.note ?? '',
+      status: r?.requested ? 'confirmed' : 'pending',
+      hrNote: '',
+      decidedBy: r?.requested ? CURRENT_USER : null,
+      decidedAt: r?.requested ? '2026-01-01T00:00:00.000Z' : null,
+    };
+  }
+  return out;
+}
+
+/** Mirrors the backend's `buildInitialFacilities` — HR hasn't acted yet. */
+function initialFacilities(input: CreateRequisitionPayload['facilities']): Facilities {
+  const keys: FacilityKey[] = ['laptopDesktop', 'transport', 'dormitory', 'seating'];
+  const out = {} as Facilities;
+  for (const key of keys) {
+    const r = input[key];
+    out[key] = {
+      requested: r?.requested ?? false,
+      option: r?.option ?? null,
+      note: r?.note ?? '',
+      status: 'pending',
+      hrNote: '',
+      decidedBy: null,
+      decidedAt: null,
+    };
+  }
+  return out;
+}
 
 /** Build the dynamic sign-off chain from routing rules + intake signatories. */
 function buildChain(
@@ -69,6 +109,7 @@ let STORE: Requisition[] = [
     id: 'req_1001',
     code: 'REQ-2026-001',
     designation: 'Assistant Production Officer',
+    grade: null,
     requirementType: 'existing',
     source: 'factory',
     requiredPosts: 3,
@@ -87,9 +128,7 @@ let STORE: Requisition[] = [
       'B.Sc. in Textile Engineering (Yarn Manufacturing) only for BUTex / AUST',
     experience: 'Fresh graduates are encouraged to apply',
     others: 'Ability to work in a shift-based environment',
-    computer: 'not_applicable',
-    computerReason: '',
-    seating: 'existing',
+    facilities: mockFacilities({}),
     preferredSources: ['job_advertisement', 'referral'],
     // existing + factory ⇒ Dept Head → Factory HR → Corporate HR
     status: 'pending_approval',
@@ -112,6 +151,7 @@ let STORE: Requisition[] = [
     id: 'req_1002',
     code: 'REQ-2026-002',
     designation: 'Senior Merchandiser',
+    grade: null,
     requirementType: 'new',
     source: 'factory',
     requiredPosts: 1,
@@ -129,9 +169,10 @@ let STORE: Requisition[] = [
     education: 'Bachelor’s degree; Textile / Apparel Merchandising preferred',
     experience: '5+ years in woven garment merchandising',
     others: 'Strong buyer handling and costing skills',
-    computer: 'laptop',
-    computerReason: 'Buyer correspondence and costing sheets',
-    seating: 'new',
+    facilities: mockFacilities({
+      laptopDesktop: { requested: true, option: 'laptop', note: 'Buyer correspondence and costing sheets' },
+      seating: { requested: true, option: 'new' },
+    }),
     preferredSources: ['headhunting', 'cv_bank'],
     // new + factory ⇒ Dept Head → Factory HR → SBU Head → Corporate HR
     status: 'profile_generated',
@@ -165,6 +206,7 @@ let STORE: Requisition[] = [
     id: 'req_1003',
     code: 'REQ-2026-003',
     designation: 'HR Business Partner',
+    grade: null,
     requirementType: 'existing',
     source: 'ho',
     requiredPosts: 1,
@@ -182,9 +224,9 @@ let STORE: Requisition[] = [
     education: 'Master’s in HRM preferred',
     experience: '5+ years as an HR generalist / HRBP',
     others: 'Strong knowledge of Bangladesh labour law',
-    computer: 'laptop',
-    computerReason: 'HRIS and reporting',
-    seating: 'existing',
+    facilities: mockFacilities({
+      laptopDesktop: { requested: true, option: 'laptop', note: 'HRIS and reporting' },
+    }),
     preferredSources: ['referral'],
     // existing + HO ⇒ Dept Head → Corporate HR
     status: 'posted',
@@ -337,9 +379,11 @@ export const requisitionApi = {
       return delay(MOCK_LATENCY).then(() => {
         SEQUENCE += 1;
         const now = new Date().toISOString();
-        const { signatories, ...fields } = payload;
+        const { signatories, facilities, ...fields } = payload;
         const created: Requisition = {
           ...fields,
+          grade: null,
+          facilities: initialFacilities(facilities),
           id: `req_${1000 + SEQUENCE}`,
           code: `REQ-2026-${String(SEQUENCE).padStart(3, '0')}`,
           status: 'pending_approval',
@@ -375,6 +419,33 @@ export const requisitionApi = {
     }
     return http
       .patch<ApiResponse<Requisition>>(`/requisitions/${id}`, input)
+      .then((res) => res.data);
+  },
+
+  /** HR (whoever's turn it currently is) confirms or skips facility requests. */
+  updateFacilities(
+    id: string,
+    decisions: { key: FacilityKey; status: 'confirmed' | 'skipped'; hrNote?: string }[]
+  ): Promise<Requisition> {
+    if (ENV.USE_MOCK_API) {
+      return delay(MOCK_LATENCY).then(() =>
+        updateStore(id, (r) => {
+          const next = { ...r.facilities };
+          for (const d of decisions) {
+            next[d.key] = {
+              ...next[d.key],
+              status: d.status,
+              hrNote: d.hrNote ?? '',
+              decidedBy: CURRENT_USER,
+              decidedAt: new Date().toISOString(),
+            };
+          }
+          return { ...r, facilities: next };
+        })
+      );
+    }
+    return http
+      .patch<ApiResponse<Requisition>>(`/requisitions/${id}/facilities`, { decisions })
       .then((res) => res.data);
   },
 

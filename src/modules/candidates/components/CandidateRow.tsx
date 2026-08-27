@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState, lazy, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 
 const ApplyHistoryModal = lazy(() =>
   import('./ApplyHistoryModal').then((m) => ({ default: m.ApplyHistoryModal })),
 );
 import { useNavigate } from 'react-router-dom';
 import {
+  BadgeDollarSign,
   CalendarClock,
-  FileQuestion,
+  Check,
+  ChevronDown,
   FileText,
   Flag,
   Mail,
@@ -37,17 +40,14 @@ import { MatchPopover } from './MatchPopover';
 const ACCEPT = '.pdf,application/pdf';
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
 
-const STAGE_META: Record<CandidateStage, { label: string; tone: string }> = {
-  applied: { label: 'Applied', tone: 'bg-slate-100 text-slate-600' },
-  ai_shortlisted: {
-    label: 'AI Shortlisted',
-    tone: 'bg-violet-100 text-violet-700',
-  },
-  shortlisted: { label: 'Shortlisted', tone: 'bg-sky-100 text-sky-700' },
-  interview: { label: 'Interview', tone: 'bg-amber-100 text-amber-700' },
-  final: { label: 'Final', tone: 'bg-indigo-100 text-indigo-700' },
-  selected: { label: 'Selected', tone: 'bg-emerald-100 text-emerald-700' },
-  rejected: { label: 'Rejected', tone: 'bg-rose-100 text-rose-700' },
+const STAGE_META: Record<CandidateStage, { label: string; tone: string; dot: string }> = {
+  applied: { label: 'Applied', tone: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' },
+  ai_shortlisted: { label: 'AI Shortlisted', tone: 'bg-violet-100 text-violet-700', dot: 'bg-violet-500' },
+  shortlisted: { label: 'Shortlisted', tone: 'bg-sky-100 text-sky-700', dot: 'bg-sky-500' },
+  interview: { label: 'Interview', tone: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' },
+  final: { label: 'Final', tone: 'bg-indigo-100 text-indigo-700', dot: 'bg-indigo-500' },
+  selected: { label: 'Selected', tone: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
+  rejected: { label: 'Rejected', tone: 'bg-rose-100 text-rose-700', dot: 'bg-rose-500' },
 };
 
 const STAGE_ORDER: CandidateStage[] = [
@@ -75,6 +75,11 @@ const SOURCE_LABEL: Record<string, string> = {
   email: 'Email',
 };
 
+/**
+ * Two-line row: identity + status on line 1, a centered row of labeled
+ * action buttons on line 2 — always visible, icon + text, no hover reveal,
+ * no menu, no drawer.
+ */
 export function CandidateRow({
   candidate,
   reqId,
@@ -84,7 +89,7 @@ export function CandidateRow({
   onSelect,
   onEmail,
   onInterviews,
-  onExams,
+  onSalaryFixation,
 }: {
   candidate: Candidate;
   reqId: string;
@@ -94,7 +99,7 @@ export function CandidateRow({
   onSelect?: (c: Candidate, checked: boolean) => void;
   onEmail: (c: Candidate) => void;
   onInterviews: (c: Candidate) => void;
-  onExams: (c: Candidate) => void;
+  onSalaryFixation: (c: Candidate) => void;
 }) {
   const update = useUpdateCandidate(reqId);
   const upload = useUploadCv(reqId);
@@ -135,18 +140,19 @@ export function CandidateRow({
   }, [candidate.id, seenLocally]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const contact = [candidate.email, candidate.phone].filter(Boolean).join(' · ');
-  const meta = STAGE_META[candidate.stage];
   const isNew = !seenLocally;
 
   return (
     <div
       ref={rowRef}
       className={cn(
-        'group/row relative flex flex-wrap items-center gap-3 px-4 py-3 transition-colors duration-150 hover:bg-slate-50/60',
+        'group/row relative flex flex-col gap-2 px-4 py-3 transition-colors duration-150 hover:bg-slate-50/60',
         selected && 'bg-brand-50/50',
         candidate.isRedFlagged && 'bg-rose-50/60 hover:bg-rose-50/80 border-l-[3px] border-rose-500 pl-[13px]',
       )}
     >
+      {/* Line 1 — identity + status */}
+      <div className="flex flex-wrap items-center gap-3">
       {/* Custom animated checkbox — shown on hover or when selection mode is active */}
       {canManage && onSelect && (
         <button
@@ -229,7 +235,7 @@ export function CandidateRow({
             <button
               type="button"
               onClick={() => setHistoryOpen(true)}
-              className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-600 hover:bg-amber-100 transition"
+              className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-600 transition-colors hover:bg-amber-100"
               title="View full application history"
             >
               Applied {candidate.applyCount}×
@@ -244,10 +250,21 @@ export function CandidateRow({
         </div>
         <p className="truncate text-xs text-slate-400">
           {contact || 'No contact details'}
-          {candidate.salaryExpectation != null && (
-            <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-100">
-              ৳ {candidate.salaryExpectation.toLocaleString()} expected
+          {candidate.proposedSalary != null ? (
+            <span
+              className="ml-2 inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand-700 border border-brand-100"
+              title={candidate.salaryJobGrade ? `Job Grade ${candidate.salaryJobGrade}` : undefined}
+            >
+              <BadgeDollarSign className="h-2.5 w-2.5" />
+              ৳ {candidate.proposedSalary.toLocaleString()} fixed
+              {candidate.salaryJobGrade ? ` · ${candidate.salaryJobGrade}` : ''}
             </span>
+          ) : (
+            candidate.salaryExpectation != null && (
+              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-100">
+                ৳ {candidate.salaryExpectation.toLocaleString()} expected
+              </span>
+            )
           )}
         </p>
         {candidate.isRedFlagged && candidate.redFlagReason && (
@@ -279,182 +296,106 @@ export function CandidateRow({
         )}
       </div>
 
-      {/* CV */}
-      {candidate.cvUrl ? (
-        <a
-          href={candidate.cvUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1 rounded-md bg-brand-50 px-2.5 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-100"
-        >
-          <FileText className="h-3.5 w-3.5" /> CV
-        </a>
-      ) : canManage ? (
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          className="inline-flex items-center gap-1 rounded-md border border-dashed border-slate-300 px-2.5 py-1.5 text-xs text-slate-500 hover:bg-slate-50"
-        >
-          <Upload className="h-3.5 w-3.5" />
-          {upload.isPending ? 'Uploading…' : 'CV'}
-        </button>
-      ) : (
-        <span className="text-xs text-slate-300">No CV</span>
-      )}
-
-      {/* AI screen / re-screen */}
-      {canManage && candidate.cvUrl && (
-        <button
-          type="button"
-          onClick={() => screen.mutate(candidate.id)}
-          disabled={screen.isPending}
-          title={
-            candidate.matchScore !== null
-              ? 'Re-screen CV with AI'
-              : 'Screen CV with AI'
-          }
-          className="inline-flex items-center gap-1 rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-100 disabled:opacity-50"
-        >
-          <Sparkles className={cn('h-3.5 w-3.5', screen.isPending && 'animate-pulse')} />
-          {candidate.matchScore !== null ? 'Re-scan' : 'AI scan'}
-        </button>
-      )}
-
-      {/* Email */}
-      {canManage && (
-        <button
-          type="button"
-          onClick={() => onEmail(candidate)}
-          disabled={!candidate.email}
-          title={candidate.email ? `Email ${candidate.email}` : 'No email on file'}
-          className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <Mail className="h-3.5 w-3.5" /> Email
-        </button>
-      )}
-
-      {/* Interviews */}
-      {canManage && (
-        <button
-          type="button"
-          onClick={() => onInterviews(candidate)}
-          title="Schedule / view interviews"
-          className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
-        >
-          <CalendarClock className="h-3.5 w-3.5" /> Interviews
-        </button>
-      )}
-
-      {/* Exams */}
-      {canManage && (
-        <button
-          type="button"
-          onClick={() => onExams(candidate)}
-          title="Send / view online exams"
-          className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-2.5 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
-        >
-          <FileQuestion className="h-3.5 w-3.5" /> Exam
-        </button>
-      )}
-
-      {/* Onboarding — only meaningful once selected */}
-      {canManage && candidate.stage === 'selected' && (
-        <button
-          type="button"
-          onClick={() => navigate(ROUTES.onboardingManage(candidate.id))}
-          title="Documents, offer & onboarding"
-          className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
-        >
-          <UserCheck className="h-3.5 w-3.5" /> Onboard
-        </button>
-      )}
-
-      {/* Stage */}
-      {canManage ? (
-        <select
+      <div className="flex items-center gap-1.5">
+        <StageMenu
           value={candidate.stage}
-          disabled={update.isPending}
-          onChange={(e) =>
-            update.mutate({
-              id: candidate.id,
-              input: { stage: e.target.value as CandidateStage },
-            })
-          }
-          className={cn(
-            'h-8 rounded-md border-0 px-2 text-xs font-medium focus:ring-2 focus:ring-brand-500/40',
-            meta.tone,
-          )}
-        >
-          {STAGE_ORDER.map((s) => (
-            <option key={s} value={s} disabled={s === 'ai_shortlisted'}>
-              {STAGE_META[s].label}
-              {s === 'ai_shortlisted' ? ' (AI only)' : ''}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <span
-          className={cn(
-            'rounded-md px-2 py-1 text-xs font-medium',
-            meta.tone,
-          )}
-        >
-          {meta.label}
-        </span>
-      )}
+          canManage={canManage}
+          pending={update.isPending}
+          onChange={(next) => update.mutate({ id: candidate.id, input: { stage: next } })}
+        />
+        {candidate.onboardingStatus === 'onboarded' && (
+          <span
+            title="Onboarding complete — hired and handed off to IT"
+            className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white shadow-sm shadow-emerald-600/25"
+          >
+            <Check className="h-3 w-3" strokeWidth={3} /> Completed
+          </span>
+        )}
+      </div>
+      </div>
 
+      {/* Line 2 — actions, always visible, icon + label, centered */}
       {canManage && (
-        <button
-          type="button"
-          title={
-            candidate.talentPool ? 'Remove from Talent Bank' : 'Add to Talent Bank'
-          }
-          onClick={() =>
-            update.mutate({
-              id: candidate.id,
-              input: { talentPool: !candidate.talentPool },
-            })
-          }
-          className={cn(
-            'rounded-md p-1.5 hover:bg-amber-50',
-            candidate.talentPool
-              ? 'text-amber-500'
-              : 'text-slate-300 hover:text-amber-500',
+        <div className="flex flex-wrap items-center justify-center gap-1.5">
+          {candidate.cvUrl ? (
+            <ActionBtn as="a" href={candidate.cvUrl} target="_blank" rel="noreferrer" title="View CV">
+              <FileText className="h-3.5 w-3.5" /> CV
+            </ActionBtn>
+          ) : (
+            <ActionBtn title="Upload CV" onClick={() => fileRef.current?.click()} disabled={upload.isPending}>
+              <Upload className="h-3.5 w-3.5" /> {upload.isPending ? 'Uploading…' : 'Upload CV'}
+            </ActionBtn>
           )}
-        >
-          <Star
-            className="h-4 w-4"
-            fill={candidate.talentPool ? 'currentColor' : 'none'}
-          />
-        </button>
-      )}
 
-      {canManage && (
-        <button
-          type="button"
-          title={candidate.isRedFlagged ? `Red-flagged: ${candidate.redFlagReason ?? ''}` : 'Mark as red flag'}
-          onClick={() => candidate.isRedFlagged ? unflag.mutate(candidate.id) : setFlagModalOpen(true)}
-          disabled={flag.isPending || unflag.isPending}
-          className={cn(
-            'rounded-md p-1.5 transition-colors disabled:opacity-50',
-            candidate.isRedFlagged
-              ? 'text-rose-500 hover:bg-rose-50'
-              : 'text-slate-300 hover:bg-rose-50 hover:text-rose-400',
+          {candidate.cvUrl && (
+            <ActionBtn
+              title={candidate.matchScore !== null ? 'Re-screen CV with AI' : 'Screen CV with AI'}
+              onClick={() => screen.mutate(candidate.id)}
+              disabled={screen.isPending}
+              hoverColor="violet"
+            >
+              <Sparkles className={cn('h-3.5 w-3.5', screen.isPending && 'animate-pulse')} />
+              {candidate.matchScore !== null ? 'Re-scan' : 'AI scan'}
+            </ActionBtn>
           )}
-        >
-          <Flag className="h-4 w-4" fill={candidate.isRedFlagged ? 'currentColor' : 'none'} />
-        </button>
-      )}
 
-      {canManage && (
-        <button
-          type="button"
-          title="Remove candidate"
-          onClick={() => remove.mutate(candidate.id)}
-          className="rounded-md p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-500"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
+          <ActionBtn
+            title={candidate.email ? `Email ${candidate.email}` : 'No email on file'}
+            onClick={() => onEmail(candidate)}
+            disabled={!candidate.email}
+          >
+            <Mail className="h-3.5 w-3.5" /> Email
+          </ActionBtn>
+
+          <ActionBtn title="Schedule / view interviews" onClick={() => onInterviews(candidate)}>
+            <CalendarClock className="h-3.5 w-3.5" /> Interviews
+          </ActionBtn>
+
+          {['interview', 'final', 'selected'].includes(candidate.stage) && (
+            <ActionBtn title="Salary fixation" onClick={() => onSalaryFixation(candidate)}>
+              <BadgeDollarSign className="h-3.5 w-3.5" /> Salary
+            </ActionBtn>
+          )}
+
+          {candidate.stage === 'selected' && (
+            <ActionBtn title="Documents, offer & onboarding" onClick={() => navigate(ROUTES.onboardingManage(candidate.id))} hoverColor="emerald">
+              <UserCheck className="h-3.5 w-3.5" /> Onboard
+            </ActionBtn>
+          )}
+
+          <ActionBtn
+            title={candidate.talentPool ? 'Remove from Talent Bank' : 'Add to Talent Bank'}
+            onClick={() => update.mutate({ id: candidate.id, input: { talentPool: !candidate.talentPool } })}
+            hoverColor="amber"
+            active={candidate.talentPool}
+          >
+            <Star className="h-3.5 w-3.5" fill={candidate.talentPool ? 'currentColor' : 'none'} />
+            {candidate.talentPool ? 'In Talent Bank' : 'Talent Bank'}
+          </ActionBtn>
+
+          <ActionBtn
+            title={candidate.isRedFlagged ? `Red-flagged: ${candidate.redFlagReason ?? ''}` : 'Mark as red flag'}
+            onClick={() => candidate.isRedFlagged ? unflag.mutate(candidate.id) : setFlagModalOpen(true)}
+            disabled={flag.isPending || unflag.isPending}
+            hoverColor="rose"
+            active={candidate.isRedFlagged}
+          >
+            <Flag className="h-3.5 w-3.5" fill={candidate.isRedFlagged ? 'currentColor' : 'none'} />
+            {candidate.isRedFlagged ? 'Flagged' : 'Red-flag'}
+          </ActionBtn>
+
+          <ActionBtn
+            title="Remove candidate"
+            onClick={() => {
+              if (window.confirm(`Remove ${candidate.name} from this pipeline?`)) {
+                remove.mutate(candidate.id);
+              }
+            }}
+            hoverColor="rose"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Remove
+          </ActionBtn>
+        </div>
       )}
 
       <input
@@ -484,18 +425,6 @@ export function CandidateRow({
         label={`Moving ${candidate.name} to ${STAGE_META[update.variables?.input?.stage ?? candidate.stage]?.label ?? ''}…`}
         sublabel="Shifting the CV to the matching Drive folder."
       />
-
-      {candidate.matchDetails && (
-        <MatchPopover
-          open={matchOpen}
-          anchor={matchAnchor}
-          onClose={() => setMatchOpen(false)}
-          candidateName={candidate.name}
-          matchScore={candidate.matchScore ?? 0}
-          matchSummary={candidate.matchSummary}
-          criteria={candidate.matchDetails}
-        />
-      )}
 
       {historyOpen && (
         <Suspense fallback={null}>
@@ -578,6 +507,207 @@ export function CandidateRow({
           </div>
         </div>
       )}
+
+      <MatchPopover
+        open={matchOpen}
+        anchor={matchAnchor}
+        onClose={() => setMatchOpen(false)}
+        candidateName={candidate.name}
+        matchScore={candidate.matchScore ?? 0}
+        matchSummary={candidate.matchSummary}
+        criteria={candidate.matchDetails ?? []}
+      />
     </div>
+  );
+}
+
+/** Small animated icon+label button shared by the always-visible action row. */
+function ActionBtn({
+  children,
+  title,
+  onClick,
+  disabled,
+  active,
+  hoverColor = 'brand',
+  as,
+  href,
+  target,
+  rel,
+}: {
+  children: React.ReactNode;
+  title: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  active?: boolean;
+  hoverColor?: 'brand' | 'violet' | 'amber' | 'rose' | 'emerald';
+  as?: 'a';
+  href?: string;
+  target?: string;
+  rel?: string;
+}) {
+  const hoverClass: Record<string, string> = {
+    brand: 'hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700',
+    violet: 'hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700',
+    amber: 'hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700',
+    rose: 'hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700',
+    emerald: 'hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700',
+  };
+  const activeClass: Record<string, string> = {
+    brand: 'border-brand-200 bg-brand-50 text-brand-700',
+    violet: 'border-violet-200 bg-violet-50 text-violet-700',
+    amber: 'border-amber-200 bg-amber-50 text-amber-700',
+    rose: 'border-rose-200 bg-rose-50 text-rose-700',
+    emerald: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  };
+  const cls = cn(
+    'inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600',
+    'transition-all duration-150 ease-out hover:-translate-y-px hover:shadow-sm active:translate-y-0 active:scale-95',
+    'disabled:pointer-events-none disabled:opacity-40',
+    active ? activeClass[hoverColor] : hoverClass[hoverColor],
+  );
+  if (as === 'a') {
+    return (
+      <a href={href} target={target} rel={rel} title={title} className={cls} onClick={(e) => e.stopPropagation()}>
+        {children}
+      </a>
+    );
+  }
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+      disabled={disabled}
+      className={cls}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Custom animated status dropdown — a colored pill trigger + a smoothly
+ * animated floating menu of stage dots, always visible (status is a scan
+ * signal, not a hidden action). */
+function StageMenu({
+  value,
+  canManage,
+  pending,
+  onChange,
+}: {
+  value: CandidateStage;
+  canManage: boolean;
+  pending: boolean;
+  onChange: (next: CandidateStage) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [style, setStyle] = useState<React.CSSProperties>({});
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const meta = STAGE_META[value];
+
+  useEffect(() => {
+    if (!open || !btnRef.current) {
+      setReady(false);
+      return;
+    }
+    const rect = btnRef.current.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const W = 190;
+    const GAP = 6;
+    const left = Math.min(Math.max(8, rect.right - W), vw - W - 8);
+    const spaceBelow = vh - rect.bottom - GAP;
+    const flip = spaceBelow < 280 && rect.top > spaceBelow;
+    const s: React.CSSProperties = { position: 'fixed', left, width: W, zIndex: 9999 };
+    if (flip) { s.bottom = vh - rect.top + GAP; s.top = 'auto'; }
+    else { s.top = rect.bottom + GAP; s.bottom = 'auto'; }
+    setStyle(s);
+    const t = setTimeout(() => setReady(true), 10);
+    return () => clearTimeout(t);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (menuRef.current?.contains(e.target as Node)) return;
+      if (btnRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [open]);
+
+  if (!canManage) {
+    return (
+      <span className={cn('inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium', meta.tone)}>
+        <span className={cn('h-1.5 w-1.5 rounded-full', meta.dot)} />
+        {meta.label}
+      </span>
+    );
+  }
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        disabled={pending}
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          'inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
+          'transition-all duration-150 ease-out hover:shadow-sm hover:brightness-95 active:scale-95 disabled:opacity-50',
+          meta.tone,
+        )}
+      >
+        <span className={cn('h-1.5 w-1.5 rounded-full', meta.dot)} />
+        {meta.label}
+        <ChevronDown className={cn('h-3 w-3 opacity-60 transition-transform duration-150', open && 'rotate-180')} />
+      </button>
+
+      {open &&
+        createPortal(
+          <div
+            ref={menuRef}
+            style={{
+              ...style,
+              opacity: ready ? 1 : 0,
+              transform: ready ? 'scale(1) translateY(0)' : 'scale(0.96) translateY(-4px)',
+              transition: 'opacity 0.14s cubic-bezier(0.16,1,0.3,1), transform 0.14s cubic-bezier(0.16,1,0.3,1)',
+            }}
+            className="overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 shadow-[0_12px_32px_-8px_rgba(0,0,0,0.18),0_2px_8px_-2px_rgba(0,0,0,0.06)]"
+          >
+            {STAGE_ORDER.map((s) => {
+              const m = STAGE_META[s];
+              const disabled = s === 'ai_shortlisted';
+              const isCurrent = s === value;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => { onChange(s); setOpen(false); }}
+                  className={cn(
+                    'flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-[13px] transition-colors',
+                    'hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40',
+                    isCurrent ? 'font-semibold text-slate-800' : 'text-slate-600',
+                  )}
+                >
+                  <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', m.dot)} />
+                  {m.label}
+                  {disabled && <span className="text-[10px] text-slate-400">(AI only)</span>}
+                  {isCurrent && <Check className="ml-auto h-3.5 w-3.5 shrink-0 text-brand-600" />}
+                </button>
+              );
+            })}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }

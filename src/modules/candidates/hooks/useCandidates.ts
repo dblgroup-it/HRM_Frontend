@@ -14,6 +14,7 @@ export const candidateKeys = {
   list: (reqId: string) => ['candidates', 'list', reqId] as const,
   workspace: (reqId: string) => ['candidates', 'workspace', reqId] as const,
   talentPool: ['candidates', 'talent-pool'] as const,
+  talentBankMatches: (reqId: string) => ['candidates', 'talent-bank-matches', reqId] as const,
 };
 
 function errMsg(error: unknown, fallback: string): string {
@@ -22,6 +23,14 @@ function errMsg(error: unknown, fallback: string): string {
     if (typeof m === 'string') return m;
   }
   return fallback;
+}
+
+function errStatus(error: unknown): number | undefined {
+  if (typeof error === 'object' && error !== null && 'status' in error) {
+    const s = (error as { status?: unknown }).status;
+    if (typeof s === 'number') return s;
+  }
+  return undefined;
 }
 
 export function useRecruitmentWorkspace(reqId: string, enabled = true) {
@@ -85,14 +94,62 @@ export function useTalentBankSearch() {
 
 export function useCopyToRequisition() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (vars: { id: string; requisitionId: string }) =>
-      candidatesApi.copyToRequisition(vars.id, vars.requisitionId),
-    onSuccess: () => {
+  const mutation = useMutation({
+    mutationFn: (vars: { id: string; requisitionId: string; force?: boolean }) =>
+      candidatesApi.copyToRequisition(vars.id, vars.requisitionId, vars.force),
+    onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['requisitions'] });
-      toast.success('Candidate added to the requisition pipeline');
+      qc.invalidateQueries({ queryKey: candidateKeys.list(vars.requisitionId) });
+      // Refetches with the fresh, server-truth pipelineStatus per match (so a
+      // row correctly flips to "Already added" without relying on local state).
+      qc.invalidateQueries({ queryKey: candidateKeys.talentBankMatches(vars.requisitionId) });
+      toast.success(
+        vars.force
+          ? 'Candidate added again to the requisition pipeline'
+          : 'Candidate added to the requisition pipeline',
+      );
     },
-    onError: (error) => toast.error(errMsg(error, 'Could not add candidate to requisition')),
+    onError: (error, vars) => {
+      const message = errMsg(error, 'Could not add candidate to requisition');
+      // A duplicate-email conflict is a soft guard — let HR override it with
+      // one click instead of hard-blocking (the "already joined" rule stays
+      // a hard block, that one's never offered a retry). Guard against the
+      // toast's action being clicked more than once while the retry is in flight.
+      if (errStatus(error) === 409 && !vars.force) {
+        toast.error(message, {
+          action: {
+            label: 'Add anyway',
+            onClick: () => {
+              if (!mutation.isPending) mutation.mutate({ ...vars, force: true });
+            },
+          },
+        });
+        return;
+      }
+      toast.error(message);
+    },
+  });
+  return mutation;
+}
+
+/** AI-matched Talent Bank suggestions for one requisition ("Talent Bank Matches" tab). */
+export function useTalentBankMatches(reqId: string, enabled = true) {
+  return useQuery({
+    queryKey: candidateKeys.talentBankMatches(reqId),
+    queryFn: () => candidatesApi.talentBankMatches(reqId),
+    enabled: Boolean(reqId) && enabled,
+  });
+}
+
+export function useSyncTalentBankMatches(reqId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => candidatesApi.syncTalentBankMatches(reqId),
+    onSuccess: (matches) => {
+      qc.setQueryData(candidateKeys.talentBankMatches(reqId), matches);
+      toast.success('Talent Bank matches refreshed');
+    },
+    onError: (error) => toast.error(errMsg(error, 'Could not refresh Talent Bank matches')),
   });
 }
 
@@ -132,6 +189,9 @@ function invalidatePipeline(
 ) {
   qc.invalidateQueries({ queryKey: candidateKeys.list(reqId) });
   qc.invalidateQueries({ queryKey: candidateKeys.talentPool });
+  // A candidate leaving/re-entering this pipeline changes the Talent Bank
+  // Matches modal's per-match pipelineStatus (in_pipeline/removed/not_added).
+  qc.invalidateQueries({ queryKey: candidateKeys.talentBankMatches(reqId) });
   qc.invalidateQueries({ queryKey: ['requisitions'] });
 }
 

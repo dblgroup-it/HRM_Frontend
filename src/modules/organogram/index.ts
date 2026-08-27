@@ -2,6 +2,7 @@ export {
   useOrganogramUnits,
   useOrgStructure,
   useSeatLookup,
+  useGradeValues,
   organogramKeys,
 } from './hooks/useOrganogram';
 export { organogramApi } from './api/organogram.api';

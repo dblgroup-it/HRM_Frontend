@@ -15,7 +15,7 @@ function liveConfig(
   pipeline?: PipelineProgress,
 ): { label: string; tone: BadgeTone } {
   if (status !== 'posted' || !pipeline) return STATUS_CONFIG[status];
-  if (pipeline.onboarded) return { label: 'Onboarded', tone: 'success' };
+  if (pipeline.onboarded) return { label: 'Completed', tone: 'success' };
   if (pipeline.inOnboarding) return { label: 'Onboarding', tone: 'brand' };
   if (pipeline.inAssessment) return { label: 'Assessment', tone: 'info' };
   if (pipeline.hasCandidates) return { label: 'Recruiting', tone: 'success' };

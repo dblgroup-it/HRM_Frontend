@@ -52,19 +52,21 @@ export default function RequisitionCreatePage() {
     <div className="space-y-6">
       <Link
         to={ROUTES.requisitions}
-        className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-600"
+        className="inline-flex w-fit items-center gap-1.5 text-sm text-slate-500 transition-colors hover:text-brand-600"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to requisitions
       </Link>
 
-      <PageHeader
-        title="New Manpower Requisition"
-        description="Step 1 · Capture the role, authority and facilities before HR approval."
-      />
+      <div className="animate-rise-in">
+        <PageHeader
+          title="New Manpower Requisition"
+          description="Step 1 · Capture the role, authority and facilities before HR approval."
+        />
+      </div>
 
       {create.isError && (
-        <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+        <p className="animate-fade-in rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
           {(create.error as Error).message}
         </p>
       )}

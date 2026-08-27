@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   CalendarClock,
+  Check,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -12,6 +13,7 @@ import {
   Link2,
   Plus,
   RefreshCw,
+  RotateCcw,
   Scale,
   Search,
   ShieldCheck,
@@ -23,6 +25,7 @@ import {
 import { toast } from 'sonner';
 
 import {
+  Avatar,
   BusyOverlay,
   Button,
   Card,
@@ -30,32 +33,34 @@ import {
   CardHeader,
   CardTitle,
   Input,
+  Modal,
   Spinner,
 } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import type { Requisition } from '@modules/requisition/types/requisition.types';
-import {
-  BulkInterviewModal,
-  CandidateExamsModal,
-  CandidateInterviewsModal,
-} from '@modules/assessment';
+import { BulkInterviewModal, CandidateInterviewsModal } from '@modules/assessment';
+import { SalaryFixationModal } from '@modules/salaryFixation';
 
 import {
   useBulkReject,
   useCandidates,
   useCompareFinalists,
+  useCopyToRequisition,
   useExportCandidates,
   useRecruitmentWorkspace,
   useScreenAll,
   useScreeningStatus,
   useSetupWorkspace,
   useSyncDrive,
+  useSyncTalentBankMatches,
+  useTalentBankMatches,
 } from '../hooks/useCandidates';
 import type {
   Candidate,
   CandidateFilters,
   CandidateStage,
   FinalistComparison,
+  TalentBankMatchCandidate,
 } from '../types/candidate.types';
 import { CandidateRow } from './CandidateRow';
 import { AddCandidateModal } from './AddCandidateModal';
@@ -89,11 +94,9 @@ const PAGE_SIZE = 50;
 export function CandidatesPanel({
   requisition,
   canManage,
-  onGoToAssessment,
 }: {
   requisition: Requisition;
   canManage: boolean;
-  onGoToAssessment?: () => void;
 }) {
   const reqId = requisition.id;
   const { data: workspace } = useRecruitmentWorkspace(reqId);
@@ -141,6 +144,16 @@ export function CandidatesPanel({
   const meta = candidatePage?.meta;
   const stats = candidatePage?.stats;
 
+  // "Talent Bank Matches" — only meaningful once the role is settled (approved/posted).
+  const showTalentBankTab = requisition.status === 'approved' || requisition.status === 'posted';
+  const { data: talentMatches, isLoading: talentMatchesLoading } = useTalentBankMatches(
+    reqId,
+    showTalentBankTab,
+  );
+  const rescanTalentBank = useSyncTalentBankMatches(reqId);
+  const copyToRequisition = useCopyToRequisition();
+  const [talentBankModalOpen, setTalentBankModalOpen] = useState(false);
+
   // Screening progress (poll every 2s when active)
   const [screeningActive, setScreeningActive] = useState(false);
   const { data: screeningStatus } = useScreeningStatus(reqId, screeningActive);
@@ -170,7 +183,7 @@ export function CandidatesPanel({
   const [addOpen, setAddOpen] = useState(false);
   const [emailTarget, setEmailTarget] = useState<Candidate | null>(null);
   const [interviewTarget, setInterviewTarget] = useState<Candidate | null>(null);
-  const [examTarget, setExamTarget] = useState<Candidate | null>(null);
+  const [salaryTarget, setSalaryTarget] = useState<Candidate | null>(null);
 
   // Selected candidates tracked as Map<id, {id,name}> so names survive page changes
   const [selectedCandidates, setSelectedCandidates] = useState<Map<string, { id: string; name: string }>>(new Map());
@@ -228,6 +241,17 @@ export function CandidatesPanel({
         </CardTitle>
         {canManage && drive && (
           <div className="flex items-center gap-2">
+            {showTalentBankTab && (talentMatches?.length ?? 0) > 0 && (
+              <Button
+                size="sm"
+                onClick={() => setTalentBankModalOpen(true)}
+                title="Candidates AI-matched from the Talent Bank for this role"
+                className="animate-gradient-pan bg-[length:200%_200%] bg-gradient-to-r from-brand-600 via-violet-600 to-brand-600 text-white shadow-sm shadow-violet-500/30 hover:brightness-110"
+                leftIcon={<Sparkles className="h-4 w-4 animate-spin-slow" />}
+              >
+                Talent Bank ({talentMatches?.length})
+              </Button>
+            )}
             {aiOn && finalistCount >= 2 && (
               <Button
                 size="sm"
@@ -402,11 +426,6 @@ export function CandidatesPanel({
           <ScreeningProgressBar status={screeningStatus} />
         )}
 
-        {/* AI match score distribution */}
-        {stats && (stats.total - stats.unscreened) > 0 && (
-          <ScoreDistributionBar stats={stats} />
-        )}
-
         {/* Pipeline funnel */}
         {drive && (stats?.total ?? 0) > 0 && (
           <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
@@ -452,15 +471,38 @@ export function CandidatesPanel({
         {/* Tabs + search + sort */}
         {drive && (
           <>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex flex-wrap gap-1">
+            <div className="space-y-2.5">
+              {/* Search + sort — its own row, always full width. */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="min-w-[160px] flex-1">
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search candidates…"
+                    leftIcon={<Search className="h-4 w-4" />}
+                  />
+                </div>
+                <select
+                  value={sort}
+                  onChange={(e) => { setSort(e.target.value as 'recent' | 'match' | 'name'); setPage(1); }}
+                  className="h-10 shrink-0 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-600 focus:ring-2 focus:ring-brand-500/30"
+                >
+                  <option value="match">Best AI match</option>
+                  <option value="recent">Newest</option>
+                  <option value="name">Name (A–Z)</option>
+                </select>
+              </div>
+
+              {/* Tab strip — scrolls horizontally instead of wrapping, so it never
+                  pushes anything else out of place on narrow screens. */}
+              <div className="scrollbar-thin -mx-1 flex flex-nowrap items-center gap-1.5 overflow-x-auto px-1 pb-0.5">
                 {TABS.map((t) => (
                   <button
                     key={t.key}
                     type="button"
                     onClick={() => { setTab(t.key); setPage(1); }}
                     className={cn(
-                      'rounded-full px-3 py-1 text-xs font-medium transition',
+                      'shrink-0 rounded-full px-3 py-1 text-xs font-medium transition',
                       tab === t.key
                         ? 'bg-brand-600 text-white'
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
@@ -477,25 +519,6 @@ export function CandidatesPanel({
                     </span>
                   </button>
                 ))}
-              </div>
-              <div className="ml-auto flex items-center gap-2">
-                <select
-                  value={sort}
-                  onChange={(e) => { setSort(e.target.value as 'recent' | 'match' | 'name'); setPage(1); }}
-                  className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-600 focus:ring-2 focus:ring-brand-500/30"
-                >
-                  <option value="match">Best AI match</option>
-                  <option value="recent">Newest</option>
-                  <option value="name">Name (A–Z)</option>
-                </select>
-                <div className="w-full sm:w-52">
-                  <Input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search candidates…"
-                    leftIcon={<Search className="h-4 w-4" />}
-                  />
-                </div>
               </div>
             </div>
 
@@ -674,7 +697,7 @@ export function CandidatesPanel({
                         }}
                         onEmail={setEmailTarget}
                         onInterviews={setInterviewTarget}
-                        onExams={setExamTarget}
+                        onSalaryFixation={setSalaryTarget}
                       />
                     ))}
                   </div>
@@ -711,11 +734,39 @@ export function CandidatesPanel({
                 </>
               )}
             </div>
-          </>
-        )}
+            </>
+            )}
       </CardBody>
 
       {/* Modals */}
+      <Modal
+        open={talentBankModalOpen}
+        onClose={() => setTalentBankModalOpen(false)}
+        title="Talent Bank Matches"
+        size="lg"
+        footer={
+          <Button
+            size="sm"
+            variant="outline"
+            leftIcon={<RefreshCw className={cn('h-3.5 w-3.5', rescanTalentBank.isPending && 'animate-spin')} />}
+            onClick={() => rescanTalentBank.mutate()}
+            disabled={rescanTalentBank.isPending}
+          >
+            {rescanTalentBank.isPending ? 'Scanning…' : 'Rescan'}
+          </Button>
+        }
+      >
+        <div className="max-h-[min(26rem,55vh)] overflow-y-auto">
+          <TalentBankMatchesSection
+            matches={talentMatches}
+            isLoading={talentMatchesLoading}
+            canManage={canManage}
+            onAdd={(candidateId) => copyToRequisition.mutate({ id: candidateId, requisitionId: reqId })}
+            addPendingId={copyToRequisition.isPending ? copyToRequisition.variables?.id : undefined}
+          />
+        </div>
+      </Modal>
+
       <AddCandidateModal reqId={reqId} open={addOpen} onClose={() => setAddOpen(false)} />
       <EmailCandidateModal
         reqId={reqId}
@@ -730,14 +781,14 @@ export function CandidatesPanel({
           candidate={{ id: interviewTarget.id, name: interviewTarget.name }}
           open={Boolean(interviewTarget)}
           onClose={() => setInterviewTarget(null)}
-          onGoToSetup={onGoToAssessment}
         />
       )}
-      {examTarget && (
-        <CandidateExamsModal
-          candidate={{ id: examTarget.id, name: examTarget.name }}
-          open={Boolean(examTarget)}
-          onClose={() => setExamTarget(null)}
+      {salaryTarget && (
+        <SalaryFixationModal
+          reqId={reqId}
+          candidate={{ id: salaryTarget.id, name: salaryTarget.name }}
+          open={Boolean(salaryTarget)}
+          onClose={() => setSalaryTarget(null)}
         />
       )}
 
@@ -782,6 +833,133 @@ export function CandidatesPanel({
 
 // --- Sub-components -------------------------------------------------------
 
+function TalentBankMatchesSection({
+  matches,
+  isLoading,
+  canManage,
+  onAdd,
+  addPendingId,
+}: {
+  matches: TalentBankMatchCandidate[] | undefined;
+  isLoading: boolean;
+  canManage: boolean;
+  onAdd: (candidateId: string) => void;
+  addPendingId: string | undefined;
+}) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-slate-200">
+      {isLoading ? (
+        <div className="flex justify-center py-10">
+          <Spinner />
+        </div>
+      ) : !matches || matches.length === 0 ? (
+        <p className="px-4 py-10 text-center text-sm text-slate-400">
+          No Talent Bank matches yet. The AI rescans automatically as the
+          requisition and Talent Bank change — check back soon, or use
+          Rescan above.
+        </p>
+      ) : (
+        <div className="divide-y divide-slate-100">
+          {matches.map((m) => (
+            <TalentBankMatchRow
+              key={m.id}
+              match={m}
+              canManage={canManage}
+              onAdd={() => onAdd(m.id)}
+              adding={addPendingId === m.id}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TalentBankMatchRow({
+  match,
+  canManage,
+  onAdd,
+  adding,
+}: {
+  match: TalentBankMatchCandidate;
+  canManage: boolean;
+  onAdd: () => void;
+  adding: boolean;
+}) {
+  const alreadyIn = match.pipelineStatus === 'in_pipeline';
+  const wasRemoved = match.pipelineStatus === 'removed';
+  const tone =
+    match.relevance >= 75
+      ? 'bg-emerald-100 text-emerald-700'
+      : match.relevance >= 50
+        ? 'bg-sky-100 text-sky-700'
+        : 'bg-amber-100 text-amber-700';
+  return (
+    <div className="flex flex-wrap items-start gap-3 px-4 py-3">
+      <Avatar name={match.name} size="sm" />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="truncate text-sm font-medium text-slate-800">{match.name}</p>
+          <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', tone)}>
+            {match.relevance}% match
+          </span>
+          <span className="truncate text-[11px] text-slate-400">
+            from {match.requisition.code} · {match.requisition.designation}
+          </span>
+        </div>
+        <p className="mt-0.5 truncate text-xs text-slate-400">
+          {[match.email, match.phone].filter(Boolean).join(' · ') || 'No contact details'}
+        </p>
+        {match.reason && (
+          <p className="mt-1 text-xs text-slate-500">
+            <Sparkles className="mr-1 inline h-3 w-3 align-[-1px] text-violet-500" />
+            {match.reason}
+          </p>
+        )}
+        {wasRemoved && (
+          <p className="mt-1 text-[11px] text-amber-600">
+            Previously added, then removed from this pipeline.
+          </p>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-1.5">
+        {match.cvUrl && (
+          <a
+            href={match.cvUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-brand-600"
+            title="View CV"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        )}
+        {canManage && (
+          <Button
+            size="sm"
+            variant="outline"
+            isLoading={adding}
+            disabled={alreadyIn}
+            leftIcon={
+              alreadyIn ? (
+                <Check className="h-3.5 w-3.5 text-emerald-600" />
+              ) : wasRemoved ? (
+                <RotateCcw className="h-3.5 w-3.5" />
+              ) : (
+                <Plus className="h-3.5 w-3.5" />
+              )
+            }
+            onClick={onAdd}
+            className={alreadyIn ? 'border-emerald-200 text-emerald-700' : undefined}
+          >
+            {alreadyIn ? 'Already added' : wasRemoved ? 'Add again' : 'Add to pipeline'}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ScreeningProgressBar({ status }: { status: { done: number; total: number; shortlisted: number; active: boolean } }) {
   const pct = status.total > 0 ? Math.round((status.done / status.total) * 100) : 0;
   return (
@@ -804,76 +982,6 @@ function ScreeningProgressBar({ status }: { status: { done: number; total: numbe
       <p className="mt-1.5 text-[11px] text-violet-400">
         Reading each CV and matching to the role — you can keep working while this runs.
       </p>
-    </div>
-  );
-}
-
-const SCORE_BANDS = [
-  { label: 'Excellent', range: '90%+',   key: 'band90'  as const, bar: 'bg-emerald-500', dot: 'bg-emerald-500', text: 'text-emerald-700' },
-  { label: 'Good',      range: '75–89%', key: 'band75'  as const, bar: 'bg-sky-500',     dot: 'bg-sky-500',     text: 'text-sky-700' },
-  { label: 'Fair',      range: '50–74%', key: 'band50'  as const, bar: 'bg-amber-400',   dot: 'bg-amber-400',   text: 'text-amber-600' },
-  { label: 'Weak',      range: '25–49%', key: 'band25'  as const, bar: 'bg-orange-400',  dot: 'bg-orange-400',  text: 'text-orange-600' },
-  { label: 'Poor',      range: '<25%',   key: 'below25' as const, bar: 'bg-rose-400',    dot: 'bg-rose-400',    text: 'text-rose-600' },
-];
-
-function ScoreDistributionBar({
-  stats,
-}: {
-  stats: { total: number; band90: number; band75: number; band50: number; band25: number; unscreened: number };
-}) {
-  const screened = stats.total - stats.unscreened;
-  if (screened === 0) return null;
-
-  const below25 = Math.max(0, screened - stats.band90 - stats.band75 - stats.band50 - stats.band25);
-  const counts: Record<string, number> = {
-    band90: stats.band90, band75: stats.band75, band50: stats.band50, band25: stats.band25, below25,
-  };
-
-  const activeBands = SCORE_BANDS.filter((b) => (counts[b.key] ?? 0) > 0);
-
-  return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-3">
-      {/* Title + counts summary */}
-      <span className="shrink-0 text-xs font-semibold text-slate-500">AI Match</span>
-
-      {/* Stacked bar */}
-      <div className="flex h-2.5 min-w-[120px] flex-1 overflow-hidden rounded-full bg-slate-100">
-        {activeBands.map((b) => {
-          const pct = Math.round(((counts[b.key] ?? 0) / screened) * 100);
-          return (
-            <div
-              key={b.key}
-              className={cn('h-full transition-all duration-700', b.bar)}
-              style={{ width: `${pct}%` }}
-              title={`${b.label} (${b.range}): ${(counts[b.key] ?? 0).toLocaleString()}`}
-            />
-          );
-        })}
-      </div>
-
-      {/* Legend pills */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        {activeBands.map((b) => {
-          const count = counts[b.key] ?? 0;
-          const pct = Math.round((count / screened) * 100);
-          return (
-            <span key={b.key} className="flex items-center gap-1 text-[11px]" title={b.range}>
-              <span className={cn('h-2 w-2 shrink-0 rounded-full', b.dot)} />
-              <span className={cn('font-bold tabular-nums', b.text)}>{count.toLocaleString()}</span>
-              <span className="text-slate-400">{b.label}</span>
-              <span className="text-slate-300">·</span>
-              <span className="text-slate-400">{pct}%</span>
-            </span>
-          );
-        })}
-        {stats.unscreened > 0 && (
-          <span className="flex items-center gap-1 text-[11px]">
-            <span className="h-2 w-2 shrink-0 rounded-full bg-slate-300" />
-            <span className="font-bold tabular-nums text-slate-400">{stats.unscreened.toLocaleString()}</span>
-            <span className="text-slate-400">pending</span>
-          </span>
-        )}
-      </div>
     </div>
   );
 }

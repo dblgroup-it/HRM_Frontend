@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
 import {
-  AlertTriangle,
   Bell,
   Building2,
   CalendarCheck,
@@ -17,7 +15,6 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
-  SendHorizonal,
   Sparkles,
   Trash2,
   Video,
@@ -45,13 +42,11 @@ import {
   useRemoveInterview,
   useResendEvalToken,
   useScheduleInterview,
-  useSendInterviewQuestions,
   useUpdateInterview,
 } from '../hooks/useAssessment';
 import type {
   InterviewKindKey,
   InterviewModeKey,
-  InterviewQuestion,
   InterviewRoundView,
 } from '../types/assessment.types';
 
@@ -85,16 +80,12 @@ export function CandidateInterviewsModal({
   candidate,
   open,
   onClose,
-  onGoToSetup: goToSetupProp,
 }: {
   reqId: string;
   candidate: { id: string; name: string };
   open: boolean;
   onClose: () => void;
-  onGoToSetup?: () => void;
 }) {
-  const navigate = useNavigate();
-
   /* ── Animation state machine ─────────────────────────────── */
   // `mounted` keeps the portal in the DOM during exit animation.
   // `show` drives the CSS transform (false = off-screen, true = on-screen).
@@ -116,11 +107,6 @@ export function CandidateInterviewsModal({
       return () => clearTimeout(t);
     }
   }, [open]);
-
-  /* ── Helpers ─────────────────────────────────────────────── */
-  const goToSetup = goToSetupProp
-    ? () => { onClose(); goToSetupProp(); }
-    : () => { onClose(); navigate(`/requisitions/${reqId}?tab=assessment`); };
 
   /* ── Data ────────────────────────────────────────────────── */
   const { data: setup } = useAssessmentSetup(reqId, open);
@@ -147,15 +133,6 @@ export function CandidateInterviewsModal({
     if (!open) { kindAutoSetRef.current = false; setKind('first'); setSummaryText(null); }
   }, [open]);
 
-  // Auto-generate summary when modal opens if the setting is on
-  useEffect(() => {
-    if (open && setup?.autoEvalSummary && hasEvaluations && !summaryText && !evalSummary.isPending) {
-      evalSummary.mutate(candidate.id, {
-        onSuccess: (data) => setSummaryText(data.summary),
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, setup?.autoEvalSummary, hasEvaluations]);
   useEffect(() => {
     if (open && !kindAutoSetRef.current && rounds.length > 0) {
       setKind(suggestNextKind(rounds));
@@ -294,38 +271,9 @@ export function CandidateInterviewsModal({
                     key={r.id}
                     round={r}
                     candidateId={candidate.id}
-                    rubric={setup?.rubric ?? []}
-                    questions={setup?.interviewQuestions ?? []}
                     onRemove={() => remove.mutate(r.id)}
                   />
                 ))
-              )}
-
-              {/* Inline alerts */}
-              {setup && setup.rubric.length === 0 && (
-                <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-                  <p className="text-xs text-amber-800">
-                    <span className="font-semibold">No scoring rubric.</span>{' '}
-                    Panelists can't score.{' '}
-                    <button type="button" onClick={goToSetup}
-                      className="font-semibold underline underline-offset-2 hover:text-amber-900">
-                      Set up →
-                    </button>
-                  </p>
-                </div>
-              )}
-              {setup && setup.interviewQuestions.length === 0 && (
-                <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
-                  <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                  <p className="text-xs text-emerald-800">
-                    <span className="font-semibold">Tip:</span> Generate AI interview questions.{' '}
-                    <button type="button" onClick={goToSetup}
-                      className="font-semibold underline underline-offset-2 hover:text-emerald-900">
-                      Generate →
-                    </button>
-                  </p>
-                </div>
               )}
 
               {/* AI Evaluation Summary */}
@@ -674,25 +622,20 @@ const STATUS_TONE = {
 function RoundRow({
   round,
   candidateId,
-  rubric,
-  questions,
   onRemove,
 }: {
   round: InterviewRoundView;
   candidateId: string;
-  rubric: { id: string; label: string; maxScore: number }[];
-  questions: InterviewQuestion[];
   onRemove: () => void;
 }) {
   const update = useUpdateInterview(candidateId);
-  const sendQ = useSendInterviewQuestions(candidateId);
   const resendToken = useResendEvalToken(candidateId);
-  const maxTotal = rubric.reduce((s, c) => s + c.maxScore, 0);
+  const maxTotal = round.criteria.reduce((s, c) => s + c.max, 0);
   const avg =
     round.evaluations.length > 0
       ? Math.round(
-          round.evaluations.reduce((s, e) => s + e.total, 0) / round.evaluations.length,
-        )
+          (round.evaluations.reduce((s, e) => s + e.total, 0) / round.evaluations.length) * 10,
+        ) / 10
       : 0;
 
   return (
@@ -718,25 +661,6 @@ function RoundRow({
               <CheckCircle2 className="h-3.5 w-3.5" />
               Mark as complete
             </button>
-          )}
-          {questions.length > 0 && (
-            round.questionsSentAt ? (
-              <span
-                title={`Questions sent ${formatDate(round.questionsSentAt)}`}
-                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-emerald-700 bg-emerald-50"
-              >
-                <SendHorizonal className="h-3 w-3" />
-                Questions sent
-              </span>
-            ) : (
-              <button type="button" title="Send interview questions to all panelists"
-                onClick={() => sendQ.mutate(round.id)}
-                disabled={sendQ.isPending}
-                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-brand-700 transition hover:bg-brand-50 disabled:opacity-50">
-                <SendHorizonal className="h-3.5 w-3.5" />
-                Send questions
-              </button>
-            )
           )}
           <button type="button" title="Remove" onClick={onRemove}
             className="rounded p-1 text-slate-300 transition hover:bg-rose-50 hover:text-rose-500">
@@ -849,7 +773,7 @@ function RoundRow({
               <div key={ev.evaluatorId} className="flex items-center justify-between">
                 <span className="truncate font-medium text-slate-600">{ev.evaluatorName}</span>
                 <span className="ml-2 shrink-0 font-semibold text-slate-700">
-                  {ev.total}
+                  {ev.total.toFixed(1)}
                   {maxTotal > 0 && <span className="text-slate-400"> / {maxTotal}</span>}
                 </span>
               </div>
@@ -860,7 +784,7 @@ function RoundRow({
               Avg ({round.evaluations.length}/{round.panelists.length} marked)
             </span>
             <span className="font-semibold text-brand-700">
-              {avg}
+              {avg.toFixed(1)}
               {maxTotal > 0 && <span className="text-slate-400"> / {maxTotal}</span>}
             </span>
           </div>

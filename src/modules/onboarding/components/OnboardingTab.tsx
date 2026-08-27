@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { UserCheck, Users } from 'lucide-react';
+import { Check, UserCheck, Users } from 'lucide-react';
 
 import {
   Avatar,
@@ -68,6 +68,11 @@ export function OnboardingTab({
                       'No contact details'}
                   </p>
                 </div>
+                {c.onboardingStatus === 'onboarded' && (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white shadow-sm shadow-emerald-600/25">
+                    <Check className="h-3 w-3" strokeWidth={3} /> Completed
+                  </span>
+                )}
                 <Link to={ROUTES.onboardingManage(c.id)}>
                   <Button
                     size="sm"

@@ -7,6 +7,8 @@ export interface ConfigPosition {
   designation: string;
   section: string | null;
   category: SeatCategory;
+  /** Job grade for this seat (e.g. "M4", "SM1") — matches ZingHR's grade scheme. */
+  grade: string | null;
   sanctioned: number;
   filled: number;
 }
@@ -34,6 +36,7 @@ export interface UpsertPositionInput {
   designation: string;
   section?: string;
   category?: SeatCategory;
+  grade?: string;
   sanctioned: number;
   filled?: number;
 }

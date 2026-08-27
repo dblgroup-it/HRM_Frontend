@@ -16,6 +16,15 @@ export function useOrganogramUnits() {
   });
 }
 
+/** Distinct grade values already in use — suggestions for the grade input. */
+export function useGradeValues() {
+  return useQuery({
+    queryKey: ['organogram', 'grade-values'] as const,
+    queryFn: () => organogramApi.gradeValues(),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 /** Dept → Section → Designation tree for a unit (requisition form dropdowns). */
 export function useOrgStructure(unit: string) {
   return useQuery({

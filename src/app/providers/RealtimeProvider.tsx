@@ -140,6 +140,24 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
             queryKey: candidateKeys.list(k.slice(5)),
             refetchType: 'active',
           });
+        } else if (k === 'cand-detail') {
+          // Per-candidate detail views (salary fixation, AI proficiency test
+          // status) aren't keyed by requisition id, so a candidate:changed
+          // broadcast can't target them precisely — invalidate broadly
+          // instead. Cheap: only ever a handful of these queries are mounted
+          // at once (whatever modal happens to be open).
+          void queryClient.invalidateQueries({
+            queryKey: ['salary-fixation'],
+            refetchType: 'active',
+          });
+          void queryClient.invalidateQueries({
+            queryKey: ['ai-proficiency-status'],
+            refetchType: 'active',
+          });
+          void queryClient.invalidateQueries({
+            queryKey: ['facility-provisioning'],
+            refetchType: 'active',
+          });
         }
       }
     };
@@ -189,7 +207,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
 
     // Candidate pipeline changed (payload.id is the requisition id).
     socket.on('candidate:changed', (payload?: { id?: string }) => {
-      schedule(payload?.id ? `cand:${payload.id}` : 'cand:all', 'req');
+      schedule(payload?.id ? `cand:${payload.id}` : 'cand:all', 'req', 'cand-detail');
     });
 
     return () => {

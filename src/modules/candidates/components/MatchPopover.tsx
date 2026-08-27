@@ -135,7 +135,7 @@ export function MatchPopover({ open, anchor, onClose, candidateName, matchScore,
             </span>
             <p className="mt-1 truncate text-[14px] font-bold text-slate-900">{candidateName}</p>
             {matchSummary && (
-              <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500 line-clamp-2">{matchSummary}</p>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">{matchSummary}</p>
             )}
           </div>
 

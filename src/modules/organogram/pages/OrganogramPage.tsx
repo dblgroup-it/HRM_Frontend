@@ -198,6 +198,7 @@ export default function OrganogramPage() {
                       key={seat.id}
                       designation={seat.designation}
                       category={seat.category}
+                      grade={seat.grade}
                       filled={seat.filled}
                       sanctioned={seat.sanctioned}
                     />
@@ -266,7 +267,19 @@ function SummaryCell({ label, value, accent }: { label: string; value: number; a
   );
 }
 
-function SeatRow({ designation, category, filled, sanctioned }: { designation: string; category: string; filled: number; sanctioned: number }) {
+function SeatRow({
+  designation,
+  category,
+  grade,
+  filled,
+  sanctioned,
+}: {
+  designation: string;
+  category: string;
+  grade: string | null;
+  filled: number;
+  sanctioned: number;
+}) {
   const vacant = sanctioned - filled;
   return (
     <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5">
@@ -276,6 +289,7 @@ function SeatRow({ designation, category, filled, sanctioned }: { designation: s
           <p className="text-xs capitalize text-slate-400">{category}</p>
         </div>
         <div className="flex items-center gap-2.5">
+          {grade && <Badge tone="brand">{grade}</Badge>}
           <span className="text-sm font-medium text-slate-500">{filled}/{sanctioned}</span>
           {vacant > 0 ? <Badge tone="warning">{vacant} vacant</Badge> : <Badge tone="success">Full</Badge>}
         </div>

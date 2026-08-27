@@ -1,17 +1,20 @@
 import { useState } from 'react';
-import { CheckCircle2, Clock, MapPin, Stethoscope, XCircle } from 'lucide-react';
-
 import {
-  Avatar,
-  Button,
-  EmptyState,
-  PageHeader,
-  Spinner,
-  Textarea,
-} from '@shared/components/ui';
+  Building2,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  ClipboardList,
+  Mail,
+  MapPin,
+  Stethoscope,
+} from 'lucide-react';
+
+import { Avatar, Button, EmptyState, PageHeader, Spinner } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 
-import { useMedicalQueue, useSetMedical } from '../hooks/useOnboarding';
+import { MedicalExamForm } from '../components/MedicalExamForm';
+import { useMedicalQueue } from '../hooks/useOnboarding';
 import type { MedicalQueueItem } from '../types/onboarding.types';
 
 function daysWaiting(createdAt: string) {
@@ -23,6 +26,7 @@ function daysWaiting(createdAt: string) {
 
 export default function MedicalQueuePage() {
   const { data: queue = [], isLoading, isError } = useMedicalQueue();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
     <div className="space-y-6">
@@ -59,7 +63,18 @@ export default function MedicalQueuePage() {
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {queue.map((item) => (
-              <MedicalCard key={item.id} item={item} />
+              <div
+                key={item.id}
+                className={cn(expandedId === item.id && 'sm:col-span-2 xl:col-span-3')}
+              >
+                <MedicalCard
+                  item={item}
+                  expanded={expandedId === item.id}
+                  onToggleExpand={() =>
+                    setExpandedId((cur) => (cur === item.id ? null : item.id))
+                  }
+                />
+              </div>
             ))}
           </div>
         </>
@@ -68,129 +83,98 @@ export default function MedicalQueuePage() {
   );
 }
 
-function MedicalCard({ item }: { item: MedicalQueueItem }) {
-  const setMedical = useSetMedical();
-  const [note, setNote]       = useState('');
-  const [action, setAction] = useState<'clear' | 'reject' | null>(null);
-
+function MedicalCard({
+  item,
+  expanded,
+  onToggleExpand,
+}: {
+  item: MedicalQueueItem;
+  expanded: boolean;
+  onToggleExpand: () => void;
+}) {
   const waiting = daysWaiting(item.createdAt ?? new Date().toISOString());
-
-  const confirm = (a: 'clear' | 'reject') => setAction(a);
-
-  const submit = () => {
-    if (!action) return;
-    setMedical.mutate({
-      onboardingId: item.id,
-      status: action === 'clear' ? 'cleared' : 'rejected',
-      note: note || undefined,
-    });
-  };
+  const urgent = waiting === 'Today';
 
   return (
-    <div className="flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-
-      {/* Waiting indicator strip */}
-      <div className={cn(
-        'flex items-center gap-1.5 px-4 py-1.5 text-[11px] font-semibold',
-        waiting === 'Today'
-          ? 'bg-brand-50 text-brand-700'
-          : 'bg-amber-50 text-amber-700',
-      )}>
-        <Clock className="h-3 w-3" />
-        Waiting {waiting}
+    <div
+      className={cn(
+        'flex flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition-shadow hover:shadow-card-hover',
+        urgent ? 'border-brand-100' : 'border-amber-100',
+      )}
+    >
+      {/* Header band */}
+      <div
+        className={cn(
+          'relative px-4 pb-5 pt-4',
+          urgent
+            ? 'bg-gradient-to-br from-brand-50 via-brand-50/60 to-white'
+            : 'bg-gradient-to-br from-amber-50 via-amber-50/60 to-white',
+        )}
+      >
+        <span
+          className={cn(
+            'absolute right-4 top-4 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold text-white shadow-sm',
+            urgent ? 'bg-brand-600' : 'bg-amber-500',
+          )}
+        >
+          <Clock className="h-3 w-3" />
+          {waiting}
+        </span>
+        <Avatar
+          name={item.candidate.name}
+          size="lg"
+          className={cn(
+            'ring-4 ring-white text-white shadow',
+            urgent ? 'bg-brand-600' : 'bg-amber-500',
+          )}
+        />
+        <p className="mt-3 truncate text-base font-bold text-slate-900">
+          {item.candidate.name}
+        </p>
+        <p className="truncate text-sm text-slate-500">{item.candidate.designation}</p>
       </div>
 
-      {/* Candidate info */}
-      <div className="flex items-start gap-3 px-4 py-4">
-        <Avatar name={item.candidate.name} size="lg" />
-        <div className="min-w-0 flex-1">
-          <p className="font-semibold text-slate-900 truncate">{item.candidate.name}</p>
-          <p className="text-sm text-slate-500 truncate mt-0.5">{item.candidate.designation}</p>
-          <div className="mt-2 space-y-0.5 text-xs text-slate-400">
-            <p className="truncate">{item.candidate.unit}</p>
-            {item.candidate.location && (
-              <p className="flex items-center gap-1">
-                <MapPin className="h-3 w-3 shrink-0" />
-                {item.candidate.location}
-              </p>
-            )}
-            {item.candidate.email && (
-              <p className="truncate">{item.candidate.email}</p>
-            )}
-          </div>
+      {/* Candidate details */}
+      <div className="space-y-2 px-4 py-3.5 text-xs text-slate-500">
+        <div className="flex items-center gap-2">
+          <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+          <span className="truncate">{item.candidate.unit}</span>
         </div>
+        {item.candidate.location && (
+          <div className="flex items-center gap-2">
+            <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+            <span className="truncate">{item.candidate.location}</span>
+          </div>
+        )}
+        {item.candidate.email && (
+          <div className="flex items-center gap-2">
+            <Mail className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+            <span className="truncate">{item.candidate.email}</span>
+          </div>
+        )}
       </div>
-
-      {/* Divider */}
-      <div className="border-t border-slate-100 mx-4" />
 
       {/* Action area */}
-      <div className="flex-1 px-4 py-3 space-y-3">
+      <div className="flex-1 space-y-3 border-t border-slate-100 px-4 py-3">
+        <Button
+          size="sm"
+          variant={expanded ? 'outline' : 'primary'}
+          fullWidth
+          leftIcon={<ClipboardList className="h-3.5 w-3.5" />}
+          rightIcon={
+            expanded ? (
+              <ChevronUp className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5" />
+            )
+          }
+          onClick={onToggleExpand}
+        >
+          {expanded ? 'Hide exam form' : 'Fill medical exam form to decide'}
+        </Button>
 
-        {!action ? (
-          /* Initial state — two clear buttons */
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => confirm('clear')}
-              className="flex flex-col items-center gap-1.5 rounded-xl border-2 border-emerald-200 bg-emerald-50 px-3 py-3 text-emerald-700 transition hover:bg-emerald-100 hover:border-emerald-300"
-            >
-              <CheckCircle2 className="h-6 w-6" />
-              <span className="text-xs font-semibold">Clear</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => confirm('reject')}
-              className="flex flex-col items-center gap-1.5 rounded-xl border-2 border-rose-200 bg-rose-50 px-3 py-3 text-rose-600 transition hover:bg-rose-100 hover:border-rose-300"
-            >
-              <XCircle className="h-6 w-6" />
-              <span className="text-xs font-semibold">Reject</span>
-            </button>
-          </div>
-        ) : (
-          /* Confirmation state */
-          <div className={cn(
-            'rounded-xl border-2 p-3 space-y-3',
-            action === 'clear' ? 'border-emerald-200 bg-emerald-50/50' : 'border-rose-200 bg-rose-50/50',
-          )}>
-            <p className={cn('text-sm font-semibold flex items-center gap-1.5', action === 'clear' ? 'text-emerald-700' : 'text-rose-700')}>
-              {action === 'clear'
-                ? <><CheckCircle2 className="h-4 w-4" /> Marking as Cleared</>
-                : <><XCircle className="h-4 w-4" /> Marking as Rejected</>
-              }
-            </p>
-
-            <Textarea
-              rows={2}
-              placeholder={
-                action === 'clear'
-                  ? 'Notes (optional) — e.g. fit to join'
-                  : 'Reason (optional) — e.g. requires follow-up tests'
-              }
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                fullWidth
-                variant={action === 'clear' ? undefined : 'danger'}
-                isLoading={setMedical.isPending}
-                onClick={submit}
-              >
-                Confirm {action === 'clear' ? 'clearance' : 'rejection'}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => { setAction(null); setNote(''); }}
-                disabled={setMedical.isPending}
-              >
-                Back
-              </Button>
-            </div>
-          </div>
+        {expanded && (
+          <MedicalExamForm item={item} onClose={onToggleExpand} />
         )}
       </div>
     </div>

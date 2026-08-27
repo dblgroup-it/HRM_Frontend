@@ -42,6 +42,8 @@ export interface BoardApproval {
   requestedBy: { id: string; name: string };
   hrApprovedBy: { id: string; name: string } | null;
   hrApprovalNote: string | null;
+  hrApprovalAttachmentUrl: string | null;
+  hrApprovalAttachmentName: string | null;
   hrApprovedAt: string | null;
   votes: BoardVote[];
 }

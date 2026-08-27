@@ -78,7 +78,8 @@ export function useBoardApprovalStatus(candidateId: string, enabled = true) {
 export function useHrBoardApprove(candidateId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (note?: string) => boardApi.hrApprove(candidateId, note),
+    mutationFn: ({ file, note }: { file: File; note?: string }) =>
+      boardApi.hrApprove(candidateId, file, note),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: boardKeys.approval(candidateId) });
       toast.success('Board approval recorded');

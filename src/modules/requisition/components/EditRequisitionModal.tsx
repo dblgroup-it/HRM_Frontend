@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Button, Input, Modal, Select, Textarea } from '@shared/components/ui';
+import { JOB_GRADES } from '@modules/salaryFixation';
 
 import type {
   EmploymentNature,
@@ -24,13 +25,17 @@ export function EditRequisitionModal({
   requisition,
   open,
   onClose,
+  gradeHint,
 }: {
   requisition: Requisition;
   open: boolean;
   onClose: () => void;
+  /** Organogram-configured grade + ZingHR grade reference, for context while picking. */
+  gradeHint?: string;
 }) {
   const update = useUpdateRequisition();
 
+  const [grade, setGrade] = useState(requisition.grade ?? '');
   const [requiredPosts, setRequiredPosts] = useState(
     String(requisition.requiredPosts),
   );
@@ -54,11 +59,30 @@ export function EditRequisitionModal({
   const [experience, setExperience] = useState(requisition.experience);
   const [others, setOthers] = useState(requisition.others);
 
+  // The modal stays mounted while closed (only `open` toggles visibility), so
+  // the initial useState() values above go stale if `requisition` changes
+  // (e.g. a live update from another approver) between opens. Resync on open.
+  useEffect(() => {
+    if (!open) return;
+    setGrade(requisition.grade ?? '');
+    setRequiredPosts(String(requisition.requiredPosts));
+    setTotalVacantPosts(String(requisition.totalVacantPosts));
+    setPlaceOfPosting(requisition.placeOfPosting);
+    setWhenNeededDate(requisition.neededDate?.slice(0, 10) ?? '');
+    setPriority(requisition.priority);
+    setEmploymentNature(requisition.employmentNature);
+    setJobDescription(requisition.jobDescription);
+    setEducation(requisition.education);
+    setExperience(requisition.experience);
+    setOthers(requisition.others);
+  }, [open, requisition]);
+
   const save = () => {
     update.mutate(
       {
         id: requisition.id,
         input: {
+          grade,
           requiredPosts: Number(requiredPosts) || 1,
           totalVacantPosts: Number(totalVacantPosts) || 1,
           placeOfPosting,
@@ -93,6 +117,18 @@ export function EditRequisitionModal({
       }
     >
       <div className="space-y-4">
+        <div>
+          <Select
+            label="Job Grade"
+            value={grade}
+            onChange={(e) => setGrade(e.target.value)}
+            options={JOB_GRADES.map((g) => ({ value: g, label: g }))}
+            placeholder="Not yet confirmed"
+          />
+          {gradeHint && (
+            <p className="mt-1 text-xs text-slate-400">{gradeHint}</p>
+          )}
+        </div>
         <div className="grid grid-cols-2 gap-4">
           <Input
             label="Nos. of required post"

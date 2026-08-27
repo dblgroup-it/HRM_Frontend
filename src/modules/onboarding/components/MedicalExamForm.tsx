@@ -1,0 +1,810 @@
+import { useEffect, useRef, useState } from 'react';
+import {
+  Activity,
+  ArrowLeft,
+  ArrowRight,
+  BadgeCheck,
+  Check,
+  CheckCircle2,
+  ChevronUp,
+  ClipboardList,
+  Ear,
+  Eye,
+  FileText,
+  IdCard,
+  Printer,
+  Upload,
+  X,
+  XCircle,
+  type LucideIcon,
+} from 'lucide-react';
+
+import { Button, Input, Spinner, Textarea } from '@shared/components/ui';
+import { cn } from '@shared/lib';
+import { useAuth } from '@modules/auth';
+
+import {
+  useMedicalExam,
+  useSetMedical,
+  useUploadMedicalReport,
+  useUpsertMedicalExam,
+} from '../hooks/useOnboarding';
+import type { MedicalExam, MedicalQueueItem } from '../types/onboarding.types';
+import { printMedicalReport } from '../utils/printMedicalReport';
+
+type Draft = Partial<MedicalExam>;
+
+/** Read-only, system-filled value — used for Ref No and the consultant identity. */
+function AutoField({
+  label,
+  value,
+  placeholder = '—',
+}: {
+  label: string;
+  value: string;
+  placeholder?: string;
+}) {
+  return (
+    <div className="w-full">
+      <div className="mb-1.5 flex items-center gap-1.5">
+        <span className="text-sm font-medium text-slate-700">{label}</span>
+        <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+          Auto
+        </span>
+      </div>
+      <div className="flex h-10 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm">
+        <span className={value ? 'text-slate-700' : 'text-slate-400'}>
+          {value || placeholder}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** Checkbox-style Yes/No — the "tick one" control of a clinical checklist. */
+function YesNo({
+  value,
+  onChange,
+  yesLabel = 'Yes',
+  noLabel = 'No',
+}: {
+  value: boolean | null | undefined;
+  onChange: (v: boolean) => void;
+  yesLabel?: string;
+  noLabel?: string;
+}) {
+  const opt = (label: string, selected: boolean, tone: 'emerald' | 'rose', onClick: () => void) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'flex items-center gap-1.5 text-xs font-semibold',
+        selected
+          ? tone === 'emerald' ? 'text-emerald-700' : 'text-rose-700'
+          : 'text-slate-400 hover:text-slate-600',
+      )}
+    >
+      <span
+        className={cn(
+          'flex h-4 w-4 items-center justify-center rounded border',
+          selected
+            ? tone === 'emerald'
+              ? 'border-emerald-600 bg-emerald-600 text-white'
+              : 'border-rose-600 bg-rose-600 text-white'
+            : 'border-slate-300',
+        )}
+      >
+        {selected && (tone === 'emerald' ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />)}
+      </span>
+      {label}
+    </button>
+  );
+  return (
+    <div className="flex shrink-0 items-center gap-3">
+      {opt(yesLabel, value === true, 'emerald', () => onChange(true))}
+      {opt(noLabel, value === false, 'rose', () => onChange(false))}
+    </div>
+  );
+}
+
+function ChecklistItem({
+  n,
+  text,
+  value,
+  onChange,
+}: {
+  n: number;
+  text: string;
+  value: boolean | null | undefined;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2 border-b border-slate-100 py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <p className="text-sm text-slate-700">
+        <span className="mr-1.5 text-slate-400">{n}.</span>
+        {text}
+      </p>
+      <YesNo value={value} onChange={onChange} />
+    </div>
+  );
+}
+
+const row2 = 'grid grid-cols-1 gap-5 sm:grid-cols-2';
+const row4 = 'grid grid-cols-2 gap-5 sm:grid-cols-4';
+
+const STEPS = [
+  {
+    key: 'details',
+    letter: 'A',
+    title: 'Report Details',
+    description: 'Header information for this examination.',
+    icon: IdCard,
+  },
+  {
+    key: 'vitals',
+    letter: 'B',
+    title: 'Vitals',
+    description: 'Height, weight, pulse and blood pressure.',
+    icon: Activity,
+  },
+  {
+    key: 'vision',
+    letter: 'C',
+    title: 'Vision',
+    description: 'Visual acuity and color vision.',
+    icon: Eye,
+  },
+  {
+    key: 'hearing',
+    letter: 'D',
+    title: 'Hearing & Speech',
+    description: 'Ears, speech and extremities.',
+    icon: Ear,
+  },
+  {
+    key: 'checklist',
+    letter: 'E',
+    title: 'Clinical Findings',
+    description: "The doctor's clinical checklist.",
+    icon: ClipboardList,
+  },
+  {
+    key: 'determination',
+    letter: 'F',
+    title: 'Determination',
+    description: 'Blood group and the fit-to-join decision.',
+    icon: BadgeCheck,
+  },
+] as const;
+
+/** Fields that must be filled for a step's circle to earn a checkmark —
+ * mirrors the backend's required-at-clearance set (dutyPosition, refNo,
+ * registrationNo, familyHistoryDetail and remarks stay optional). */
+const STEP_FIELDS: (keyof MedicalExam)[][] = [
+  ['dateOfBirth', 'examDate', 'issueDate', 'consultantName'],
+  ['height', 'weight', 'pulse', 'bloodPressure'],
+  [
+    'visionRightEye',
+    'visionLeftEye',
+    'visionWithGlass',
+    'colorVisionYellow',
+    'colorVisionRed',
+    'colorVisionGreen',
+    'colorVisionBlue',
+  ],
+  ['hearingRightEar', 'hearingLeftEar', 'speech', 'extremities'],
+  [
+    'noAnemiaJaundiceEtc',
+    'stableNormotensiveNondiabetic',
+    'urineTestClear',
+    'hepatitisBNegative',
+    'liverFunctionNormal',
+    'pastIllnessHistory',
+    'familyHistoryDmHtn',
+  ],
+  ['bloodGroup', 'fitToJoin'],
+];
+
+function isStepComplete(draft: Draft, stepIndex: number): boolean {
+  return STEP_FIELDS[stepIndex].every((key) => {
+    const v = draft[key];
+    return v !== null && v !== undefined && v !== '';
+  });
+}
+
+/**
+ * Structured "Medical Fitness Report" form — a step wizard matching this
+ * app's own RequisitionForm (same stepper, same one-card-per-step shell,
+ * same plain field grid) instead of a bespoke look, and broken into steps
+ * so a ~30-field clinical form doesn't render as one long scroll. Rendered
+ * inline by MedicalQueuePage when a card is expanded (no modal — a popup
+ * was too cramped for this many fields).
+ */
+export function MedicalExamForm({
+  item,
+  onClose,
+}: {
+  item: MedicalQueueItem;
+  onClose: () => void;
+}) {
+  const { user } = useAuth();
+  const { data: exam, isLoading } = useMedicalExam(item.id, true);
+  const upsert = useUpsertMedicalExam(item.id);
+  const upload = useUploadMedicalReport(item.id);
+  const setMedical = useSetMedical();
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const [draft, setDraft] = useState<Draft>({});
+  const [step, setStep] = useState(0);
+  const [decision, setDecision] = useState<'clear' | 'reject' | null>(null);
+  const [note, setNote] = useState('');
+
+  // The consultant is whoever is signed in and filling this out — not a
+  // free-text field the officer has to type themselves.
+  useEffect(() => {
+    if (exam) {
+      setDraft({
+        ...exam,
+        consultantName: exam.consultantName || user?.name || '',
+        // Most exams are done without glasses — default it so the officer
+        // only has to act when it's actually "with glass".
+        visionWithGlass: exam.visionWithGlass ?? false,
+        // Most candidates are fit to join — default it so the officer only
+        // has to act when they're actually not.
+        fitToJoin: exam.fitToJoin ?? true,
+        // Clinical checklist — most candidates are normal/healthy on all of
+        // these, so default to the healthy answer and let the officer flag
+        // the exception instead of confirming the common case every time.
+        noAnemiaJaundiceEtc: exam.noAnemiaJaundiceEtc ?? true,
+        stableNormotensiveNondiabetic: exam.stableNormotensiveNondiabetic ?? true,
+        urineTestClear: exam.urineTestClear ?? true,
+        hepatitisBNegative: exam.hepatitisBNegative ?? true,
+        liverFunctionNormal: exam.liverFunctionNormal ?? true,
+        familyHistoryDmHtn: exam.familyHistoryDmHtn ?? true,
+      });
+    }
+  }, [exam, user?.name]);
+
+  const set = <K extends keyof MedicalExam>(key: K, value: MedicalExam[K]) =>
+    setDraft((d) => ({ ...d, [key]: value }));
+
+  const goTo = (i: number) => setStep(i);
+
+  const reportDoc = item.docs.find((d) => d.label === 'Medical Fitness Report');
+
+  // Ref No is server-assigned and read-only — the backend rejects it if we
+  // send it back (it's not part of the update DTO).
+  const saveBody = () => {
+    const { refNo: _refNo, ...body } = draft;
+    return body;
+  };
+  const save = () => upsert.mutate(saveBody());
+
+  const submitDecision = async () => {
+    if (!decision) return;
+    // Persist whatever's on screen first — including auto-filled defaults
+    // the officer never explicitly "saved" — so the clearance check below
+    // validates the same data the checkmarks are showing, not stale DB rows.
+    try {
+      await upsert.mutateAsync(saveBody());
+    } catch {
+      return; // upsert's own onError already surfaced the reason
+    }
+    setMedical.mutate(
+      {
+        onboardingId: item.id,
+        status: decision === 'clear' ? 'cleared' : 'rejected',
+        // Clearing reuses the Remarks already written on the Determination
+        // step — asking for notes a second time was confusing.
+        note: (decision === 'clear' ? draft.remarks : note) || undefined,
+      },
+      { onSuccess: onClose },
+    );
+  };
+
+  const pickFile = () => fileRef.current?.click();
+  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) upload.mutate(file);
+    e.target.value = '';
+  };
+
+  const t = (v: string | undefined | null) => v ?? '';
+  const onInput =
+    <K extends keyof MedicalExam>(key: K) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      set(key, e.target.value as MedicalExam[K]);
+
+  const total = STEPS.length;
+  const current = STEPS[step];
+  const CurrentIcon: LucideIcon = current.icon;
+  const isLast = step === total - 1;
+
+  return (
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-2.5">
+        <p className="text-sm text-slate-600">
+          <span className="font-medium text-slate-800">{item.candidate.name}</span>
+          <span className="text-slate-400"> · {item.candidate.designation}</span>
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/pdf,image/png,image/jpeg,application/msword,.docx"
+            className="hidden"
+            onChange={onFile}
+          />
+          <Button
+            size="sm"
+            variant="ghost"
+            leftIcon={<Upload className="h-3.5 w-3.5" />}
+            isLoading={upload.isPending}
+            onClick={pickFile}
+          >
+            {reportDoc ? 'Replace report' : 'Attach signed report'}
+          </Button>
+          {reportDoc && (
+            <a
+              href={reportDoc.url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-600 hover:underline"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              View
+            </a>
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            leftIcon={<Printer className="h-3.5 w-3.5" />}
+            onClick={() => printMedicalReport(item.candidate, draft)}
+          >
+            Print
+          </Button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-200/60 hover:text-slate-700"
+          >
+            <ChevronUp className="h-3.5 w-3.5" />
+            Collapse
+          </button>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-10">
+          <Spinner />
+        </div>
+      ) : (
+        <>
+          {/* Progress */}
+          <div className="flex items-center justify-center overflow-x-auto py-1">
+            {STEPS.map((s, i) => {
+              const complete = isStepComplete(draft, i);
+              const state = i === step ? 'current' : complete ? 'done' : 'upcoming';
+              return (
+                <div key={s.key} className="flex shrink-0 items-center">
+                  <button
+                    type="button"
+                    onClick={() => goTo(i)}
+                    className="group flex flex-col items-center gap-1.5 px-1"
+                  >
+                    <span
+                      className={cn(
+                        'flex h-9 w-9 items-center justify-center rounded-full border-2 text-xs font-bold transition-all duration-300',
+                        state === 'done' && 'border-brand-600 bg-brand-600 text-white',
+                        state === 'current' &&
+                          'scale-110 border-brand-600 bg-white text-brand-700 shadow-md shadow-brand-200',
+                        state === 'upcoming' &&
+                          'border-slate-200 bg-white text-slate-400 group-hover:border-slate-300 group-hover:text-slate-500',
+                      )}
+                    >
+                      {state === 'done' ? <Check className="h-4 w-4" /> : s.letter}
+                    </span>
+                    <span
+                      className={cn(
+                        'hidden whitespace-nowrap text-[11px] font-medium sm:block',
+                        state === 'current' ? 'text-brand-700' : 'text-slate-400',
+                      )}
+                    >
+                      {s.title}
+                    </span>
+                  </button>
+                  {i < STEPS.length - 1 && (
+                    <div
+                      className={cn(
+                        'mx-1 h-0.5 w-6 shrink-0 rounded-full transition-colors duration-500 sm:w-12',
+                        complete ? 'bg-brand-500' : 'bg-slate-200',
+                      )}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Active step card */}
+          <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-lg shadow-slate-200/60">
+            <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-brand-400/10 blur-3xl" />
+            <div className="relative p-6 sm:p-8">
+              <div className="mb-6 flex items-start gap-3.5">
+                <span className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-600 ring-8 ring-brand-50/60">
+                  <CurrentIcon className="h-6 w-6" />
+                </span>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-600">
+                    Section {current.letter} · Step {step + 1} of {total}
+                  </p>
+                  <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
+                    {current.title}
+                  </h2>
+                  <p className="mt-0.5 text-sm text-slate-500">{current.description}</p>
+                </div>
+              </div>
+
+              {/* A · Report Details */}
+              {step === 0 && (
+                <div className={row2}>
+                  <Input
+                    type="date"
+                    label="Date of Birth"
+                    value={t(draft.dateOfBirth)}
+                    onChange={onInput('dateOfBirth')}
+                  />
+                  <Input
+                    label="Duty Position"
+                    placeholder="Optional"
+                    value={t(draft.dutyPosition)}
+                    onChange={onInput('dutyPosition')}
+                  />
+                  <Input
+                    type="date"
+                    label="Date of Examination"
+                    value={t(draft.examDate)}
+                    onChange={onInput('examDate')}
+                  />
+                  <Input
+                    type="date"
+                    label="Date of Issue"
+                    value={t(draft.issueDate)}
+                    onChange={onInput('issueDate')}
+                  />
+                  <AutoField label="Ref No" value={t(draft.refNo)} placeholder="Assigned on save" />
+                  <Input
+                    label="Registration No"
+                    placeholder="Optional"
+                    value={t(draft.registrationNo)}
+                    onChange={onInput('registrationNo')}
+                  />
+                  <AutoField label="Consultant" value={t(draft.consultantName)} />
+                </div>
+              )}
+
+              {/* B · Vitals */}
+              {step === 1 && (
+                <div className={row4}>
+                  <Input label="Height" value={t(draft.height)} onChange={onInput('height')} />
+                  <Input label="Weight" value={t(draft.weight)} onChange={onInput('weight')} />
+                  <Input label="Pulse" value={t(draft.pulse)} onChange={onInput('pulse')} />
+                  <Input
+                    label="Blood Pressure"
+                    value={t(draft.bloodPressure)}
+                    onChange={onInput('bloodPressure')}
+                  />
+                </div>
+              )}
+
+              {/* C · Vision */}
+              {step === 2 && (
+                <div className="space-y-6">
+                  <div>
+                    <div className={row2}>
+                      <Input
+                        label="Right Eye"
+                        value={t(draft.visionRightEye)}
+                        onChange={onInput('visionRightEye')}
+                      />
+                      <Input
+                        label="Left Eye"
+                        value={t(draft.visionLeftEye)}
+                        onChange={onInput('visionLeftEye')}
+                      />
+                    </div>
+                    <div className="mt-3">
+                      <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                        Glasses
+                      </span>
+                      <YesNo
+                        value={draft.visionWithGlass}
+                        onChange={(v) => set('visionWithGlass', v)}
+                        yesLabel="With glass"
+                        noLabel="Without glass"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Color Vision
+                    </p>
+                    <div className={row4}>
+                      <Input
+                        label="Yellow"
+                        value={t(draft.colorVisionYellow)}
+                        onChange={onInput('colorVisionYellow')}
+                      />
+                      <Input
+                        label="Red"
+                        value={t(draft.colorVisionRed)}
+                        onChange={onInput('colorVisionRed')}
+                      />
+                      <Input
+                        label="Green"
+                        value={t(draft.colorVisionGreen)}
+                        onChange={onInput('colorVisionGreen')}
+                      />
+                      <Input
+                        label="Blue"
+                        value={t(draft.colorVisionBlue)}
+                        onChange={onInput('colorVisionBlue')}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* D · Hearing & Speech */}
+              {step === 3 && (
+                <div className={row4}>
+                  <Input
+                    label="Right Ear"
+                    value={t(draft.hearingRightEar)}
+                    onChange={onInput('hearingRightEar')}
+                  />
+                  <Input
+                    label="Left Ear"
+                    value={t(draft.hearingLeftEar)}
+                    onChange={onInput('hearingLeftEar')}
+                  />
+                  <Input label="Speech" value={t(draft.speech)} onChange={onInput('speech')} />
+                  <Input
+                    label="Extremities"
+                    value={t(draft.extremities)}
+                    onChange={onInput('extremities')}
+                  />
+                </div>
+              )}
+
+              {/* E · Clinical Findings */}
+              {step === 4 && (
+                <div>
+                  <div>
+                    <ChecklistItem
+                      n={1}
+                      text="No anemia, jaundice, clubbing, koilonychia or congenital malformations"
+                      value={draft.noAnemiaJaundiceEtc}
+                      onChange={(v) => set('noAnemiaJaundiceEtc', v)}
+                    />
+                    <ChecklistItem
+                      n={2}
+                      text="Physically & mentally stable, normotensive, nondiabetic"
+                      value={draft.stableNormotensiveNondiabetic}
+                      onChange={(v) => set('stableNormotensiveNondiabetic', v)}
+                    />
+                    <ChecklistItem
+                      n={3}
+                      text="Urine test clear of sugar / albumin"
+                      value={draft.urineTestClear}
+                      onChange={(v) => set('urineTestClear', v)}
+                    />
+                    <ChecklistItem
+                      n={4}
+                      text="Free from Hepatitis B"
+                      value={draft.hepatitisBNegative}
+                      onChange={(v) => set('hepatitisBNegative', v)}
+                    />
+                    <ChecklistItem
+                      n={5}
+                      text="Liver function normal"
+                      value={draft.liverFunctionNormal}
+                      onChange={(v) => set('liverFunctionNormal', v)}
+                    />
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
+                    <Textarea
+                      rows={2}
+                      label="6. History of past illness"
+                      placeholder="Not remarkable"
+                      value={t(draft.pastIllnessHistory)}
+                      onChange={onInput('pastIllnessHistory')}
+                    />
+                    <div>
+                      <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                        <p className="text-sm text-slate-700">
+                          <span className="mr-1.5 text-slate-400">7.</span>
+                          Family history of DM, HTN — negative
+                        </p>
+                        <YesNo
+                          value={draft.familyHistoryDmHtn}
+                          onChange={(v) => set('familyHistoryDmHtn', v)}
+                        />
+                      </div>
+                      <Input
+                        label="Detail (optional)"
+                        className="mt-2"
+                        value={t(draft.familyHistoryDetail)}
+                        onChange={onInput('familyHistoryDetail')}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* F · Determination */}
+              {step === 5 && (
+                <div className="space-y-5">
+                  <div className={row2}>
+                    <Input
+                      label="Blood Group"
+                      value={t(draft.bloodGroup)}
+                      onChange={onInput('bloodGroup')}
+                    />
+                    <div>
+                      <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                        Fit to Join
+                      </span>
+                      <div className="flex h-10 items-center">
+                        <YesNo
+                          value={draft.fitToJoin}
+                          onChange={(v) => set('fitToJoin', v)}
+                          yesLabel="Fit"
+                          noLabel="Not fit"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <Textarea
+                    rows={2}
+                    label="Remarks (optional)"
+                    value={t(draft.remarks)}
+                    onChange={onInput('remarks')}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Step navigation */}
+            <div className="flex items-center gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4 sm:px-8">
+              {step > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  leftIcon={<ArrowLeft className="h-4 w-4" />}
+                  onClick={() => goTo(step - 1)}
+                >
+                  Back
+                </Button>
+              )}
+              {!isLast && (
+                <Button
+                  type="button"
+                  rightIcon={<ArrowRight className="h-4 w-4" />}
+                  onClick={() => goTo(step + 1)}
+                  className="ml-auto"
+                >
+                  Next
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                isLoading={upsert.isPending}
+                onClick={save}
+                className={isLast ? 'ml-auto' : undefined}
+              >
+                Save draft
+              </Button>
+            </div>
+          </div>
+
+          {/* Decision — Clear / Reject */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            {!decision ? (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-slate-400">
+                  Clearing requires every step above to be complete.
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="danger"
+                    leftIcon={<XCircle className="h-4 w-4" />}
+                    onClick={() => setDecision('reject')}
+                  >
+                    Reject
+                  </Button>
+                  <Button
+                    className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800"
+                    leftIcon={<CheckCircle2 className="h-4 w-4" />}
+                    onClick={() => setDecision('clear')}
+                  >
+                    Clear candidate
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div
+                className={cn(
+                  'space-y-3 rounded-xl border-2 p-3',
+                  decision === 'clear'
+                    ? 'border-emerald-200 bg-emerald-50/50'
+                    : 'border-rose-200 bg-rose-50/50',
+                )}
+              >
+                <p
+                  className={cn(
+                    'flex items-center gap-1.5 text-sm font-semibold',
+                    decision === 'clear' ? 'text-emerald-700' : 'text-rose-700',
+                  )}
+                >
+                  {decision === 'clear' ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" /> Clearing this candidate — the
+                      report above must be complete.
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="h-4 w-4" /> Marking as rejected
+                    </>
+                  )}
+                </p>
+                {decision === 'clear' ? (
+                  draft.remarks && (
+                    <p className="text-xs text-emerald-800">
+                      Remarks: <span className="italic">"{draft.remarks}"</span>
+                    </p>
+                  )
+                ) : (
+                  <Textarea
+                    rows={2}
+                    label="Reason (optional)"
+                    placeholder="e.g. requires follow-up tests"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                  />
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    fullWidth
+                    variant={decision === 'clear' ? undefined : 'danger'}
+                    className={
+                      decision === 'clear'
+                        ? 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800'
+                        : undefined
+                    }
+                    isLoading={upsert.isPending || setMedical.isPending}
+                    onClick={submitDecision}
+                  >
+                    Confirm {decision === 'clear' ? 'clearance' : 'rejection'}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setDecision(null);
+                      setNote('');
+                    }}
+                    disabled={upsert.isPending || setMedical.isPending}
+                  >
+                    Back
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

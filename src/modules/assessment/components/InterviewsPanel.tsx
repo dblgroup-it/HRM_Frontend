@@ -5,7 +5,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import {
-  AlertTriangle,
+  BadgeDollarSign,
   Bell,
   Building2,
   CalendarCheck,
@@ -20,14 +20,13 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
-  SendHorizonal,
   Sparkles,
   Trash2,
+  UserPlus,
   Users,
   Video,
   X,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 import {
   Avatar,
@@ -38,6 +37,7 @@ import {
   CardBody,
   EmptyState,
   Input,
+  Modal,
   Spinner,
 } from '@shared/components/ui';
 import { cn } from '@shared/lib';
@@ -45,8 +45,9 @@ import { formatDate } from '@shared/utils';
 import { useDebounce } from '@shared/hooks';
 import { useEmployees } from '@modules/employees';
 import type { Requisition } from '@modules/requisition/types/requisition.types';
-import { useCandidates } from '@modules/candidates';
+import { useCandidates, useUpdateCandidate } from '@modules/candidates';
 import type { Candidate } from '@modules/candidates';
+import { SalaryFixationModal } from '@modules/salaryFixation';
 
 import {
   useAddCommitteeMember,
@@ -56,15 +57,12 @@ import {
   useRemoveInterview,
   useResendEvalToken,
   useScheduleInterview,
-  useSendInterviewQuestions,
   useUpdateInterview,
 } from '../hooks/useAssessment';
 import type {
   InterviewKindKey,
   InterviewModeKey,
-  InterviewQuestion,
   InterviewRoundView,
-  RubricCriterionView,
 } from '../types/assessment.types';
 import { BulkInterviewModal } from './BulkInterviewModal';
 
@@ -111,6 +109,7 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
   const candidates = page?.items ?? [];
   const [selected, setSelected] = useState<Candidate | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
 
   // Auto-select first candidate when list loads
   useEffect(() => {
@@ -136,15 +135,6 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
     );
   }
 
-  if (candidates.length === 0) {
-    return (
-      <EmptyState
-        title="No candidates at interview stage"
-        description="Move candidates to the Interview stage from the Recruitment tab to manage their interviews here."
-      />
-    );
-  }
-
   return (
     <div className="flex flex-col gap-4">
 
@@ -161,51 +151,71 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
             <p className="text-[11px] text-slate-400">Select a candidate to manage their interviews</p>
           </div>
         </div>
-        <Button
-          size="sm"
-          leftIcon={<CalendarClock className="h-4 w-4" />}
-          onClick={() => setBulkOpen(true)}
-        >
-          Schedule all at once
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            leftIcon={<UserPlus className="h-4 w-4" />}
+            onClick={() => setAddOpen(true)}
+          >
+            Add candidates
+          </Button>
+          {candidates.length > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              leftIcon={<CalendarClock className="h-4 w-4" />}
+              onClick={() => setBulkOpen(true)}
+            >
+              Schedule all at once
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* ── Workspace: list ↔ detail ─────────────────────────────────── */}
-      <div className="flex min-h-0 gap-4 rounded-2xl border border-slate-200 bg-white overflow-hidden"
-           style={{ minHeight: '70vh' }}>
+      {candidates.length === 0 ? (
+        <EmptyState
+          icon={<Users className="h-6 w-6" />}
+          title="No candidates at interview stage"
+          description="Search and add a candidate above, or move one to Interview from the Recruitment tab."
+        />
+      ) : (
+        <div className="flex min-h-0 gap-4 rounded-2xl border border-slate-200 bg-white overflow-hidden"
+             style={{ minHeight: '70vh' }}>
 
-        {/* LEFT — candidate list */}
-        <div className="flex w-72 shrink-0 flex-col border-r border-slate-100">
-          <div className="border-b border-slate-100 px-3 py-2.5">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-              Candidates
-            </p>
+          {/* LEFT — candidate list */}
+          <div className="flex w-72 shrink-0 flex-col border-r border-slate-100">
+            <div className="border-b border-slate-100 px-3 py-2.5">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+                Candidates
+              </p>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {candidates.map((c) => (
+                <CandidateListCard
+                  key={c.id}
+                  candidate={c}
+                  active={selected?.id === c.id}
+                  onSelect={() => setSelected(c)}
+                />
+              ))}
+            </div>
           </div>
-          <div className="flex-1 overflow-y-auto">
-            {candidates.map((c) => (
-              <CandidateListCard
-                key={c.id}
-                candidate={c}
-                active={selected?.id === c.id}
-                onSelect={() => setSelected(c)}
-              />
-            ))}
-          </div>
+
+          {/* RIGHT — interview workspace */}
+          {selected ? (
+            <InterviewWorkspace
+              key={selected.id}
+              reqId={reqId}
+              candidate={selected}
+            />
+          ) : (
+            <div className="flex flex-1 items-center justify-center text-sm text-slate-400">
+              Select a candidate to begin
+            </div>
+          )}
         </div>
-
-        {/* RIGHT — interview workspace */}
-        {selected ? (
-          <InterviewWorkspace
-            key={selected.id}
-            reqId={reqId}
-            candidate={selected}
-          />
-        ) : (
-          <div className="flex flex-1 items-center justify-center text-sm text-slate-400">
-            Select a candidate to begin
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Bulk modal */}
       <BulkInterviewModal
@@ -214,7 +224,120 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
         open={bulkOpen}
         onClose={() => setBulkOpen(false)}
       />
+
+      {/* Add-to-interview modal */}
+      <AddToInterviewModal
+        reqId={reqId}
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onAdded={(c) => setSelected(c)}
+      />
     </div>
+  );
+}
+
+// ─── Add candidates to interview stage ─────────────────────────────────────────
+
+/** Only Shortlisted and later stages are eligible — earlier-stage candidates
+ * haven't cleared screening yet. */
+const STAGE_RANK: Record<string, number> = {
+  applied: 0,
+  ai_shortlisted: 1,
+  shortlisted: 2,
+  interview: 3,
+  final: 4,
+  selected: 5,
+  rejected: -1,
+};
+
+function AddToInterviewModal({
+  reqId,
+  open,
+  onClose,
+  onAdded,
+}: {
+  reqId: string;
+  open: boolean;
+  onClose: () => void;
+  onAdded: (candidate: Candidate) => void;
+}) {
+  const { data, isLoading } = useCandidates(reqId, { pageSize: 200 }, open);
+  const update = useUpdateCandidate(reqId);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (open) setPicked(new Set());
+  }, [open]);
+
+  const eligible = (data?.items ?? []).filter(
+    (c) => (STAGE_RANK[c.stage] ?? -1) >= STAGE_RANK.shortlisted && c.stage !== 'interview',
+  );
+
+  const toggle = (id: string) =>
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const submit = async () => {
+    const chosen = eligible.filter((c) => picked.has(c.id));
+    for (const c of chosen) {
+      await update.mutateAsync({ id: c.id, input: { stage: 'interview' } });
+    }
+    onClose();
+    if (chosen[0]) onAdded({ ...chosen[0], stage: 'interview' });
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title="Add Candidates to Interview" size="md">
+      <div className="max-h-[60vh] space-y-0.5 overflow-y-auto">
+        {isLoading ? (
+          <div className="flex justify-center py-10">
+            <Spinner />
+          </div>
+        ) : eligible.length === 0 ? (
+          <p className="rounded-lg border border-dashed border-slate-200 px-3 py-6 text-center text-sm text-slate-400">
+            No Shortlisted (or later) candidates available to add.
+          </p>
+        ) : (
+          eligible.map((c) => (
+            <label
+              key={c.id}
+              className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 hover:bg-slate-50"
+            >
+              <input
+                type="checkbox"
+                checked={picked.has(c.id)}
+                onChange={() => toggle(c.id)}
+                className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+              />
+              <Avatar name={c.name} size="sm" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-slate-800">{c.name}</span>
+              </span>
+              <Badge tone="neutral" className="shrink-0 capitalize">
+                {c.stage.replace('_', ' ')}
+              </Badge>
+            </label>
+          ))
+        )}
+      </div>
+      <div className="mt-3 flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+        <Button variant="ghost" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button
+          disabled={picked.size === 0}
+          isLoading={update.isPending}
+          leftIcon={<UserPlus className="h-4 w-4" />}
+          onClick={submit}
+        >
+          Add {picked.size} candidate{picked.size === 1 ? '' : 's'}
+        </Button>
+      </div>
+    </Modal>
   );
 }
 
@@ -315,13 +438,13 @@ function InterviewWorkspace({
   reqId: string;
   candidate: Candidate;
 }) {
-  const navigate = useNavigate();
   const { data: setup } = useAssessmentSetup(reqId);
   const { data: rounds = [], isLoading } = useCandidateInterviews(candidate.id);
   const schedule = useScheduleInterview(candidate.id);
   const remove = useRemoveInterview(candidate.id);
   const evalSummary = useGenerateEvaluationSummary();
   const [summaryText, setSummaryText] = useState<string | null>(null);
+  const [salaryOpen, setSalaryOpen] = useState(false);
   const hasEvaluations = rounds.some((r) => r.evaluations.length > 0);
 
   // Form state
@@ -344,18 +467,6 @@ function InterviewWorkspace({
       kindAutoSetRef.current = true;
     }
   }, [rounds]);
-
-  // AI auto-summary when evaluations exist
-  useEffect(() => {
-    if (setup?.autoEvalSummary && hasEvaluations && !summaryText && !evalSummary.isPending) {
-      evalSummary.mutate(candidate.id, {
-        onSuccess: (d) => setSummaryText(d.summary),
-      });
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setup?.autoEvalSummary, hasEvaluations]);
-
-  const goToSetup = () => navigate(`/requisitions/${reqId}?tab=assessment`);
 
   const committee = setup?.committee ?? [];
   const inPanel = (uid: string) => panel.some((p) => p.userId === uid);
@@ -410,29 +521,46 @@ function InterviewWorkspace({
               </p>
             </div>
           </div>
-          {/* Round progress strip */}
-          <div className="flex items-center gap-1.5">
-            {KIND_ORDER.map((k) => {
-              const r = rounds.find((r) => r.kind === k);
-              return (
-                <div key={k} className="flex flex-col items-center gap-0.5">
-                  <span className={cn(
-                    'inline-flex h-7 w-7 items-center justify-center rounded-full border-2 text-[10px] font-bold',
-                    !r
-                      ? 'border-slate-200 bg-white text-slate-300'
-                      : r.status === 'completed'
-                        ? 'border-emerald-400 bg-emerald-50 text-emerald-600'
-                        : 'border-amber-400 bg-amber-50 text-amber-600',
-                  )}>
-                    {KIND_LABEL[k][0]}
-                  </span>
-                  <span className="text-[9px] uppercase tracking-wide text-slate-400">{KIND_LABEL[k]}</span>
-                </div>
-              );
-            })}
+          <div className="flex items-center gap-3">
+            {/* Round progress strip */}
+            <div className="flex items-center gap-1.5">
+              {KIND_ORDER.map((k) => {
+                const r = rounds.find((r) => r.kind === k);
+                return (
+                  <div key={k} className="flex flex-col items-center gap-0.5">
+                    <span className={cn(
+                      'inline-flex h-7 w-7 items-center justify-center rounded-full border-2 text-[10px] font-bold',
+                      !r
+                        ? 'border-slate-200 bg-white text-slate-300'
+                        : r.status === 'completed'
+                          ? 'border-emerald-400 bg-emerald-50 text-emerald-600'
+                          : 'border-amber-400 bg-amber-50 text-amber-600',
+                    )}>
+                      {KIND_LABEL[k][0]}
+                    </span>
+                    <span className="text-[9px] uppercase tracking-wide text-slate-400">{KIND_LABEL[k]}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              leftIcon={<BadgeDollarSign className="h-4 w-4" />}
+              onClick={() => setSalaryOpen(true)}
+            >
+              Salary
+            </Button>
           </div>
         </div>
       </div>
+
+      <SalaryFixationModal
+        reqId={reqId}
+        candidate={{ id: candidate.id, name: candidate.name }}
+        open={salaryOpen}
+        onClose={() => setSalaryOpen(false)}
+      />
 
       {/* ── Body: history (left) + form (right) ─────────────────── */}
       <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -459,29 +587,9 @@ function InterviewWorkspace({
                   key={r.id}
                   round={r}
                   candidateId={candidate.id}
-                  rubric={setup?.rubric ?? []}
-                  questions={setup?.interviewQuestions ?? []}
                   onRemove={() => remove.mutate(r.id)}
                 />
               ))
-            )}
-
-            {/* Setup alerts */}
-            {setup && setup.rubric.length === 0 && (
-              <AlertStrip tone="amber" icon={AlertTriangle}>
-                <strong>No scoring rubric.</strong> Panelists can't score.{' '}
-                <button type="button" onClick={goToSetup} className="font-semibold underline underline-offset-2">
-                  Set up →
-                </button>
-              </AlertStrip>
-            )}
-            {setup && setup.interviewQuestions.length === 0 && (
-              <AlertStrip tone="emerald" icon={Lightbulb}>
-                <strong>Tip:</strong> Generate AI interview questions.{' '}
-                <button type="button" onClick={goToSetup} className="font-semibold underline underline-offset-2">
-                  Generate →
-                </button>
-              </AlertStrip>
             )}
 
             {/* AI Evaluation Summary */}
@@ -688,22 +796,17 @@ const STATUS_TONE = {
 function RoundCard({
   round,
   candidateId,
-  rubric,
-  questions,
   onRemove,
 }: {
   round: InterviewRoundView;
   candidateId: string;
-  rubric: RubricCriterionView[];
-  questions: InterviewQuestion[];
   onRemove: () => void;
 }) {
   const update = useUpdateInterview(candidateId);
-  const sendQ  = useSendInterviewQuestions(candidateId);
   const resend = useResendEvalToken(candidateId);
-  const maxTotal = rubric.reduce((s, c) => s + c.maxScore, 0);
+  const maxTotal = round.criteria.reduce((s, c) => s + c.max, 0);
   const avg = round.evaluations.length > 0
-    ? Math.round(round.evaluations.reduce((s, e) => s + e.total, 0) / round.evaluations.length)
+    ? Math.round((round.evaluations.reduce((s, e) => s + e.total, 0) / round.evaluations.length) * 10) / 10
     : 0;
 
   const borderColor =
@@ -730,20 +833,6 @@ function RoundCard({
               className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50">
               <CheckCircle2 className="h-3.5 w-3.5" /> Mark done
             </button>
-          )}
-          {questions.length > 0 && (
-            round.questionsSentAt ? (
-              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700">
-                <SendHorizonal className="h-3 w-3" /> Questions sent
-              </span>
-            ) : (
-              <button type="button"
-                onClick={() => sendQ.mutate(round.id)}
-                disabled={sendQ.isPending}
-                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-brand-700 transition hover:bg-brand-50 disabled:opacity-50">
-                <SendHorizonal className="h-3.5 w-3.5" /> Send Q's
-              </button>
-            )
           )}
           <button type="button" title="Remove" onClick={onRemove}
             className="rounded p-1 text-slate-300 transition hover:bg-rose-50 hover:text-rose-500">
@@ -839,7 +928,7 @@ function RoundCard({
               <div key={ev.evaluatorId} className="flex items-center justify-between">
                 <span className="truncate font-medium text-slate-600">{ev.evaluatorName}</span>
                 <span className="ml-2 shrink-0 font-semibold text-slate-700">
-                  {ev.total}{maxTotal > 0 && <span className="text-slate-400"> / {maxTotal}</span>}
+                  {ev.total.toFixed(1)}{maxTotal > 0 && <span className="text-slate-400"> / {maxTotal}</span>}
                 </span>
               </div>
             ))}
@@ -847,7 +936,7 @@ function RoundCard({
           <div className="mt-1.5 flex items-center justify-between border-t border-slate-200 pt-1.5">
             <span className="text-slate-500">Avg ({round.evaluations.length}/{round.panelists.length} marked)</span>
             <span className="font-semibold text-brand-700">
-              {avg}{maxTotal > 0 && <span className="text-slate-400"> / {maxTotal}</span>}
+              {avg.toFixed(1)}{maxTotal > 0 && <span className="text-slate-400"> / {maxTotal}</span>}
             </span>
           </div>
         </div>
@@ -908,22 +997,6 @@ function ToggleChip({ checked, onChange, icon, label }: {
       {checked ? <Check className="h-3.5 w-3.5" /> : icon}
       {label}
     </button>
-  );
-}
-
-function AlertStrip({ tone, icon: Icon, children }: {
-  tone: 'amber' | 'emerald';
-  icon: React.ElementType;
-  children: React.ReactNode;
-}) {
-  const cls = tone === 'amber'
-    ? 'border-amber-200 bg-amber-50 text-amber-800'
-    : 'border-emerald-200 bg-emerald-50 text-emerald-800';
-  return (
-    <div className={cn('flex items-start gap-2 rounded-lg border px-3 py-2.5', cls)}>
-      <Icon className="mt-0.5 h-4 w-4 shrink-0" />
-      <p className="text-xs">{children}</p>
-    </div>
   );
 }
 

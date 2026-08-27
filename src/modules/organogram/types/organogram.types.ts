@@ -9,6 +9,8 @@ export interface OrganogramSeat {
   department: string;
   designation: string;
   category: SeatCategory;
+  /** Job grade for this seat (e.g. "M4", "SM1") — matches ZingHR's grade scheme. */
+  grade: string | null;
   /** Headcount approved in the organogram. */
   sanctioned: number;
   /** Currently occupied. */
@@ -57,4 +59,6 @@ export interface SeatLookupResult {
   /** 'existing' when a vacant sanctioned seat is available, else 'new'. */
   requirement: 'existing' | 'new';
   seat: OrganogramSeat | null;
+  /** Real grade(s) ZingHR-synced employees with this designation actually hold. */
+  gradeReference: { grade: string; count: number }[];
 }

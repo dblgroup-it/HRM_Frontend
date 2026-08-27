@@ -2,6 +2,8 @@ import { http } from '@shared/api';
 import type { ApiResponse } from '@shared/types';
 import type { BoardApproval, BoardGroup, VotePageInfo } from '../types/board.types';
 
+const MULTIPART = { headers: { 'Content-Type': 'multipart/form-data' } };
+
 export const boardApi = {
   /* Groups */
   listGroups: (): Promise<BoardGroup[]> =>
@@ -29,8 +31,14 @@ export const boardApi = {
   getApprovalStatus: (candidateId: string): Promise<BoardApproval | null> =>
     http.get<ApiResponse<BoardApproval | null>>(`/candidates/${candidateId}/board-approval`).then((r) => r.data),
 
-  hrApprove: (candidateId: string, note?: string): Promise<BoardApproval> =>
-    http.post<ApiResponse<BoardApproval>>(`/candidates/${candidateId}/board-approval/hr-approve`, { note }).then((r) => r.data),
+  hrApprove: (candidateId: string, file: File, note?: string): Promise<BoardApproval> => {
+    const fd = new FormData();
+    fd.append('file', file);
+    if (note) fd.append('note', note);
+    return http
+      .post<ApiResponse<BoardApproval>>(`/candidates/${candidateId}/board-approval/hr-approve`, fd, MULTIPART)
+      .then((r) => r.data);
+  },
 
   /* Public vote */
   getVoteInfo: (token: string): Promise<VotePageInfo> =>

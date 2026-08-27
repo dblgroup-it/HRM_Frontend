@@ -3,14 +3,13 @@ import type { BadgeTone } from '@shared/components/ui';
 
 import type {
   ApprovalRole,
-  ComputerRequirement,
   EmploymentNature,
+  FacilityKey,
   PreferredSource,
   Priority,
   RequirementType,
   RequisitionSource,
   RequisitionStatus,
-  SeatingArrangement,
 } from './types/requisition.types';
 
 /** DBL Group units / factories (aligned with the organogram units). */
@@ -73,15 +72,19 @@ export const EMPLOYMENT_NATURE_LABEL: Record<EmploymentNature, string> = {
   contractual: 'Contractual',
 };
 
-export const COMPUTER_LABEL: Record<ComputerRequirement, string> = {
-  not_applicable: 'Not Applicable',
+/** Display order + label for each of the 4 facility line items. */
+export const FACILITY_META: { key: FacilityKey; label: string }[] = [
+  { key: 'laptopDesktop', label: 'Laptop / Desktop' },
+  { key: 'transport', label: 'Transport Facility' },
+  { key: 'dormitory', label: 'Dormitory Facility' },
+  { key: 'seating', label: 'Seating Arrangement' },
+];
+
+export const FACILITY_OPTION_LABEL: Record<string, string> = {
   desktop: 'Desktop',
   laptop: 'Laptop',
-};
-
-export const SEATING_LABEL: Record<SeatingArrangement, string> = {
-  existing: 'Manageable from existing',
-  new: 'Required new arrangement',
+  existing: 'Existing seat',
+  new: 'New seat',
 };
 
 export const PREFERRED_SOURCE_LABEL: Record<PreferredSource, string> = {

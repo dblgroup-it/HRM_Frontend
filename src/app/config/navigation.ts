@@ -154,6 +154,12 @@ export const NAVIGATION: NavSection[] = [
         icon: UsersRound,
         requiresRecruitment: true,
       },
+      {
+        label: 'AI Proficiency Bank',
+        to: ROUTES.aiProficiencyBank,
+        icon: ClipboardCheck,
+        requiresRecruitment: true,
+      },
     ],
   },
   {

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Plus,
   Users,
   UserCheck,
   ClipboardList,
@@ -9,7 +8,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
-import { Button, Card, PageHeader, Pagination } from '@shared/components/ui';
+import { Card, PageHeader, Pagination } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import { formatCompact } from '@shared/utils';
 import { useDebounce } from '@shared/hooks';
@@ -59,9 +58,6 @@ export default function EmployeesPage() {
       <PageHeader
         title="Employees"
         description="Manage your organisation’s workforce and records."
-        actions={
-          <Button leftIcon={<Plus className="h-4 w-4" />}>Add employee</Button>
-        }
       />
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">

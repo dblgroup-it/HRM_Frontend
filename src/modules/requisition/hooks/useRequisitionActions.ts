@@ -4,6 +4,7 @@ import { requisitionApi } from '../api/requisition.api';
 import { requisitionKeys } from './useRequisitions';
 import type {
   ApprovalDecision,
+  FacilityKey,
   PreferredSource,
   Requisition,
   UpdateRequisitionInput,
@@ -30,6 +31,30 @@ export function useUpdateRequisition() {
       input: UpdateRequisitionInput;
     }) => requisitionApi.update(id, input),
     onSuccess: sync,
+  });
+}
+
+/** HR (whoever's turn it currently is) confirms or skips facility requests. */
+export function useUpdateFacilities() {
+  const sync = useSyncRequisition();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      decisions,
+    }: {
+      id: string;
+      decisions: { key: FacilityKey; status: 'confirmed' | 'skipped'; hrNote?: string }[];
+    }) => requisitionApi.updateFacilities(id, decisions),
+    onSuccess: (updated) => {
+      sync(updated);
+      // FacilitiesPanel is also rendered on the Onboarding page, which reads
+      // facilities through the ['onboarding', candidateId] cache — a
+      // completely separate cache from the requisition one `sync` just
+      // updated, so without this it kept showing the stale confirm/skip
+      // state until a full page reload.
+      void queryClient.invalidateQueries({ queryKey: ['onboarding'] });
+    },
   });
 }
 

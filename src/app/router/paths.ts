@@ -9,6 +9,7 @@ export const ROUTES = {
   accessControl: '/configuration/access',
   integrations: '/configuration/integrations',
   aiSettings: '/configuration/ai',
+  aiProficiencyBank: '/configuration/ai-proficiency-bank',
 
   // Phase 1 · Manpower Requisition
   requisitions: '/requisitions',
@@ -45,6 +46,8 @@ export const ROUTES = {
   boardGroups: '/configuration/board-groups',
   /** Public board-member approval page (no auth). */
   boardVote: (token = ':token') => `/board-vote/${token}`,
+  /** Public — Admin/IT recipient's facility-provisioning confirmation link. */
+  facilityConfirm: (token = ':token') => `/facility-provisioning/${token}`,
 
   // System
   settings: '/settings',

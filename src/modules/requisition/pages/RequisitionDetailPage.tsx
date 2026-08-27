@@ -1,8 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Pencil } from 'lucide-react';
+import {
+  ArrowLeft,
+  ClipboardCheck,
+  ClipboardList,
+  GitBranch,
+  ListChecks,
+  MessageSquare,
+  Pencil,
+  Rocket,
+  Users,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 import { useMyPermissions } from '@modules/rbac';
+import { useSeatLookup } from '@modules/organogram';
 
 import {
   Badge,
@@ -31,6 +43,7 @@ import { RoleProfilePanel } from '../components/RoleProfilePanel';
 import { PostingPanel } from '../components/PostingPanel';
 import { EditRequisitionModal } from '../components/EditRequisitionModal';
 import { AttachmentsPanel } from '../components/AttachmentsPanel';
+import { FacilitiesPanel } from '../components/FacilitiesPanel';
 import {
   EMPLOYMENT_NATURE_LABEL,
   REQUIREMENT_LABEL,
@@ -46,6 +59,11 @@ export default function RequisitionDetailPage() {
   const [searchParams] = useSearchParams();
   const { data: req, isLoading, isError } = useRequisition(id);
   const { data: perms } = useMyPermissions();
+  const seatLookup = useSeatLookup(
+    req?.unitFactory ?? '',
+    req?.department ?? '',
+    req?.designation ?? '',
+  );
   const [editOpen, setEditOpen] = useState(false);
   const [tab, setTab] = useState<TabKey | null>(
     (searchParams.get('tab') as TabKey | null) ?? null,
@@ -53,6 +71,35 @@ export default function RequisitionDetailPage() {
   // 'working' = Publish clicked, Drive not ready yet
   // 'done'    = Drive workspace arrived — show success for 1.5 s before hiding
   const [drivePhase, setDrivePhase] = useState<'idle' | 'working' | 'done'>('idle');
+
+  // Sliding pill indicator behind the active tab — measured from the DOM via
+  // a data-active flag, so this hook never needs to know which tab that is
+  // (keeps it safe to sit above the loading/error guards below).
+  const tabBarRef = useRef<HTMLDivElement>(null);
+  const [indicator, setIndicator] = useState<{ left: number; width: number }>({
+    left: 0,
+    width: 0,
+  });
+
+  useEffect(() => {
+    const measure = () => {
+      const el =
+        tabBarRef.current?.querySelector<HTMLElement>('[data-active="true"]');
+      if (!el) return;
+      // Guard against redundant updates — this runs with no dependency array
+      // (it needs to re-measure after any render, since the active tab is
+      // read from the DOM rather than passed in), so without this check a
+      // fresh object every render would re-trigger the effect forever.
+      setIndicator((prev) =>
+        prev.left === el.offsetLeft && prev.width === el.offsetWidth
+          ? prev
+          : { left: el.offsetLeft, width: el.offsetWidth },
+      );
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  });
 
   // Keep tab in sync when URL ?tab= changes (e.g. link from a modal on the same page)
   useEffect(() => {
@@ -130,6 +177,14 @@ export default function RequisitionDetailPage() {
       req.status === 'approved' ||
       Boolean(req.drive));
 
+  const seat = seatLookup.data;
+  const gradeLine = [
+    seat?.seat?.grade ? `Organogram: ${seat.seat.grade}` : null,
+    seat?.gradeReference?.length
+      ? `ZingHR: ${seat.gradeReference.slice(0, 3).map((g) => `${g.grade} (${g.count})`).join(', ')}`
+      : null,
+  ].filter(Boolean).join(' · ');
+
   const vacancy: Row[] = [
     { label: 'Requirement', value: REQUIREMENT_LABEL[req.requirementType] },
     { label: 'Source', value: SOURCE_LABEL[req.source] },
@@ -138,6 +193,8 @@ export default function RequisitionDetailPage() {
     { label: 'Unit / Factory', value: req.unitFactory },
     { label: 'Department', value: req.department },
     ...(req.section ? [{ label: 'Section', value: req.section }] : []),
+    { label: 'Job Grade', value: req.grade ?? 'Not yet confirmed' },
+    ...(gradeLine ? [{ label: 'Grade reference', value: gradeLine }] : []),
     { label: 'Place of posting', value: req.placeOfPosting },
     {
       label: 'When needed',
@@ -163,21 +220,23 @@ export default function RequisitionDetailPage() {
   ];
 
   // Lifecycle-ordered tabs (only the ones that apply to this requisition).
-  const tabs: { key: TabKey; label: string }[] = [
-    { key: 'details', label: 'Details' },
-    { key: 'approvals', label: 'Approvals' },
-    ...(showProfile ? [{ key: 'posting' as const, label: 'Profile & Posting' }] : []),
+  const tabs: { key: TabKey; label: string; icon: LucideIcon }[] = [
+    { key: 'details', label: 'Details', icon: ClipboardList },
+    { key: 'approvals', label: 'Approvals', icon: GitBranch },
+    ...(showProfile
+      ? [{ key: 'posting' as const, label: 'Profile & Posting', icon: Rocket }]
+      : []),
     ...(showCandidates
-      ? [{ key: 'recruitment' as const, label: 'Recruitment' }]
+      ? [{ key: 'recruitment' as const, label: 'Recruitment', icon: Users }]
       : []),
     ...(showCandidates && canCorporateHrContinue
-      ? [{ key: 'interviews' as const, label: 'Interviews' }]
+      ? [{ key: 'assessment' as const, label: 'Assessment', icon: ListChecks }]
       : []),
     ...(showCandidates && canCorporateHrContinue
-      ? [{ key: 'assessment' as const, label: 'Assessment' }]
+      ? [{ key: 'interviews' as const, label: 'Interviews', icon: MessageSquare }]
       : []),
     ...(showCandidates && canCorporateHrContinue
-      ? [{ key: 'onboarding' as const, label: 'Onboarding' }]
+      ? [{ key: 'onboarding' as const, label: 'Onboarding', icon: ClipboardCheck }]
       : []),
   ];
   const defaultTab: TabKey =
@@ -210,40 +269,47 @@ export default function RequisitionDetailPage() {
       />
       <Link
         to={backTo}
-        className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-600"
+        className="inline-flex w-fit items-center gap-1.5 text-sm text-slate-500 transition-colors hover:text-brand-600"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to {backLabel}
       </Link>
 
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-xl font-semibold text-slate-900">
-              {req.designation}
-            </h1>
-            <RequisitionStatusBadge status={req.status} pipeline={req.pipeline} />
-            <Badge tone={PRIORITY_TONE[req.priority]} dot>
-              {PRIORITY_LABEL[req.priority]}
-            </Badge>
+      {/* Hero */}
+      <div className="relative animate-rise-in overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+        <div className="pointer-events-none absolute -right-12 -top-16 h-44 w-44 rounded-full bg-brand-400/10 blur-3xl" />
+        <div className="relative flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between sm:p-6">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-xl font-semibold text-slate-900 sm:text-[1.35rem]">
+                {req.designation}
+              </h1>
+              <RequisitionStatusBadge status={req.status} pipeline={req.pipeline} />
+              <Badge tone={PRIORITY_TONE[req.priority]} dot>
+                {PRIORITY_LABEL[req.priority]}
+              </Badge>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-slate-500">
+              <span className="font-mono text-xs text-slate-400">{req.code}</span>
+              <span className="text-slate-300">·</span>
+              <span>{req.unitFactory}</span>
+              <span className="text-slate-300">·</span>
+              <span>{req.department}</span>
+            </div>
           </div>
-          <p className="mt-1 text-sm text-slate-500">
-            {req.code} · {req.unitFactory} · {req.department}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {canEdit && (
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={<Pencil className="h-4 w-4" />}
-              onClick={() => setEditOpen(true)}
-            >
-              Edit details
-            </Button>
-          )}
-          <Badge tone="brand">{req.requiredPosts} required post(s)</Badge>
+          <div className="flex shrink-0 items-center gap-3">
+            {canEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<Pencil className="h-4 w-4" />}
+                onClick={() => setEditOpen(true)}
+              >
+                Edit details
+              </Button>
+            )}
+            <Badge tone="brand">{req.requiredPosts} required post(s)</Badge>
+          </div>
         </div>
       </div>
 
@@ -251,39 +317,60 @@ export default function RequisitionDetailPage() {
         requisition={req}
         open={editOpen}
         onClose={() => setEditOpen(false)}
+        gradeHint={gradeLine}
       />
 
       {/* Workflow progress — the lifecycle at a glance, always visible */}
-      <Card>
+      <div
+        className="animate-rise-in overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm"
+        style={{ animationDelay: '60ms', animationFillMode: 'backwards' }}
+      >
         <CardBody>
           <WorkflowStepper status={req.status} pipeline={req.pipeline} />
         </CardBody>
-      </Card>
+      </div>
 
       {/* Lifecycle tabs */}
-      <div className="flex flex-wrap gap-1 border-b border-slate-200">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setTab(t.key)}
-            className={cn(
-              '-mb-px border-b-2 px-4 py-2 text-sm font-medium transition',
-              activeTab === t.key
-                ? 'border-brand-600 text-brand-700'
-                : 'border-transparent text-slate-500 hover:text-slate-800',
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div
+        ref={tabBarRef}
+        className="relative flex flex-wrap gap-1 rounded-2xl border border-slate-200/70 bg-slate-50/70 p-1.5 animate-rise-in"
+        style={{ animationDelay: '110ms', animationFillMode: 'backwards' }}
+      >
+        <span
+          className="absolute inset-y-1.5 z-0 rounded-xl bg-white shadow-sm transition-all duration-300 ease-out"
+          style={{ left: indicator.left, width: indicator.width }}
+          aria-hidden
+        />
+        {tabs.map((t) => {
+          const active = activeTab === t.key;
+          const Icon = t.icon;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              data-active={active}
+              onClick={() => setTab(t.key)}
+              className={cn(
+                'relative z-10 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors duration-200',
+                active
+                  ? 'text-brand-700'
+                  : 'text-slate-500 hover:text-slate-800',
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Tab content */}
+      <div key={activeTab} className="animate-fade-in">
       {activeTab === 'details' && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <DetailCard title="A · Vacancy Information" rows={vacancy} />
+        <div className="grid items-start gap-6 lg:grid-cols-2">
           <div className="space-y-6">
+            <DetailCard title="A · Vacancy Information" rows={vacancy} />
+
             <Card>
               <CardHeader>
                 <CardTitle>B · Job Analysis</CardTitle>
@@ -300,6 +387,10 @@ export default function RequisitionDetailPage() {
                 ))}
               </CardBody>
             </Card>
+          </div>
+
+          <div className="space-y-6">
+            <FacilitiesPanel requisition={req} canEdit={canEdit} />
 
             <Card>
               <CardHeader>
@@ -328,8 +419,13 @@ export default function RequisitionDetailPage() {
       )}
 
       {activeTab === 'approvals' && (
-        <div className="space-y-6">
-          <ApprovalPanel requisition={req} />
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+          <div className="animate-rise-in">
+            <ApprovalPanel requisition={req} />
+          </div>
+          <div className="animate-rise-in" style={{ animationDelay: '80ms' }}>
+            <FacilitiesPanel requisition={req} canEdit={canEdit} />
+          </div>
         </div>
       )}
 
@@ -353,9 +449,6 @@ export default function RequisitionDetailPage() {
         <CandidatesPanel
           requisition={req}
           canManage={canCorporateHrContinue}
-          onGoToAssessment={
-            canCorporateHrContinue ? () => setTab('assessment') : undefined
-          }
         />
       )}
 
@@ -370,6 +463,7 @@ export default function RequisitionDetailPage() {
       {activeTab === 'onboarding' && showCandidates && canCorporateHrContinue && (
         <OnboardingTab reqId={req.id} canManage={canCorporateHrContinue} />
       )}
+      </div>
     </div>
   );
 }
@@ -394,8 +488,8 @@ function DetailCard({ title, rows }: { title: string; rows: Row[] }) {
       <CardHeader>
         <CardTitle>{title}</CardTitle>
       </CardHeader>
-      <CardBody>
-        <dl className="space-y-3">
+      <CardBody className="py-2">
+        <dl className="divide-y divide-slate-100">
           {rows.map((r) => (
             <FieldRow key={r.label} {...r} />
           ))}
@@ -407,7 +501,7 @@ function DetailCard({ title, rows }: { title: string; rows: Row[] }) {
 
 function FieldRow({ label, value }: Row) {
   return (
-    <div className="flex justify-between gap-4">
+    <div className="flex items-center justify-between gap-4 rounded-lg px-1.5 py-2.5 transition-colors hover:bg-slate-50">
       <dt className="text-xs text-slate-400">{label}</dt>
       <dd className="text-right text-sm font-medium text-slate-700">{value}</dd>
     </div>

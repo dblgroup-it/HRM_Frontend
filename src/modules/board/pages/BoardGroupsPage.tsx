@@ -85,7 +85,12 @@ function AddMembersModal({ groupId, onClose }: { groupId: string; onClose: () =>
   const employees = (empData?.items ?? []).filter((e) => e.userId && !existingIds.has(e.userId));
 
   const toggle = (userId: string) =>
-    setSelected((prev) => { const n = new Set(prev); n.has(userId) ? n.delete(userId) : n.add(userId); return n; });
+    setSelected((prev) => {
+      const n = new Set(prev);
+      if (n.has(userId)) n.delete(userId);
+      else n.add(userId);
+      return n;
+    });
 
   return (
     <Modal open onClose={onClose} title="Add Board Members" size="md">

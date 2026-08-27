@@ -16,13 +16,37 @@ export type RequisitionSource = 'factory' | 'ho';
 
 export type Priority = 'top' | 'moderate' | 'ordinary';
 export type EmploymentNature = 'permanent' | 'temporary' | 'contractual';
-export type ComputerRequirement = 'not_applicable' | 'desktop' | 'laptop';
-export type SeatingArrangement = 'existing' | 'new';
 export type PreferredSource =
   | 'job_advertisement'
   | 'headhunting'
   | 'referral'
   | 'cv_bank';
+
+/** One of the 4 fixed facility types the requisitioner can request. */
+export type FacilityKey = 'laptopDesktop' | 'transport' | 'dormitory' | 'seating';
+
+/** A single facility line: the requisitioner's request + HR's confirm/skip decision. */
+export interface FacilityDecision {
+  requested: boolean;
+  /** 'laptop'|'desktop' for laptopDesktop; 'existing'|'new' for seating; null otherwise. */
+  option: string | null;
+  note: string;
+  status: 'pending' | 'confirmed' | 'skipped';
+  hrNote: string;
+  decidedBy: string | null;
+  decidedAt: ISODateString | null;
+}
+
+export type Facilities = Record<FacilityKey, FacilityDecision>;
+
+/** What the requisitioner fills in on the create form — HR's side is server-assigned. */
+export interface FacilityRequestInput {
+  requested: boolean;
+  option?: string;
+  note?: string;
+}
+
+export type FacilitiesRequestInput = Record<FacilityKey, FacilityRequestInput>;
 
 /** Roles that can appear in the dynamic sign-off chain. */
 export type ApprovalRole =
@@ -37,7 +61,8 @@ export type ApprovalDecision =
   | 'rejected'
   | 'need_more_info'
   | 'escalate'
-  | 'escalated';
+  | 'escalated'
+  | 'edited';
 export type StepStatus = 'pending' | 'approved' | 'rejected' | 'info_requested';
 
 export interface ApprovalStep {
@@ -126,6 +151,8 @@ export interface Requisition {
 
   // A · Vacancy Information
   designation: string;
+  /** Confirmed job grade — set by the current approver during sign-off, not the requisitioner. */
+  grade: string | null;
   requirementType: RequirementType;
   source: RequisitionSource;
   requiredPosts: number;
@@ -147,9 +174,7 @@ export interface Requisition {
   others: string;
 
   // C · Logistics Requirement
-  computer: ComputerRequirement;
-  computerReason: string;
-  seating: SeatingArrangement;
+  facilities: Facilities;
 
   // E · Group HR
   preferredSources: PreferredSource[];
@@ -196,9 +221,6 @@ export interface RequisitionDraft {
   education: string;
   experience: string;
   others: string;
-  computer: 'not_applicable' | 'desktop' | 'laptop';
-  computerReason: string;
-  seating: 'existing' | 'new';
   preferredSources: PreferredSource[];
   /** What the AI assumed or couldn't determine — shown to the user. */
   notes: string;
@@ -223,9 +245,7 @@ export interface CreateRequisitionPayload {
   education: string;
   experience: string;
   others: string;
-  computer: ComputerRequirement;
-  computerReason: string;
-  seating: SeatingArrangement;
+  facilities: FacilitiesRequestInput;
   preferredSources: PreferredSource[];
   signatories: RequisitionSignatories;
 }
@@ -240,6 +260,8 @@ export interface RequisitionFilters {
 
 /** Fields editable while a requisition is awaiting approval. */
 export interface UpdateRequisitionInput {
+  /** One of JOB_GRADES (@modules/salaryFixation), or '' to clear. */
+  grade?: string;
   requiredPosts?: number;
   totalVacantPosts?: number;
   placeOfPosting?: string;

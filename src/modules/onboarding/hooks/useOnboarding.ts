@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 
 import { onboardingApi } from '../api/onboarding.api';
 import type {
+  MedicalExam,
   MedicalStatus,
   OnboardingResult,
 } from '../types/onboarding.types';
@@ -10,6 +11,8 @@ import type {
 export const onboardingKeys = {
   candidate: (candidateId: string) => ['onboarding', candidateId] as const,
   medicalQueue: ['onboarding', 'medical-queue'] as const,
+  medicalExam: (onboardingId: string) =>
+    ['onboarding', onboardingId, 'medical-exam'] as const,
 };
 
 function errMsg(error: unknown, fallback: string): string {
@@ -87,6 +90,15 @@ export function useCrossCheck(candidateId: string) {
   );
 }
 
+export function useManualCrossCheck(candidateId: string) {
+  return useCandidateAction(
+    candidateId,
+    (vars: { verdict: string; note?: string }) =>
+      onboardingApi.manualCrossCheck(candidateId, vars.verdict, vars.note),
+    { success: 'Manual review recorded', fallback: 'Could not save review' },
+  );
+}
+
 export function useVerifyDoc(candidateId: string) {
   return useCandidateAction(
     candidateId,
@@ -109,6 +121,33 @@ export function useHrVerify(candidateId: string) {
     candidateId,
     () => onboardingApi.hrVerify(candidateId),
     { success: 'HR verification complete', fallback: 'Could not verify' },
+  );
+}
+
+export function useMarkOfferAcceptedManually(candidateId: string) {
+  return useCandidateAction(
+    candidateId,
+    () => onboardingApi.markOfferAcceptedManually(candidateId),
+    {
+      success: 'Offer marked as accepted',
+      fallback: 'Could not mark the offer as accepted',
+    },
+  );
+}
+
+export function useSkipDocs(candidateId: string) {
+  return useCandidateAction(
+    candidateId,
+    () => onboardingApi.skipDocs(candidateId),
+    { success: 'Document submission skipped', fallback: 'Could not skip' },
+  );
+}
+
+export function useSkipVerification(candidateId: string) {
+  return useCandidateAction(
+    candidateId,
+    () => onboardingApi.skipVerification(candidateId),
+    { success: 'Document verification skipped', fallback: 'Could not skip' },
   );
 }
 
@@ -135,6 +174,41 @@ export function useMedicalQueue() {
   return useQuery({
     queryKey: onboardingKeys.medicalQueue,
     queryFn: () => onboardingApi.medicalQueue(),
+  });
+}
+
+export function useMedicalExam(onboardingId: string, enabled = true) {
+  return useQuery({
+    queryKey: onboardingKeys.medicalExam(onboardingId),
+    queryFn: () => onboardingApi.getMedicalExam(onboardingId),
+    enabled: Boolean(onboardingId) && enabled,
+  });
+}
+
+export function useUpsertMedicalExam(onboardingId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Partial<MedicalExam>) =>
+      onboardingApi.upsertMedicalExam(onboardingId, body),
+    onSuccess: (data) => {
+      qc.setQueryData(onboardingKeys.medicalExam(onboardingId), data);
+      toast.success('Exam saved');
+    },
+    onError: (error) => toast.error(errMsg(error, 'Could not save the exam')),
+  });
+}
+
+export function useUploadMedicalReport(onboardingId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) =>
+      onboardingApi.uploadMedicalReport(onboardingId, file),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: onboardingKeys.medicalQueue });
+      qc.invalidateQueries({ queryKey: ['onboarding'] });
+      toast.success('Report uploaded');
+    },
+    onError: (error) => toast.error(errMsg(error, 'Could not upload the report')),
   });
 }
 

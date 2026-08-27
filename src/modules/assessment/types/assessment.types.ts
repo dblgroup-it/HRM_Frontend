@@ -1,5 +1,3 @@
-export type AssessmentTypeKey = 'written' | 'excel' | 'skill' | 'viva';
-
 export interface CommitteeMemberView {
   id: string;
   userId: string;
@@ -10,30 +8,19 @@ export interface CommitteeMemberView {
   role: string;
 }
 
-export interface RubricCriterionView {
-  id: string;
+/** One of the 10 fixed, policy-defined evaluation criteria — used both for
+ * the hiring-decision scorecard and salary fixation. */
+export interface EvaluationCriterionView {
+  key: string;
   label: string;
-  maxScore: number;
-}
-
-export interface AssessmentComponentView {
-  id: string;
-  type: AssessmentTypeKey;
-  maxScore: number;
-}
-
-export interface InterviewQuestion {
-  category: string;
-  question: string;
+  hint?: string;
+  max: number;
+  options: [number, string][];
 }
 
 export interface AssessmentSetup {
   committee: CommitteeMemberView[];
-  rubric: RubricCriterionView[];
-  plan: AssessmentComponentView[];
   aiEnabled: boolean;
-  autoEvalSummary: boolean;
-  interviewQuestions: InterviewQuestion[];
   deliberationNotes: string | null;
 }
 
@@ -42,23 +29,13 @@ export interface ScorecardEntry {
   candidateName: string;
   stage: string;
   cvScore: number | null;
-  examScores: Record<string, number>;
+  aiProficiencyScore: number | null;
   interviewAvg: number | null;
   combined: number | null;
 }
 
 export interface EvaluationSummaryResult {
   summary: string;
-}
-
-export interface RubricCriterionInput {
-  label: string;
-  maxScore: number;
-}
-
-export interface AssessmentComponentInput {
-  type: AssessmentTypeKey;
-  maxScore: number;
 }
 
 // --- Interviews (Stage 2) ---
@@ -92,8 +69,7 @@ export interface PublicEvalData {
   panelistName: string;
   candidate: { name: string };
   interview: PublicEvalInterview;
-  rubric: { id: string; label: string; maxScore: number }[];
-  interviewQuestions: { category: string; question: string }[];
+  criteria: EvaluationCriterionView[];
   submittedEval: {
     scores: Record<string, number>;
     comments: string;
@@ -131,7 +107,7 @@ export interface InterviewRoundView {
   status: InterviewStatusKey;
   meetLink: string | null;
   calendarSynced: boolean;
-  questionsSentAt: string | null;
+  criteria: EvaluationCriterionView[];
   panelists: InterviewPanelistView[];
   evaluations: EvaluationView[];
   evaluationCount: number;
@@ -149,8 +125,7 @@ export interface MyInterviewRound {
   status: InterviewStatusKey;
   candidate: { id: string; name: string; email: string; phone: string };
   requisition: { id: string; code: string; designation: string; unit: string };
-  rubric: { id: string; label: string; maxScore: number }[];
-  interviewQuestions: InterviewQuestion[];
+  criteria: EvaluationCriterionView[];
   myEvaluation: {
     scores: Record<string, number>;
     comments: string;
@@ -161,76 +136,6 @@ export interface MyInterviewRound {
 export interface SubmitEvaluationInput {
   scores: Record<string, number>;
   comments?: string;
-}
-
-// --- Online exams (Stage 5) ---
-
-export type ExamTypeKey = 'written' | 'excel';
-export type ExamQuestionKindKey = 'mcq' | 'text';
-
-export interface ExamQuestionView {
-  id: string;
-  examType: ExamTypeKey;
-  kind: ExamQuestionKindKey;
-  prompt: string;
-  options: string[] | null;
-  answer: string;
-  marks: number;
-}
-
-export interface ExamBank {
-  aiProvider: string | null;
-  questions: ExamQuestionView[];
-}
-
-export interface AddExamQuestionInput {
-  examType: ExamTypeKey;
-  kind: ExamQuestionKindKey;
-  prompt: string;
-  options?: string[];
-  answer?: string;
-  marks: number;
-}
-
-export interface ExamGrade {
-  score: number;
-  feedback: string;
-}
-
-export interface ExamAttemptView {
-  id: string;
-  examType: ExamTypeKey;
-  token: string;
-  status: string;
-  autoScore: number | null;
-  totalScore: number | null;
-  maxScore: number;
-  submittedAt: string | null;
-  createdAt: string;
-  link: string;
-  grades: Record<string, ExamGrade> | null;
-}
-
-export interface ExamAttemptsResult {
-  aiProvider: string | null;
-  attempts: ExamAttemptView[];
-}
-
-export interface PublicExamQuestion {
-  id: string;
-  kind: ExamQuestionKindKey;
-  prompt: string;
-  options: string[] | null;
-  marks: number;
-}
-
-export interface PublicExam {
-  status: string;
-  examType: ExamTypeKey;
-  candidateName: string;
-  designation: string;
-  code: string;
-  questions: PublicExamQuestion[];
 }
 
 export interface ScheduleInterviewInput {

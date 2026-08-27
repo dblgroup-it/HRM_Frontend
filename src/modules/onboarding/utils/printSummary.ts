@@ -1,3 +1,6 @@
+import { FACILITY_META, FACILITY_OPTION_LABEL } from '@modules/requisition/constants';
+import { formatCurrency } from '@shared/utils';
+
 import type { OnboardingResult } from '../types/onboarding.types';
 
 const esc = (v: string | null | undefined): string =>
@@ -40,6 +43,22 @@ export function printOnboardingSummary(data: OnboardingResult): void {
       </tr>`;
     })
     .join('');
+
+  const facilitiesRows = c.facilities
+    ? FACILITY_META.map(({ key, label }) => {
+        const f = c.facilities![key];
+        const text = !f.requested
+          ? 'Not requested'
+          : f.status === 'pending'
+            ? 'Awaiting HR'
+            : f.status === 'confirmed'
+              ? [f.option ? (FACILITY_OPTION_LABEL[f.option] ?? f.option) : null, 'Confirmed']
+                  .filter(Boolean)
+                  .join(' · ')
+              : 'Skipped';
+        return row(label, esc(text));
+      }).join('')
+    : '';
 
   const cc = ob.crossCheck;
   const ccFindings = (cc?.findings ?? [])
@@ -100,6 +119,23 @@ export function printOnboardingSummary(data: OnboardingResult): void {
       : '—',
   )}
 </table>
+
+${
+  c.proposedSalary != null
+    ? `<h2>Salary Fixation</h2>
+<table class="kv">
+  ${c.salaryJobGrade ? row('Job Grade', esc(c.salaryJobGrade)) : ''}
+  ${row('Fixed Salary', esc(formatCurrency(c.proposedSalary)))}
+</table>`
+    : ''
+}
+
+${
+  facilitiesRows
+    ? `<h2>Facilities</h2>
+<table class="kv">${facilitiesRows}</table>`
+    : ''
+}
 
 <h2>Joining documents (${ob.docs.length})</h2>
 ${

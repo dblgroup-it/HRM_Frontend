@@ -21,6 +21,7 @@ const UnitConfigPage = lazy(
 );
 const BoardGroupsPage = lazy(() => import('@modules/board/pages/BoardGroupsPage'));
 const BoardVotePage   = lazy(() => import('@modules/board/pages/BoardVotePage'));
+const FacilityConfirmPage = lazy(() => import('@modules/onboarding/pages/FacilityConfirmPage'));
 const IntegrationsPage = lazy(
   () => import('@modules/integrations/pages/IntegrationsPage')
 );
@@ -52,7 +53,12 @@ const TalentPoolPage = lazy(
 const MyInterviewsPage = lazy(
   () => import('@modules/assessment/pages/MyInterviewsPage')
 );
-const ExamPage = lazy(() => import('@modules/assessment/pages/ExamPage'));
+const AiProficiencyExamPage = lazy(
+  () => import('@modules/aiProficiency/pages/AiProficiencyExamPage'),
+);
+const AiProficiencyBankPage = lazy(
+  () => import('@modules/aiProficiency/pages/AiProficiencyBankPage'),
+);
 const EvaluateByTokenPage = lazy(
   () => import('@modules/assessment/pages/EvaluateByTokenPage'),
 );
@@ -95,10 +101,11 @@ export function AppRouter() {
         <Route path={ROUTES.careers} element={<CareersPage />} />
         <Route path={ROUTES.applyStatus} element={<ApplicationStatusPage />} />
         <Route path={ROUTES.apply()} element={<ApplyPage />} />
-        <Route path="/exam/:token" element={<ExamPage />} />
+        <Route path="/ai-proficiency/:token" element={<AiProficiencyExamPage />} />
         <Route path="/evaluate/:token" element={<EvaluateByTokenPage />} />
         <Route path={ROUTES.onboarding()} element={<OnboardingPage />} />
         <Route path={ROUTES.boardVote()} element={<BoardVotePage />} />
+        <Route path={ROUTES.facilityConfirm()} element={<FacilityConfirmPage />} />
 
         {/* Authenticated */}
         <Route element={<ProtectedRoute />}>
@@ -113,6 +120,10 @@ export function AppRouter() {
             />
             <Route path={ROUTES.integrations} element={<IntegrationsPage />} />
             <Route path={ROUTES.aiSettings} element={<AiSettingsPage />} />
+            <Route
+              path={ROUTES.aiProficiencyBank}
+              element={<AiProficiencyBankPage />}
+            />
             <Route path={ROUTES.boardGroups} element={<BoardGroupsPage />} />
 
             <Route path={ROUTES.requisitions} element={<RequisitionsPage />} />
