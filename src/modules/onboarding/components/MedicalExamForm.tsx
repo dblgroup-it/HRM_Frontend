@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Activity,
-  ArrowLeft,
-  ArrowRight,
   BadgeCheck,
   Check,
   CheckCircle2,
@@ -13,6 +11,7 @@ import {
   FileText,
   IdCard,
   Printer,
+  Sparkles,
   Upload,
   X,
   XCircle,
@@ -57,6 +56,44 @@ function AutoField({
           {value || placeholder}
         </span>
       </div>
+    </div>
+  );
+}
+
+/** A text field with a clinically-normal value shown as a tap-to-fill chip —
+ * disappears once the officer has typed something, so it never clutters an
+ * already-answered field. */
+function SuggestInput({
+  label,
+  value,
+  onChange,
+  normal,
+  ...rest
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  /** The typical/normal finding — shown as "Normal: X" and fillable in one tap. */
+  normal: string;
+} & Omit<React.ComponentProps<typeof Input>, 'label' | 'value' | 'onChange'>) {
+  return (
+    <div>
+      <Input
+        label={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        {...rest}
+      />
+      {!value && (
+        <button
+          type="button"
+          onClick={() => onChange(normal)}
+          className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 transition-colors hover:text-brand-600"
+        >
+          <Sparkles className="h-3 w-3" />
+          Normal: <span className="text-slate-500 group-hover:text-brand-600">{normal}</span> — tap to use
+        </button>
+      )}
     </div>
   );
 }
@@ -132,7 +169,7 @@ function ChecklistItem({
 const row2 = 'grid grid-cols-1 gap-5 sm:grid-cols-2';
 const row4 = 'grid grid-cols-2 gap-5 sm:grid-cols-4';
 
-const STEPS = [
+const SECTIONS = [
   {
     key: 'details',
     letter: 'A',
@@ -177,10 +214,10 @@ const STEPS = [
   },
 ] as const;
 
-/** Fields that must be filled for a step's circle to earn a checkmark —
- * mirrors the backend's required-at-clearance set (dutyPosition, refNo,
+/** Fields that must be filled for a section to earn its checkmark — mirrors
+ * the backend's required-at-clearance set (dutyPosition, refNo,
  * registrationNo, familyHistoryDetail and remarks stay optional). */
-const STEP_FIELDS: (keyof MedicalExam)[][] = [
+const SECTION_FIELDS: (keyof MedicalExam)[][] = [
   ['dateOfBirth', 'examDate', 'issueDate', 'consultantName'],
   ['height', 'weight', 'pulse', 'bloodPressure'],
   [
@@ -205,20 +242,59 @@ const STEP_FIELDS: (keyof MedicalExam)[][] = [
   ['bloodGroup', 'fitToJoin'],
 ];
 
-function isStepComplete(draft: Draft, stepIndex: number): boolean {
-  return STEP_FIELDS[stepIndex].every((key) => {
+function isSectionComplete(draft: Draft, i: number): boolean {
+  return SECTION_FIELDS[i].every((key) => {
     const v = draft[key];
     return v !== null && v !== undefined && v !== '';
   });
 }
 
+/** One section's card shell — icon, title, a "Complete" badge once every
+ * required field in it is filled, and its fields as children. */
+function Section({
+  info,
+  complete,
+  children,
+}: {
+  info: (typeof SECTIONS)[number];
+  complete: boolean;
+  children: React.ReactNode;
+}) {
+  const Icon: LucideIcon = info.icon;
+  return (
+    <div
+      id={`medical-section-${info.key}`}
+      className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm"
+    >
+      <div className="flex items-start gap-3.5 border-b border-slate-100 bg-slate-50/60 px-6 py-4 sm:px-8">
+        <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+          <Icon className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-600">
+            Section {info.letter}
+          </p>
+          <h2 className="text-base font-semibold text-slate-900 sm:text-lg">{info.title}</h2>
+          <p className="mt-0.5 text-sm text-slate-500">{info.description}</p>
+        </div>
+        {complete && (
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+            <Check className="h-3 w-3" /> Complete
+          </span>
+        )}
+      </div>
+      <div className="p-6 sm:p-8">{children}</div>
+    </div>
+  );
+}
+
 /**
- * Structured "Medical Fitness Report" form — a step wizard matching this
- * app's own RequisitionForm (same stepper, same one-card-per-step shell,
- * same plain field grid) instead of a bespoke look, and broken into steps
- * so a ~30-field clinical form doesn't render as one long scroll. Rendered
- * inline by MedicalQueuePage when a card is expanded (no modal — a popup
- * was too cramped for this many fields).
+ * Structured "Medical Fitness Report" form — every section laid out as its
+ * own card, all visible at once (not paginated behind a stepper), so the
+ * examining officer can see and cross-check the whole report the way they
+ * would the paper form. Common vitals/findings show a tap-to-fill "Normal"
+ * suggestion so a routine, healthy result doesn't need retyping.
+ * Rendered inline by MedicalQueuePage when a card is expanded.
  */
 export function MedicalExamForm({
   item,
@@ -235,7 +311,6 @@ export function MedicalExamForm({
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [draft, setDraft] = useState<Draft>({});
-  const [step, setStep] = useState(0);
   const [decision, setDecision] = useState<'clear' | 'reject' | null>(null);
   const [note, setNote] = useState('');
 
@@ -268,8 +343,6 @@ export function MedicalExamForm({
   const set = <K extends keyof MedicalExam>(key: K, value: MedicalExam[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
 
-  const goTo = (i: number) => setStep(i);
-
   const reportDoc = item.docs.find((d) => d.label === 'Medical Fitness Report');
 
   // Ref No is server-assigned and read-only — the backend rejects it if we
@@ -295,7 +368,7 @@ export function MedicalExamForm({
         onboardingId: item.id,
         status: decision === 'clear' ? 'cleared' : 'rejected',
         // Clearing reuses the Remarks already written on the Determination
-        // step — asking for notes a second time was confusing.
+        // section — asking for notes a second time was confusing.
         note: (decision === 'clear' ? draft.remarks : note) || undefined,
       },
       { onSuccess: onClose },
@@ -315,10 +388,8 @@ export function MedicalExamForm({
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       set(key, e.target.value as MedicalExam[K]);
 
-  const total = STEPS.length;
-  const current = STEPS[step];
-  const CurrentIcon: LucideIcon = current.icon;
-  const isLast = step === total - 1;
+  const sectionsComplete = SECTIONS.map((_, i) => isSectionComplete(draft, i));
+  const allComplete = sectionsComplete.every(Boolean);
 
   return (
     <div className="space-y-4">
@@ -381,333 +452,282 @@ export function MedicalExamForm({
         </div>
       ) : (
         <>
-          {/* Progress */}
-          <div className="flex items-center justify-center overflow-x-auto py-1">
-            {STEPS.map((s, i) => {
-              const complete = isStepComplete(draft, i);
-              const state = i === step ? 'current' : complete ? 'done' : 'upcoming';
-              return (
-                <div key={s.key} className="flex shrink-0 items-center">
-                  <button
-                    type="button"
-                    onClick={() => goTo(i)}
-                    className="group flex flex-col items-center gap-1.5 px-1"
-                  >
-                    <span
-                      className={cn(
-                        'flex h-9 w-9 items-center justify-center rounded-full border-2 text-xs font-bold transition-all duration-300',
-                        state === 'done' && 'border-brand-600 bg-brand-600 text-white',
-                        state === 'current' &&
-                          'scale-110 border-brand-600 bg-white text-brand-700 shadow-md shadow-brand-200',
-                        state === 'upcoming' &&
-                          'border-slate-200 bg-white text-slate-400 group-hover:border-slate-300 group-hover:text-slate-500',
-                      )}
-                    >
-                      {state === 'done' ? <Check className="h-4 w-4" /> : s.letter}
-                    </span>
-                    <span
-                      className={cn(
-                        'hidden whitespace-nowrap text-[11px] font-medium sm:block',
-                        state === 'current' ? 'text-brand-700' : 'text-slate-400',
-                      )}
-                    >
-                      {s.title}
-                    </span>
-                  </button>
-                  {i < STEPS.length - 1 && (
-                    <div
-                      className={cn(
-                        'mx-1 h-0.5 w-6 shrink-0 rounded-full transition-colors duration-500 sm:w-12',
-                        complete ? 'bg-brand-500' : 'bg-slate-200',
-                      )}
-                    />
-                  )}
-                </div>
-              );
-            })}
+          {/* Section jump-nav — quick scroll, not a gate; every section is
+              already on screen below. */}
+          <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
+            {SECTIONS.map((s, i) => (
+              <a
+                key={s.key}
+                href={`#medical-section-${s.key}`}
+                className={cn(
+                  'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                  sectionsComplete[i]
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700',
+                )}
+              >
+                {sectionsComplete[i] ? (
+                  <Check className="h-3 w-3" />
+                ) : (
+                  <span className="font-semibold">{s.letter}</span>
+                )}
+                {s.title}
+              </a>
+            ))}
           </div>
 
-          {/* Active step card */}
-          <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-lg shadow-slate-200/60">
-            <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-brand-400/10 blur-3xl" />
-            <div className="relative p-6 sm:p-8">
-              <div className="mb-6 flex items-start gap-3.5">
-                <span className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-600 ring-8 ring-brand-50/60">
-                  <CurrentIcon className="h-6 w-6" />
-                </span>
+          {/* All sections, laid out as one form */}
+          <div className="space-y-4">
+            <Section info={SECTIONS[0]} complete={sectionsComplete[0]}>
+              <div className={row2}>
+                <Input
+                  type="date"
+                  label="Date of Birth"
+                  value={t(draft.dateOfBirth)}
+                  onChange={onInput('dateOfBirth')}
+                />
+                <Input
+                  label="Duty Position"
+                  placeholder="Optional"
+                  value={t(draft.dutyPosition)}
+                  onChange={onInput('dutyPosition')}
+                />
+                <Input
+                  type="date"
+                  label="Date of Examination"
+                  value={t(draft.examDate)}
+                  onChange={onInput('examDate')}
+                />
+                <Input
+                  type="date"
+                  label="Date of Issue"
+                  value={t(draft.issueDate)}
+                  onChange={onInput('issueDate')}
+                />
+                <AutoField label="Ref No" value={t(draft.refNo)} placeholder="Assigned on save" />
+                <Input
+                  label="Registration No"
+                  placeholder="Optional"
+                  value={t(draft.registrationNo)}
+                  onChange={onInput('registrationNo')}
+                />
+                <AutoField label="Consultant" value={t(draft.consultantName)} />
+              </div>
+            </Section>
+
+            <Section info={SECTIONS[1]} complete={sectionsComplete[1]}>
+              <div className={row4}>
+                <Input label="Height" placeholder="e.g. 170 cm" value={t(draft.height)} onChange={onInput('height')} />
+                <Input label="Weight" placeholder="e.g. 65 kg" value={t(draft.weight)} onChange={onInput('weight')} />
+                <SuggestInput
+                  label="Pulse"
+                  value={t(draft.pulse)}
+                  onChange={(v) => set('pulse', v)}
+                  normal="60–100 bpm"
+                />
+                <SuggestInput
+                  label="Blood Pressure"
+                  value={t(draft.bloodPressure)}
+                  onChange={(v) => set('bloodPressure', v)}
+                  normal="120/80 mmHg"
+                />
+              </div>
+            </Section>
+
+            <Section info={SECTIONS[2]} complete={sectionsComplete[2]}>
+              <div className="space-y-6">
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-600">
-                    Section {current.letter} · Step {step + 1} of {total}
+                  <div className={row2}>
+                    <SuggestInput
+                      label="Right Eye"
+                      value={t(draft.visionRightEye)}
+                      onChange={(v) => set('visionRightEye', v)}
+                      normal="6/6"
+                    />
+                    <SuggestInput
+                      label="Left Eye"
+                      value={t(draft.visionLeftEye)}
+                      onChange={(v) => set('visionLeftEye', v)}
+                      normal="6/6"
+                    />
+                  </div>
+                  <div className="mt-3">
+                    <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                      Glasses
+                    </span>
+                    <YesNo
+                      value={draft.visionWithGlass}
+                      onChange={(v) => set('visionWithGlass', v)}
+                      yesLabel="With glass"
+                      noLabel="Without glass"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Color Vision
                   </p>
-                  <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
-                    {current.title}
-                  </h2>
-                  <p className="mt-0.5 text-sm text-slate-500">{current.description}</p>
+                  <div className={row4}>
+                    <SuggestInput
+                      label="Yellow"
+                      value={t(draft.colorVisionYellow)}
+                      onChange={(v) => set('colorVisionYellow', v)}
+                      normal="Normal"
+                    />
+                    <SuggestInput
+                      label="Red"
+                      value={t(draft.colorVisionRed)}
+                      onChange={(v) => set('colorVisionRed', v)}
+                      normal="Normal"
+                    />
+                    <SuggestInput
+                      label="Green"
+                      value={t(draft.colorVisionGreen)}
+                      onChange={(v) => set('colorVisionGreen', v)}
+                      normal="Normal"
+                    />
+                    <SuggestInput
+                      label="Blue"
+                      value={t(draft.colorVisionBlue)}
+                      onChange={(v) => set('colorVisionBlue', v)}
+                      normal="Normal"
+                    />
+                  </div>
                 </div>
               </div>
+            </Section>
 
-              {/* A · Report Details */}
-              {step === 0 && (
-                <div className={row2}>
-                  <Input
-                    type="date"
-                    label="Date of Birth"
-                    value={t(draft.dateOfBirth)}
-                    onChange={onInput('dateOfBirth')}
-                  />
-                  <Input
-                    label="Duty Position"
-                    placeholder="Optional"
-                    value={t(draft.dutyPosition)}
-                    onChange={onInput('dutyPosition')}
-                  />
-                  <Input
-                    type="date"
-                    label="Date of Examination"
-                    value={t(draft.examDate)}
-                    onChange={onInput('examDate')}
-                  />
-                  <Input
-                    type="date"
-                    label="Date of Issue"
-                    value={t(draft.issueDate)}
-                    onChange={onInput('issueDate')}
-                  />
-                  <AutoField label="Ref No" value={t(draft.refNo)} placeholder="Assigned on save" />
-                  <Input
-                    label="Registration No"
-                    placeholder="Optional"
-                    value={t(draft.registrationNo)}
-                    onChange={onInput('registrationNo')}
-                  />
-                  <AutoField label="Consultant" value={t(draft.consultantName)} />
-                </div>
-              )}
+            <Section info={SECTIONS[3]} complete={sectionsComplete[3]}>
+              <div className={row4}>
+                <SuggestInput
+                  label="Right Ear"
+                  value={t(draft.hearingRightEar)}
+                  onChange={(v) => set('hearingRightEar', v)}
+                  normal="Normal"
+                />
+                <SuggestInput
+                  label="Left Ear"
+                  value={t(draft.hearingLeftEar)}
+                  onChange={(v) => set('hearingLeftEar', v)}
+                  normal="Normal"
+                />
+                <SuggestInput
+                  label="Speech"
+                  value={t(draft.speech)}
+                  onChange={(v) => set('speech', v)}
+                  normal="Normal"
+                />
+                <SuggestInput
+                  label="Extremities"
+                  value={t(draft.extremities)}
+                  onChange={(v) => set('extremities', v)}
+                  normal="No deformity"
+                />
+              </div>
+            </Section>
 
-              {/* B · Vitals */}
-              {step === 1 && (
-                <div className={row4}>
-                  <Input label="Height" value={t(draft.height)} onChange={onInput('height')} />
-                  <Input label="Weight" value={t(draft.weight)} onChange={onInput('weight')} />
-                  <Input label="Pulse" value={t(draft.pulse)} onChange={onInput('pulse')} />
-                  <Input
-                    label="Blood Pressure"
-                    value={t(draft.bloodPressure)}
-                    onChange={onInput('bloodPressure')}
-                  />
-                </div>
-              )}
-
-              {/* C · Vision */}
-              {step === 2 && (
-                <div className="space-y-6">
-                  <div>
-                    <div className={row2}>
-                      <Input
-                        label="Right Eye"
-                        value={t(draft.visionRightEye)}
-                        onChange={onInput('visionRightEye')}
-                      />
-                      <Input
-                        label="Left Eye"
-                        value={t(draft.visionLeftEye)}
-                        onChange={onInput('visionLeftEye')}
-                      />
-                    </div>
-                    <div className="mt-3">
-                      <span className="mb-1.5 block text-sm font-medium text-slate-700">
-                        Glasses
-                      </span>
-                      <YesNo
-                        value={draft.visionWithGlass}
-                        onChange={(v) => set('visionWithGlass', v)}
-                        yesLabel="With glass"
-                        noLabel="Without glass"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Color Vision
-                    </p>
-                    <div className={row4}>
-                      <Input
-                        label="Yellow"
-                        value={t(draft.colorVisionYellow)}
-                        onChange={onInput('colorVisionYellow')}
-                      />
-                      <Input
-                        label="Red"
-                        value={t(draft.colorVisionRed)}
-                        onChange={onInput('colorVisionRed')}
-                      />
-                      <Input
-                        label="Green"
-                        value={t(draft.colorVisionGreen)}
-                        onChange={onInput('colorVisionGreen')}
-                      />
-                      <Input
-                        label="Blue"
-                        value={t(draft.colorVisionBlue)}
-                        onChange={onInput('colorVisionBlue')}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* D · Hearing & Speech */}
-              {step === 3 && (
-                <div className={row4}>
-                  <Input
-                    label="Right Ear"
-                    value={t(draft.hearingRightEar)}
-                    onChange={onInput('hearingRightEar')}
-                  />
-                  <Input
-                    label="Left Ear"
-                    value={t(draft.hearingLeftEar)}
-                    onChange={onInput('hearingLeftEar')}
-                  />
-                  <Input label="Speech" value={t(draft.speech)} onChange={onInput('speech')} />
-                  <Input
-                    label="Extremities"
-                    value={t(draft.extremities)}
-                    onChange={onInput('extremities')}
-                  />
-                </div>
-              )}
-
-              {/* E · Clinical Findings */}
-              {step === 4 && (
+            <Section info={SECTIONS[4]} complete={sectionsComplete[4]}>
+              <div>
                 <div>
-                  <div>
-                    <ChecklistItem
-                      n={1}
-                      text="No anemia, jaundice, clubbing, koilonychia or congenital malformations"
-                      value={draft.noAnemiaJaundiceEtc}
-                      onChange={(v) => set('noAnemiaJaundiceEtc', v)}
-                    />
-                    <ChecklistItem
-                      n={2}
-                      text="Physically & mentally stable, normotensive, nondiabetic"
-                      value={draft.stableNormotensiveNondiabetic}
-                      onChange={(v) => set('stableNormotensiveNondiabetic', v)}
-                    />
-                    <ChecklistItem
-                      n={3}
-                      text="Urine test clear of sugar / albumin"
-                      value={draft.urineTestClear}
-                      onChange={(v) => set('urineTestClear', v)}
-                    />
-                    <ChecklistItem
-                      n={4}
-                      text="Free from Hepatitis B"
-                      value={draft.hepatitisBNegative}
-                      onChange={(v) => set('hepatitisBNegative', v)}
-                    />
-                    <ChecklistItem
-                      n={5}
-                      text="Liver function normal"
-                      value={draft.liverFunctionNormal}
-                      onChange={(v) => set('liverFunctionNormal', v)}
-                    />
-                  </div>
-                  <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
-                    <Textarea
-                      rows={2}
-                      label="6. History of past illness"
-                      placeholder="Not remarkable"
-                      value={t(draft.pastIllnessHistory)}
-                      onChange={onInput('pastIllnessHistory')}
-                    />
-                    <div>
-                      <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                        <p className="text-sm text-slate-700">
-                          <span className="mr-1.5 text-slate-400">7.</span>
-                          Family history of DM, HTN — negative
-                        </p>
-                        <YesNo
-                          value={draft.familyHistoryDmHtn}
-                          onChange={(v) => set('familyHistoryDmHtn', v)}
-                        />
-                      </div>
-                      <Input
-                        label="Detail (optional)"
-                        className="mt-2"
-                        value={t(draft.familyHistoryDetail)}
-                        onChange={onInput('familyHistoryDetail')}
-                      />
-                    </div>
-                  </div>
+                  <ChecklistItem
+                    n={1}
+                    text="No anemia, jaundice, clubbing, koilonychia or congenital malformations"
+                    value={draft.noAnemiaJaundiceEtc}
+                    onChange={(v) => set('noAnemiaJaundiceEtc', v)}
+                  />
+                  <ChecklistItem
+                    n={2}
+                    text="Physically & mentally stable, normotensive, nondiabetic"
+                    value={draft.stableNormotensiveNondiabetic}
+                    onChange={(v) => set('stableNormotensiveNondiabetic', v)}
+                  />
+                  <ChecklistItem
+                    n={3}
+                    text="Urine test clear of sugar / albumin"
+                    value={draft.urineTestClear}
+                    onChange={(v) => set('urineTestClear', v)}
+                  />
+                  <ChecklistItem
+                    n={4}
+                    text="Free from Hepatitis B"
+                    value={draft.hepatitisBNegative}
+                    onChange={(v) => set('hepatitisBNegative', v)}
+                  />
+                  <ChecklistItem
+                    n={5}
+                    text="Liver function normal"
+                    value={draft.liverFunctionNormal}
+                    onChange={(v) => set('liverFunctionNormal', v)}
+                  />
                 </div>
-              )}
-
-              {/* F · Determination */}
-              {step === 5 && (
-                <div className="space-y-5">
-                  <div className={row2}>
-                    <Input
-                      label="Blood Group"
-                      value={t(draft.bloodGroup)}
-                      onChange={onInput('bloodGroup')}
-                    />
-                    <div>
-                      <span className="mb-1.5 block text-sm font-medium text-slate-700">
-                        Fit to Join
-                      </span>
-                      <div className="flex h-10 items-center">
-                        <YesNo
-                          value={draft.fitToJoin}
-                          onChange={(v) => set('fitToJoin', v)}
-                          yesLabel="Fit"
-                          noLabel="Not fit"
-                        />
-                      </div>
-                    </div>
-                  </div>
+                <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
                   <Textarea
                     rows={2}
-                    label="Remarks (optional)"
-                    value={t(draft.remarks)}
-                    onChange={onInput('remarks')}
+                    label="6. History of past illness"
+                    placeholder="Not remarkable"
+                    value={t(draft.pastIllnessHistory)}
+                    onChange={onInput('pastIllnessHistory')}
                   />
+                  <div>
+                    <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                      <p className="text-sm text-slate-700">
+                        <span className="mr-1.5 text-slate-400">7.</span>
+                        Family history of DM, HTN — negative
+                      </p>
+                      <YesNo
+                        value={draft.familyHistoryDmHtn}
+                        onChange={(v) => set('familyHistoryDmHtn', v)}
+                      />
+                    </div>
+                    <Input
+                      label="Detail (optional)"
+                      className="mt-2"
+                      value={t(draft.familyHistoryDetail)}
+                      onChange={onInput('familyHistoryDetail')}
+                    />
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            </Section>
 
-            {/* Step navigation */}
-            <div className="flex items-center gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4 sm:px-8">
-              {step > 0 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  leftIcon={<ArrowLeft className="h-4 w-4" />}
-                  onClick={() => goTo(step - 1)}
-                >
-                  Back
-                </Button>
-              )}
-              {!isLast && (
-                <Button
-                  type="button"
-                  rightIcon={<ArrowRight className="h-4 w-4" />}
-                  onClick={() => goTo(step + 1)}
-                  className="ml-auto"
-                >
-                  Next
-                </Button>
-              )}
-              <Button
-                type="button"
-                variant="outline"
-                isLoading={upsert.isPending}
-                onClick={save}
-                className={isLast ? 'ml-auto' : undefined}
-              >
-                Save draft
-              </Button>
-            </div>
+            <Section info={SECTIONS[5]} complete={sectionsComplete[5]}>
+              <div className="space-y-5">
+                <div className={row2}>
+                  <Input
+                    label="Blood Group"
+                    placeholder="e.g. B+"
+                    value={t(draft.bloodGroup)}
+                    onChange={onInput('bloodGroup')}
+                  />
+                  <div>
+                    <span className="mb-1.5 block text-sm font-medium text-slate-700">
+                      Fit to Join
+                    </span>
+                    <div className="flex h-10 items-center">
+                      <YesNo
+                        value={draft.fitToJoin}
+                        onChange={(v) => set('fitToJoin', v)}
+                        yesLabel="Fit"
+                        noLabel="Not fit"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <Textarea
+                  rows={2}
+                  label="Remarks (optional)"
+                  value={t(draft.remarks)}
+                  onChange={onInput('remarks')}
+                />
+              </div>
+            </Section>
+          </div>
+
+          {/* Save draft — persists whatever's on screen, any time */}
+          <div className="flex justify-end">
+            <Button variant="outline" isLoading={upsert.isPending} onClick={save}>
+              Save draft
+            </Button>
           </div>
 
           {/* Decision — Clear / Reject */}
@@ -715,7 +735,9 @@ export function MedicalExamForm({
             {!decision ? (
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs text-slate-400">
-                  Clearing requires every step above to be complete.
+                  {allComplete
+                    ? 'All sections complete.'
+                    : 'Clearing requires every section above to be complete.'}
                 </p>
                 <div className="flex gap-2">
                   <Button

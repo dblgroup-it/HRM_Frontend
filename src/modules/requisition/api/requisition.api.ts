@@ -129,7 +129,7 @@ let STORE: Requisition[] = [
     experience: 'Fresh graduates are encouraged to apply',
     others: 'Ability to work in a shift-based environment',
     facilities: mockFacilities({}),
-    preferredSources: ['job_advertisement', 'referral'],
+    preferredSources: ['job_advertisement', 'headhunting'],
     // existing + factory ⇒ Dept Head → Factory HR → Corporate HR
     status: 'pending_approval',
     approvalChain: approveFirst(buildChain('existing', 'factory', SIGN), 1),
@@ -227,7 +227,7 @@ let STORE: Requisition[] = [
     facilities: mockFacilities({
       laptopDesktop: { requested: true, option: 'laptop', note: 'HRIS and reporting' },
     }),
-    preferredSources: ['referral'],
+    preferredSources: ['headhunting'],
     // existing + HO ⇒ Dept Head → Corporate HR
     status: 'posted',
     approvalChain: approveFirst(buildChain('existing', 'ho', SIGN), 2),
@@ -252,7 +252,7 @@ let STORE: Requisition[] = [
       generatedAt: '2026-05-05T09:00:00Z',
     },
     posting: {
-      sources: ['referral'],
+      sources: ['headhunting'],
       closingDate: '2026-06-08',
       postedAt: '2026-05-06T09:00:00Z',
     },

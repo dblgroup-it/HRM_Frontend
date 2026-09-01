@@ -322,14 +322,45 @@ function CandidateRow({
       {expanded && (
         <div className="grid gap-3 border-t border-slate-100 bg-slate-50/60 p-3 sm:grid-cols-2">
           <WrittenTestCell candidateId={candidate.id} fx={fx} />
-          <div className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
-            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-              AI Proficiency Test{' '}
-              {fx && <span className="normal-case text-slate-300">pass ≥ {fx.aiTestPassPct}%</span>}
-            </p>
-            <AiProficiencyStep candidateId={candidate.id} jobGrade={fx?.jobGrade ?? null} />
-          </div>
+          <AiTestCell candidateId={candidate.id} fx={fx} />
         </div>
+      )}
+    </div>
+  );
+}
+
+function AiTestCell({
+  candidateId,
+  fx: data,
+}: {
+  candidateId: string;
+  fx: SalaryFixation | undefined;
+}) {
+  const upsert = useUpsertSalaryFixation(candidateId);
+
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center rounded-lg border border-slate-200 bg-white p-2.5">
+        <Spinner />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5 rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+          AI Proficiency Test <span className="normal-case text-slate-300">pass ≥ {data.aiTestPassPct}%</span>
+        </p>
+        <SegmentedToggle
+          value={data.aiTestEnabled}
+          onChange={(v) => upsert.mutate({ aiTestEnabled: v })}
+          onLabel="Required"
+          offLabel="Skip"
+        />
+      </div>
+      {data.aiTestEnabled && (
+        <AiProficiencyStep candidateId={candidateId} jobGrade={data.jobGrade} />
       )}
     </div>
   );
@@ -368,8 +399,8 @@ function WrittenTestCell({
         <SegmentedToggle
           value={data.writtenTestEnabled}
           onChange={(v) => upsert.mutate({ writtenTestEnabled: v })}
-          onLabel="Enabled"
-          offLabel="Disabled"
+          onLabel="Required"
+          offLabel="Skip"
         />
       </div>
       {data.writtenTestEnabled && (

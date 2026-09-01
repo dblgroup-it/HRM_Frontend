@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Sparkles } from 'lucide-react';
+import { AlertTriangle, Sparkles } from 'lucide-react';
 
 import { Spinner } from './Spinner';
 
@@ -85,11 +85,14 @@ export function BusyOverlay({
   label,
   sublabel,
   variant = 'default',
+  action,
 }: {
   show: boolean;
   label?: string;
   sublabel?: string;
-  variant?: 'default' | 'ai';
+  variant?: 'default' | 'ai' | 'error';
+  /** Only rendered for variant="error" — e.g. a "Retry" button. */
+  action?: { label: string; onClick: () => void };
 }) {
   if (!show) return null;
   return (
@@ -102,6 +105,10 @@ export function BusyOverlay({
             <Sparkles className="h-7 w-7 animate-pulse text-violet-600" />
           </span>
         </div>
+      ) : variant === 'error' ? (
+        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
+          <AlertTriangle className="h-7 w-7 text-red-500" />
+        </span>
       ) : (
         <Spinner size={130} />
       )}
@@ -118,6 +125,15 @@ export function BusyOverlay({
           rowH={20}
           textClass="text-sm text-slate-500"
         />
+      )}
+      {variant === 'error' && action && (
+        <button
+          type="button"
+          onClick={action.onClick}
+          className="mt-1 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-700"
+        >
+          {action.label}
+        </button>
       )}
     </div>
   );

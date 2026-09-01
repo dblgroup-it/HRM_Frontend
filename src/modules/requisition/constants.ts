@@ -90,9 +90,24 @@ export const FACILITY_OPTION_LABEL: Record<string, string> = {
 export const PREFERRED_SOURCE_LABEL: Record<PreferredSource, string> = {
   job_advertisement: 'Job advertisement',
   headhunting: 'Headhunting agencies',
-  referral: 'Referral from a reliable source',
   cv_bank: 'CV Bank',
 };
+
+/** Labels no longer offered as a pick, kept only so older requisitions that
+ * already saved them still display something readable. */
+const LEGACY_SOURCE_LABEL: Record<string, string> = {
+  referral: 'Referral from a reliable source',
+};
+
+/** Safe lookup for display — falls back to the legacy map, then the raw value,
+ * so a requisition saved before a source was removed never renders blank. */
+export function preferredSourceLabel(source: string): string {
+  return (
+    (PREFERRED_SOURCE_LABEL as Record<string, string>)[source] ??
+    LEGACY_SOURCE_LABEL[source] ??
+    source
+  );
+}
 
 export const STATUS_CONFIG: Record<
   RequisitionStatus,

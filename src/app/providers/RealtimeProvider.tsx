@@ -190,6 +190,27 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       schedule('req', 'org');
     });
 
+    // Background Drive workspace setup (POST /requisitions/:id/post) failed —
+    // patch the cached requisition so any open detail page can exit its
+    // "working" spinner instead of waiting forever for `drive` to arrive.
+    socket.on(
+      'requisition:drive_failed',
+      (payload?: { id: string; message?: string }) => {
+        if (!payload?.id) return;
+        queryClient.setQueryData<Requisition>(
+          requisitionKeys.detail(payload.id),
+          (old) =>
+            old
+              ? {
+                  ...old,
+                  driveSetupError:
+                    payload.message ?? 'Drive workspace setup failed.',
+                }
+              : old,
+        );
+      },
+    );
+
     // Targeted notification → sound + toast (immediate) + bell refresh (debounced).
     socket.on('notification', (n: AppNotification) => {
       const played = tryPlayNotificationSound();

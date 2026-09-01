@@ -30,7 +30,7 @@ import {
 import { formatDate } from '@shared/utils';
 import { ROUTES } from '@app/router/paths';
 
-import { CandidatesPanel, canAccessRecruitment } from '@modules/candidates';
+import { CandidatesPanel, canAccessRecruitment, useSetupWorkspace } from '@modules/candidates';
 import { AssessmentPanel, InterviewsPanel } from '@modules/assessment';
 import { OnboardingTab } from '@modules/onboarding';
 import { cn } from '@shared/lib';
@@ -48,7 +48,7 @@ import {
   EMPLOYMENT_NATURE_LABEL,
   REQUIREMENT_LABEL,
   SOURCE_LABEL,
-  PREFERRED_SOURCE_LABEL,
+  preferredSourceLabel,
   PRIORITY_LABEL,
   PRIORITY_TONE,
 } from '../constants';
@@ -70,7 +70,11 @@ export default function RequisitionDetailPage() {
   );
   // 'working' = Publish clicked, Drive not ready yet
   // 'done'    = Drive workspace arrived — show success for 1.5 s before hiding
-  const [drivePhase, setDrivePhase] = useState<'idle' | 'working' | 'done'>('idle');
+  // 'failed'  = server reported drive_failed, or a 90s timeout gave up waiting
+  const [drivePhase, setDrivePhase] = useState<
+    'idle' | 'working' | 'done' | 'failed'
+  >('idle');
+  const setupWorkspace = useSetupWorkspace(id);
 
   // Sliding pill indicator behind the active tab — measured from the DOM via
   // a data-active flag, so this hook never needs to know which tab that is
@@ -112,12 +116,32 @@ export default function RequisitionDetailPage() {
     if (drivePhase === 'working' && req?.drive) setDrivePhase('done');
   }, [drivePhase, req?.drive]);
 
+  // Server told us the background Drive setup failed (requisition:drive_failed).
+  useEffect(() => {
+    if (drivePhase === 'working' && req?.driveSetupError) setDrivePhase('failed');
+  }, [drivePhase, req?.driveSetupError]);
+
+  // Backstop: if neither `drive` nor `driveSetupError` ever arrives (a lost
+  // realtime event), don't spin forever — give up after 90s.
+  useEffect(() => {
+    if (drivePhase !== 'working') return;
+    const timeoutId = setTimeout(() => setDrivePhase('failed'), 90_000);
+    return () => clearTimeout(timeoutId);
+  }, [drivePhase]);
+
   // Hold the 'done' label for 1.5 s, then dismiss
   useEffect(() => {
     if (drivePhase !== 'done') return;
     const id = setTimeout(() => setDrivePhase('idle'), 1500);
     return () => clearTimeout(id);
   }, [drivePhase]);
+
+  const retryDriveSetup = () => {
+    setDrivePhase('working');
+    setupWorkspace.mutate(undefined, {
+      onError: () => setDrivePhase('failed'),
+    });
+  };
 
   // Return to wherever the user came from (Candidates, Requisitions, …).
   const nav = (location.state ?? null) as {
@@ -256,15 +280,26 @@ export default function RequisitionDetailPage() {
     <div className="relative space-y-6">
       <BusyOverlay
         show={drivePhase !== 'idle'}
+        variant={drivePhase === 'failed' ? 'error' : 'default'}
         label={
           drivePhase === 'done'
             ? 'Drive workspace ready!'
-            : 'Setting up Google Drive workspace…'
+            : drivePhase === 'failed'
+              ? 'Drive workspace setup failed'
+              : 'Setting up Google Drive workspace…'
         }
         sublabel={
           drivePhase === 'done'
             ? 'Switching to recruitment view…'
-            : 'Creating folders and sharing CV collection link…'
+            : drivePhase === 'failed'
+              ? (req?.driveSetupError ??
+                'This is taking longer than expected — the setup may not have completed.')
+              : 'Creating folders and sharing CV collection link…'
+        }
+        action={
+          drivePhase === 'failed'
+            ? { label: 'Retry', onClick: retryDriveSetup }
+            : undefined
         }
       />
       <Link
@@ -401,7 +436,7 @@ export default function RequisitionDetailPage() {
                   {req.preferredSources.length > 0 ? (
                     req.preferredSources.map((s) => (
                       <Badge key={s} tone="neutral">
-                        {PREFERRED_SOURCE_LABEL[s]}
+                        {preferredSourceLabel(s)}
                       </Badge>
                     ))
                   ) : (

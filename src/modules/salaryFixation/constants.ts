@@ -49,6 +49,14 @@ export function gradeLabel(grade: JobGrade): string {
 
 export const BANDS = Array.from({ length: 11 }, (_, i) => i + 1);
 
+/** Each grade spans 11 equal-step bands — mirrors the backend's
+ * salary-fixation.constants.ts bandSalary() exactly, for instant local
+ * feedback when HR picks a band; the backend recomputes it authoritatively. */
+export function bandSalary(grade: JobGrade, band: number): number {
+  const g = GRADES[grade];
+  return g.min + ((band - 1) * (g.max - g.min)) / 10;
+}
+
 export interface ScreeningResult {
   status: 'not_conducted' | 'pending' | 'pass' | 'fail';
   pct: number | null;

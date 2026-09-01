@@ -51,7 +51,7 @@ export const requisitionSchema = z
 
     // E · Group HR
     preferredSources: z
-      .array(z.enum(['job_advertisement', 'headhunting', 'referral', 'cv_bank']))
+      .array(z.enum(['job_advertisement', 'headhunting', 'cv_bank']))
       .optional()
       .default([]),
   })

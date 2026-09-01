@@ -19,7 +19,6 @@ export type EmploymentNature = 'permanent' | 'temporary' | 'contractual';
 export type PreferredSource =
   | 'job_advertisement'
   | 'headhunting'
-  | 'referral'
   | 'cv_bank';
 
 /** One of the 4 fixed facility types the requisitioner can request. */
@@ -186,6 +185,9 @@ export interface Requisition {
   roleProfile: RoleProfile | null;
   posting: JobPosting | null;
   drive?: RequisitionDrive | null;
+  /** Client-side only — set by RealtimeProvider on a `requisition:drive_failed`
+   * event, never returned by the API. Cleared on refetch. */
+  driveSetupError?: string | null;
   attachments?: RequisitionAttachment[];
   candidateStats?: CandidateStats;
   pipeline?: PipelineProgress;

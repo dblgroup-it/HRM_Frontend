@@ -8,7 +8,7 @@ import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
 import { useUpdateCandidate } from '@modules/candidates';
 
-import { BANDS, GRADES, JOB_GRADES, evaluateScreeningTest, gradeLabel } from '../constants';
+import { BANDS, GRADES, JOB_GRADES, bandSalary, evaluateScreeningTest, gradeLabel } from '../constants';
 import {
   salaryFixationKeys,
   useFinalizeSalaryFixation,
@@ -108,6 +108,10 @@ export function SalaryFixationModal({
   const screeningFailed = written.status === 'fail' || ai.status === 'fail';
 
   const canFinalize = !screeningFailed && data.proposedSalary !== null;
+
+  // HR's manual pick always wins, same precedence the backend uses for the
+  // actual proposed-salary computation — so this stays in sync with it.
+  const activeBand = form.bandOverride ?? data.computedBand;
 
   return createPortal(
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
@@ -245,7 +249,13 @@ export function SalaryFixationModal({
             </div>
             <ResultCard
               label="Grade Range"
-              value={form.jobGrade ? `${form.jobGrade}: ${gradeLabel(form.jobGrade)}` : '—'}
+              value={
+                form.jobGrade
+                  ? activeBand
+                    ? `${form.jobGrade}: ${bandSalary(form.jobGrade, activeBand).toLocaleString('en-IN')}`
+                    : `${form.jobGrade}: ${gradeLabel(form.jobGrade)}`
+                  : '—'
+              }
             />
           </div>
 

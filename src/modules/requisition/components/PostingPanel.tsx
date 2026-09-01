@@ -15,7 +15,7 @@ import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
 
 import type { PreferredSource, Requisition } from '../types/requisition.types';
-import { PREFERRED_SOURCE_LABEL, PREFERRED_SOURCES } from '../constants';
+import { PREFERRED_SOURCES, preferredSourceLabel } from '../constants';
 import { usePostRequisition } from '../hooks/useRequisitionActions';
 
 export function PostingPanel({
@@ -27,10 +27,15 @@ export function PostingPanel({
   canContinue: boolean;
   onPosting?: () => void;
 }) {
+  // Drop any source the requisition was raised with that's since been removed
+  // from PREFERRED_SOURCES (e.g. a retired channel) — resubmitting it would
+  // fail the backend's validation, which only accepts current values.
+  const validSources = new Set(PREFERRED_SOURCES.map((s) => s.value));
+  const initialSelected = requisition.preferredSources.filter((s) =>
+    validSources.has(s),
+  );
   const [selected, setSelected] = useState<PreferredSource[]>(
-    requisition.preferredSources.length
-      ? requisition.preferredSources
-      : ['job_advertisement']
+    initialSelected.length ? initialSelected : ['job_advertisement']
   );
   const [closingDate, setClosingDate] = useState('');
   const post = usePostRequisition();
@@ -60,7 +65,7 @@ export function PostingPanel({
             {sources.map((s) => (
               <Badge key={s} tone="brand">
                 <Globe className="mr-1 h-3 w-3" />
-                {PREFERRED_SOURCE_LABEL[s]}
+                {preferredSourceLabel(s)}
               </Badge>
             ))}
           </div>
