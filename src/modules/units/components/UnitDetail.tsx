@@ -27,7 +27,17 @@ import {
 } from '../hooks/useUnits';
 import { SeatFormModal } from './SeatFormModal';
 
-export function UnitDetail({ unit }: { unit: ConfigUnit }) {
+export function UnitDetail({
+  unit,
+  canEdit,
+  canDelete,
+}: {
+  unit: ConfigUnit;
+  /** Corporate HR/CHRO/super, or Factory HR/SBU Head for this exact unit. */
+  canEdit: boolean;
+  /** Deleting a whole unit stays a super-user-only action regardless of canEdit. */
+  canDelete: boolean;
+}) {
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(unit.name);
   const [deptName, setDeptName] = useState('');
@@ -99,21 +109,23 @@ export function UnitDetail({ unit }: { unit: ConfigUnit }) {
               <h2 className="text-lg font-semibold text-slate-900">
                 {unit.name}
               </h2>
-              <button
-                type="button"
-                title="Rename unit"
-                onClick={() => {
-                  setName(unit.name);
-                  setEditingName(true);
-                }}
-                className="rounded p-1 text-slate-400 hover:bg-slate-100"
-              >
-                <Pencil className="h-4 w-4" />
-              </button>
+              {canEdit && (
+                <button
+                  type="button"
+                  title="Rename unit"
+                  onClick={() => {
+                    setName(unit.name);
+                    setEditingName(true);
+                  }}
+                  className="rounded p-1 text-slate-400 hover:bg-slate-100"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+              )}
             </div>
           )}
 
-          {!editingName && (
+          {!editingName && canDelete && (
             <Button
               variant="ghost"
               size="sm"
@@ -152,11 +164,11 @@ export function UnitDetail({ unit }: { unit: ConfigUnit }) {
         )}
 
         {unit.departments.map((dept) => (
-          <DepartmentBlock key={dept.id} department={dept} />
+          <DepartmentBlock key={dept.id} department={dept} canEdit={canEdit} />
         ))}
 
         {/* Add department */}
-        {addingDept ? (
+        {!canEdit ? null : addingDept ? (
           <div className="flex items-end gap-2 rounded-lg border border-brand-200 bg-brand-50/40 p-3">
             <Input
               label="New department"
@@ -197,7 +209,13 @@ export function UnitDetail({ unit }: { unit: ConfigUnit }) {
   );
 }
 
-function DepartmentBlock({ department }: { department: ConfigDepartment }) {
+function DepartmentBlock({
+  department,
+  canEdit,
+}: {
+  department: ConfigDepartment;
+  canEdit: boolean;
+}) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(department.name);
   const [seatModal, setSeatModal] = useState<{
@@ -279,46 +297,48 @@ function DepartmentBlock({ department }: { department: ConfigDepartment }) {
                 {filled}/{sanctioned} filled
               </span>
             </div>
-            <div className="flex items-center gap-1">
-              <Button
-                size="sm"
-                variant="outline"
-                leftIcon={<Plus className="h-3.5 w-3.5" />}
-                onClick={() => setSeatModal({ position: null })}
-              >
-                Seat
-              </Button>
-              <button
-                type="button"
-                title="Rename department"
-                onClick={() => {
-                  setName(department.name);
-                  setEditing(true);
-                }}
-                className="rounded p-1.5 text-slate-400 hover:bg-white"
-              >
-                <Pencil className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                title="Delete department"
-                onClick={() => {
-                  if (window.confirm(`Delete department "${department.name}"?`)) {
-                    deleteDepartment.mutate(department.id);
-                  }
-                }}
-                className="rounded p-1.5 text-slate-400 hover:bg-white hover:text-rose-500"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
+            {canEdit && (
+              <div className="flex items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  leftIcon={<Plus className="h-3.5 w-3.5" />}
+                  onClick={() => setSeatModal({ position: null })}
+                >
+                  Seat
+                </Button>
+                <button
+                  type="button"
+                  title="Rename department"
+                  onClick={() => {
+                    setName(department.name);
+                    setEditing(true);
+                  }}
+                  className="rounded p-1.5 text-slate-400 hover:bg-white"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  title="Delete department"
+                  onClick={() => {
+                    if (window.confirm(`Delete department "${department.name}"?`)) {
+                      deleteDepartment.mutate(department.id);
+                    }
+                  }}
+                  className="rounded p-1.5 text-slate-400 hover:bg-white hover:text-rose-500"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
 
       {department.positions.length === 0 ? (
         <p className="px-4 py-4 text-sm text-slate-400">
-          No seats yet — add the first one.
+          {canEdit ? 'No seats yet — add the first one.' : 'No seats yet.'}
         </p>
       ) : (
         order.map((sec) => (
@@ -349,22 +369,26 @@ function DepartmentBlock({ department }: { department: ConfigDepartment }) {
                     <Badge tone={vacant > 0 ? 'warning' : 'success'}>
                       {vacant > 0 ? `${vacant} vacant` : 'Full'}
                     </Badge>
-                    <button
-                      type="button"
-                      title="Edit seat"
-                      onClick={() => setSeatModal({ position: pos })}
-                      className="rounded p-1.5 text-slate-400 hover:bg-white"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      title="Delete seat"
-                      onClick={() => removePosition.mutate(pos.id)}
-                      className="rounded p-1.5 text-slate-400 hover:bg-white hover:text-rose-500"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {canEdit && (
+                      <>
+                        <button
+                          type="button"
+                          title="Edit seat"
+                          onClick={() => setSeatModal({ position: pos })}
+                          className="rounded p-1.5 text-slate-400 hover:bg-white"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          title="Delete seat"
+                          onClick={() => removePosition.mutate(pos.id)}
+                          className="rounded p-1.5 text-slate-400 hover:bg-white hover:text-rose-500"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 );
               })}

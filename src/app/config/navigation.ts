@@ -34,6 +34,10 @@ export interface NavItem {
   requiresMedical?: boolean;
   /** Gate to management / Corporate HR / CHRO / super (AI insights). */
   requiresInsights?: boolean;
+  /** Gate to Corporate HR / CHRO / Factory HR / SBU Head for their unit(s) / super. */
+  requiresUnitConfig?: boolean;
+  /** Gate to Corporate HR / CHRO / super (both GLOBAL roles). */
+  requiresAiSettings?: boolean;
   /** Optional short tag, e.g. phase marker. */
   badge?: string;
   /** Opens in a new browser tab instead of navigating inside the app. */
@@ -128,7 +132,7 @@ export const NAVIGATION: NavSection[] = [
         label: 'Unit Config',
         to: ROUTES.unitConfig,
         icon: SlidersHorizontal,
-        roles: ['admin', 'hr_manager'],
+        requiresUnitConfig: true,
       },
       {
         label: 'Access Control',
@@ -140,7 +144,7 @@ export const NAVIGATION: NavSection[] = [
         label: 'AI Settings',
         to: ROUTES.aiSettings,
         icon: Sparkles,
-        roles: ['admin'],
+        requiresAiSettings: true,
       },
       {
         label: 'Integrations',

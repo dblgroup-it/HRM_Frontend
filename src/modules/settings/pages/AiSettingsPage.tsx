@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Filter,
   GraduationCap,
+  ShieldAlert,
   Sparkles,
   Target,
   Wand2,
@@ -17,6 +18,8 @@ import {
   CardBody,
   CardHeader,
   CardTitle,
+  EmptyState,
+  FullPageSpinner,
   PageHeader,
   SegmentedToggle,
   Spinner,
@@ -24,6 +27,9 @@ import {
 import { cn } from '@shared/lib';
 import { http } from '@shared/api';
 import type { ApiResponse } from '@shared/types';
+import { useMyPermissions } from '@modules/rbac';
+
+import { canAccessAiSettings } from '../access';
 
 interface AiSettings {
   shortlistThreshold: number;
@@ -47,6 +53,7 @@ const PRESETS = [
 
 export default function AiSettingsPage() {
   const qc = useQueryClient();
+  const { data: perms, isLoading: permsLoading } = useMyPermissions();
   const { data, isLoading } = useQuery({
     queryKey: ['settings', 'ai'],
     queryFn: () =>
@@ -127,11 +134,26 @@ export default function AiSettingsPage() {
     onError: (e) => toast.error((e as Error).message || 'Could not save'),
   });
 
+  if (permsLoading) return <FullPageSpinner label="Loading…" />;
+
+  if (!canAccessAiSettings(perms)) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-6">
+        <PageHeader title="AI Settings" />
+        <EmptyState
+          icon={<ShieldAlert className="h-6 w-6" />}
+          title="Access restricted"
+          description="AI Settings is available to Corporate HR, CHRO and super users only."
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader
         title="AI Settings"
-        description="Tune how AI assists recruitment across the system. Super users only."
+        description="Tune how AI assists recruitment across the system. Corporate HR, CHRO and super users."
       />
 
       {isLoading || !data ? (

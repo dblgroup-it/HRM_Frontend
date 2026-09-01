@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Building2, ClipboardList, Network, Plus, Search, Users } from 'lucide-react';
+import { Building2, ClipboardList, Network, Plus, Search, ShieldAlert, Users } from 'lucide-react';
 
 import {
   Button,
@@ -11,12 +11,15 @@ import {
   StatCard,
 } from '@shared/components/ui';
 import { cn } from '@shared/lib';
+import { useMyPermissions } from '@modules/rbac';
 
 import { useCreateUnit, useUnitsConfig } from '../hooks/useUnits';
 import type { ConfigUnit } from '../types/unit.types';
 import { UnitDetail } from '../components/UnitDetail';
+import { canAccessUnitConfig, canCreateUnit, canEditUnit } from '../access';
 
 export default function UnitConfigPage() {
+  const { data: perms, isLoading: permsLoading } = useMyPermissions();
   const { data: units = [], isLoading } = useUnitsConfig();
   const createUnit = useCreateUnit();
 
@@ -25,27 +28,35 @@ export default function UnitConfigPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [name, setName] = useState('');
 
+  // Factory HR / SBU Head only ever see the unit(s) they're actually
+  // assigned to here — not shown read-only, just not in the list at all.
+  // Corporate HR / CHRO / super users see every unit, unaffected.
+  const visibleUnits = useMemo(
+    () => units.filter((u) => canEditUnit(perms, u.name)),
+    [units, perms],
+  );
+
   const selected = useMemo(
-    () => units.find((u) => u.id === selectedId) ?? units[0] ?? null,
-    [units, selectedId],
+    () => visibleUnits.find((u) => u.id === selectedId) ?? visibleUnits[0] ?? null,
+    [visibleUnits, selectedId],
   );
 
   const filtered = useMemo(() => {
     const t = search.trim().toLowerCase();
-    return t ? units.filter((u) => u.name.toLowerCase().includes(t)) : units;
-  }, [units, search]);
+    return t ? visibleUnits.filter((u) => u.name.toLowerCase().includes(t)) : visibleUnits;
+  }, [visibleUnits, search]);
 
   const totals = useMemo(() => {
     let sanctioned = 0;
     let filled = 0;
-    for (const u of units)
+    for (const u of visibleUnits)
       for (const d of u.departments)
         for (const p of d.positions) {
           sanctioned += p.sanctioned;
           filled += p.filled;
         }
     return { sanctioned, filled, vacant: Math.max(0, sanctioned - filled) };
-  }, [units]);
+  }, [visibleUnits]);
 
   const submit = () => {
     if (name.trim().length < 2) return;
@@ -61,7 +72,20 @@ export default function UnitConfigPage() {
     );
   };
 
-  if (isLoading) return <FullPageSpinner label="Loading units…" />;
+  if (isLoading || permsLoading) return <FullPageSpinner label="Loading units…" />;
+
+  if (!canAccessUnitConfig(perms)) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Unit Config" />
+        <EmptyState
+          icon={<ShieldAlert className="h-6 w-6" />}
+          title="Access restricted"
+          description="Unit Config is available to Corporate HR, CHRO, Factory HR and SBU Head (for their own unit) and super users only."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -69,26 +93,36 @@ export default function UnitConfigPage() {
         title="Unit Configuration"
         description="Units → departments → sections → sanctioned seats. This drives the organogram."
         actions={
-          <Button
-            leftIcon={<Plus className="h-4 w-4" />}
-            onClick={() => setAddOpen(true)}
-          >
-            Add unit
-          </Button>
+          canCreateUnit(perms) && (
+            <Button
+              leftIcon={<Plus className="h-4 w-4" />}
+              onClick={() => setAddOpen(true)}
+            >
+              Add unit
+            </Button>
+          )
         }
       />
 
-      {units.length === 0 ? (
+      {visibleUnits.length === 0 ? (
         <EmptyState
           icon={<Building2 className="h-6 w-6" />}
-          title="No units configured"
-          description="Add your first unit to start building the organogram."
-          action={<Button onClick={() => setAddOpen(true)}>Add unit</Button>}
+          title={units.length === 0 ? 'No units configured' : 'No units assigned to you'}
+          description={
+            units.length === 0
+              ? 'Add your first unit to start building the organogram.'
+              : "You don't hold Factory HR or SBU Head for any unit yet — ask an admin to assign one."
+          }
+          action={
+            canCreateUnit(perms) ? (
+              <Button onClick={() => setAddOpen(true)}>Add unit</Button>
+            ) : undefined
+          }
         />
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-            <StatCard label="Units" value={units.length} icon={Network} accent="brand" />
+            <StatCard label="Units" value={visibleUnits.length} icon={Network} accent="brand" />
             <StatCard
               label="Sanctioned seats"
               value={totals.sanctioned}
@@ -129,7 +163,12 @@ export default function UnitConfigPage() {
 
             {/* Detail */}
             {selected ? (
-              <UnitDetail key={selected.id} unit={selected} />
+              <UnitDetail
+                key={selected.id}
+                unit={selected}
+                canEdit={canEditUnit(perms, selected.name)}
+                canDelete={Boolean(perms?.isSuperUser)}
+              />
             ) : (
               <EmptyState title="Select a unit" description="Pick a unit on the left to configure it." />
             )}

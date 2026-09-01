@@ -9,6 +9,8 @@ import { useMyPermissions } from '@modules/rbac';
 import { canAccessRecruitment } from '@modules/candidates';
 import { canAccessMedical } from '@modules/onboarding';
 import { canAccessInsights } from '@modules/insights';
+import { canAccessUnitConfig } from '@modules/units';
+import { canAccessAiSettings } from '@modules/settings';
 import { NAVIGATION } from '@app/config/navigation';
 
 interface SidebarProps {
@@ -32,6 +34,8 @@ export function Sidebar({
   const canSeeRecruitment = canAccessRecruitment(perms);
   const canSeeMedical = canAccessMedical(perms);
   const canSeeInsights = canAccessInsights(perms, role);
+  const canSeeUnitConfig = canAccessUnitConfig(perms);
+  const canSeeAiSettings = canAccessAiSettings(perms);
 
   return (
     <>
@@ -116,7 +120,9 @@ export function Sidebar({
                 (!item.roles || (role && item.roles.includes(role))) &&
                 (!item.requiresRecruitment || canSeeRecruitment) &&
                 (!item.requiresMedical || canSeeMedical) &&
-                (!item.requiresInsights || canSeeInsights)
+                (!item.requiresInsights || canSeeInsights) &&
+                (!item.requiresUnitConfig || canSeeUnitConfig) &&
+                (!item.requiresAiSettings || canSeeAiSettings)
             );
             if (items.length === 0) return null;
 

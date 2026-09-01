@@ -9,6 +9,7 @@ export {
   unitKeys,
 } from './hooks/useUnits';
 export { unitsApi } from './api/units.api';
+export { canAccessUnitConfig, canEditUnit, canCreateUnit } from './access';
 export type {
   ConfigUnit,
   ConfigDepartment,
