@@ -6,6 +6,7 @@ export const ROUTES = {
   // Organogram (sanctioned seats)
   organogram: '/organogram',
   unitConfig: '/configuration/units',
+  approvalPaths: '/configuration/approval-paths',
   accessControl: '/configuration/access',
   integrations: '/configuration/integrations',
   aiSettings: '/configuration/ai',

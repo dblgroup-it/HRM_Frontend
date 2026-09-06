@@ -47,7 +47,13 @@ export interface FacilityRequestInput {
 
 export type FacilitiesRequestInput = Record<FacilityKey, FacilityRequestInput>;
 
-/** Roles that can appear in the dynamic sign-off chain. */
+/**
+ * Roles that can appear in the sign-off chain.
+ *
+ * Only legacy chains (raised before per-unit approval paths) and the CHRO step
+ * appended on escalation route by role — configured steps name a person via
+ * `approverUserId` instead, and carry `role: null`.
+ */
 export type ApprovalRole =
   | 'department_head'
   | 'factory_hr'
@@ -65,7 +71,11 @@ export type ApprovalDecision =
 export type StepStatus = 'pending' | 'approved' | 'rejected' | 'info_requested';
 
 export interface ApprovalStep {
-  role: ApprovalRole;
+  id: string;
+  /** Null on person-routed steps — see ApprovalRole above. */
+  role: ApprovalRole | null;
+  /** The named approver on a configured step; null on role-routed ones. */
+  approverUserId: string | null;
   title: string;
   subtitle: string;
   /** Named signatory (may be empty until assigned at approval time). */
@@ -73,6 +83,13 @@ export interface ApprovalStep {
   status: StepStatus;
   note: string;
   actedAt: ISODateString | null;
+}
+
+/** The Corporate Recruiter running a requisition after approval. */
+export interface RequisitionRecruiter {
+  id: string;
+  name: string;
+  employeeCode: string;
 }
 
 /** Audit trail of every approval action, including roll-backs. */
@@ -193,6 +210,9 @@ export interface Requisition {
   pipeline?: PipelineProgress;
 
   raisedBy: string;
+  /** Assigned by Corporate HR once approved; owns the downstream lifecycle. */
+  recruiter?: RequisitionRecruiter | null;
+  recruiterAssignedAt?: ISODateString | null;
   createdAt: ISODateString;
   updatedAt: ISODateString;
 }

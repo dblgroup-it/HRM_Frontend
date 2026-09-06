@@ -160,12 +160,15 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
   const { data: structure } = useOrgStructure(unit);
   const { data: perms } = useMyPermissions();
 
-  // The unit is the requester's assigned unit. Super users may raise for any unit.
+  // Only units the requester may actually raise for — the backend requires the
+  // Requisition Raiser role, so offering any other unit here would just produce
+  // a 403 on submit. Super users may raise for any unit.
   const allowedUnitNames = useMemo(() => {
     if (perms?.isSuperUser) return (orgUnits ?? []).map((u) => u.unit);
     return [
       ...new Set(
         (perms?.roles ?? [])
+          .filter((r) => r.key === 'requisition_raiser')
           .map((r) => r.unitName)
           .filter((n): n is string => Boolean(n)),
       ),
@@ -409,7 +412,7 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                 <p className="mb-4 flex items-center gap-2 text-xs text-slate-500">
                   Raising as
                   <Badge tone="brand">{requestedBy}</Badge>
-                  (Department Head)
+                  (Requisition Raiser)
                 </p>
               )}
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">

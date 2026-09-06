@@ -71,8 +71,10 @@ function buildChain(
     department_head: signatories.departmentHeadName,
     factory_hr: signatories.factoryHRName,
   };
-  return buildApprovalRoles(requirement, source).map((role) => ({
+  return buildApprovalRoles(requirement, source).map((role, index) => ({
+    id: `mock-step-${role}-${index}`,
     role,
+    approverUserId: null,
     title: APPROVAL_ROLE_META[role].title,
     subtitle: APPROVAL_ROLE_META[role].subtitle,
     assignee: assignees[role] ?? '',
@@ -469,6 +471,26 @@ export const requisitionApi = {
       .patch<ApiResponse<Requisition>>(`/requisitions/${id}/approval`, {
         decision,
         note,
+      })
+      .then((res) => res.data);
+  },
+
+  /** People holding the Corporate Recruiter role for this requisition's unit. */
+  listRecruiters(
+    id: string,
+  ): Promise<{ id: string; name: string; employeeCode: string }[]> {
+    return http
+      .get<ApiResponse<{ id: string; name: string; employeeCode: string }[]>>(
+        `/requisitions/${id}/recruiters`,
+      )
+      .then((res) => res.data);
+  },
+
+  /** Nominate (or clear, with null) the Corporate Recruiter for a requisition. */
+  assignRecruiter(id: string, recruiterId: string | null): Promise<Requisition> {
+    return http
+      .patch<ApiResponse<Requisition>>(`/requisitions/${id}/recruiter`, {
+        recruiterId,
       })
       .then((res) => res.data);
   },

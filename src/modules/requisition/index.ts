@@ -39,3 +39,4 @@ export type {
   FacilityDecision,
   Facilities,
 } from './types/requisition.types';
+export { canRaiseRequisition } from './access';

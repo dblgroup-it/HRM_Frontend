@@ -5,6 +5,7 @@ import {
   Stethoscope,
   Network,
   SlidersHorizontal,
+  GitBranch,
   Plug,
   ShieldCheck,
   Sparkles,
@@ -38,6 +39,8 @@ export interface NavItem {
   requiresUnitConfig?: boolean;
   /** Gate to Corporate HR / CHRO / super (both GLOBAL roles). */
   requiresAiSettings?: boolean;
+  /** Gate to Corporate HR / CHRO / super — who signs off, per unit. */
+  requiresApprovalPaths?: boolean;
   /** Optional short tag, e.g. phase marker. */
   badge?: string;
   /** Opens in a new browser tab instead of navigating inside the app. */
@@ -133,6 +136,12 @@ export const NAVIGATION: NavSection[] = [
         to: ROUTES.unitConfig,
         icon: SlidersHorizontal,
         requiresUnitConfig: true,
+      },
+      {
+        label: 'Approval Paths',
+        to: ROUTES.approvalPaths,
+        icon: GitBranch,
+        requiresApprovalPaths: true,
       },
       {
         label: 'Access Control',

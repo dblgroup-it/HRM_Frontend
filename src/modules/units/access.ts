@@ -5,10 +5,10 @@ export interface UnitConfigPerms {
 }
 
 /** Dynamic RBAC roles allowed to manage unit configuration — global roles
- * (corporate_hr, chro) see/edit every unit; factory_hr and sbu_head are
+ * (corporate_hr, chro) see/edit every unit; sbu_head is
  * scoped to the unit(s) they're actually assigned to (enforced server-side,
  * this is just the "can they see the page at all" check). */
-export const UNIT_CONFIG_ROLE_KEYS = ['corporate_hr', 'chro', 'factory_hr', 'sbu_head'];
+export const UNIT_CONFIG_ROLE_KEYS = ['corporate_hr', 'chro', 'sbu_head'];
 
 export function canAccessUnitConfig(
   perms: UnitConfigPerms | undefined | null,

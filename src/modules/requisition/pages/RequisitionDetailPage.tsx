@@ -14,6 +14,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 
 import { useMyPermissions } from '@modules/rbac';
+import { useAuthStore } from '@modules/auth';
 import { useSeatLookup } from '@modules/organogram';
 
 import {
@@ -40,6 +41,7 @@ import { RequisitionStatusBadge } from '../components/RequisitionStatusBadge';
 import { WorkflowStepper } from '../components/WorkflowStepper';
 import { ApprovalPanel } from '../components/ApprovalPanel';
 import { RoleProfilePanel } from '../components/RoleProfilePanel';
+import { RecruiterPanel } from '../components/RecruiterPanel';
 import { PostingPanel } from '../components/PostingPanel';
 import { EditRequisitionModal } from '../components/EditRequisitionModal';
 import { AttachmentsPanel } from '../components/AttachmentsPanel';
@@ -59,6 +61,7 @@ export default function RequisitionDetailPage() {
   const [searchParams] = useSearchParams();
   const { data: req, isLoading, isError } = useRequisition(id);
   const { data: perms } = useMyPermissions();
+  const myUserId = useAuthStore((s) => s.user?.id);
   const seatLookup = useSeatLookup(
     req?.unitFactory ?? '',
     req?.department ?? '',
@@ -182,21 +185,39 @@ export default function RequisitionDetailPage() {
     req.status === 'pending_approval' &&
     !!currentStep &&
     (!!perms?.isSuperUser ||
-      (perms?.roles ?? []).some(
-        (r) =>
-          r.key === currentStep.role &&
-          (r.unitId === null || (r.unitName ?? '').toLowerCase() === unitLower)
-      ));
+      (currentStep.approverUserId
+        ? currentStep.approverUserId === myUserId
+        : (perms?.roles ?? []).some(
+            (r) =>
+              r.key === currentStep.role &&
+              (r.unitId === null ||
+                (r.unitName ?? '').toLowerCase() === unitLower)
+          )));
+  // Corporate HR keeps access after assigning a recruiter — the recruiter is
+  // added to it, not swapped in.
+  const isAssignedRecruiter = !!myUserId && req.recruiter?.id === myUserId;
   const canCorporateHrContinue =
     !!perms?.isSuperUser ||
+    isAssignedRecruiter ||
     (perms?.roles ?? []).some(
       (r) =>
         r.key === 'corporate_hr' &&
         (r.unitId === null || (r.unitName ?? '').toLowerCase() === unitLower)
     );
+  // Only Corporate HR / CHRO / super may nominate the recruiter.
+  const canAssignRecruiter =
+    !!perms?.isSuperUser ||
+    (perms?.roles ?? []).some(
+      (r) =>
+        (r.key === 'corporate_hr' || r.key === 'chro') &&
+        (r.unitId === null || (r.unitName ?? '').toLowerCase() === unitLower)
+    );
   // The candidate pipeline is visible only to Corporate HR, CHRO & super users.
   const showCandidates =
-    canAccessRecruitment(perms, req.unitFactory) &&
+    canAccessRecruitment(perms, req.unitFactory, {
+      recruiterId: req.recruiter?.id,
+      myUserId,
+    }) &&
     (req.status === 'posted' ||
       req.status === 'approved' ||
       Boolean(req.drive));
@@ -466,6 +487,7 @@ export default function RequisitionDetailPage() {
 
       {activeTab === 'posting' && showProfile && (
         <div className="space-y-6">
+          <RecruiterPanel requisition={req} canAssign={canAssignRecruiter} />
           <RoleProfilePanel
             requisition={req}
             canContinue={canCorporateHrContinue}

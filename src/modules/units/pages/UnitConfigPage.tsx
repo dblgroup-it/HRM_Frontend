@@ -1,5 +1,13 @@
 import { useMemo, useState } from 'react';
-import { Building2, ClipboardList, Network, Plus, Search, ShieldAlert, Users } from 'lucide-react';
+import {
+  Building2,
+  ClipboardList,
+  Network,
+  Plus,
+  Search,
+  ShieldAlert,
+  Users,
+} from 'lucide-react';
 
 import {
   Button,
@@ -10,12 +18,10 @@ import {
   PageHeader,
   StatCard,
 } from '@shared/components/ui';
-import { cn } from '@shared/lib';
 import { useMyPermissions } from '@modules/rbac';
 
 import { useCreateUnit, useUnitsConfig } from '../hooks/useUnits';
-import type { ConfigUnit } from '../types/unit.types';
-import { UnitDetail } from '../components/UnitDetail';
+import { UnitAccordion } from '../components/UnitAccordion';
 import { canAccessUnitConfig, canCreateUnit, canEditUnit } from '../access';
 
 export default function UnitConfigPage() {
@@ -23,7 +29,6 @@ export default function UnitConfigPage() {
   const { data: units = [], isLoading } = useUnitsConfig();
   const createUnit = useCreateUnit();
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [name, setName] = useState('');
@@ -36,14 +41,20 @@ export default function UnitConfigPage() {
     [units, perms],
   );
 
-  const selected = useMemo(
-    () => visibleUnits.find((u) => u.id === selectedId) ?? visibleUnits[0] ?? null,
-    [visibleUnits, selectedId],
-  );
-
   const filtered = useMemo(() => {
     const t = search.trim().toLowerCase();
-    return t ? visibleUnits.filter((u) => u.name.toLowerCase().includes(t)) : visibleUnits;
+    if (!t) return visibleUnits;
+    return visibleUnits.filter(
+      (u) =>
+        u.name.toLowerCase().includes(t) ||
+        u.departments.some(
+          (d) =>
+            d.name.toLowerCase().includes(t) ||
+            d.positions.some((p) =>
+              p.designation.toLowerCase().includes(t),
+            ),
+        ),
+    );
   }, [visibleUnits, search]);
 
   const totals = useMemo(() => {
@@ -63,10 +74,9 @@ export default function UnitConfigPage() {
     createUnit.mutate(
       { name: name.trim() },
       {
-        onSuccess: (created) => {
+        onSuccess: () => {
           setName('');
           setAddOpen(false);
-          setSelectedId(created.id);
         },
       },
     );
@@ -81,7 +91,7 @@ export default function UnitConfigPage() {
         <EmptyState
           icon={<ShieldAlert className="h-6 w-6" />}
           title="Access restricted"
-          description="Unit Config is available to Corporate HR, CHRO, Factory HR and SBU Head (for their own unit) and super users only."
+          description="Unit Config is available to Corporate HR, CHRO and SBU Head (for their own unit) and super users only."
         />
       </div>
     );
@@ -111,7 +121,7 @@ export default function UnitConfigPage() {
           description={
             units.length === 0
               ? 'Add your first unit to start building the organogram.'
-              : "You don't hold Factory HR or SBU Head for any unit yet — ask an admin to assign one."
+              : "You don't hold a unit-scoped role for any unit yet — ask an admin to assign one."
           }
           action={
             canCreateUnit(perms) ? (
@@ -133,46 +143,32 @@ export default function UnitConfigPage() {
             <StatCard label="Vacant" value={totals.vacant} icon={Building2} accent="amber" />
           </div>
 
-          <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[280px_1fr]">
-            {/* Units rail */}
-            <aside className="rounded-xl border border-slate-200 bg-white shadow-sm">
-              <div className="border-b border-slate-100 p-3">
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Find a unit…"
-                  leftIcon={<Search className="h-4 w-4" />}
-                />
-              </div>
-              <div className="max-h-[34rem] space-y-0.5 overflow-y-auto p-2">
-                {filtered.map((u) => (
-                  <UnitRailButton
-                    key={u.id}
-                    unit={u}
-                    active={selected?.id === u.id}
-                    onClick={() => setSelectedId(u.id)}
-                  />
-                ))}
-                {filtered.length === 0 && (
-                  <p className="px-3 py-6 text-center text-xs text-slate-400">
-                    No unit matches.
-                  </p>
-                )}
-              </div>
-            </aside>
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Find a unit, department or designation…"
+            leftIcon={<Search className="h-4 w-4" />}
+          />
 
-            {/* Detail */}
-            {selected ? (
-              <UnitDetail
-                key={selected.id}
-                unit={selected}
-                canEdit={canEditUnit(perms, selected.name)}
-                canDelete={Boolean(perms?.isSuperUser)}
-              />
-            ) : (
-              <EmptyState title="Select a unit" description="Pick a unit on the left to configure it." />
-            )}
-          </div>
+          {filtered.length === 0 ? (
+            <EmptyState
+              icon={<Building2 className="h-6 w-6" />}
+              title="No match"
+              description={`Nothing matches “${search.trim()}”.`}
+            />
+          ) : (
+            <div className="space-y-3">
+              {filtered.map((unit) => (
+                <UnitAccordion
+                  key={unit.id}
+                  unit={unit}
+                  canEdit={canEditUnit(perms, unit.name)}
+                  canDelete={Boolean(perms?.isSuperUser)}
+                  defaultOpen={filtered.length === 1}
+                />
+              ))}
+            </div>
+          )}
         </>
       )}
 
@@ -212,50 +208,5 @@ export default function UnitConfigPage() {
         </div>
       </Modal>
     </div>
-  );
-}
-
-function UnitRailButton({
-  unit,
-  active,
-  onClick,
-}: {
-  unit: ConfigUnit;
-  active: boolean;
-  onClick: () => void;
-}) {
-  const seats = unit.departments.flatMap((d) => d.positions);
-  const sanctioned = seats.reduce((s, p) => s + p.sanctioned, 0);
-  const filled = seats.reduce((s, p) => s + p.filled, 0);
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition',
-        active ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-50',
-      )}
-    >
-      <Building2
-        className={cn('h-4 w-4 shrink-0', active ? 'text-brand-600' : 'text-slate-400')}
-      />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium">{unit.name}</span>
-        <span className={cn('text-[11px]', active ? 'text-brand-500' : 'text-slate-400')}>
-          {unit.departments.length} dept · {filled}/{sanctioned} filled
-        </span>
-      </span>
-      {(unit._count?.employees ?? 0) > 0 && (
-        <span
-          className={cn(
-            'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold',
-            active ? 'bg-brand-100 text-brand-700' : 'bg-slate-100 text-slate-500',
-          )}
-        >
-          {unit._count?.employees}
-        </span>
-      )}
-    </button>
   );
 }

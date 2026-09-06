@@ -75,6 +75,21 @@ export function useApprovalAction() {
   });
 }
 
+/** Corporate HR nominates the recruiter who runs this requisition. */
+export function useAssignRecruiter() {
+  const sync = useSyncRequisition();
+  return useMutation({
+    mutationFn: ({
+      id,
+      recruiterId,
+    }: {
+      id: string;
+      recruiterId: string | null;
+    }) => requisitionApi.assignRecruiter(id, recruiterId),
+    onSuccess: sync,
+  });
+}
+
 /** Step 3 — AI role-profile generation. */
 export function useGenerateRoleProfile() {
   const sync = useSyncRequisition();

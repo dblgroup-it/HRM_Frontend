@@ -14,6 +14,7 @@ import {
 import { cn } from '@shared/lib';
 import { formatDate, formatRelative } from '@shared/utils';
 import { useMyPermissions } from '@modules/rbac';
+import { useAuthStore } from '@modules/auth';
 
 import type {
   ApprovalDecision,
@@ -28,6 +29,7 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
   const lastDecisionRef = useRef<ApprovalDecision | null>(null);
   const action = useApprovalAction();
   const { data: perms } = useMyPermissions();
+  const myUserId = useAuthStore((s) => s.user?.id);
 
   // Keep the overlay visible for at least 1 s so fast responses don't flicker
   useEffect(() => {
@@ -45,17 +47,21 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
   const allDone = nextPendingIndex === -1 && !isRejected;
   const canRollback = nextPendingIndex > 0;
 
-  // Can the current user act on the active step?
+  // Can the current user act on the active step? A configured step names one
+  // person; legacy chains and the escalated CHRO step still go by role.
   const currentStep = nextPendingIndex >= 0 ? chain[nextPendingIndex] : null;
   const unit = requisition.unitFactory.toLowerCase();
+  const isLastStep = nextPendingIndex === chain.length - 1;
   const canAct =
     !currentStep ||
     !!perms?.isSuperUser ||
-    (perms?.roles ?? []).some(
-      (r) =>
-        r.key === currentStep.role &&
-        (r.unitId === null || (r.unitName ?? '').toLowerCase() === unit)
-    );
+    (currentStep.approverUserId
+      ? currentStep.approverUserId === myUserId
+      : (perms?.roles ?? []).some(
+          (r) =>
+            r.key === currentStep.role &&
+            (r.unitId === null || (r.unitName ?? '').toLowerCase() === unit)
+        ));
 
   const act = (decision: ApprovalDecision) => {
     lastDecisionRef.current = decision;
@@ -78,7 +84,7 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
         <ol className="space-y-1">
           {chain.map((step, index) => (
             <ChainRow
-              key={step.role}
+              key={step.id}
               step={step}
               isLast={index === chain.length - 1}
               isNext={index === nextPendingIndex && !isRejected}
@@ -138,7 +144,7 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
                           Need more info
                         </Button>
                       )}
-                      {currentStep?.role === 'corporate_hr' && (
+                      {isLastStep && (
                         <Button
                           size="sm"
                           variant="secondary"

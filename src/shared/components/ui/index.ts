@@ -18,6 +18,7 @@ export type { SegmentedToggleProps } from './SegmentedToggle';
 
 export { Card, CardHeader, CardTitle, CardBody, CardFooter } from './Card';
 
+
 export { Badge } from './Badge';
 export type { BadgeProps, BadgeTone } from './Badge';
 

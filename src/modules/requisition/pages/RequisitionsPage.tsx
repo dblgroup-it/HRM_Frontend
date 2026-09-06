@@ -24,12 +24,14 @@ import { formatCompact } from '@shared/utils';
 import type { SelectOption } from '@shared/types';
 import { ROUTES } from '@app/router/paths';
 import { useOrganogramUnits } from '@modules/organogram';
+import { useMyPermissions } from '@modules/rbac';
 
 import {
   useRequisitions,
   useRequisitionStats,
 } from '../hooks/useRequisitions';
 import { RequisitionTable } from '../components/RequisitionTable';
+import { canRaiseRequisition } from '../access';
 import { STATUS_CONFIG } from '../constants';
 import type { RequisitionStatus } from '../types/requisition.types';
 
@@ -50,6 +52,8 @@ const STATUS_CHIPS: { key: string; label: string }[] = [
 
 export default function RequisitionsPage() {
   const navigate = useNavigate();
+  const { data: perms } = useMyPermissions();
+  const canRaise = canRaiseRequisition(perms);
   const { data: orgUnits } = useOrganogramUnits();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
@@ -106,12 +110,14 @@ export default function RequisitionsPage() {
         title="Manpower Requisitions"
         description="Phase 1 · Raise, approve, profile and post hiring requisitions."
         actions={
-          <Button
-            leftIcon={<Plus className="h-4 w-4" />}
-            onClick={() => navigate(ROUTES.requisitionNew)}
-          >
-            New requisition
-          </Button>
+          canRaise && (
+            <Button
+              leftIcon={<Plus className="h-4 w-4" />}
+              onClick={() => navigate(ROUTES.requisitionNew)}
+            >
+              New requisition
+            </Button>
+          )
         }
       />
 

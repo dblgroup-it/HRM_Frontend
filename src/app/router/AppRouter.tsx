@@ -19,6 +19,9 @@ const OrganogramPage = lazy(
 const UnitConfigPage = lazy(
   () => import('@modules/units/pages/UnitConfigPage')
 );
+const ApprovalPathsPage = lazy(
+  () => import('@modules/approval-paths/pages/ApprovalPathsPage')
+);
 const BoardGroupsPage = lazy(() => import('@modules/board/pages/BoardGroupsPage'));
 const BoardVotePage   = lazy(() => import('@modules/board/pages/BoardVotePage'));
 const FacilityConfirmPage = lazy(() => import('@modules/onboarding/pages/FacilityConfirmPage'));
@@ -114,6 +117,10 @@ export function AppRouter() {
 
             <Route path={ROUTES.organogram} element={<OrganogramPage />} />
             <Route path={ROUTES.unitConfig} element={<UnitConfigPage />} />
+            <Route
+              path={ROUTES.approvalPaths}
+              element={<ApprovalPathsPage />}
+            />
             <Route
               path={ROUTES.accessControl}
               element={<AccessControlPage />}

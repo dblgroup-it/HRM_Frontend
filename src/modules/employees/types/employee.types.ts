@@ -29,6 +29,11 @@ export interface Employee {
   gender?: string | null;
   dateOfBirth?: ISODateString | null;
   exitDate?: ISODateString | null;
+  /**
+   * False when this person has no login yet (no roles granted, not an admin).
+   * Naming them as an approver provisions one automatically.
+   */
+  hasSystemAccess?: boolean;
 }
 
 export interface EmployeeFilters {
