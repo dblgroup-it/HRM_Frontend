@@ -223,7 +223,7 @@ function DigestCard() {
               <Stat label="New candidates" value={data.stats.newCandidates} />
             </div>
             <AiText text={data.summary} />
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[0.6875rem] text-slate-400">
               Generated {formatRelative(data.generatedAt)}
             </p>
           </div>
@@ -303,7 +303,7 @@ function BottleneckCard() {
             )}
 
             {data.summary && <AiText text={data.summary} />}
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[0.6875rem] text-slate-400">
               Generated {formatRelative(data.generatedAt)}
             </p>
           </div>
@@ -317,7 +317,7 @@ function Stat({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-2.5 py-1.5">
       <p className="text-base font-bold leading-none text-ink-dark">{value}</p>
-      <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-400">
+      <p className="mt-0.5 text-[0.625rem] font-medium uppercase tracking-wide text-slate-400">
         {label}
       </p>
     </div>

@@ -79,7 +79,9 @@ export function FacilitiesPanel({
             decidedBy: null,
             decidedAt: null,
           };
-          const canAct = canEdit && f.requested;
+          // Every criterion is actionable, including ones the requisitioner
+          // left out — HR may still decide the role needs it.
+          const canAct = canEdit;
 
           return (
             <div key={key} className="rounded-xl border border-slate-200 p-3.5">

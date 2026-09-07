@@ -11,4 +11,6 @@ export interface MasterData {
   /** designation -> the grades valid for it */
   designationGrades: Record<string, string[]>;
   zones: string[];
+  /** DBL business verticals, picked after the unit. */
+  linesOfBusiness: string[];
 }

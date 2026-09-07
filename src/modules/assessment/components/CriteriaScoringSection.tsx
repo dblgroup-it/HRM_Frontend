@@ -52,7 +52,7 @@ export function CriteriaScoringSection({
               )}
               {complete ? 'All criteria scored' : 'Score each criterion'}
             </p>
-            <p className={cn('mt-0.5 text-[11px]', complete ? 'text-emerald-100' : 'text-slate-400')}>
+            <p className={cn('mt-0.5 text-[0.6875rem]', complete ? 'text-emerald-100' : 'text-slate-400')}>
               {answeredCount} of {criteria.length} marked
             </p>
           </div>
@@ -77,7 +77,7 @@ export function CriteriaScoringSection({
                 <div className="flex items-start gap-2">
                   <span
                     className={cn(
-                      'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold transition-all duration-300',
+                      'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-bold transition-all duration-300',
                       done ? 'animate-loader-pop bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400',
                     )}
                   >
@@ -85,10 +85,10 @@ export function CriteriaScoringSection({
                   </span>
                   <div>
                     <p className="text-xs font-semibold text-slate-700">{c.label}</p>
-                    {c.hint && <p className="text-[10px] text-slate-400">{c.hint}</p>}
+                    {c.hint && <p className="text-[0.625rem] text-slate-400">{c.hint}</p>}
                   </div>
                 </div>
-                <span className="shrink-0 text-[10px] font-medium text-slate-400">Max {c.max} pts</span>
+                <span className="shrink-0 text-[0.625rem] font-medium text-slate-400">Max {c.max} pts</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {c.options.map(([v, l]) => {
@@ -100,7 +100,7 @@ export function CriteriaScoringSection({
                       disabled={readOnly}
                       onClick={() => onChange?.(c.key, v)}
                       className={cn(
-                        'flex-1 min-w-[110px] rounded-lg border px-2.5 py-2 text-left text-[11px] transition-all duration-150',
+                        'flex-1 min-w-[110px] rounded-lg border px-2.5 py-2 text-left text-[0.6875rem] transition-all duration-150',
                         isSel
                           ? 'scale-[1.02] border-brand-600 bg-gradient-to-br from-brand-600 to-brand-700 text-white shadow-md shadow-brand-600/25'
                           : 'border-slate-200 bg-white text-slate-500',
@@ -163,10 +163,10 @@ function ScoreRing({
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
-        <span className={cn('text-[11px] font-bold tabular-nums', inverted ? 'text-white' : 'text-slate-700')}>
+        <span className={cn('text-[0.6875rem] font-bold tabular-nums', inverted ? 'text-white' : 'text-slate-700')}>
           {label}
         </span>
-        <span className={cn('text-[8px] font-medium', inverted ? 'text-white/70' : 'text-slate-400')}>{sub}</span>
+        <span className={cn('text-[0.5rem] font-medium', inverted ? 'text-white/70' : 'text-slate-400')}>{sub}</span>
       </div>
     </div>
   );

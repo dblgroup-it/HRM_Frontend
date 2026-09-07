@@ -236,7 +236,7 @@ export default function AiSettingsPage() {
                   onChange={(e) => setThreshold(Number(e.target.value))}
                   className="h-2 w-full cursor-pointer appearance-none rounded-full bg-gradient-to-r from-slate-200 via-violet-200 to-violet-400 accent-violet-600"
                 />
-                <div className="mt-1 flex justify-between text-[10px] text-slate-400">
+                <div className="mt-1 flex justify-between text-[0.625rem] text-slate-400">
                   <span>0% · lenient</span>
                   <span>50%</span>
                   <span>100% · strict</span>
@@ -386,7 +386,7 @@ function PassMarkSlider({
         onChange={(e) => onChange(Number(e.target.value))}
         className="mt-2 h-2 w-full cursor-pointer appearance-none rounded-full bg-gradient-to-r from-rose-200 via-amber-200 to-emerald-300 accent-violet-600"
       />
-      <div className="mt-1 flex justify-between text-[10px] text-slate-400">
+      <div className="mt-1 flex justify-between text-[0.625rem] text-slate-400">
         <span>0%</span>
         <span>50%</span>
         <span>100%</span>

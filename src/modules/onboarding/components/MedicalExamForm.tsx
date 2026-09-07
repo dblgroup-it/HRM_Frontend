@@ -47,7 +47,7 @@ function AutoField({
     <div className="w-full">
       <div className="mb-1.5 flex items-center gap-1.5">
         <span className="text-sm font-medium text-slate-700">{label}</span>
-        <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+        <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[0.5625rem] font-semibold uppercase tracking-wide text-slate-400">
           Auto
         </span>
       </div>
@@ -88,7 +88,7 @@ function SuggestInput({
         <button
           type="button"
           onClick={() => onChange(normal)}
-          className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 transition-colors hover:text-brand-600"
+          className="mt-1.5 inline-flex items-center gap-1 text-[0.6875rem] font-medium text-slate-400 transition-colors hover:text-brand-600"
         >
           <Sparkles className="h-3 w-3" />
           Normal: <span className="text-slate-500 group-hover:text-brand-600">{normal}</span> — tap to use
@@ -271,14 +271,14 @@ function Section({
           <Icon className="h-5 w-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-600">
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-brand-600">
             Section {info.letter}
           </p>
           <h2 className="text-base font-semibold text-slate-900 sm:text-lg">{info.title}</h2>
           <p className="mt-0.5 text-sm text-slate-500">{info.description}</p>
         </div>
         {complete && (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[0.6875rem] font-semibold text-emerald-700">
             <Check className="h-3 w-3" /> Complete
           </span>
         )}

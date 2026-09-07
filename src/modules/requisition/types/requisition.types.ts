@@ -171,9 +171,16 @@ export interface Requisition {
   requiredPosts: number;
   totalVacantPosts: number;
   unitFactory: string;
+  /** DBL business vertical (Garments, Pharma, Telecom…). */
+  lineOfBusiness?: string | null;
   department: string;
   section?: string;
   subSection?: string;
+  /** Replacement details — set only when requirementType is 'existing'. */
+  replaceOfName?: string | null;
+  replaceOfEmployeeCode?: string | null;
+  separationReason?: string | null;
+  replacementRemarks?: string | null;
   placeOfPosting: string;
   vacantDate: ISODateString | null;
   neededDate: ISODateString | null;
@@ -254,9 +261,14 @@ export interface CreateRequisitionPayload {
   requiredPosts: number;
   totalVacantPosts: number;
   unitFactory: string;
+  lineOfBusiness: string;
   department: string;
   section?: string;
   subSection?: string;
+  replaceOfName?: string;
+  replaceOfEmployeeCode?: string;
+  separationReason?: string;
+  replacementRemarks?: string;
   placeOfPosting: string;
   vacantDate: ISODateString | null;
   neededDate: ISODateString | null;

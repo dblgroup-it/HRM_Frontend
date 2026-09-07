@@ -17,7 +17,7 @@ export const requisitionSchema = z
   .object({
     // A · Vacancy Information
     designation: z.string().min(2, 'Designation is required'),
-    /** Auto-derived from the organogram seat lookup. */
+    /** The requisitioner's declaration: 'new' headcount or 'existing' (Replace). */
     requirementType: z.enum(['existing', 'new']),
     requiredPosts: z.coerce
       .number({ message: 'Enter a number' })
@@ -29,9 +29,15 @@ export const requisitionSchema = z
       .int()
       .min(0, 'Cannot be negative'),
     unitFactory: z.string().min(1, 'Select a unit / factory'),
+    lineOfBusiness: z.string().min(1, 'Select a line of business'),
     department: z.string().min(1, 'Select a department'),
     section: z.string().optional(),
     subSection: z.string().optional(),
+    // Replacement details — enforced by the refinements below when Replace.
+    replaceOfName: z.string().optional(),
+    replaceOfEmployeeCode: z.string().optional(),
+    separationReason: z.string().optional(),
+    replacementRemarks: z.string().optional(),
     placeOfPosting: z.string().min(2, 'Place of posting is required'),
     vacantDate: z.string().optional(),
     neededDate: z.string().optional(),
@@ -61,6 +67,24 @@ export const requisitionSchema = z
     {
       message: 'State the purpose for temporary / contractual roles',
       path: ['contractualPurpose'],
+    }
+  )
+  .refine(
+    (data) =>
+      data.requirementType !== 'existing' ||
+      (data.replaceOfName && data.replaceOfName.trim().length > 1),
+    {
+      message: 'Select the employee being replaced',
+      path: ['replaceOfName'],
+    }
+  )
+  .refine(
+    (data) =>
+      data.requirementType !== 'existing' ||
+      (data.separationReason && data.separationReason.trim().length > 2),
+    {
+      message: 'Give the reason for leaving',
+      path: ['separationReason'],
     }
   );
 

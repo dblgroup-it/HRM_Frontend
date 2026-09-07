@@ -142,7 +142,7 @@ export function Sidebar({
               <div key={section.heading}>
                 <p
                   className={cn(
-                    'px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400 transition-all duration-200',
+                    'px-3 pb-2 text-[0.6875rem] font-semibold uppercase tracking-[0.16em] text-slate-400 transition-all duration-200',
                     collapsed &&
                     'lg:pointer-events-none lg:h-0 lg:overflow-hidden lg:p-0 lg:opacity-0'
                   )}
@@ -176,7 +176,7 @@ export function Sidebar({
                         {item.badge && (
                           <span
                             className={cn(
-                              'rounded-full px-1.5 py-0.5 text-[10px] font-semibold bg-accent-100 text-accent-700',
+                              'rounded-full px-1.5 py-0.5 text-[0.625rem] font-semibold bg-accent-100 text-accent-700',
                               collapsed && 'lg:hidden'
                             )}
                           >
@@ -223,7 +223,7 @@ export function Sidebar({
                           {item.badge && (
                             <span
                               className={cn(
-                                'rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
+                                'rounded-full px-1.5 py-0.5 text-[0.625rem] font-semibold',
                                 collapsed && 'lg:hidden',
                                 isActive
                                   ? 'bg-brand-100 text-brand-700'
@@ -251,15 +251,15 @@ export function Sidebar({
         >
           {collapsed ? (
             <>
-              <p className="text-[11px] font-medium text-slate-400 lg:hidden">
+              <p className="text-[0.6875rem] font-medium text-slate-400 lg:hidden">
                 IT Team · {APP_META.company}
               </p>
-              <p className="hidden text-center text-[11px] font-medium text-slate-400 lg:block">
+              <p className="hidden text-center text-[0.6875rem] font-medium text-slate-400 lg:block">
                 v1
               </p>
             </>
           ) : (
-            <p className="text-[11px] font-medium text-slate-400">
+            <p className="text-[0.6875rem] font-medium text-slate-400">
               IT Team · {APP_META.company}
             </p>
           )}

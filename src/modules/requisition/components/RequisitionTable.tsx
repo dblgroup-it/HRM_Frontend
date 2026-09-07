@@ -136,11 +136,11 @@ export function RequisitionTable({ requisitions, isLoading }: Props) {
                 <Badge tone={PRIORITY_TONE[r.priority]} dot>
                   {PRIORITY_LABEL[r.priority]}
                 </Badge>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.6875rem] font-medium text-slate-500">
                   {r.requiredPosts} post{r.requiredPosts === 1 ? '' : 's'}
                 </span>
                 {r.neededDate && (
-                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
+                  <span className="inline-flex items-center gap-1 text-[0.6875rem] text-slate-400">
                     <CalendarClock className="h-3 w-3" />
                     {formatDate(r.neededDate)}
                   </span>

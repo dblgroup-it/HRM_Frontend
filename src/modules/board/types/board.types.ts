@@ -22,10 +22,11 @@ export interface BoardGroup {
   updatedAt: string;
 }
 
-export type BoardVoteStatus = 'pending' | 'approved';
-export type BoardApprovalStatus = 'pending' | 'approved';
+export type BoardVoteStatus = 'pending' | 'approved' | 'rejected';
+export type BoardApprovalStatus = 'pending' | 'approved' | 'rejected';
 
 export interface BoardVote {
+  stage: BoardApprovalStage;
   id: string;
   status: BoardVoteStatus;
   notes: string | null;
@@ -34,9 +35,20 @@ export interface BoardVote {
   member: { id: string; name: string; email: string | null };
 }
 
+export type BoardApprovalStage = 'corporate_hr' | 'chro' | 'board';
+
 export interface BoardApproval {
   id: string;
   status: BoardApprovalStatus;
+  /** Which link of the chain is being waited on. */
+  currentStage: BoardApprovalStage;
+  rejectedReason: string | null;
+  rejectedAt: string | null;
+  /** The people named to sign the first two links. */
+  corporateHr: { id: string; name: string } | null;
+  chro: { id: string; name: string } | null;
+  /** How many board members are queued for the final link. */
+  boardMemberCount: number;
   createdAt: string;
   updatedAt: string;
   requestedBy: { id: string; name: string };
@@ -58,7 +70,11 @@ export interface VotePageInfo {
     department: string;
     code: string;
     cvUrl: string | null;
-    matchScore: number | null;
-    matchSummary: string | null;
+    /** The figure this chain signs off on. Replaces the AI match score. */
+    salary: number | null;
   };
+  /** Which link of the chain this link belongs to. */
+  stage?: 'corporate_hr' | 'chro' | 'board';
+  stageLabel?: string;
+  decision?: 'approved' | 'rejected';
 }

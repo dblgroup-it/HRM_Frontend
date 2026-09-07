@@ -74,7 +74,7 @@ export function AiProficiencyStep({
         />
       </div>
       <div>
-        <label className="mb-1 block text-[11px] font-medium text-slate-500">
+        <label className="mb-1 block text-[0.6875rem] font-medium text-slate-500">
           Time limit (minutes) — starts once the candidate opens the test
         </label>
         <input
@@ -198,7 +198,7 @@ export function AiProficiencyStep({
               {attempt.totalScore} <span className={cn('text-xs font-medium', tone.label)}>/ {attempt.maxScore} marks</span>
               <span className={cn('ml-1.5 text-xs font-semibold', tone.label)}>({pct.toFixed(1)}%)</span>
             </span>
-            <span className="block text-[11px] text-slate-400">
+            <span className="block text-[0.6875rem] text-slate-400">
               {attempt.questionCount} question{attempt.questionCount === 1 ? '' : 's'}
             </span>
           </span>
@@ -213,7 +213,7 @@ export function AiProficiencyStep({
         </div>
       </div>
       {attempt.attemptsRemaining === 0 && (
-        <p className="text-[11px] text-slate-400">
+        <p className="text-[0.6875rem] text-slate-400">
           Maximum of {attempt.maxAttempts} attempts used for this candidate.
         </p>
       )}
@@ -255,7 +255,7 @@ function ReviewModal({ candidateId, onClose }: { candidateId: string; onClose: (
                 Left the test screen {review.violations.length}x
                 {review.terminationReason === 'violation' ? ' — test ended early' : ''}
               </p>
-              <ul className="space-y-0.5 text-[11px] text-rose-600">
+              <ul className="space-y-0.5 text-[0.6875rem] text-rose-600">
                 {review.violations.map((v, i) => (
                   <li key={i}>
                     {new Date(v.leftAt).toLocaleTimeString()}
@@ -291,7 +291,7 @@ function ReviewModal({ candidateId, onClose }: { candidateId: string; onClose: (
                     </p>
                     <span
                       className={cn(
-                        'flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold',
+                        'flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[0.625rem] font-bold',
                         q.isCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700',
                       )}
                     >
@@ -316,7 +316,7 @@ function ReviewModal({ candidateId, onClose }: { candidateId: string; onClose: (
                           )}
                         >
                           <span>{opt}</span>
-                          <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide">
+                          <span className="flex items-center gap-1 text-[0.625rem] font-semibold uppercase tracking-wide">
                             {isAnswer && 'Correct answer'}
                             {isCandidatePick && !isAnswer && 'Candidate picked'}
                           </span>
@@ -324,7 +324,7 @@ function ReviewModal({ candidateId, onClose }: { candidateId: string; onClose: (
                       );
                     })}
                     {!q.candidateAnswer && (
-                      <p className="px-2.5 text-[11px] italic text-slate-400">No answer given</p>
+                      <p className="px-2.5 text-[0.6875rem] italic text-slate-400">No answer given</p>
                     )}
                   </div>
                 </div>

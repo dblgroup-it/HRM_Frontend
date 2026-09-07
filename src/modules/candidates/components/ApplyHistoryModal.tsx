@@ -122,7 +122,7 @@ export function ApplyHistoryModal({
                         <p className="text-xs text-slate-400">
                           {app.department} · {app.unitFactory}
                         </p>
-                        <p className="text-[11px] text-slate-400">{app.code}</p>
+                        <p className="text-[0.6875rem] text-slate-400">{app.code}</p>
                       </div>
                     </div>
 

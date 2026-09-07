@@ -76,23 +76,23 @@ export function MatchDetailsModal({ open, onClose, candidateName, matchScore, ma
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-0">
-                <span className="text-[18px] font-bold leading-none" style={{ color: t.ring }}>{matchScore}</span>
-                <span className="text-[9px] font-medium text-slate-400 leading-tight">/ 100</span>
+                <span className="text-[1.125rem] font-bold leading-none" style={{ color: t.ring }}>{matchScore}</span>
+                <span className="text-[0.5625rem] font-medium text-slate-400 leading-tight">/ 100</span>
               </div>
             </div>
 
             {/* Info */}
             <div className="min-w-0 flex-1 pt-0.5">
               <span
-                className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold"
+                className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[0.6875rem] font-semibold"
                 style={{ background: t.bg, color: t.ring }}
               >
                 <Sparkles className="h-3 w-3" />
                 {t.label}
               </span>
-              <h2 className="mt-1.5 truncate text-[15px] font-bold text-slate-900">{candidateName}</h2>
+              <h2 className="mt-1.5 truncate text-[0.9375rem] font-bold text-slate-900">{candidateName}</h2>
               {matchSummary && (
-                <p className="mt-1 text-[11.5px] leading-relaxed text-slate-500">{matchSummary}</p>
+                <p className="mt-1 text-[0.71875rem] leading-relaxed text-slate-500">{matchSummary}</p>
               )}
             </div>
 
@@ -118,8 +118,8 @@ export function MatchDetailsModal({ open, onClose, candidateName, matchScore, ma
               />
             </div>
             <div className="mt-1.5 flex items-center justify-between">
-              <span className="text-[10px] font-medium text-slate-400">Overall match score</span>
-              <span className="text-[10px] font-bold tabular-nums" style={{ color: t.ring }}>{matchScore}%</span>
+              <span className="text-[0.625rem] font-medium text-slate-400">Overall match score</span>
+              <span className="text-[0.625rem] font-bold tabular-nums" style={{ color: t.ring }}>{matchScore}%</span>
             </div>
           </div>
         </div>
@@ -128,7 +128,7 @@ export function MatchDetailsModal({ open, onClose, candidateName, matchScore, ma
         <div className="shrink-0 border-t border-slate-100 px-5 py-2 sm:px-6">
           <div className="flex items-center gap-1.5">
             <BrainCircuit className="h-3.5 w-3.5 text-slate-400" />
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Criteria Breakdown</span>
+            <span className="text-[0.625rem] font-semibold uppercase tracking-widest text-slate-400">Criteria Breakdown</span>
           </div>
         </div>
 
@@ -146,7 +146,7 @@ export function MatchDetailsModal({ open, onClose, candidateName, matchScore, ma
                 >
                   {/* Top: label + bar + score */}
                   <div className="flex items-center gap-3 px-4 pt-3 pb-2.5">
-                    <span className="w-[36%] shrink-0 text-[12px] font-semibold text-slate-800 leading-tight">
+                    <span className="w-[36%] shrink-0 text-[0.75rem] font-semibold text-slate-800 leading-tight">
                       {c.label}
                     </span>
                     <div className="h-[5px] flex-1 overflow-hidden rounded-full bg-slate-100">
@@ -160,7 +160,7 @@ export function MatchDetailsModal({ open, onClose, candidateName, matchScore, ma
                       />
                     </div>
                     <span
-                      className="w-[38px] shrink-0 text-right text-[11px] font-bold tabular-nums"
+                      className="w-[38px] shrink-0 text-right text-[0.6875rem] font-bold tabular-nums"
                       style={{ color }}
                     >
                       {c.score}/{c.weight}
@@ -170,16 +170,16 @@ export function MatchDetailsModal({ open, onClose, candidateName, matchScore, ma
                   {/* Bottom: role vs applicant */}
                   <div className="grid grid-cols-2 gap-px border-t border-slate-100">
                     <div className="bg-blue-50/40 px-4 py-2.5">
-                      <p className="mb-0.5 text-[9px] font-semibold uppercase tracking-wider text-[#1877c0]/60">
+                      <p className="mb-0.5 text-[0.5625rem] font-semibold uppercase tracking-wider text-[#1877c0]/60">
                         Role Requirement
                       </p>
-                      <p className="text-[11px] leading-snug text-slate-700">{c.requirement}</p>
+                      <p className="text-[0.6875rem] leading-snug text-slate-700">{c.requirement}</p>
                     </div>
                     <div className="bg-slate-50/70 px-4 py-2.5">
-                      <p className="mb-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-400">
+                      <p className="mb-0.5 text-[0.5625rem] font-semibold uppercase tracking-wider text-slate-400">
                         Applicant
                       </p>
-                      <p className="text-[11px] leading-snug text-slate-600">{c.applicant}</p>
+                      <p className="text-[0.6875rem] leading-snug text-slate-600">{c.applicant}</p>
                     </div>
                   </div>
                 </div>
@@ -190,7 +190,7 @@ export function MatchDetailsModal({ open, onClose, candidateName, matchScore, ma
 
         {/* ── Footer ── */}
         <div className="shrink-0 border-t border-slate-100 bg-slate-50/60 px-5 py-2.5 sm:px-6">
-          <p className="flex items-center gap-1.5 text-[10px] text-slate-400">
+          <p className="flex items-center gap-1.5 text-[0.625rem] text-slate-400">
             <Sparkles className="h-3 w-3" />
             Scored by AI against role requirements · Re-screen candidate to refresh scores
           </p>

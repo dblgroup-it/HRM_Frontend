@@ -223,10 +223,10 @@ export function CandidateInterviewsModal({
           <div className="flex items-center gap-3 min-w-0">
             <Avatar name={candidate.name} size="sm" />
             <div className="min-w-0">
-              <h2 className="truncate text-[15px] font-semibold text-slate-900">
+              <h2 className="truncate text-[0.9375rem] font-semibold text-slate-900">
                 {candidate.name}
               </h2>
-              <p className="text-[11px] text-slate-400">Interview management</p>
+              <p className="text-[0.6875rem] text-slate-400">Interview management</p>
             </div>
           </div>
           <button
@@ -250,7 +250,7 @@ export function CandidateInterviewsModal({
             'md:max-h-none md:w-[30%] md:min-h-0 md:flex-1',
           )}>
             <div className="shrink-0 px-4 pb-1 pt-4">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+              <p className="text-[0.625rem] font-semibold uppercase tracking-widest text-slate-400">
                 Scheduled Interviews
               </p>
             </div>
@@ -292,7 +292,7 @@ export function CandidateInterviewsModal({
                           onSuccess: (data) => setSummaryText(data.summary),
                         })
                       }
-                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-violet-700 transition hover:bg-violet-100 disabled:opacity-50"
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-medium text-violet-700 transition hover:bg-violet-100 disabled:opacity-50"
                     >
                       <RefreshCw className={cn('h-3 w-3', evalSummary.isPending && 'animate-spin')} />
                       {summaryText ? 'Regenerate' : 'Generate'}
@@ -312,7 +312,7 @@ export function CandidateInterviewsModal({
                     </p>
                   )}
                   {!summaryText && !evalSummary.isPending && (
-                    <p className="border-t border-violet-100 px-3 pb-3 pt-2 text-[11px] text-violet-400">
+                    <p className="border-t border-violet-100 px-3 pb-3 pt-2 text-[0.6875rem] text-violet-400">
                       Click Generate to get an AI synthesis of all panel marks and comments.
                     </p>
                   )}
@@ -337,7 +337,7 @@ export function CandidateInterviewsModal({
               {/* ① Type & mode */}
               <FormStep n={1} title="Which interview?">
                 {lastCompletedKind && (
-                  <p className="mb-2 flex items-center gap-1.5 text-[11px] text-brand-600">
+                  <p className="mb-2 flex items-center gap-1.5 text-[0.6875rem] text-brand-600">
                     <Lightbulb className="h-3.5 w-3.5 shrink-0" />
                     {lastCompletedKind === 'final'
                       ? 'Final interview completed — re-schedule any round freely'
@@ -375,7 +375,7 @@ export function CandidateInterviewsModal({
                         <Video className="h-3.5 w-3.5" /> Google Meet — auto
                       </span>
                       <button type="button" onClick={() => setCustomLink(true)}
-                        className="whitespace-nowrap text-[11px] text-slate-400 underline-offset-2 hover:text-brand-600 hover:underline">
+                        className="whitespace-nowrap text-[0.6875rem] text-slate-400 underline-offset-2 hover:text-brand-600 hover:underline">
                         custom link
                       </button>
                     </div>
@@ -388,20 +388,20 @@ export function CandidateInterviewsModal({
                         className={locationError && mode !== 'online' ? 'border-rose-400 focus:ring-rose-400' : ''}
                       />
                       {locationError && mode !== 'online' && (
-                        <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-rose-600">
+                        <p className="mt-1 flex items-center gap-1 text-[0.6875rem] font-medium text-rose-600">
                           <MapPin className="h-3 w-3" /> Venue is required for in-person interviews
                         </p>
                       )}
                       {mode === 'online' && (
                         <button type="button" onClick={() => { setCustomLink(false); setLocation(''); }}
-                          className="mt-1 text-[11px] text-slate-400 underline-offset-2 hover:text-brand-600 hover:underline">
+                          className="mt-1 text-[0.6875rem] text-slate-400 underline-offset-2 hover:text-brand-600 hover:underline">
                           ← auto Google Meet
                         </button>
                       )}
                     </div>
                   )}
                 </div>
-                <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-400">
+                <p className="mt-2 flex items-center gap-1.5 text-[0.6875rem] text-slate-400">
                   <CalendarCheck className="h-3.5 w-3.5 shrink-0" />
                   Everyone on the panel gets a Google Calendar invite with reminders.
                 </p>
@@ -426,7 +426,7 @@ export function CandidateInterviewsModal({
                 )}
                 {committee.some((m) => !inPanel(m.userId)) && (
                   <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                    <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                    <span className="text-[0.6875rem] font-medium uppercase tracking-wide text-slate-400">
                       Committee:
                     </span>
                     {committee.filter((m) => !inPanel(m.userId)).map((m) => (
@@ -657,7 +657,7 @@ function RoundRow({
             <button type="button"
               onClick={() => update.mutate({ roundId: round.id, status: 'completed' })}
               disabled={update.isPending}
-              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50">
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50">
               <CheckCircle2 className="h-3.5 w-3.5" />
               Mark as complete
             </button>
@@ -671,7 +671,7 @@ function RoundRow({
 
       {/* Meta row */}
       <div className="border-t border-slate-100 px-3 py-2">
-        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-500">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[0.6875rem] text-slate-500">
           <span className="inline-flex items-center gap-1">
             <CalendarClock className="h-3 w-3" />
             {round.scheduledAt ? formatDate(round.scheduledAt) : 'Time TBD'}
@@ -699,7 +699,7 @@ function RoundRow({
               <div key={p.id} className="flex items-center gap-2">
                 {/* Name + status chip */}
                 <span className={cn(
-                  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium',
+                  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.6875rem] font-medium',
                   p.hasMarked
                     ? 'bg-emerald-50 text-emerald-700'
                     : p.tokenStatus === 'opened'
@@ -716,7 +716,7 @@ function RoundRow({
                   {p.name}
                   {!p.hasMarked && p.tokenStatus && (
                     <span className={cn(
-                      'rounded-full px-1.5 py-0.5 text-[9px] font-semibold',
+                      'rounded-full px-1.5 py-0.5 text-[0.5625rem] font-semibold',
                       p.tokenStatus === 'opened'
                         ? 'bg-amber-100 text-amber-600'
                         : 'bg-slate-200 text-slate-500',
@@ -733,7 +733,7 @@ function RoundRow({
                       <button
                         type="button"
                         onClick={() => void navigator.clipboard.writeText(p.evalLink!)}
-                        className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[10px] font-semibold text-brand-700 transition hover:bg-brand-100 active:scale-95"
+                        className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[0.625rem] font-semibold text-brand-700 transition hover:bg-brand-100 active:scale-95"
                       >
                         <ClipboardCopy className="h-3 w-3" />
                         Copy link
@@ -749,7 +749,7 @@ function RoundRow({
                         )
                       }
                       title="Generate a fresh evaluation link and copy it"
-                      className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-700 transition hover:bg-amber-100 active:scale-95 disabled:opacity-40"
+                      className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[0.625rem] font-semibold text-amber-700 transition hover:bg-amber-100 active:scale-95 disabled:opacity-40"
                     >
                       <RotateCcw className="h-3 w-3" />
                       New link
@@ -765,7 +765,7 @@ function RoundRow({
       {/* Evaluations */}
       {round.evaluations.length > 0 && (
         <div className="border-t border-slate-100 bg-slate-50/60 px-3 py-2 text-xs">
-          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+          <p className="mb-1.5 text-[0.625rem] font-semibold uppercase tracking-wide text-slate-400">
             Evaluation
           </p>
           <div className="space-y-1">

@@ -56,7 +56,7 @@ function JobCard({ job, index }: { job: CareerListing; index: number }) {
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 border border-brand-100">
             <Briefcase className="h-5 w-5 text-brand-600" />
           </div>
-          <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${empColor}`}>
+          <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[0.6875rem] font-semibold ${empColor}`}>
             {empLabel}
           </span>
         </div>
@@ -92,7 +92,7 @@ function JobCard({ job, index }: { job: CareerListing; index: number }) {
 
         {/* Summary */}
         {job.summary && (
-          <p className="mt-3 line-clamp-2 text-[11px] leading-relaxed text-slate-400 border-t border-slate-100 pt-3">
+          <p className="mt-3 line-clamp-2 text-[0.6875rem] leading-relaxed text-slate-400 border-t border-slate-100 pt-3">
             {job.summary}
           </p>
         )}

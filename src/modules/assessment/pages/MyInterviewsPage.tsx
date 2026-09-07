@@ -121,7 +121,7 @@ export default function MyInterviewsPage() {
                 )}
               >
                 {c.label}
-                <span className={cn('rounded-full px-1.5 text-[10px] font-bold', active ? 'bg-white/20' : 'bg-white text-slate-500')}>
+                <span className={cn('rounded-full px-1.5 text-[0.625rem] font-bold', active ? 'bg-white/20' : 'bg-white text-slate-500')}>
                   {c.count}
                 </span>
               </button>
@@ -376,7 +376,7 @@ function SubmittedSummary({
 
   return (
     <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 overflow-hidden">
-      <p className="bg-emerald-50 border-b border-emerald-100 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-emerald-600">
+      <p className="bg-emerald-50 border-b border-emerald-100 px-4 py-2 text-[0.625rem] font-bold uppercase tracking-widest text-emerald-600">
         Your submitted marks
       </p>
       <div className="p-3">

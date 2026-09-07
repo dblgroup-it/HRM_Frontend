@@ -220,7 +220,7 @@ function PauseMenu({ onPause }: { onPause: (days?: number) => void }) {
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
-            <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+            <p className="px-3 py-1.5 text-[0.625rem] font-semibold uppercase tracking-wide text-slate-400">
               Pause schedule for
             </p>
             {PAUSE_CHOICES.map((c) => (
@@ -285,14 +285,14 @@ function AutomationRow({
           <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-slate-800">
             {title}
             {paused ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[0.625rem] font-semibold uppercase tracking-wide text-amber-700">
                 <PauseCircle className="h-3 w-3" />
                 {pause?.pausedUntil
                   ? `Paused until ${new Date(pause.pausedUntil).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`
                   : 'Paused'}
               </span>
             ) : (
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.625rem] font-semibold uppercase tracking-wide text-slate-500">
                 {schedule}
               </span>
             )}

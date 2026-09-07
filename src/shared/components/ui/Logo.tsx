@@ -45,7 +45,7 @@ export function Logo({
           </span>
           <span
             className={cn(
-              'block text-[10px] font-medium uppercase tracking-[0.18em]',
+              'block text-[0.625rem] font-medium uppercase tracking-[0.18em]',
               inverted ? 'text-white/70' : 'text-slate-400'
             )}
           >

@@ -213,7 +213,7 @@ export function BulkInterviewModal({
             {/* Venue — only for in-person */}
             {mode !== 'online' && (
               <div className="border-b border-slate-100 p-3">
-                <label className="mb-1 block text-[11px] font-medium text-slate-400">
+                <label className="mb-1 block text-[0.6875rem] font-medium text-slate-400">
                   Venue <span className="text-rose-500">*</span>
                 </label>
                 <Input
@@ -224,7 +224,7 @@ export function BulkInterviewModal({
                   className={locationError ? 'border-rose-400 focus:ring-rose-400' : ''}
                 />
                 {locationError && (
-                  <p className="mt-1 text-[11px] font-medium text-rose-600">
+                  <p className="mt-1 text-[0.6875rem] font-medium text-rose-600">
                     Venue is required for in-person interviews
                   </p>
                 )}
@@ -233,7 +233,7 @@ export function BulkInterviewModal({
             {/* Date + time + slot mode — single compact row */}
             <div className="grid grid-cols-2 gap-3 p-3 sm:grid-cols-[1fr_1fr_auto]">
               <div>
-                <label className="mb-1 block text-[11px] font-medium text-slate-400">Date</label>
+                <label className="mb-1 block text-[0.6875rem] font-medium text-slate-400">Date</label>
                 <Input
                   type="date"
                   value={date}
@@ -241,7 +241,7 @@ export function BulkInterviewModal({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-[11px] font-medium text-slate-400">
+                <label className="mb-1 block text-[0.6875rem] font-medium text-slate-400">
                   {slotsMode === 'sequential' ? 'Start time' : 'Time'}
                 </label>
                 <Input
@@ -251,7 +251,7 @@ export function BulkInterviewModal({
                 />
               </div>
               <div className="col-span-2 sm:col-span-1">
-                <label className="mb-1 block text-[11px] font-medium text-slate-400">Slots</label>
+                <label className="mb-1 block text-[0.6875rem] font-medium text-slate-400">Slots</label>
                 <div className="flex flex-wrap items-center gap-2">
                   <SlotModeBtn active={slotsMode === 'same'} onClick={() => setSlotsMode('same')} label="Same" />
                   <SlotModeBtn active={slotsMode === 'sequential'} onClick={() => setSlotsMode('sequential')} label="Sequential" />
@@ -276,7 +276,7 @@ export function BulkInterviewModal({
             {/* Schedule preview — only when date is set */}
             {candidates.length > 0 && date && (
               <div className="border-t border-slate-100">
-                <p className="bg-slate-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                <p className="bg-slate-50 px-3 py-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-400">
                   Preview
                 </p>
                 <div className="max-h-36 divide-y divide-slate-50 overflow-y-auto">
@@ -288,7 +288,7 @@ export function BulkInterviewModal({
                     return (
                       <div key={c.id} className="flex items-center justify-between px-3 py-1.5">
                         <div className="flex items-center gap-2">
-                          <span className="w-4 text-right text-[11px] text-slate-400">{i + 1}.</span>
+                          <span className="w-4 text-right text-[0.6875rem] text-slate-400">{i + 1}.</span>
                           <Avatar name={c.name} size="sm" />
                           <span className="text-xs font-medium text-slate-700">{c.name}</span>
                         </div>
@@ -333,7 +333,7 @@ export function BulkInterviewModal({
               )}
               {committee.some((m) => !inPanel(m.userId)) && (
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                  <span className="text-[0.6875rem] font-medium uppercase tracking-wide text-slate-400">
                     Committee:
                   </span>
                   {committee

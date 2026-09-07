@@ -64,7 +64,7 @@ export function OrganogramSnapshot({ summary }: { summary: DashboardSummary }) {
               <span className="text-2xl font-bold text-ink-dark">
                 {Math.round(occupancy)}%
               </span>
-              <span className="text-[11px] text-slate-400">seats filled</span>
+              <span className="text-[0.6875rem] text-slate-400">seats filled</span>
             </div>
           </div>
         </div>
@@ -114,7 +114,7 @@ function Metric({
 }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2.5">
-      <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-slate-400">
+      <p className="flex items-center gap-1.5 text-[0.6875rem] uppercase tracking-wide text-slate-400">
         <span className={`h-2 w-2 rounded-full ${dot}`} />
         {label}
       </p>

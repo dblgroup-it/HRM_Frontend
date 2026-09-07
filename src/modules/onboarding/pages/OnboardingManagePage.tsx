@@ -253,7 +253,7 @@ export default function OnboardingManagePage() {
                   )}
                   <div
                     className={cn(
-                      'relative flex h-7 w-7 items-center justify-center rounded-full border text-[11px] font-semibold transition-all duration-300',
+                      'relative flex h-7 w-7 items-center justify-center rounded-full border text-[0.6875rem] font-semibold transition-all duration-300',
                       reached
                         ? 'border-white bg-white text-brand-700'
                         : current
@@ -267,7 +267,7 @@ export default function OnboardingManagePage() {
                   </div>
                   <span
                     className={cn(
-                      'mt-1 hidden text-[10px] transition-colors sm:block',
+                      'mt-1 hidden text-[0.625rem] transition-colors sm:block',
                       activeStage === i ? 'font-semibold text-white' : 'text-white/80',
                     )}
                   >
@@ -573,7 +573,6 @@ function Flow({
   const [hrFile, setHrFile] = useState<File | null>(null);
   const isApproved = boardApproval?.status === 'approved';
   const approvedVotes = boardApproval?.votes.filter((v) => v.status === 'approved') ?? [];
-  const pendingCount = boardApproval?.votes.filter((v) => v.status === 'pending').length ?? 0;
   const confirmHrApprove = () => {
     if (!hrFile) return;
     hrApprove.mutate(
@@ -926,8 +925,8 @@ function Flow({
                 <div className="flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5">
                   <BadgeCheck className="h-4 w-4 shrink-0 text-emerald-600" />
                   <div className="min-w-0">
-                    <p className="text-[12px] font-semibold text-emerald-700">Board Approved</p>
-                    <p className="text-[11px] text-emerald-600">
+                    <p className="text-[0.75rem] font-semibold text-emerald-700">Board Approved</p>
+                    <p className="text-[0.6875rem] text-emerald-600">
                       {boardApproval?.hrApprovedBy
                         ? `By HR · ${boardApproval.hrApprovedBy.name}`
                         : approvedVotes[0]
@@ -939,7 +938,7 @@ function Flow({
                 {boardApproval?.hrApprovedBy && (
                   <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
                     {boardApproval.hrApprovalNote && (
-                      <p className="text-[11px] italic leading-relaxed text-slate-600">
+                      <p className="text-[0.6875rem] italic leading-relaxed text-slate-600">
                         "{boardApproval.hrApprovalNote}"
                       </p>
                     )}
@@ -948,23 +947,23 @@ function Flow({
                         href={boardApproval.hrApprovalAttachmentUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-brand-600 hover:underline"
+                        className="mt-1 flex items-center gap-1.5 text-[0.6875rem] font-medium text-brand-600 hover:underline"
                       >
                         <Paperclip className="h-3 w-3" />
                         {boardApproval.hrApprovalAttachmentName ?? 'View attachment'}
                       </a>
                     )}
-                    <p className="mt-0.5 text-[10px] text-slate-400">
+                    <p className="mt-0.5 text-[0.625rem] text-slate-400">
                       — {boardApproval.hrApprovedBy.name}
                     </p>
                   </div>
                 )}
                 {!boardApproval?.hrApprovedBy && approvedVotes[0]?.notes && (
                   <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                    <p className="text-[11px] italic leading-relaxed text-slate-600">
+                    <p className="text-[0.6875rem] italic leading-relaxed text-slate-600">
                       "{approvedVotes[0].notes}"
                     </p>
-                    <p className="mt-0.5 text-[10px] text-slate-400">
+                    <p className="mt-0.5 text-[0.625rem] text-slate-400">
                       — {approvedVotes[0].member.name}
                     </p>
                   </div>
@@ -972,7 +971,7 @@ function Flow({
                 <button
                   type="button"
                   onClick={() => setShowBoardModal(true)}
-                  className="flex items-center gap-1.5 rounded-lg px-1 py-1 text-[11px] font-medium text-slate-400 hover:text-slate-600"
+                  className="flex items-center gap-1.5 rounded-lg px-1 py-1 text-[0.6875rem] font-medium text-slate-400 hover:text-slate-600"
                 >
                   <Send className="h-3 w-3" /> Resend to members
                 </button>
@@ -981,7 +980,7 @@ function Flow({
               <div className="mx-auto max-w-md space-y-2 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
                 <label
                   className={cn(
-                    'flex cursor-pointer items-center gap-2 rounded-xl border border-dashed px-3 py-2.5 text-[12px] font-medium transition-colors',
+                    'flex cursor-pointer items-center gap-2 rounded-xl border border-dashed px-3 py-2.5 text-[0.75rem] font-medium transition-colors',
                     hrFile
                       ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
                       : 'border-slate-300 bg-slate-50 text-slate-500 hover:border-brand-300 hover:bg-brand-50/40',
@@ -1003,13 +1002,13 @@ function Flow({
                   onChange={(e) => setHrNote(e.target.value)}
                   rows={2}
                   placeholder="Remarks (optional)…"
-                  className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-800 placeholder:text-slate-400 focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-100"
+                  className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[0.75rem] text-slate-800 placeholder:text-slate-400 focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-100"
                 />
                 <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => { setShowHrForm(false); setHrNote(''); setHrFile(null); }}
-                    className="flex-1 rounded-xl border border-slate-200 py-2 text-[12px] font-medium text-slate-500 hover:bg-slate-50"
+                    className="flex-1 rounded-xl border border-slate-200 py-2 text-[0.75rem] font-medium text-slate-500 hover:bg-slate-50"
                   >
                     Cancel
                   </button>
@@ -1017,7 +1016,7 @@ function Flow({
                     type="button"
                     disabled={hrApprove.isPending || !hrFile}
                     onClick={confirmHrApprove}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2 text-[12px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2 text-[0.75rem] font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
                   >
                     <BadgeCheck className="h-3.5 w-3.5" />
                     {hrApprove.isPending ? 'Saving…' : 'Confirm'}
@@ -1027,12 +1026,81 @@ function Flow({
             ) : (
               <div className="mx-auto max-w-md space-y-2 rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-center">
                 {boardApproval && (
-                  <p className="text-[11px] text-amber-600">
-                    {approvedVotes.length}/{boardApproval.votes.length} approved · {pendingCount} pending
-                  </p>
+                  <>
+                    {/* Where the request actually is. A bare vote tally read as
+                        "sent to the board" even while it sat with Corporate HR. */}
+                    <div className="space-y-1.5 text-left">
+                      {(['corporate_hr', 'chro', 'board'] as const).map((stage, i) => {
+                        const votes = boardApproval.votes.filter(
+                          (v) => v.stage === stage,
+                        );
+                        const state = votes.some((v) => v.status === 'rejected')
+                          ? 'rejected'
+                          : votes.some((v) => v.status === 'approved')
+                            ? 'approved'
+                            : votes.length
+                              ? 'waiting'
+                              : 'upcoming';
+                        const who =
+                          stage === 'corporate_hr'
+                            ? (boardApproval.corporateHr?.name ?? 'Corporate HR')
+                            : stage === 'chro'
+                              ? (boardApproval.chro?.name ?? 'CHRO')
+                              : `${boardApproval.boardMemberCount ?? votes.length} board member(s)`;
+                        const title =
+                          stage === 'corporate_hr'
+                            ? 'Corporate HR'
+                            : stage === 'chro'
+                              ? 'CHRO'
+                              : 'Board';
+                        return (
+                          <div key={stage} className="flex items-center gap-2">
+                            <span
+                              className={cn(
+                                'flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full text-[0.5625rem] font-bold',
+                                state === 'approved' && 'bg-emerald-500 text-white',
+                                state === 'rejected' && 'bg-rose-500 text-white',
+                                state === 'waiting' && 'bg-amber-400 text-white',
+                                state === 'upcoming' && 'bg-slate-200 text-slate-500',
+                              )}
+                            >
+                              {state === 'approved' ? '✓' : state === 'rejected' ? '✕' : i + 1}
+                            </span>
+                            <span className="min-w-0 flex-1 truncate text-[0.6875rem] text-slate-600">
+                              <span className="font-medium text-slate-700">{title}</span>
+                              <span className="text-slate-400"> · {who}</span>
+                            </span>
+                            <span
+                              className={cn(
+                                'shrink-0 text-[0.625rem] font-medium',
+                                state === 'approved' && 'text-emerald-600',
+                                state === 'rejected' && 'text-rose-600',
+                                state === 'waiting' && 'text-amber-600',
+                                state === 'upcoming' && 'text-slate-400',
+                              )}
+                            >
+                              {state === 'approved'
+                                ? 'Approved'
+                                : state === 'rejected'
+                                  ? 'Rejected'
+                                  : state === 'waiting'
+                                    ? 'Awaiting'
+                                    : 'Not yet sent'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {boardApproval.status === 'rejected' &&
+                      boardApproval.rejectedReason && (
+                        <p className="rounded-lg border border-rose-100 bg-rose-50 px-2.5 py-1.5 text-left text-[0.625rem] leading-4 text-rose-700">
+                          <strong>Rejected:</strong> {boardApproval.rejectedReason}
+                        </p>
+                      )}
+                  </>
                 )}
                 {!boardApproval && (
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[0.6875rem] text-slate-400">
                     Board approval is required before final verification.
                   </p>
                 )}
@@ -1040,7 +1108,7 @@ function Flow({
                   <button
                     type="button"
                     onClick={() => setShowBoardModal(true)}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2 text-[12px] font-semibold text-slate-700 hover:bg-slate-50"
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2 text-[0.75rem] font-semibold text-slate-700 hover:bg-slate-50"
                   >
                     <Send className="h-3.5 w-3.5 text-brand-500" />
                     {boardApproval ? 'Resend' : 'Send to Board'}
@@ -1048,7 +1116,7 @@ function Flow({
                   <button
                     type="button"
                     onClick={() => setShowHrForm(true)}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 py-2 text-[12px] font-semibold text-emerald-700 hover:bg-emerald-100"
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 py-2 text-[0.75rem] font-semibold text-emerald-700 hover:bg-emerald-100"
                   >
                     <UserCheck className="h-3.5 w-3.5" />
                     HR Approve
@@ -1158,7 +1226,7 @@ function Flow({
                 <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <Mail className="h-4 w-4 shrink-0 text-brand-500" />
                   <div className="min-w-0">
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Work email</p>
+                    <p className="text-[0.6875rem] font-medium uppercase tracking-wide text-slate-400">Work email</p>
                     <p className="mt-0.5 truncate text-sm font-semibold text-slate-800">{ob.itEmail || '—'}</p>
                   </div>
                 </div>
@@ -1179,7 +1247,7 @@ function Flow({
                         <Check className="h-3 w-3" strokeWidth={3} />
                       </span>
                       <span className={cn('flex-1', d ? 'text-slate-700' : 'text-slate-500')}>{label}</span>
-                      {d && <span className="text-[11px] font-medium text-emerald-600">Completed</span>}
+                      {d && <span className="text-[0.6875rem] font-medium text-emerald-600">Completed</span>}
                     </div>
                   ))}
                 </div>
@@ -1209,7 +1277,7 @@ function Flow({
                           className="w-48 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
                         />
                       ) : (
-                        <span className="text-[11px] text-slate-400">Handled by IT team</span>
+                        <span className="text-[0.6875rem] text-slate-400">Handled by IT team</span>
                       )}
                     </div>
                   ))}
@@ -1355,7 +1423,7 @@ function Flow({
             <ActiveIcon className="h-5 w-5" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+            <p className="text-[0.6875rem] font-medium uppercase tracking-wide text-slate-400">
               Step {activeStage + 1} of {stages.length}
             </p>
             <div className="mt-0.5 flex flex-wrap items-center gap-2">
@@ -1368,12 +1436,12 @@ function Flow({
                 {active.title}
               </h2>
               {activeState === 'current' && (
-                <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-700">
+                <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[0.625rem] font-semibold uppercase tracking-wide text-brand-700">
                   In progress
                 </span>
               )}
               {activeState === 'done' && (
-                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[0.625rem] font-semibold uppercase tracking-wide text-emerald-700">
                   Done
                 </span>
               )}
@@ -1658,7 +1726,7 @@ function CrossCheckPanel({
             </ul>
           )}
           {ob.crossCheckedAt && (
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[0.6875rem] text-slate-400">
               {isManual
                 ? `Manually reviewed by ${cc.reviewedBy} · ${fmt(ob.crossCheckedAt)}`
                 : `Checked ${fmt(ob.crossCheckedAt)} — advisory only; verify originals before final sign-off.`}
@@ -1802,7 +1870,7 @@ function fmt(iso: string | null): string {
 function MedicalStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <p className="text-[10px] uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="text-[0.625rem] uppercase tracking-wide text-slate-400">{label}</p>
       <p className="truncate font-medium text-slate-700">{value || '—'}</p>
     </div>
   );

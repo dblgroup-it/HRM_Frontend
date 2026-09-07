@@ -96,11 +96,11 @@ export function PersonPicker({
                   </span>
                 </span>
                 {already ? (
-                  <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                  <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[0.625rem] font-medium text-slate-500">
                     Added
                   </span>
                 ) : !emp.hasSystemAccess ? (
-                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 ring-1 ring-emerald-100">
+                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[0.625rem] font-medium text-emerald-700 ring-1 ring-emerald-100">
                     <KeyRound className="h-3 w-3" />
                     Grants access
                   </span>

@@ -263,7 +263,7 @@ export function BdJobsSettingsCard() {
               onChange={(e) => set('publicApplyBaseUrl', e.target.value)}
               hint="Your site's domain only. Leave blank to use the server's origin — set this once you're on SSL, otherwise ads link to localhost."
             />
-            <p className="mt-1 text-[11px] text-slate-400">
+            <p className="mt-1 text-[0.6875rem] text-slate-400">
               Each job gets its own link automatically:{' '}
               <code className="rounded bg-slate-100 px-1 py-0.5 text-slate-600">
                 {(draft.publicApplyBaseUrl || 'http://localhost:3000').replace(

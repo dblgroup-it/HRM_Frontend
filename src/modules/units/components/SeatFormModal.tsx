@@ -23,7 +23,7 @@ function FieldGroup({
 }) {
   return (
     <section className="space-y-3">
-      <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+      <h3 className="text-[0.6875rem] font-semibold uppercase tracking-wider text-slate-400">
         {title}
       </h3>
       {children}

@@ -113,7 +113,7 @@ function MedicalCard({
       >
         <span
           className={cn(
-            'absolute right-4 top-4 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold text-white shadow-sm',
+            'absolute right-4 top-4 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[0.625rem] font-bold text-white shadow-sm',
             urgent ? 'bg-brand-600' : 'bg-amber-500',
           )}
         >

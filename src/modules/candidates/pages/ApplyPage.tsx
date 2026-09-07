@@ -239,7 +239,7 @@ export default function ApplyPage() {
         <div className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rounded-full bg-brand-400/20 blur-3xl animate-blob-1" aria-hidden />
         <div className="pointer-events-none absolute -right-16 bottom-0 h-56 w-56 rounded-full bg-accent-400/15 blur-3xl animate-blob-2" aria-hidden />
         <div className="relative z-10 mx-auto max-w-4xl">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-white/70 backdrop-blur-sm">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[0.6875rem] font-bold uppercase tracking-widest text-white/70 backdrop-blur-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-accent-400 animate-pulse" />
             Now hiring · DBL Group
           </span>
@@ -285,7 +285,7 @@ export default function ApplyPage() {
                       'Submit and track your status with your email.',
                     ].map((step, i) => (
                       <li key={i} className="flex gap-3 text-xs text-slate-500">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-100 text-[10px] font-bold text-brand-700">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-100 text-[0.625rem] font-bold text-brand-700">
                           {i + 1}
                         </span>
                         {step}

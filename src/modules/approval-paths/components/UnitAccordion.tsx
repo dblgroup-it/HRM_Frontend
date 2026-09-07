@@ -1,10 +1,20 @@
-import { useState } from 'react';
-import { Building2, ChevronDown, UserCheck, UserPlus } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import {
+  Building2,
+  ChevronDown,
+  Layers,
+  UserCheck,
+  UserPlus,
+} from 'lucide-react';
 
-import { Badge, TreeAddNode } from '@shared/components/ui';
+import { Badge, Combobox, TreeAddNode } from '@shared/components/ui';
+import { useMasterData } from '@modules/master-data';
 import { cn } from '@shared/lib';
 
-import type { UnitApprovalPaths } from '../types/approval-path.types';
+import type {
+  RaiserApprovalPath,
+  UnitApprovalPaths,
+} from '../types/approval-path.types';
 import { useAddRaiser } from '../hooks/useApprovalPaths';
 import { RaiserChain } from './RaiserChain';
 import { PersonPicker } from './PersonPicker';
@@ -21,8 +31,29 @@ export function UnitAccordion({
   index?: number;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const [newDepartment, setNewDepartment] = useState('');
   const addRaiser = useAddRaiser();
+  const { data: master } = useMasterData();
   const count = unit.raisers.length;
+
+  // Department is the grouping level; '' (the unit-wide fallback) leads, then
+  // the named departments alphabetically.
+  const groups = useMemo(() => {
+    const byDepartment = new Map<string, RaiserApprovalPath[]>();
+    for (const path of unit.raisers) {
+      const list = byDepartment.get(path.department) ?? [];
+      list.push(path);
+      byDepartment.set(path.department, list);
+    }
+    return [...byDepartment.entries()].sort(([a], [b]) =>
+      a === '' ? -1 : b === '' ? 1 : a.localeCompare(b),
+    );
+  }, [unit.raisers]);
+
+  const departmentOptions = useMemo(
+    () => (master?.departments ?? []).map((d) => ({ value: d, label: d })),
+    [master],
+  );
 
   return (
     <section
@@ -102,37 +133,90 @@ export function UnitAccordion({
                 No requisition raisers yet
               </p>
               <p className="max-w-sm text-xs leading-5 text-slate-500">
-                Add the first person who should be able to open requisitions for
-                this unit.
+                Pick a department, then the person who should be able to open
+                requisitions for it.
               </p>
             </div>
           )}
 
-          {/* Raisers hang off a single trunk, so the unit → raiser
-              relationship reads structurally and not just by indentation. */}
-          {count > 0 && (
+          {/* Unit → department → raiser → steps. Departments are the grouping
+              level: you pick where the requisition comes from first, then who
+              may raise it there. */}
+          {groups.length > 0 && (
             <div className="relative">
               <span
                 aria-hidden
                 className="absolute bottom-0 left-[1.125rem] top-0 hidden w-px -translate-x-1/2 origin-top animate-rail-draw bg-gradient-to-b from-brand-200 to-slate-200 sm:block"
               />
 
-              <div className="space-y-3">
-                {unit.raisers.map((path, i) => (
-                  <div key={path.raiser.id} className="relative sm:pl-11">
+              <div className="space-y-4">
+                {groups.map(([dept, paths], gi) => (
+                  <div key={dept || '__any__'} className="relative sm:pl-11">
                     <span
                       aria-hidden
-                      className="absolute left-[1.125rem] top-8 hidden h-px w-5 rounded bg-slate-200 sm:block"
+                      className="absolute left-[1.125rem] top-5 hidden h-px w-5 rounded bg-slate-200 sm:block"
                     />
                     <span
                       aria-hidden
-                      className="absolute left-[1.125rem] top-[1.8125rem] hidden h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-brand-400 ring-2 ring-white sm:block"
+                      className="absolute left-[1.125rem] top-[1.1875rem] hidden h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-brand-400 ring-2 ring-white sm:block"
                     />
                     <div
-                      className="animate-card-in"
-                      style={{ animationDelay: `${Math.min(i, 6) * 45}ms` }}
+                      className="animate-card-in rounded-2xl border border-slate-200/80 bg-white/70 p-3 shadow-card"
+                      style={{ animationDelay: `${Math.min(gi, 6) * 45}ms` }}
                     >
-                      <RaiserChain path={path} />
+                      <div className="mb-2.5 flex flex-wrap items-center gap-2 px-1">
+                        <span
+                          className={cn(
+                            'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg',
+                            dept
+                              ? 'bg-violet-50 text-violet-500 ring-1 ring-violet-100/70'
+                              : 'bg-slate-100 text-slate-500',
+                          )}
+                        >
+                          <Layers className="h-3.5 w-3.5" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold text-slate-900">
+                            {dept || 'Any department'}
+                          </span>
+                          <span className="mt-0.5 block text-xs text-slate-500">
+                            {dept
+                              ? `${paths.length} raiser${paths.length > 1 ? 's' : ''} for this department`
+                              : 'Fallback for departments without their own chain'}
+                          </span>
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        {paths.map((path) => (
+                          <RaiserChain key={path.raiser.id} path={path} />
+                        ))}
+                      </div>
+
+                      <TreeAddNode
+                        className="mt-3"
+                        label={
+                          dept
+                            ? `Add a raiser for ${dept}`
+                            : 'Add a raiser for any department'
+                        }
+                      >
+                        {(close) => (
+                          <PersonPicker
+                            autoFocus
+                            placeholder="Search who will raise requisitions here…"
+                            excludeUserIds={paths.map((r) => r.raiser.id)}
+                            onPick={(person) => {
+                              addRaiser.mutate({
+                                unitId: unit.unitId,
+                                raiserId: person.userId,
+                                department: dept,
+                              });
+                              close();
+                            }}
+                          />
+                        )}
+                      </TreeAddNode>
                     </div>
                   </div>
                 ))}
@@ -140,25 +224,56 @@ export function UnitAccordion({
             </div>
           )}
 
-          {/* The unit's tree grows from here. */}
+          {/* Start a new department group — department first, then the person. */}
           <TreeAddNode
             className="mt-3"
-            railAbove={count > 0}
-            label="Add a requisition raiser"
+            railAbove={groups.length > 0}
+            label="Add a department"
           >
             {(close) => (
-              <PersonPicker
-                autoFocus
-                placeholder="Search who will raise requisitions here…"
-                excludeUserIds={unit.raisers.map((r) => r.raiser.id)}
-                onPick={(person) => {
-                  addRaiser.mutate({
-                    unitId: unit.unitId,
-                    raiserId: person.userId,
-                  });
-                  close();
-                }}
-              />
+              <div className="space-y-2.5">
+                <Combobox
+                  label="Department"
+                  placeholder="Select department"
+                  options={departmentOptions}
+                  value={newDepartment}
+                  onChange={setNewDepartment}
+                />
+                {newDepartment ? (
+                  <>
+                    <p className="text-[0.6875rem] leading-5 text-slate-500">
+                      Now pick who may raise requisitions for{' '}
+                      <span className="font-medium text-slate-700">
+                        {newDepartment}
+                      </span>
+                      .
+                    </p>
+                    <PersonPicker
+                      autoFocus
+                      placeholder="Search the requisition raiser…"
+                      excludeUserIds={(
+                        unit.raisers.filter(
+                          (r) => r.department === newDepartment,
+                        ) ?? []
+                      ).map((r) => r.raiser.id)}
+                      onPick={(person) => {
+                        addRaiser.mutate({
+                          unitId: unit.unitId,
+                          raiserId: person.userId,
+                          department: newDepartment,
+                        });
+                        setNewDepartment('');
+                        close();
+                      }}
+                    />
+                  </>
+                ) : (
+                  <p className="text-[0.6875rem] leading-5 text-slate-500">
+                    Choose the department first — requisitions raised for it will
+                    follow the chain you build here.
+                  </p>
+                )}
+              </div>
             )}
           </TreeAddNode>
 

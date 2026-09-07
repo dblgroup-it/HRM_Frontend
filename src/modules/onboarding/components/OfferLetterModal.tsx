@@ -88,15 +88,15 @@ ${el.innerHTML}
         <div className="flex-1 overflow-y-auto bg-slate-50 p-6">
           <div
             id="offer-letter-print-area"
-            className="mx-auto max-w-2xl rounded-xl bg-white p-10 shadow-sm ring-1 ring-slate-200 text-[13px] leading-relaxed text-slate-800"
+            className="mx-auto max-w-2xl rounded-xl bg-white p-10 shadow-sm ring-1 ring-slate-200 text-[0.8125rem] leading-relaxed text-slate-800"
           >
             {/* Letterhead */}
             <div className="mb-4 flex items-start justify-between">
               <div>
                 <p className="text-xl font-bold text-brand-600 tracking-wide">DBL GROUP</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">DBL House, Karwan Bazar, Dhaka-1215, Bangladesh</p>
+                <p className="text-[0.6875rem] text-slate-500 mt-0.5">DBL House, Karwan Bazar, Dhaka-1215, Bangladesh</p>
               </div>
-              <p className="text-[11px] text-slate-400 mt-1">{today}</p>
+              <p className="text-[0.6875rem] text-slate-400 mt-1">{today}</p>
             </div>
             <hr className="my-3 border-t-2 border-brand-500" />
 
@@ -108,7 +108,7 @@ ${el.innerHTML}
             <p className="mb-1">
               <span className="font-semibold">{candidate.name}</span>
             </p>
-            <p className="mb-6 text-slate-500 text-[12px]">
+            <p className="mb-6 text-slate-500 text-[0.75rem]">
               [Candidate&rsquo;s address]
             </p>
 
@@ -131,7 +131,7 @@ ${el.innerHTML}
             </p>
 
             {/* Terms table */}
-            <table className="w-full text-[12px] border-collapse mb-4">
+            <table className="w-full text-[0.75rem] border-collapse mb-4">
               <tbody>
                 {[
                   ['Position', candidate.designation],
@@ -179,17 +179,17 @@ ${el.innerHTML}
             <div className="mt-12 flex items-start gap-16">
               <div>
                 <div className="mb-1 h-px w-44 bg-slate-400" />
-                <p className="text-[11px] font-semibold">Head of Human Resources</p>
-                <p className="text-[11px] text-slate-500">DBL Group</p>
+                <p className="text-[0.6875rem] font-semibold">Head of Human Resources</p>
+                <p className="text-[0.6875rem] text-slate-500">DBL Group</p>
               </div>
               <div>
                 <div className="mb-1 h-px w-44 bg-slate-400" />
-                <p className="text-[11px] font-semibold">Candidate&rsquo;s Acceptance</p>
-                <p className="text-[11px] text-slate-500">Date: _______________</p>
+                <p className="text-[0.6875rem] font-semibold">Candidate&rsquo;s Acceptance</p>
+                <p className="text-[0.6875rem] text-slate-500">Date: _______________</p>
               </div>
             </div>
 
-            <p className="mt-10 text-[10px] text-slate-400 border-t border-slate-100 pt-3">
+            <p className="mt-10 text-[0.625rem] text-slate-400 border-t border-slate-100 pt-3">
               This is a system-generated draft offer letter. Please review and customise before issuing.
             </p>
           </div>

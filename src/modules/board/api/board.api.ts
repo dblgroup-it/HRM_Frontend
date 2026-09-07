@@ -25,8 +25,33 @@ export const boardApi = {
     http.delete<ApiResponse<BoardGroup>>(`/board-groups/${groupId}/members/${userId}`).then((r) => r.data),
 
   /* Approval */
-  sendForApproval: (candidateId: string, memberIds: string[]): Promise<BoardApproval> =>
-    http.post<ApiResponse<BoardApproval>>(`/candidates/${candidateId}/board-approval`, { memberIds }).then((r) => r.data),
+  listChainApprovers: (
+    candidateId: string,
+  ): Promise<{
+    corporateHr: { id: string; name: string; employeeCode: string }[];
+    chro: { id: string; name: string; employeeCode: string }[];
+    startsAt: 'corporate_hr' | 'chro' | 'board';
+  }> =>
+    http
+      .get<ApiResponse<{
+        corporateHr: { id: string; name: string; employeeCode: string }[];
+        chro: { id: string; name: string; employeeCode: string }[];
+        startsAt: 'corporate_hr' | 'chro' | 'board';
+      }>>(`/candidates/${candidateId}/board-approval/approvers`)
+      .then((r) => r.data),
+
+  sendForApproval: (
+    candidateId: string,
+    memberIds: string[],
+    corporateHrId?: string,
+    chroId?: string,
+  ): Promise<BoardApproval> =>
+    http
+      .post<ApiResponse<BoardApproval>>(
+        `/candidates/${candidateId}/board-approval`,
+        { memberIds, corporateHrId, chroId },
+      )
+      .then((r) => r.data),
 
   getApprovalStatus: (candidateId: string): Promise<BoardApproval | null> =>
     http.get<ApiResponse<BoardApproval | null>>(`/candidates/${candidateId}/board-approval`).then((r) => r.data),
@@ -44,6 +69,15 @@ export const boardApi = {
   getVoteInfo: (token: string): Promise<VotePageInfo> =>
     http.get<ApiResponse<VotePageInfo>>(`/board-vote/${token}`).then((r) => r.data),
 
-  submitVote: (token: string, notes?: string): Promise<{ ok: boolean; alreadyVoted: boolean }> =>
-    http.post<ApiResponse<{ ok: boolean; alreadyVoted: boolean }>>(`/board-vote/${token}`, { notes }).then((r) => r.data),
+  submitVote: (
+    token: string,
+    notes?: string,
+    decision: 'approved' | 'rejected' = 'approved',
+  ): Promise<{ ok: boolean; alreadyVoted: boolean }> =>
+    http
+      .post<ApiResponse<{ ok: boolean; alreadyVoted: boolean }>>(
+        `/board-vote/${token}`,
+        { notes, decision },
+      )
+      .then((r) => r.data),
 };

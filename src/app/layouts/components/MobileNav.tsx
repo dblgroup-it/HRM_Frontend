@@ -40,7 +40,7 @@ export function MobileNav({ onMore }: { onMore: () => void }) {
             key={it.to}
             to={it.to}
             end={it.end}
-            className="flex flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1 text-[10px] font-medium"
+            className="flex flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1 text-[0.625rem] font-medium"
           >
             {({ isActive }) => (
               <>
@@ -63,7 +63,7 @@ export function MobileNav({ onMore }: { onMore: () => void }) {
         <button
           type="button"
           onClick={onMore}
-          className="flex flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1 text-[10px] font-medium text-slate-500"
+          className="flex flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1 text-[0.625rem] font-medium text-slate-500"
         >
           <span className="flex h-8 w-full max-w-[3.75rem] items-center justify-center rounded-full">
             <MoreHorizontal className="h-5 w-5" />

@@ -47,7 +47,12 @@ export function TreeAddNode({
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: MouseEvent | TouchEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Element | null;
+      // A dropdown rendered through a portal (Combobox) sits outside this
+      // node's DOM subtree but is still logically part of it — closing on
+      // those clicks made it impossible to finish choosing.
+      if (target?.closest?.('[data-portal-panel]')) return;
+      if (!rootRef.current?.contains(target as Node)) setOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false);

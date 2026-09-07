@@ -101,12 +101,12 @@ export function EmployeeTable({ employees, isLoading }: Props) {
                   <p className="truncate text-sm font-semibold text-slate-800">
                     {e.name}
                   </p>
-                  <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                  <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[0.625rem] font-medium text-slate-500">
                     {e.employeeCode}
                   </span>
                 </div>
                 <p className="truncate text-xs text-slate-500">{e.jobTitle}</p>
-                <p className="mt-0.5 inline-flex max-w-full items-center gap-1 truncate text-[11px] text-slate-400">
+                <p className="mt-0.5 inline-flex max-w-full items-center gap-1 truncate text-[0.6875rem] text-slate-400">
                   <Building2 className="h-3 w-3 shrink-0" />
                   <span className="truncate">
                     {e.department}

@@ -163,12 +163,15 @@ export function RaiserChain({ path }: { path: RaiserApprovalPath }) {
           onClick={() => {
             if (
               window.confirm(
-                `Remove ${path.raiser.name} as a requisition raiser for ${path.unitName}? Their chain is deleted; existing requisitions are unaffected.`,
+                path.department
+                  ? `Remove ${path.raiser.name}'s ${path.department} chain for ${path.unitName}? Their requisitions for that department fall back to the unit-wide chain. Existing requisitions are unaffected.`
+                  : `Remove ${path.raiser.name} as a requisition raiser for ${path.unitName}? Their chain is deleted; existing requisitions are unaffected.`,
               )
             ) {
               removeRaiser.mutate({
                 unitId: path.unitId,
                 raiserId: path.raiser.id,
+                department: path.department,
               });
             }
           }}
@@ -249,7 +252,7 @@ export function RaiserChain({ path }: { path: RaiserApprovalPath }) {
                       <Avatar
                         name={level.name}
                         size="sm"
-                        className="h-7 w-7 text-[10px]"
+                        className="h-7 w-7 text-[0.625rem]"
                       />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium text-slate-900">
@@ -267,7 +270,7 @@ export function RaiserChain({ path }: { path: RaiserApprovalPath }) {
                       </div>
 
                       {level.needsAccess && (
-                        <span className="hidden shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 ring-1 ring-emerald-100 sm:flex">
+                        <span className="hidden shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[0.625rem] font-medium text-emerald-700 ring-1 ring-emerald-100 sm:flex">
                           <KeyRound className="h-3 w-3" />
                           Access on save
                         </span>
@@ -361,7 +364,7 @@ export function RaiserChain({ path }: { path: RaiserApprovalPath }) {
       {/* Footer */}
       <div className="space-y-2.5 border-t border-slate-100 bg-slate-50/70 px-4 py-3">
         {provisioning.length > 0 && (
-          <p className="flex items-start gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-2 text-[11px] leading-5 text-emerald-800">
+          <p className="flex items-start gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-2 text-[0.6875rem] leading-5 text-emerald-800">
             <KeyRound className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>
               {provisioning.map((l) => l.name).join(', ')}{' '}
@@ -378,7 +381,7 @@ export function RaiserChain({ path }: { path: RaiserApprovalPath }) {
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-[11px] text-slate-500">
+          <span className="text-[0.6875rem] text-slate-500">
             {path.updatedAt
               ? `Saved ${new Date(path.updatedAt).toLocaleDateString()}`
               : 'Not saved yet'}
@@ -394,6 +397,7 @@ export function RaiserChain({ path }: { path: RaiserApprovalPath }) {
                 {
                   unitId: path.unitId,
                   raiserId: path.raiser.id,
+                  department: path.department,
                   levels: levels.map((l) => ({
                     userId: l.userId,
                     title: l.title.trim(),

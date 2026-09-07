@@ -221,28 +221,28 @@ export function CandidateRow({
                 }}
               >
                 <Sparkles className="h-2.5 w-2.5 shrink-0" style={{ color: cfg.icon }} />
-                <span className="text-[10px] font-bold tabular-nums" style={{ color: cfg.text }}>{s}%</span>
+                <span className="text-[0.625rem] font-bold tabular-nums" style={{ color: cfg.text }}>{s}%</span>
                 {candidate.matchDetails && (
-                  <span className="text-[9px] font-medium" style={{ color: cfg.text, opacity: 0.6 }}>{cfg.label}</span>
+                  <span className="text-[0.5625rem] font-medium" style={{ color: cfg.text, opacity: 0.6 }}>{cfg.label}</span>
                 )}
               </button>
             );
           })()}
-          <span className="hidden shrink-0 rounded-full bg-slate-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-400 sm:inline">
+          <span className="hidden shrink-0 rounded-full bg-slate-50 px-2 py-0.5 text-[0.625rem] font-medium uppercase tracking-wide text-slate-400 sm:inline">
             {SOURCE_LABEL[candidate.source] ?? candidate.source}
           </span>
           {candidate.applyCount > 1 && (
             <button
               type="button"
               onClick={() => setHistoryOpen(true)}
-              className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-600 transition-colors hover:bg-amber-100"
+              className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[0.625rem] font-semibold text-amber-600 transition-colors hover:bg-amber-100"
               title="View full application history"
             >
               Applied {candidate.applyCount}×
             </button>
           )}
           {candidate.isRedFlagged && (
-            <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-700">
+            <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide text-rose-700">
               <Flag className="h-2.5 w-2.5" fill="currentColor" />
               Red flag
             </span>
@@ -252,7 +252,7 @@ export function CandidateRow({
           {contact || 'No contact details'}
           {candidate.proposedSalary != null ? (
             <span
-              className="ml-2 inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand-700 border border-brand-100"
+              className="ml-2 inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[0.625rem] font-semibold text-brand-700 border border-brand-100"
               title={candidate.salaryJobGrade ? `Job Grade ${candidate.salaryJobGrade}` : undefined}
             >
               <BadgeDollarSign className="h-2.5 w-2.5" />
@@ -261,7 +261,7 @@ export function CandidateRow({
             </span>
           ) : (
             candidate.salaryExpectation != null && (
-              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-100">
+              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[0.625rem] font-semibold text-emerald-700 border border-emerald-100">
                 ৳ {candidate.salaryExpectation.toLocaleString()} expected
               </span>
             )
@@ -287,7 +287,7 @@ export function CandidateRow({
               <button
                 type="button"
                 onClick={() => setShowFullSummary((v) => !v)}
-                className="mt-0.5 text-[11px] font-medium text-violet-700 hover:underline"
+                className="mt-0.5 text-[0.6875rem] font-medium text-violet-700 hover:underline"
               >
                 {showFullSummary ? 'Show less' : 'Show more'}
               </button>
@@ -306,7 +306,7 @@ export function CandidateRow({
         {candidate.onboardingStatus === 'onboarded' && (
           <span
             title="Onboarding complete — hired and handed off to IT"
-            className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white shadow-sm shadow-emerald-600/25"
+            className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-1 text-[0.6875rem] font-semibold text-white shadow-sm shadow-emerald-600/25"
           >
             <Check className="h-3 w-3" strokeWidth={3} /> Completed
           </span>
@@ -693,14 +693,14 @@ function StageMenu({
                   disabled={disabled}
                   onClick={() => { onChange(s); setOpen(false); }}
                   className={cn(
-                    'flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-[13px] transition-colors',
+                    'flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-[0.8125rem] transition-colors',
                     'hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40',
                     isCurrent ? 'font-semibold text-slate-800' : 'text-slate-600',
                   )}
                 >
                   <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', m.dot)} />
                   {m.label}
-                  {disabled && <span className="text-[10px] text-slate-400">(AI only)</span>}
+                  {disabled && <span className="text-[0.625rem] text-slate-400">(AI only)</span>}
                   {isCurrent && <Check className="ml-auto h-3.5 w-3.5 shrink-0 text-brand-600" />}
                 </button>
               );

@@ -616,7 +616,7 @@ export function PostToBdJobsModal({
               <Badge tone="success">Live on BDJobs</Badge>
             )}
             {status && !status.configured && (
-              <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700 border border-amber-200">
+              <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[0.6875rem] font-medium text-amber-700 border border-amber-200">
                 <AlertCircle className="h-3 w-3" />
                 No API credentials
               </span>
@@ -786,7 +786,7 @@ export function PostToBdJobsModal({
                   className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-100"
                   placeholder="Describe the role responsibilities…"
                 />
-                <p className="mt-1 text-right text-[10px] text-slate-400">{form.jobDescription.length}/12000</p>
+                <p className="mt-1 text-right text-[0.625rem] text-slate-400">{form.jobDescription.length}/12000</p>
               </div>
             </div>
           )}
@@ -986,7 +986,7 @@ export function PostToBdJobsModal({
                   <div className="flex items-center gap-3 rounded-xl border border-brand-200 bg-brand-50 p-3">
                     <Check className="h-4 w-4 text-brand-600 shrink-0" />
                     <span className="text-sm font-medium text-brand-700">Bdjobs.com</span>
-                    <Badge tone="brand" className="ml-auto text-[10px]">Always</Badge>
+                    <Badge tone="brand" className="ml-auto text-[0.625rem]">Always</Badge>
                   </div>
                   <button
                     type="button"
@@ -1003,7 +1003,7 @@ export function PostToBdJobsModal({
                       {form.publishLinkedIn && <Check className="h-3 w-3 text-white" />}
                     </span>
                     <span className="text-sm font-medium text-slate-700">LinkedIn</span>
-                    <Badge tone="neutral" className="ml-auto text-[10px]">Optional</Badge>
+                    <Badge tone="neutral" className="ml-auto text-[0.625rem]">Optional</Badge>
                   </button>
                 </div>
               </div>

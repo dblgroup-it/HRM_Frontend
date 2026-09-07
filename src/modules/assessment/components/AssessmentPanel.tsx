@@ -110,7 +110,7 @@ export function AssessmentPanel({ requisition }: { requisition: Requisition }) {
                   <Avatar name={m.name} size="sm" />
                   <div className="min-w-0 leading-tight">
                     <p className="max-w-[140px] truncate text-xs font-semibold text-slate-800">{m.name}</p>
-                    <p className="truncate text-[10px] text-slate-400">
+                    <p className="truncate text-[0.625rem] text-slate-400">
                       {[m.designation, m.department].filter(Boolean).join(' · ') || m.employeeCode}
                     </p>
                   </div>
@@ -227,7 +227,7 @@ function StatTile({
           <p className={cn('text-2xl font-extrabold leading-none tabular-nums', ok ? 'text-emerald-700' : 'text-slate-700')}>
             {ok ? `${animated.toFixed(decimals)}${suffix}` : '—'}
           </p>
-          <p className="mt-1 truncate text-[11px] font-medium text-slate-500">{label}</p>
+          <p className="mt-1 truncate text-[0.6875rem] font-medium text-slate-500">{label}</p>
         </div>
       </div>
     </div>
@@ -258,7 +258,7 @@ function SectionHead({
           </span>
           {title}
         </h3>
-        {desc && <p className="mt-1 text-[11px] text-slate-400">{desc}</p>}
+        {desc && <p className="mt-1 text-[0.6875rem] text-slate-400">{desc}</p>}
       </div>
     </div>
   );
@@ -375,12 +375,12 @@ function ScorecardBlock({ reqId }: { reqId: string }) {
         <table className="min-w-full divide-y divide-slate-100 text-sm">
           <thead className="bg-slate-50">
             <tr>
-              <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">Candidate</th>
-              <th className="px-3 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-400">Stage</th>
-              <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">CV %</th>
-              <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">AI Test</th>
-              <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">Interview</th>
-              <th className="px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">Combined</th>
+              <th className="px-3 py-2.5 text-left text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-400">Candidate</th>
+              <th className="px-3 py-2.5 text-center text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-400">Stage</th>
+              <th className="px-3 py-2.5 text-left text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-400">CV %</th>
+              <th className="px-3 py-2.5 text-left text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-400">AI Test</th>
+              <th className="px-3 py-2.5 text-left text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-400">Interview</th>
+              <th className="px-3 py-2.5 text-left text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-400">Combined</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50 bg-white">
@@ -399,7 +399,7 @@ function ScorecardBlock({ reqId }: { reqId: string }) {
                       <Avatar name={row.candidateName} size="sm" />
                       {idx < 3 && (
                         <span className={cn(
-                          'absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold ring-2 ring-white',
+                          'absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-[0.5625rem] font-bold ring-2 ring-white',
                           RANK_MEDAL[idx],
                         )}>
                           {idx + 1}
@@ -411,7 +411,7 @@ function ScorecardBlock({ reqId }: { reqId: string }) {
                 </td>
                 <td className="px-3 py-2.5 text-center">
                   <span className={cn(
-                    'inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium',
+                    'inline-flex rounded-full px-2 py-0.5 text-[0.625rem] font-medium',
                     STAGE_COLORS[row.stage] ?? 'bg-slate-100 text-slate-600',
                   )}>
                     {row.stage.replace('_', ' ')}

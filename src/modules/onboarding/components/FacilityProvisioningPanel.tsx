@@ -131,7 +131,7 @@ function ProvisioningRow({
         <p className="mt-1 text-xs text-emerald-600">— "{item.confirmNote}"</p>
       )}
       {arranged && pendingRecipients.length > 0 && (
-        <p className="mt-1 text-[11px] text-slate-400">
+        <p className="mt-1 text-[0.6875rem] text-slate-400">
           Still awaiting: {pendingRecipients.map((r) => r.recipientName).join(', ')} (already arranged, no action needed)
         </p>
       )}

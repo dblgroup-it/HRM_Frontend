@@ -42,7 +42,7 @@ export function RecentHires({ hires }: { hires: RecentHire[] }) {
                   {hire.jobTitle} · {hire.department}
                 </p>
               </div>
-              <span className="ml-auto shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-600">
+              <span className="ml-auto shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[0.6875rem] font-medium text-emerald-600">
                 {formatDate(hire.joinedAt)}
               </span>
             </div>

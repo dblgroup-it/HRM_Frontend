@@ -118,7 +118,7 @@ export default function EvaluateByTokenPage() {
 
           {ev?.comments && (
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Your comments</p>
+              <p className="mb-1 text-[0.625rem] font-semibold uppercase tracking-wide text-slate-400">Your comments</p>
               <p className="text-sm italic leading-relaxed text-slate-600">"{ev.comments}"</p>
             </div>
           )}
@@ -238,7 +238,7 @@ export default function EvaluateByTokenPage() {
               maxLength={2000}
               className="w-full resize-none bg-transparent text-sm leading-relaxed text-slate-800 placeholder-slate-300 outline-none"
             />
-            <p className="mt-1 text-right text-[10px] text-slate-300">{comments.length} / 2000</p>
+            <p className="mt-1 text-right text-[0.625rem] text-slate-300">{comments.length} / 2000</p>
           </div>
         </div>
 
@@ -264,7 +264,7 @@ export default function EvaluateByTokenPage() {
             <span className="font-medium text-slate-500">Total</span>
             <span className={cn('font-bold tabular-nums', totalColors.text)}>
               {currentTotal.toFixed(1)} / {maxTotal}
-              <span className={cn('ml-2 rounded-full px-2 py-0.5 text-[10px]', totalColors.badge)}>{pct.toFixed(1)}%</span>
+              <span className={cn('ml-2 rounded-full px-2 py-0.5 text-[0.625rem]', totalColors.badge)}>{pct.toFixed(1)}%</span>
             </span>
           </div>
           <div className="mb-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">

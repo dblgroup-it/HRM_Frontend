@@ -138,7 +138,7 @@ export default function OnboardingPage() {
         <div className="pointer-events-none absolute -right-16 bottom-0 h-56 w-56 rounded-full bg-accent-400/15 blur-3xl animate-blob-2" aria-hidden />
 
         <div className="relative z-10 mx-auto max-w-4xl">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-white/70 backdrop-blur-sm">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[0.6875rem] font-bold uppercase tracking-widest text-white/70 backdrop-blur-sm">
             <Sparkles className="h-3 w-3 text-accent-400" />
             Welcome to DBL Group
           </span>
@@ -288,7 +288,7 @@ export default function OnboardingPage() {
                           <p className="truncate text-sm font-semibold text-slate-800">{label}</p>
                           {latest && (
                             <span className={cn(
-                              'mt-0.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold',
+                              'mt-0.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[0.625rem] font-semibold',
                               DOC_STATUS_META[latest.status].cls
                             )}>
                               <span className={cn('h-1.5 w-1.5 rounded-full', DOC_STATUS_META[latest.status].dot)} />
@@ -327,7 +327,7 @@ export default function OnboardingPage() {
 
                 {/* Privacy notice */}
                 <div className="border-t border-slate-100 px-5 py-4">
-                  <p className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                  <p className="flex items-center gap-1.5 text-[0.6875rem] text-slate-400">
                     <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-slate-300" />
                     Your documents are stored securely and shared only with DBL Group HR.
                     PDF only · max 5 MB each.

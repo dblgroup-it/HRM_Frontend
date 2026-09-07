@@ -214,7 +214,7 @@ export function SalaryFixationModal({
                       <p className="truncate text-sm font-medium text-slate-700">
                         {iv.evaluatorName}
                       </p>
-                      <p className="text-[11px] text-slate-400">
+                      <p className="text-[0.6875rem] text-slate-400">
                         {iv.roundKind} round · {formatDate(iv.submittedAt)}
                       </p>
                     </div>
@@ -234,7 +234,7 @@ export function SalaryFixationModal({
               value={data.averageScore !== null ? data.averageScore.toFixed(2) : '—'}
             />
             <div>
-              <p className="text-[11px] font-semibold uppercase text-slate-400">Salary Band</p>
+              <p className="text-[0.6875rem] font-semibold uppercase text-slate-400">Salary Band</p>
               <Select
                 className="mt-1 h-9"
                 value={form.bandOverride ? String(form.bandOverride) : ''}
@@ -264,7 +264,7 @@ export function SalaryFixationModal({
             <p className="mb-2 text-sm font-semibold text-slate-700">Negotiation</p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <p className="text-[11px] font-semibold uppercase text-slate-400">
+                <p className="text-[0.6875rem] font-semibold uppercase text-slate-400">
                   Candidate Asked <span className="normal-case text-slate-300">(optional)</span>
                 </p>
                 <input
@@ -279,7 +279,7 @@ export function SalaryFixationModal({
                 />
               </div>
               <div className="rounded-lg border border-brand-200 bg-brand-50 p-3">
-                <p className="text-[11px] font-semibold uppercase text-slate-400">
+                <p className="text-[0.6875rem] font-semibold uppercase text-slate-400">
                   Proposed Gross Salary
                 </p>
                 <input
@@ -348,7 +348,7 @@ function ScoreChip({
         : `${result.pct?.toFixed(1)}%`;
   return (
     <div className={cn('rounded-lg border p-3', tone.box)}>
-      <p className="text-[11px] font-semibold uppercase text-slate-400">{label}</p>
+      <p className="text-[0.6875rem] font-semibold uppercase text-slate-400">{label}</p>
       <p className={cn('mt-0.5 flex items-center gap-1.5 text-base font-bold', tone.text)}>
         {tone.Icon && (
           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/70">
@@ -377,7 +377,7 @@ function ResultCard({
         highlight ? 'border-brand-200 bg-brand-50' : 'border-slate-200 bg-slate-50',
       )}
     >
-      <p className="text-[11px] font-semibold uppercase text-slate-400">{label}</p>
+      <p className="text-[0.6875rem] font-semibold uppercase text-slate-400">{label}</p>
       <p className={cn('mt-0.5 text-base font-bold', highlight ? 'text-brand-700' : 'text-slate-800')}>
         {value}
       </p>

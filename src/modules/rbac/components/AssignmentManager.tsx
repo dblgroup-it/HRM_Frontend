@@ -190,7 +190,7 @@ export function AssignmentManager() {
                   {unitId && picked?.unitName &&
                     units?.find((u) => u.id === unitId)?.name.toLowerCase() ===
                       picked.unitName.toLowerCase() && (
-                    <p className="px-1 text-[10px] text-slate-400">
+                    <p className="px-1 text-[0.625rem] text-slate-400">
                       Auto-filled from employee's unit · change if needed
                     </p>
                   )}

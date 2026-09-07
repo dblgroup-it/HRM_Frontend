@@ -148,7 +148,7 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
             <p className="text-sm font-semibold text-slate-800">
               {candidates.length} candidate{candidates.length !== 1 ? 's' : ''} at interview stage
             </p>
-            <p className="text-[11px] text-slate-400">Select a candidate to manage their interviews</p>
+            <p className="text-[0.6875rem] text-slate-400">Select a candidate to manage their interviews</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -186,7 +186,7 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
           {/* LEFT — candidate list */}
           <div className="flex w-72 shrink-0 flex-col border-r border-slate-100">
             <div className="border-b border-slate-100 px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+              <p className="text-[0.625rem] font-semibold uppercase tracking-widest text-slate-400">
                 Candidates
               </p>
             </div>
@@ -381,7 +381,7 @@ function CandidateListCard({
             </p>
             {candidate.matchScore !== null && (
               <span className={cn(
-                'inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
+                'inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[0.625rem] font-semibold',
                 matchTone(candidate.matchScore),
               )}>
                 <Sparkles className="h-2.5 w-2.5" />
@@ -391,7 +391,7 @@ function CandidateListCard({
           </div>
 
           {candidate.salaryExpectation != null && (
-            <span className="mt-0.5 inline-flex items-center rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+            <span className="mt-0.5 inline-flex items-center rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[0.625rem] font-semibold text-emerald-700">
               ৳ {candidate.salaryExpectation.toLocaleString()} expected
             </span>
           )}
@@ -413,7 +413,7 @@ function CandidateListCard({
                   )}
                 />
               ))}
-              <span className="ml-1 text-[10px] text-slate-400">
+              <span className="ml-1 text-[0.625rem] text-slate-400">
                 {completedCount > 0 && `${completedCount} done`}
                 {scheduledCount > 0 && completedCount > 0 && ' · '}
                 {scheduledCount > 0 && `${scheduledCount} upcoming`}
@@ -421,7 +421,7 @@ function CandidateListCard({
             </div>
           )}
           {totalRounds === 0 && (
-            <p className="mt-0.5 text-[10px] text-slate-400">No interviews yet</p>
+            <p className="mt-0.5 text-[0.625rem] text-slate-400">No interviews yet</p>
           )}
         </div>
       </div>
@@ -515,8 +515,8 @@ function InterviewWorkspace({
           <div className="flex items-center gap-3">
             <Avatar name={candidate.name} size="md" />
             <div>
-              <h3 className="text-[15px] font-semibold text-slate-900">{candidate.name}</h3>
-              <p className="text-[11px] text-slate-400">
+              <h3 className="text-[0.9375rem] font-semibold text-slate-900">{candidate.name}</h3>
+              <p className="text-[0.6875rem] text-slate-400">
                 {candidate.email || 'No email'}{candidate.phone ? ` · ${candidate.phone}` : ''}
               </p>
             </div>
@@ -529,7 +529,7 @@ function InterviewWorkspace({
                 return (
                   <div key={k} className="flex flex-col items-center gap-0.5">
                     <span className={cn(
-                      'inline-flex h-7 w-7 items-center justify-center rounded-full border-2 text-[10px] font-bold',
+                      'inline-flex h-7 w-7 items-center justify-center rounded-full border-2 text-[0.625rem] font-bold',
                       !r
                         ? 'border-slate-200 bg-white text-slate-300'
                         : r.status === 'completed'
@@ -538,7 +538,7 @@ function InterviewWorkspace({
                     )}>
                       {KIND_LABEL[k][0]}
                     </span>
-                    <span className="text-[9px] uppercase tracking-wide text-slate-400">{KIND_LABEL[k]}</span>
+                    <span className="text-[0.5625rem] uppercase tracking-wide text-slate-400">{KIND_LABEL[k]}</span>
                   </div>
                 );
               })}
@@ -568,7 +568,7 @@ function InterviewWorkspace({
         {/* History column */}
         <div className="flex w-[42%] shrink-0 flex-col overflow-hidden border-r border-slate-100 bg-slate-50/50">
           <div className="shrink-0 border-b border-slate-100 px-4 py-2.5">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+            <p className="text-[0.625rem] font-semibold uppercase tracking-widest text-slate-400">
               Scheduled Rounds
             </p>
           </div>
@@ -604,7 +604,7 @@ function InterviewWorkspace({
                     type="button"
                     disabled={evalSummary.isPending}
                     onClick={() => evalSummary.mutate(candidate.id, { onSuccess: (d) => setSummaryText(d.summary) })}
-                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-violet-700 transition hover:bg-violet-100 disabled:opacity-50"
+                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-medium text-violet-700 transition hover:bg-violet-100 disabled:opacity-50"
                   >
                     <RefreshCw className={cn('h-3 w-3', evalSummary.isPending && 'animate-spin')} />
                     {summaryText ? 'Regenerate' : 'Generate'}
@@ -622,7 +622,7 @@ function InterviewWorkspace({
                   </p>
                 )}
                 {!summaryText && !evalSummary.isPending && (
-                  <p className="border-t border-violet-100 px-3 pb-3 pt-2 text-[11px] text-violet-400">
+                  <p className="border-t border-violet-100 px-3 pb-3 pt-2 text-[0.6875rem] text-violet-400">
                     Click Generate to get an AI synthesis of all panel scores and comments.
                   </p>
                 )}
@@ -645,7 +645,7 @@ function InterviewWorkspace({
             {/* ① Type & mode */}
             <FormStep n={1} title="Which interview?">
               {lastCompleted && (
-                <p className="mb-2 flex items-center gap-1.5 text-[11px] text-brand-600">
+                <p className="mb-2 flex items-center gap-1.5 text-[0.6875rem] text-brand-600">
                   <Lightbulb className="h-3.5 w-3.5 shrink-0" />
                   {lastCompleted === 'final'
                     ? 'Final completed — reschedule any round freely'
@@ -683,7 +683,7 @@ function InterviewWorkspace({
                       <Video className="h-3.5 w-3.5" /> Google Meet — auto
                     </span>
                     <button type="button" onClick={() => setCustomLink(true)}
-                      className="text-[11px] text-slate-400 underline-offset-2 hover:text-brand-600 hover:underline">
+                      className="text-[0.6875rem] text-slate-400 underline-offset-2 hover:text-brand-600 hover:underline">
                       custom link
                     </button>
                   </div>
@@ -696,20 +696,20 @@ function InterviewWorkspace({
                       className={locationError && mode !== 'online' ? 'border-rose-400 focus:ring-rose-400' : ''}
                     />
                     {locationError && mode !== 'online' && (
-                      <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-rose-600">
+                      <p className="mt-1 flex items-center gap-1 text-[0.6875rem] font-medium text-rose-600">
                         <MapPin className="h-3 w-3" /> Venue is required for in-person interviews
                       </p>
                     )}
                     {mode === 'online' && (
                       <button type="button" onClick={() => { setCustomLink(false); setLocation(''); }}
-                        className="mt-1 text-[11px] text-slate-400 underline-offset-2 hover:text-brand-600 hover:underline">
+                        className="mt-1 text-[0.6875rem] text-slate-400 underline-offset-2 hover:text-brand-600 hover:underline">
                         ← auto Google Meet
                       </button>
                     )}
                   </div>
                 )}
               </div>
-              <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-400">
+              <p className="mt-2 flex items-center gap-1.5 text-[0.6875rem] text-slate-400">
                 <CalendarCheck className="h-3.5 w-3.5 shrink-0" />
                 Panel gets a Google Calendar invite with reminders.
               </p>
@@ -734,7 +734,7 @@ function InterviewWorkspace({
               )}
               {committee.some((m) => !inPanel(m.userId)) && (
                 <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                  <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Committee:</span>
+                  <span className="text-[0.6875rem] font-medium uppercase tracking-wide text-slate-400">Committee:</span>
                   {committee.filter((m) => !inPanel(m.userId)).map((m) => (
                     <button key={m.userId} type="button" onClick={() => addPanelist(m.userId, m.name)}
                       className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-300 px-2.5 py-1 text-xs text-slate-600 hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700">
@@ -830,7 +830,7 @@ function RoundCard({
             <button type="button"
               onClick={() => update.mutate({ roundId: round.id, status: 'completed' })}
               disabled={update.isPending}
-              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50">
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50">
               <CheckCircle2 className="h-3.5 w-3.5" /> Mark done
             </button>
           )}
@@ -842,7 +842,7 @@ function RoundCard({
       </div>
 
       {/* Meta */}
-      <div className="border-t border-slate-100 px-3 py-2 text-[11px] text-slate-500">
+      <div className="border-t border-slate-100 px-3 py-2 text-[0.6875rem] text-slate-500">
         <div className="flex flex-wrap gap-x-3 gap-y-1">
           <span className="inline-flex items-center gap-1">
             <CalendarClock className="h-3 w-3" />
@@ -871,7 +871,7 @@ function RoundCard({
             {round.panelists.map((p) => (
               <div key={p.id} className="flex items-center gap-2">
                 <span className={cn(
-                  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium',
+                  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.6875rem] font-medium',
                   p.hasMarked
                     ? 'bg-emerald-50 text-emerald-700'
                     : p.tokenStatus === 'opened'
@@ -888,7 +888,7 @@ function RoundCard({
                   {p.name}
                   {!p.hasMarked && p.tokenStatus && (
                     <span className={cn(
-                      'rounded-full px-1.5 py-0.5 text-[9px] font-semibold',
+                      'rounded-full px-1.5 py-0.5 text-[0.5625rem] font-semibold',
                       p.tokenStatus === 'opened' ? 'bg-amber-100 text-amber-600' : 'bg-slate-200 text-slate-500',
                     )}>
                       {p.tokenStatus === 'opened' ? 'Opened' : 'Sent'}
@@ -900,7 +900,7 @@ function RoundCard({
                     {p.evalLink && (
                       <button type="button"
                         onClick={() => void navigator.clipboard.writeText(p.evalLink!)}
-                        className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[10px] font-semibold text-brand-700 transition hover:bg-brand-100 active:scale-95">
+                        className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[0.625rem] font-semibold text-brand-700 transition hover:bg-brand-100 active:scale-95">
                         <ClipboardCopy className="h-3 w-3" /> Copy link
                       </button>
                     )}
@@ -908,7 +908,7 @@ function RoundCard({
                       disabled={resend.isPending}
                       onClick={() => resend.mutate({ roundId: round.id, panelistUserId: p.userId },
                         { onSuccess: (d) => void navigator.clipboard.writeText(d.evalLink) })}
-                      className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-700 transition hover:bg-amber-100 active:scale-95 disabled:opacity-40">
+                      className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[0.625rem] font-semibold text-amber-700 transition hover:bg-amber-100 active:scale-95 disabled:opacity-40">
                       <RotateCcw className="h-3 w-3" /> New link
                     </button>
                   </div>
@@ -922,7 +922,7 @@ function RoundCard({
       {/* Evaluations */}
       {round.evaluations.length > 0 && (
         <div className="border-t border-slate-100 bg-slate-50/60 px-3 py-2 text-xs">
-          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Evaluations</p>
+          <p className="mb-1.5 text-[0.625rem] font-semibold uppercase tracking-wide text-slate-400">Evaluations</p>
           <div className="space-y-1">
             {round.evaluations.map((ev) => (
               <div key={ev.evaluatorId} className="flex items-center justify-between">

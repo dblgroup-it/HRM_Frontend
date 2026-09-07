@@ -155,7 +155,7 @@ export function PreInterviewTestsPanel({ reqId }: { reqId: string }) {
       {selected.size > 0 && (
         <div className="flex animate-rise-in flex-wrap items-center justify-between gap-2 rounded-xl border border-brand-200/70 bg-gradient-to-r from-brand-50 to-white px-3.5 py-2.5 shadow-sm [animation-duration:0.3s]">
           <span className="flex items-center gap-2 text-xs font-semibold text-brand-800">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-600 text-[10px] font-bold text-white">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-600 text-[0.625rem] font-bold text-white">
               {selected.size}
             </span>
             candidate{selected.size === 1 ? '' : 's'} selected
@@ -191,7 +191,7 @@ export function PreInterviewTestsPanel({ reqId }: { reqId: string }) {
             />
           </div>
           <div>
-            <label className="mb-1 block text-[11px] font-medium text-slate-500">
+            <label className="mb-1 block text-[0.6875rem] font-medium text-slate-500">
               Time limit (minutes) — starts once each candidate opens the test
             </label>
             <input
@@ -349,7 +349,7 @@ function AiTestCell({
   return (
     <div className="space-y-1.5 rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+        <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-400">
           AI Proficiency Test <span className="normal-case text-slate-300">pass ≥ {data.aiTestPassPct}%</span>
         </p>
         <SegmentedToggle
@@ -393,7 +393,7 @@ function WrittenTestCell({
   return (
     <div className="space-y-1.5 rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+        <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-400">
           Written Test <span className="normal-case text-slate-300">pass ≥ {data.writtenTestPassPct}%</span>
         </p>
         <SegmentedToggle

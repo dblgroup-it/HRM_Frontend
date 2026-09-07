@@ -174,7 +174,7 @@ export default function RequisitionsPage() {
                 {c.label}
                 <span
                   className={cn(
-                    'rounded-full px-1.5 text-[10px] font-semibold',
+                    'rounded-full px-1.5 text-[0.625rem] font-semibold',
                     active ? 'bg-white/20' : 'bg-white text-slate-500',
                   )}
                 >

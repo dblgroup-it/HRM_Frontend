@@ -10,6 +10,7 @@ export default function BoardVotePage() {
   const { data, isLoading, isError } = useVoteInfo(token);
   const submit = useSubmitVote(token);
   const [notes, setNotes] = useState('');
+  const [rejectHint, setRejectHint] = useState(false);
   const [done, setDone] = useState(false);
 
   if (isLoading) return <FullPageSpinner label="Loading approval details…" />;
@@ -51,7 +52,7 @@ export default function BoardVotePage() {
           </div>
           <div className="mt-2 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2">
             <BadgeCheck className="h-4 w-4 text-emerald-600" />
-            <span className="text-[13px] font-semibold text-emerald-700">Board Approved</span>
+            <span className="text-[0.8125rem] font-semibold text-emerald-700">Board Approved</span>
           </div>
         </div>
       </PageShell>
@@ -65,8 +66,8 @@ export default function BoardVotePage() {
       <div className="space-y-6">
         {/* Greeting */}
         <div>
-          <p className="text-[13px] text-slate-500">Dear <span className="font-semibold text-slate-700">{data.memberName}</span>,</p>
-          <p className="mt-1 text-[13px] text-slate-500 leading-relaxed">
+          <p className="text-[0.8125rem] text-slate-500">Dear <span className="font-semibold text-slate-700">{data.memberName}</span>,</p>
+          <p className="mt-1 text-[0.8125rem] text-slate-500 leading-relaxed">
             HR has requested your board approval for the following candidate who is currently in the onboarding process.
             A single board approval is sufficient to proceed.
           </p>
@@ -77,18 +78,22 @@ export default function BoardVotePage() {
           <div className="border-b border-slate-100 px-5 py-4"
             style={{ background: 'linear-gradient(to right,#f8fafc,#eff6ff)' }}>
             <p className="text-xl font-bold text-slate-800">{c.name}</p>
-            <p className="mt-0.5 text-[13px] text-slate-500">{c.designation}</p>
+            <p className="mt-0.5 text-[0.8125rem] text-slate-500">{c.designation}</p>
           </div>
 
           <div className="space-y-2.5 px-5 py-4">
             <InfoRow icon={<Building2 className="h-4 w-4 text-slate-400" />} label="Unit" value={c.unit} />
             <InfoRow icon={<Layers className="h-4 w-4 text-slate-400" />} label="Department" value={c.department} />
             <InfoRow icon={<Clock className="h-4 w-4 text-slate-400" />} label="Requisition" value={c.code} />
-            {c.matchScore !== null && (
+            {c.salary !== null && c.salary !== undefined && (
               <InfoRow
-                icon={<Sparkles className="h-4 w-4 text-amber-500" />}
-                label="AI Match Score"
-                value={`${Math.round(c.matchScore)}%`}
+                icon={<Sparkles className="h-4 w-4 text-emerald-500" />}
+                label="Salary Fixed Amount"
+                value={new Intl.NumberFormat('en-BD', {
+                  style: 'currency',
+                  currency: 'BDT',
+                  maximumFractionDigits: 0,
+                }).format(c.salary)}
               />
             )}
           </div>
@@ -96,7 +101,7 @@ export default function BoardVotePage() {
           {c.cvUrl && (
             <div className="border-t border-slate-100 px-5 py-3">
               <a href={c.cvUrl} target="_blank" rel="noreferrer"
-                className="inline-flex items-center gap-2 text-[13px] font-medium text-brand-600 hover:text-brand-700">
+                className="inline-flex items-center gap-2 text-[0.8125rem] font-medium text-brand-600 hover:text-brand-700">
                 <FileText className="h-4 w-4" />
                 View Candidate CV
               </a>
@@ -106,7 +111,7 @@ export default function BoardVotePage() {
 
         {/* Notes */}
         <div>
-          <label className="mb-1.5 block text-[12px] font-semibold text-slate-700">
+          <label className="mb-1.5 block text-[0.75rem] font-semibold text-slate-700">
             Notes <span className="font-normal text-slate-400">(optional)</span>
           </label>
           <textarea
@@ -122,15 +127,45 @@ export default function BoardVotePage() {
         <button
           type="button"
           disabled={submit.isPending}
-          onClick={() => submit.mutate(notes || undefined, { onSuccess: () => setDone(true) })}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-[15px] font-bold text-white shadow-lg transition-all hover:opacity-90 disabled:opacity-60 active:scale-[0.98]"
+          onClick={() =>
+            submit.mutate(
+              { notes: notes || undefined, decision: 'approved' },
+              { onSuccess: () => setDone(true) },
+            )
+          }
+          className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-[0.9375rem] font-bold text-white shadow-lg transition-all hover:opacity-90 disabled:opacity-60 active:scale-[0.98]"
           style={{ background: 'linear-gradient(135deg,#059669,#0d9488)', boxShadow: '0 8px 24px -4px rgba(5,150,105,.35)' }}
         >
           <BadgeCheck className="h-5 w-5" />
           {submit.isPending ? 'Submitting…' : 'Approve Candidate'}
         </button>
 
-        <p className="text-center text-[11px] text-slate-400">
+        {/* Rejecting stops the chain, so it needs a reason on the record. */}
+        <button
+          type="button"
+          disabled={submit.isPending}
+          onClick={() => {
+            if (!notes.trim()) {
+              setRejectHint(true);
+              return;
+            }
+            submit.mutate(
+              { notes: notes.trim(), decision: 'rejected' },
+              { onSuccess: () => setDone(true) },
+            );
+          }}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-white py-3.5 text-[0.9375rem] font-semibold text-rose-600 transition-all hover:bg-rose-50 disabled:opacity-60 active:scale-[0.98]"
+        >
+          <XCircle className="h-5 w-5" />
+          Reject
+        </button>
+        {rejectHint && (
+          <p className="mt-2 text-center text-[0.8125rem] text-rose-600">
+            Add a short reason above before rejecting.
+          </p>
+        )}
+
+        <p className="text-center text-[0.6875rem] text-slate-400">
           This link is valid for 30 days and can only be used once.
         </p>
       </div>
@@ -149,8 +184,8 @@ function PageShell({ children }: { children: React.ReactNode }) {
             <BadgeCheck className="h-5 w-5 text-white" />
           </div>
           <div>
-            <p className="text-[15px] font-bold text-slate-800">DBL Group HR</p>
-            <p className="text-[11px] text-slate-400">Board Approval Portal</p>
+            <p className="text-[0.9375rem] font-bold text-slate-800">DBL Group HR</p>
+            <p className="text-[0.6875rem] text-slate-400">Board Approval Portal</p>
           </div>
         </div>
 
@@ -164,7 +199,7 @@ function PageShell({ children }: { children: React.ReactNode }) {
 
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-2.5 text-[13px]">
+    <div className="flex items-center gap-2.5 text-[0.8125rem]">
       {icon}
       <span className="w-28 shrink-0 text-slate-400">{label}</span>
       <span className="font-medium text-slate-700">{value}</span>

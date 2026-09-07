@@ -135,7 +135,7 @@ export default function LoginPage() {
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent-500" />
                 Welcome back
               </span>
-              <h2 className="mt-4 text-2xl font-semibold tracking-tight text-ink-dark sm:text-[28px]">
+              <h2 className="mt-4 text-2xl font-semibold tracking-tight text-ink-dark sm:text-[1.75rem]">
                 Sign in to your workspace
               </h2>
               <p className="mt-2 text-sm leading-6 text-slate-500">
@@ -146,7 +146,7 @@ export default function LoginPage() {
 
             <LoginForm />
 
-            <p className="mt-10 text-center text-[11px] font-medium uppercase tracking-[0.28em] text-slate-400">
+            <p className="mt-10 text-center text-[0.6875rem] font-medium uppercase tracking-[0.28em] text-slate-400">
               DBL HR Management System
             </p>
           </div>

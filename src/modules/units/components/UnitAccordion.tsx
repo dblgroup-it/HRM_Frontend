@@ -42,11 +42,11 @@ function tally(positions: ConfigPosition[]) {
 function SeatStatus({ filled, sanctioned }: { filled: number; sanctioned: number }) {
   const vacant = Math.max(0, sanctioned - filled);
   if (sanctioned === 0)
-    return <span className="w-16 shrink-0 text-right text-[11px] text-slate-300">—</span>;
+    return <span className="w-16 shrink-0 text-right text-[0.6875rem] text-slate-300">—</span>;
   return (
     <span
       className={cn(
-        'w-16 shrink-0 text-right text-[11px] font-medium tabular-nums',
+        'w-16 shrink-0 text-right text-[0.6875rem] font-medium tabular-nums',
         vacant > 0 ? 'text-amber-600' : 'text-emerald-600',
       )}
     >
@@ -511,7 +511,7 @@ function DepartmentCard({
               <span className="block truncate text-sm font-semibold text-slate-900">
                 {department.name}
               </span>
-              <span className="mt-0.5 block text-[11px] text-slate-500">
+              <span className="mt-0.5 block text-[0.6875rem] text-slate-500">
                 {department.positions.length} seat
                 {department.positions.length === 1 ? '' : 's'}
               </span>
@@ -584,7 +584,7 @@ function DepartmentCard({
                   <div key={sec} className="border-t border-slate-100">
                     <div className="flex items-center gap-2 bg-slate-50/80 px-3 py-1.5">
                       <Layers className="h-3 w-3 shrink-0 text-slate-400" />
-                      <span className="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                      <span className="min-w-0 flex-1 truncate text-[0.6875rem] font-semibold uppercase tracking-wider text-slate-500">
                         {sec}
                       </span>
                       <FillMeter
@@ -671,7 +671,7 @@ function SeatRow({
         <span className="block truncate text-sm text-slate-800">
           {position.designation}
         </span>
-        <span className="mt-0.5 block truncate text-[11px] capitalize text-slate-500">
+        <span className="mt-0.5 block truncate text-[0.6875rem] capitalize text-slate-500">
           {position.category.toLowerCase()}
           {position.grade ? ` · grade ${position.grade}` : ''}
         </span>

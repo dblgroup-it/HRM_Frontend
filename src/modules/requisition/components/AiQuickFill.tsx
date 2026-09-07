@@ -121,7 +121,7 @@ export function AiQuickFill({
               </span>
             </span>
             <span
-              className="relative text-[11px] font-bold uppercase tracking-wider"
+              className="relative text-[0.6875rem] font-bold uppercase tracking-wider"
               style={{ writingMode: 'vertical-rl' }}
             >
               {filled ? 'AI drafted' : 'AI Assist'}
@@ -191,7 +191,7 @@ export function AiQuickFill({
                         className="w-full resize-y rounded-xl border border-slate-200 bg-white/80 px-3.5 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 transition-shadow duration-200 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
                       />
 
-                      <p className="mb-2 mt-4 text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                      <p className="mb-2 mt-4 text-[0.6875rem] font-medium uppercase tracking-wide text-slate-400">
                         Try an example
                       </p>
                       <div className="flex flex-col gap-1.5">
@@ -234,7 +234,7 @@ export function AiQuickFill({
                 </div>
 
                 <div className="relative flex items-center justify-between gap-2 border-t border-slate-100 px-5 py-4">
-                  <span className="text-[11px] text-slate-400">⌘/Ctrl + Enter</span>
+                  <span className="text-[0.6875rem] text-slate-400">⌘/Ctrl + Enter</span>
                   {filled ? (
                     <Button type="button" onClick={() => setOpen(false)}>
                       Review the form

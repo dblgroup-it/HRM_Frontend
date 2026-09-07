@@ -69,7 +69,7 @@ export function OnboardingTab({
                   </p>
                 </div>
                 {c.onboardingStatus === 'onboarded' && (
-                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white shadow-sm shadow-emerald-600/25">
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-600 px-2 py-1 text-[0.6875rem] font-semibold text-white shadow-sm shadow-emerald-600/25">
                     <Check className="h-3 w-3" strokeWidth={3} /> Completed
                   </span>
                 )}

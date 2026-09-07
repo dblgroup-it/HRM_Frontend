@@ -372,7 +372,7 @@ export function CandidatesPanel({
               <Link2 className="h-4 w-4 text-brand-600" />
               <p className="text-sm font-semibold text-slate-800">Collect CVs</p>
               {aiOn && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+                <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[0.625rem] font-semibold text-violet-700">
                   <Sparkles className="h-3 w-3" /> AI auto-screens new CVs
                 </span>
               )}
@@ -405,7 +405,7 @@ export function CandidatesPanel({
               </a>
             </div>
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600">
+              <span className="inline-flex items-center gap-1 text-[0.6875rem] text-emerald-600">
                 <ShieldCheck className="h-3.5 w-3.5" /> Secure &amp; private to
                 recruitment
               </span>
@@ -413,7 +413,7 @@ export function CandidatesPanel({
                 href={drive.rootFolderUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-brand-600"
+                className="inline-flex items-center gap-1 text-[0.6875rem] text-slate-500 hover:text-brand-600"
               >
                 <FolderOpen className="h-3.5 w-3.5" /> Open Drive (HR only)
               </a>
@@ -452,7 +452,7 @@ export function CandidatesPanel({
                       <span className={cn('h-2 w-2 rounded-full', s.tone)} />
                       <span className="text-lg font-semibold leading-none text-slate-800">{n}</span>
                     </div>
-                    <p className="mt-1 truncate text-[11px] font-medium text-slate-500">{s.label}</p>
+                    <p className="mt-1 truncate text-[0.6875rem] font-medium text-slate-500">{s.label}</p>
                     <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-slate-200">
                       <div className={cn('h-full rounded-full', s.tone)} style={{ width: `${pct}%` }} />
                     </div>
@@ -511,7 +511,7 @@ export function CandidatesPanel({
                     {t.label}
                     <span
                       className={cn(
-                        'ml-1.5 rounded-full px-1.5 text-[10px]',
+                        'ml-1.5 rounded-full px-1.5 text-[0.625rem]',
                         tab === t.key ? 'bg-white/20' : 'bg-white text-slate-500',
                       )}
                     >
@@ -665,7 +665,7 @@ export function CandidatesPanel({
                                 })
                               }
                               className={cn(
-                                'inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ring-1 ring-inset transition-all duration-150',
+                                'inline-flex items-center rounded-full px-2.5 py-0.5 text-[0.6875rem] font-medium ring-1 ring-inset transition-all duration-150',
                                 cls,
                                 allChipSel && 'ring-2',
                               )}
@@ -900,10 +900,10 @@ function TalentBankMatchRow({
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <p className="truncate text-sm font-medium text-slate-800">{match.name}</p>
-          <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', tone)}>
+          <span className={cn('rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold', tone)}>
             {match.relevance}% match
           </span>
-          <span className="truncate text-[11px] text-slate-400">
+          <span className="truncate text-[0.6875rem] text-slate-400">
             from {match.requisition.code} · {match.requisition.designation}
           </span>
         </div>
@@ -917,7 +917,7 @@ function TalentBankMatchRow({
           </p>
         )}
         {wasRemoved && (
-          <p className="mt-1 text-[11px] text-amber-600">
+          <p className="mt-1 text-[0.6875rem] text-amber-600">
             Previously added, then removed from this pipeline.
           </p>
         )}
@@ -979,7 +979,7 @@ function ScreeningProgressBar({ status }: { status: { done: number; total: numbe
           style={{ width: `${pct}%` }}
         />
       </div>
-      <p className="mt-1.5 text-[11px] text-violet-400">
+      <p className="mt-1.5 text-[0.6875rem] text-violet-400">
         Reading each CV and matching to the role — you can keep working while this runs.
       </p>
     </div>
@@ -1068,7 +1068,7 @@ function ComparisonPanel({
         <p className="flex items-center gap-2 text-sm font-semibold text-slate-800">
           <Scale className="h-4 w-4 text-indigo-600" />
           AI finalist comparison
-          <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
+          <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[0.625rem] font-semibold text-indigo-700">
             Advisory
           </span>
         </p>
@@ -1133,7 +1133,7 @@ function ComparisonPanel({
           </div>
         ))}
       </div>
-      <p className="mt-2 text-[11px] text-slate-400">
+      <p className="mt-2 text-[0.6875rem] text-slate-400">
         Based on CV screening, exam scores and interview panel marks — the final decision is yours.
       </p>
     </div>

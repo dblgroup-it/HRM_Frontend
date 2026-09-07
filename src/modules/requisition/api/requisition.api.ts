@@ -396,9 +396,10 @@ export const requisitionApi = {
         return created;
       });
     }
-    // The backend derives requirementType from the organogram, and rejects
-    // unknown fields — send everything except requirementType.
-    const { requirementType: _ignored, ...body } = payload;
+    // requirementType is now the requisitioner's own declaration, so it goes
+    // to the API rather than being stripped (it used to be derived server-side
+    // from the organogram).
+    const body = payload;
     return http
       .post<ApiResponse<Requisition>>('/requisitions', body)
       .then((res) => res.data);

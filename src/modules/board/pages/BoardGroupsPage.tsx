@@ -49,13 +49,13 @@ function GroupFormModal({
     <Modal open onClose={onClose} title={initial ? 'Edit Board Group' : 'New Board Group'} size="sm">
       <div className="space-y-4">
         <div>
-          <label className="mb-1.5 block text-[12px] font-semibold text-slate-700">Group name *</label>
+          <label className="mb-1.5 block text-[0.75rem] font-semibold text-slate-700">Group name *</label>
           <input value={name} onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Executive Committee"
             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-100" />
         </div>
         <div>
-          <label className="mb-1.5 block text-[12px] font-semibold text-slate-700">Description (optional)</label>
+          <label className="mb-1.5 block text-[0.75rem] font-semibold text-slate-700">Description (optional)</label>
           <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2}
             placeholder="Brief description of this board group…"
             className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-brand-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-100" />
@@ -111,8 +111,8 @@ function AddMembersModal({ groupId, onClose }: { groupId: string; onClose: () =>
                 className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
               <Avatar name={e.name} size="sm" />
               <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-medium text-slate-800">{e.name}</p>
-                <p className="text-[10px] text-slate-400">{[e.jobTitle, e.department].filter(Boolean).join(' · ')}</p>
+                <p className="text-[0.75rem] font-medium text-slate-800">{e.name}</p>
+                <p className="text-[0.625rem] text-slate-400">{[e.jobTitle, e.department].filter(Boolean).join(' · ')}</p>
               </div>
             </label>
           ))}
@@ -175,9 +175,9 @@ export default function BoardGroupsPage() {
                       <Users className="h-4.5 w-4.5 text-brand-600" />
                     </div>
                     <div>
-                      <p className="text-[14px] font-semibold text-slate-800">{group.name}</p>
-                      {group.description && <p className="text-[12px] text-slate-500">{group.description}</p>}
-                      <p className="text-[11px] text-slate-400">{group.members.length} member{group.members.length !== 1 ? 's' : ''}</p>
+                      <p className="text-[0.875rem] font-semibold text-slate-800">{group.name}</p>
+                      {group.description && <p className="text-[0.75rem] text-slate-500">{group.description}</p>}
+                      <p className="text-[0.6875rem] text-slate-400">{group.members.length} member{group.members.length !== 1 ? 's' : ''}</p>
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -203,8 +203,8 @@ export default function BoardGroupsPage() {
                       <div key={m.userId} className="flex items-center gap-3 px-5 py-3">
                         <Avatar name={m.user.name} size="sm" />
                         <div className="min-w-0 flex-1">
-                          <p className="text-[13px] font-medium text-slate-800">{m.user.name}</p>
-                          <p className="text-[11px] text-slate-400">
+                          <p className="text-[0.8125rem] font-medium text-slate-800">{m.user.name}</p>
+                          <p className="text-[0.6875rem] text-slate-400">
                             {[m.user.employee?.designation, m.user.email].filter(Boolean).join(' · ')}
                           </p>
                         </div>

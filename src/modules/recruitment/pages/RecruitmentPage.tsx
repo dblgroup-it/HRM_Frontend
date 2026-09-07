@@ -227,7 +227,7 @@ export default function RecruitmentPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="border-b border-slate-100 text-[11px] uppercase tracking-wide text-slate-400">
+                    <tr className="border-b border-slate-100 text-[0.6875rem] uppercase tracking-wide text-slate-400">
                       <th className="px-4 py-2.5 font-medium">Position</th>
                       {unit === 'all' && (
                         <th className="hidden px-4 py-2.5 font-medium lg:table-cell">
@@ -255,7 +255,7 @@ export default function RecruitmentPage() {
               {STAGE_SEGMENTS.filter((s) => s.key !== 'rejected').map((s) => (
                 <span
                   key={s.key}
-                  className="inline-flex items-center gap-1.5 text-[11px] text-slate-400"
+                  className="inline-flex items-center gap-1.5 text-[0.6875rem] text-slate-400"
                 >
                   <span className={cn('h-2 w-2 rounded-full', s.dot)} />
                   {s.label}
@@ -300,7 +300,7 @@ function UnitButton({
         <span className="block truncate text-sm font-medium">{label}</span>
         <span
           className={cn(
-            'text-[11px]',
+            'text-[0.6875rem]',
             active ? 'text-brand-500' : 'text-slate-400',
           )}
         >
@@ -309,7 +309,7 @@ function UnitButton({
       </span>
       <span
         className={cn(
-          'rounded-full px-2 py-0.5 text-[11px] font-semibold',
+          'rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold',
           active ? 'bg-brand-100 text-brand-700' : 'bg-slate-100 text-slate-500',
         )}
       >
@@ -348,13 +348,13 @@ function FunnelStepper({ stats }: { stats?: CandidateStats }) {
             <span className="flex flex-col items-center gap-0.5">
               <span
                 className={cn(
-                  'flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums',
+                  'flex h-6 w-6 items-center justify-center rounded-full text-[0.6875rem] font-semibold tabular-nums',
                   has ? `${s.color} text-white` : 'bg-slate-100 text-slate-300',
                 )}
               >
                 {v}
               </span>
-              <span className="text-[9px] uppercase tracking-wide text-slate-400">
+              <span className="text-[0.5625rem] uppercase tracking-wide text-slate-400">
                 {s.abbr}
               </span>
             </span>

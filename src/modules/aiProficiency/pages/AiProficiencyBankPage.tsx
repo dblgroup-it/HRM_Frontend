@@ -151,7 +151,7 @@ export default function AiProficiencyBankPage() {
       {selected.size > 0 && (
         <div className="flex animate-rise-in items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50/70 px-4 py-2.5 shadow-sm [animation-duration:0.25s]">
           <span className="flex items-center gap-2 text-sm font-medium text-rose-800">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-[10px] font-bold text-white">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-rose-600 text-[0.625rem] font-bold text-white">
               {selected.size}
             </span>
             question{selected.size === 1 ? '' : 's'} selected
@@ -298,7 +298,7 @@ function QuestionRow({
             >
               <span
                 className={cn(
-                  'flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold',
+                  'flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[0.5625rem] font-bold',
                   o === question.answer
                     ? 'bg-emerald-500 text-white'
                     : OPTION_LETTER_TONE[i % OPTION_LETTER_TONE.length],

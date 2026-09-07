@@ -121,21 +121,21 @@ export function MatchPopover({ open, anchor, onClose, candidateName, matchScore,
                 style={{ transition: 'stroke-dashoffset 0.8s cubic-bezier(0.34,1.56,0.64,1) 0.06s' }} />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-[17px] font-bold leading-none" style={{ color: t.ring }}>{matchScore}</span>
-              <span className="text-[9px] font-medium leading-tight text-slate-400">/ 100</span>
+              <span className="text-[1.0625rem] font-bold leading-none" style={{ color: t.ring }}>{matchScore}</span>
+              <span className="text-[0.5625rem] font-medium leading-tight text-slate-400">/ 100</span>
             </div>
           </div>
 
           {/* Info */}
           <div className="min-w-0 flex-1">
-            <span className="inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-semibold"
+            <span className="inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[0.6875rem] font-semibold"
               style={{ background: `${t.ring}18`, color: t.ring }}>
               <Sparkles className="h-3 w-3" />
               {t.label}
             </span>
-            <p className="mt-1 truncate text-[14px] font-bold text-slate-900">{candidateName}</p>
+            <p className="mt-1 truncate text-[0.875rem] font-bold text-slate-900">{candidateName}</p>
             {matchSummary && (
-              <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">{matchSummary}</p>
+              <p className="mt-0.5 text-[0.6875rem] leading-relaxed text-slate-500">{matchSummary}</p>
             )}
           </div>
 
@@ -155,7 +155,7 @@ export function MatchPopover({ open, anchor, onClose, candidateName, matchScore,
                 transition: 'width 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.05s',
               }} />
           </div>
-          <div className="mt-1.5 flex items-center justify-between text-[10px]">
+          <div className="mt-1.5 flex items-center justify-between text-[0.625rem]">
             <span className="font-medium text-slate-400">Overall match score</span>
             <span className="font-bold tabular-nums" style={{ color: t.ring }}>{matchScore}%</span>
           </div>
@@ -164,7 +164,7 @@ export function MatchPopover({ open, anchor, onClose, candidateName, matchScore,
 
       {/* ── Section label ── */}
       <div className="shrink-0 border-y border-slate-100 bg-slate-50/60 px-5 py-2">
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Criteria Breakdown</span>
+        <span className="text-[0.625rem] font-semibold uppercase tracking-widest text-slate-400">Criteria Breakdown</span>
       </div>
 
       {/* ── Criteria cards ── */}
@@ -176,7 +176,7 @@ export function MatchPopover({ open, anchor, onClose, candidateName, matchScore,
             <div key={i} className="px-5 py-3 transition-colors hover:bg-slate-50/70">
               {/* Bar row */}
               <div className="flex items-center gap-3">
-                <span className="w-[33%] shrink-0 text-[12px] font-semibold leading-tight text-slate-800">
+                <span className="w-[33%] shrink-0 text-[0.75rem] font-semibold leading-tight text-slate-800">
                   {c.label}
                 </span>
                 <div className="relative h-[5px] flex-1 overflow-hidden rounded-full" style={{ background: bc.track }}>
@@ -187,14 +187,14 @@ export function MatchPopover({ open, anchor, onClose, candidateName, matchScore,
                       transition: `width 0.55s cubic-bezier(0.34,1.56,0.64,1) ${i * 65 + 200}ms`,
                     }} />
                 </div>
-                <span className="shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold tabular-nums"
+                <span className="shrink-0 rounded-md px-1.5 py-0.5 text-[0.625rem] font-bold tabular-nums"
                   style={{ background: bc.track, color: bc.text, minWidth: 40, textAlign: 'center' }}>
                   {c.score}/{c.weight}
                 </span>
               </div>
 
               {/* Role vs Applicant */}
-              <div className="mt-1.5 grid grid-cols-2 gap-x-3 text-[10.5px] leading-snug">
+              <div className="mt-1.5 grid grid-cols-2 gap-x-3 text-[0.65625rem] leading-snug">
                 <div>
                   <span className="font-semibold" style={{ color: '#1877c0' }}>Role: </span>
                   <span className="text-slate-500">{c.requirement}</span>
@@ -211,7 +211,7 @@ export function MatchPopover({ open, anchor, onClose, candidateName, matchScore,
 
       {/* ── Footer ── */}
       <div className="shrink-0 border-t border-slate-100 bg-slate-50/50 px-5 py-2.5">
-        <p className="flex items-center gap-1.5 text-[10px] text-slate-400">
+        <p className="flex items-center gap-1.5 text-[0.625rem] text-slate-400">
           <Sparkles className="h-2.5 w-2.5 shrink-0" />
           Scored by AI against role requirements · Re-screen candidate to refresh
         </p>

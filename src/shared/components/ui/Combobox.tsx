@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Search, X } from 'lucide-react';
 
 import { cn } from '@shared/lib';
@@ -42,6 +50,82 @@ export function Combobox({
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  /**
+   * The panel is portalled to <body> and positioned by hand.
+   *
+   * Rendered in place it was clipped by any ancestor with `overflow-hidden` —
+   * the Approval Paths accordion needs that for its rounded corners, and it
+   * cut the 136-department list down to a single visible row.
+   */
+  const [panelBox, setPanelBox] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    maxHeight: number;
+    above: boolean;
+  } | null>(null);
+
+  const positionPanel = useCallback(() => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const r = trigger.getBoundingClientRect();
+    const GAP = 4;
+    const below = window.innerHeight - r.bottom - GAP;
+    const above = r.top - GAP;
+    // Flip upward only when there is meaningfully more room there.
+    const flip = below < 220 && above > below;
+    setPanelBox({
+      top: flip ? 0 : r.bottom + GAP,
+      left: r.left,
+      width: r.width,
+      maxHeight: Math.max(160, Math.min(360, flip ? above : below)),
+      above: flip,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setPanelBox(null);
+      return;
+    }
+    positionPanel();
+
+    // The app scrolls an inner container, not the window, so listen on every
+    // scrollable ancestor of the trigger. A capture listener on window alone
+    // left the panel stranded where it opened while the field scrolled away.
+    const scrollParents: (HTMLElement | Window)[] = [window];
+    for (
+      let el = triggerRef.current?.parentElement;
+      el;
+      el = el.parentElement
+    ) {
+      const { overflowY, overflow } = getComputedStyle(el);
+      if (/(auto|scroll|overlay)/.test(`${overflowY} ${overflow}`)) {
+        scrollParents.push(el);
+      }
+    }
+
+    // Reposition, and give up if the field itself has been scrolled out of
+    // sight — a menu floating beside unrelated content is worse than none.
+    const onScroll = () => {
+      const r = triggerRef.current?.getBoundingClientRect();
+      if (!r) return;
+      if (r.bottom < 0 || r.top > window.innerHeight) {
+        setOpen(false);
+        return;
+      }
+      positionPanel();
+    };
+
+    scrollParents.forEach((t) => t.addEventListener('scroll', onScroll));
+    window.addEventListener('resize', positionPanel);
+    return () => {
+      scrollParents.forEach((t) => t.removeEventListener('scroll', onScroll));
+      window.removeEventListener('resize', positionPanel);
+    };
+  }, [open, positionPanel]);
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -67,7 +151,13 @@ export function Combobox({
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (
+        !rootRef.current?.contains(target) &&
+        !panelRef.current?.contains(target)
+      ) {
+        setOpen(false);
+      }
     };
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
@@ -127,6 +217,7 @@ export function Combobox({
 
       <div className="relative">
         <button
+          ref={triggerRef}
           type="button"
           disabled={disabled}
           onClick={() => setOpen((v) => !v)}
@@ -169,8 +260,25 @@ export function Combobox({
           />
         </button>
 
-        {open && (
-          <div className="absolute z-30 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+        {open &&
+          panelBox &&
+          createPortal(
+            <div
+              ref={panelRef}
+              // Portalled out of the DOM tree, so components with their own
+              // outside-click handling (TreeAddNode, Modal) need a way to tell
+              // that a click in here still belongs to the field.
+              data-portal-panel="true"
+              style={{
+                position: 'fixed',
+                left: panelBox.left,
+                width: panelBox.width,
+                maxHeight: panelBox.maxHeight,
+                ...(panelBox.above
+                  ? { bottom: window.innerHeight - (triggerRef.current?.getBoundingClientRect().top ?? 0) + 4 }
+                  : { top: panelBox.top }),
+              }}
+              className="z-50 flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
             {showSearch && (
               <div className="border-b border-slate-100 p-2">
                 <div className="relative">
@@ -193,7 +301,7 @@ export function Combobox({
             <ul
               ref={listRef}
               role="listbox"
-              className="max-h-64 overflow-y-auto py-1"
+              className="flex-1 overflow-y-auto py-1"
             >
               {filtered.map((o, i) => (
                 <li key={o.value} data-index={i}>
@@ -221,8 +329,9 @@ export function Combobox({
                 </li>
               )}
             </ul>
-          </div>
-        )}
+            </div>,
+            document.body,
+          )}
       </div>
 
       {error ? (

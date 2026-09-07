@@ -39,6 +39,7 @@ import {
   type SeatLookupResult,
 } from '@modules/organogram';
 import { useMasterData, sectionKey } from '@modules/master-data';
+import { EmployeePicker } from './EmployeePicker';
 import { useAuth } from '@modules/auth';
 import { useMyPermissions } from '@modules/rbac';
 
@@ -73,7 +74,9 @@ const STEPS = [
     icon: ClipboardList,
     fields: [
       'designation', 'requirementType', 'requiredPosts',
-      'totalVacantPosts', 'unitFactory', 'department', 'section', 'subSection',
+      'totalVacantPosts', 'unitFactory', 'lineOfBusiness', 'department',
+      'section', 'subSection', 'replaceOfName', 'replaceOfEmployeeCode',
+      'separationReason', 'replacementRemarks',
       'placeOfPosting', 'vacantDate', 'neededDate', 'priority',
       'employmentNature', 'contractualPurpose',
     ],
@@ -129,6 +132,11 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
     resolver: zodResolver(requisitionSchema),
     defaultValues: {
       requirementType: 'new',
+      lineOfBusiness: '',
+      replaceOfName: '',
+      replaceOfEmployeeCode: '',
+      separationReason: '',
+      replacementRemarks: '',
       requiredPosts: 1,
       totalVacantPosts: 0,
       priority: 'moderate',
@@ -149,6 +157,9 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
   const dormitoryRequested = watch('facilities.dormitory.requested');
   const seatingRequested = watch('facilities.seating.requested');
   const unit = watch('unitFactory') ?? '';
+  const lineOfBusiness = watch('lineOfBusiness') ?? '';
+  const requirementType = watch('requirementType') ?? 'new';
+  const replaceOfName = watch('replaceOfName') ?? '';
   const department = watch('department') ?? '';
   const designation = watch('designation') ?? '';
   const sectionValue = watch('section') ?? '';
@@ -224,6 +235,9 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
     value: z,
     label: z,
   }));
+  const lineOfBusinessOptions: SelectOption[] = (
+    master?.linesOfBusiness ?? []
+  ).map((l) => ({ value: l, label: l }));
   // Grades valid for the chosen designation — shown as a read-only suggestion,
   // never captured here: the approver still confirms grade at sign-off.
   const suggestedGrades = designation
@@ -232,7 +246,8 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
 
   const unitReg = register('unitFactory');
 
-  // Live organogram check → drives New vs Replacement.
+  // Live organogram check. Advisory only since the requisitioner now declares
+  // New vs Replace themselves; it still fills totalVacantPosts.
   const lookup = useSeatLookup(unit, department, designation);
   const vacant = lookup.data?.vacant ?? 0;
   // New when the request exceeds the available vacant sanctioned seats.
@@ -243,7 +258,8 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
     : undefined;
 
   useEffect(() => {
-    if (requirement) setValue('requirementType', requirement);
+    // Deliberately NOT written to requirementType any more — the requisitioner
+    // chooses that. `requirement` is only shown in the organogram banner.
   }, [requirement, setValue]);
 
   // Total vacant posts is read-only — taken from the organogram (sanctioned − filled).
@@ -397,7 +413,7 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                 </span>
                 <span
                   className={cn(
-                    'hidden whitespace-nowrap text-[11px] font-medium sm:block',
+                    'hidden whitespace-nowrap text-[0.6875rem] font-medium sm:block',
                     state === 'current' ? 'text-brand-700' : 'text-slate-400',
                   )}
                 >
@@ -430,7 +446,7 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                 <CurrentIcon className="h-6 w-6" />
               </span>
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-600">
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-brand-600">
                   Section {current.letter} · Step {step + 1} of {total}
                 </p>
                 <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
@@ -463,63 +479,97 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                   (Requisition Raiser)
                 </p>
               )}
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <Select
-                  label="Unit / Factory"
-                  placeholder="Select unit"
-                  options={unitOptions}
-                  disabled={lockedUnit}
-                  error={errors.unitFactory?.message}
-                  {...unitReg}
-                  onChange={(e) => {
-                    void unitReg.onChange(e);
-                    setValue('department', '');
-                    setValue('section', '');
-                    setValue('designation', '');
-                  }}
-                />
-                <Combobox
-                  label="Department"
-                  placeholder="Select department"
-                  options={departmentOptions}
-                  value={department}
-                  error={errors.department?.message}
-                  onChange={(v) => {
-                    setValue('department', v, { shouldValidate: true });
-                    // Section belongs to a department, sub-section to the pair —
-                    // stale values would be invalid against the new parent.
-                    setValue('section', '');
-                    setValue('subSection', '');
-                  }}
-                />
-                <Combobox
-                  label="Section"
-                  placeholder={
-                    department ? 'Select section' : 'Pick a department first'
-                  }
-                  options={sectionOptions}
-                  value={sectionValue}
-                  disabled={!department || sectionOptions.length === 0}
-                  error={errors.section?.message}
-                  onChange={(v) => {
-                    setValue('section', v, { shouldValidate: true });
-                    setValue('subSection', '');
-                  }}
-                />
-                <Combobox
-                  label="Sub-section"
-                  placeholder={
-                    sectionValue ? 'Select sub-section' : 'Pick a section first'
-                  }
-                  options={subSectionOptions}
-                  value={subSection}
-                  disabled={!sectionValue || subSectionOptions.length === 0}
-                  error={errors.subSection?.message}
-                  onChange={(v) =>
-                    setValue('subSection', v, { shouldValidate: true })
-                  }
-                />
-                <div className="sm:col-span-2">
+{/* Fields the AI couldn't map — surfaced before the form, since the
+                  fix is to pick from the dropdowns below. */}
+              {unmatched.length > 0 && (
+                <div className="mb-5 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800 animate-fade-in">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    The AI suggested {unmatched.join(', ')} — not in the fixed
+                    list, so {unmatched.length > 1 ? 'those fields were' : 'that field was'}{' '}
+                    left blank. Please pick from the dropdown.
+                  </span>
+                </div>
+              )}
+
+              <div className="space-y-7">
+                {/* 1 · Where the role sits */}
+                <FormGroup title="Placement" hint="Where in the organisation this post belongs">
+                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                    <Select
+                      label="Unit / Factory"
+                      placeholder="Select unit"
+                      options={unitOptions}
+                      disabled={lockedUnit}
+                      error={errors.unitFactory?.message}
+                      {...unitReg}
+                      onChange={(e) => {
+                        void unitReg.onChange(e);
+                        setValue('department', '');
+                        setValue('section', '');
+                        setValue('designation', '');
+                      }}
+                    />
+                    <Combobox
+                      label="Line of Business"
+                      placeholder="Select line of business"
+                      options={lineOfBusinessOptions}
+                      value={lineOfBusiness}
+                      error={errors.lineOfBusiness?.message}
+                      onChange={(v) =>
+                        setValue('lineOfBusiness', v, { shouldValidate: true })
+                      }
+                    />
+                  </div>
+                  {/* Department → Section → Sub-section is a cascade, so the
+                      three sit on one row rather than orphaning a cell. */}
+                  <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
+                    <Combobox
+                      label="Department"
+                      placeholder="Select department"
+                      options={departmentOptions}
+                      value={department}
+                      error={errors.department?.message}
+                      onChange={(v) => {
+                        setValue('department', v, { shouldValidate: true });
+                        // Section belongs to a department, sub-section to the pair —
+                        // stale values would be invalid against the new parent.
+                        setValue('section', '');
+                        setValue('subSection', '');
+                      }}
+                    />
+                    <Combobox
+                      label="Section"
+                      placeholder={
+                        department ? 'Select section' : 'Pick a department first'
+                      }
+                      options={sectionOptions}
+                      value={sectionValue}
+                      disabled={!department || sectionOptions.length === 0}
+                      error={errors.section?.message}
+                      onChange={(v) => {
+                        setValue('section', v, { shouldValidate: true });
+                        setValue('subSection', '');
+                      }}
+                    />
+                    <Combobox
+                      label="Sub-section"
+                      placeholder={
+                        sectionValue ? 'Select sub-section' : 'Pick a section first'
+                      }
+                      options={subSectionOptions}
+                      value={subSection}
+                      disabled={!sectionValue || subSectionOptions.length === 0}
+                      error={errors.subSection?.message}
+                      onChange={(v) =>
+                        setValue('subSection', v, { shouldValidate: true })
+                      }
+                    />
+                  </div>
+                </FormGroup>
+
+                {/* 2 · What the post is, and whether it's new headcount */}
+                <FormGroup title="The position" hint="What you're hiring for and why">
                   <Combobox
                     label="Designation / Job title"
                     placeholder="Select designation"
@@ -537,7 +587,7 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                       {suggestedGrades.map((g) => (
                         <span
                           key={g}
-                          className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-700"
+                          className="rounded-full bg-brand-50 px-2 py-0.5 text-[0.6875rem] font-medium text-brand-700"
                         >
                           {g}
                         </span>
@@ -547,24 +597,116 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                       </span>
                     </p>
                   )}
-                </div>
-                <Input
-                  label="Nos. of required post"
-                  type="number"
-                  min={1}
-                  error={errors.requiredPosts?.message}
-                  {...register('requiredPosts')}
-                />
-                <Input
-                  label="Total no. of vacant post"
-                  type="number"
-                  readOnly
-                  hint="Auto-filled from the organogram (sanctioned − filled)"
-                  className="bg-slate-50 text-slate-600"
-                  error={errors.totalVacantPosts?.message}
-                  {...register('totalVacantPosts')}
-                />
-                <div className="sm:col-span-2">
+
+                  {/* Requisition type sits with the position it describes — a
+                      replacement has to name who left and why, so the record
+                      says more than "Replacement". */}
+                  <div className="mt-5">
+                    <p className="mb-2.5 text-sm font-medium text-slate-700">
+                      Requisition type
+                    </p>
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                      {([
+                        { value: 'new', label: 'New', hint: 'Additional headcount' },
+                        { value: 'existing', label: 'Replace', hint: 'Someone left this post' },
+                      ] as const).map((opt) => {
+                        const active = requirementType === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() =>
+                              setValue('requirementType', opt.value, {
+                                shouldValidate: true,
+                              })
+                            }
+                            className={cn(
+                              'rounded-xl border px-4 py-3 text-left transition-colors duration-200',
+                              active
+                                ? 'border-brand-300 bg-brand-50 ring-1 ring-brand-200'
+                                : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50',
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                'block text-sm font-semibold',
+                                active ? 'text-brand-700' : 'text-slate-700',
+                              )}
+                            >
+                              {opt.label}
+                            </span>
+                            <span className="mt-0.5 block text-xs text-slate-500">
+                              {opt.hint}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {requirementType === 'existing' && (
+                      <div className="mt-4 animate-branch-open space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                        <EmployeePicker
+                          label="Replacing whom"
+                          value={replaceOfName}
+                          error={errors.replaceOfName?.message}
+                          onPick={(emp) => {
+                            setValue('replaceOfName', emp?.name ?? '', {
+                              shouldValidate: true,
+                            });
+                            setValue(
+                              'replaceOfEmployeeCode',
+                              emp?.employeeCode ?? '',
+                            );
+                          }}
+                        />
+                        <Textarea
+                          label="Reason for leaving"
+                          rows={2}
+                          placeholder="e.g. Resigned on 30 Aug, joined a competitor"
+                          error={errors.separationReason?.message}
+                          {...register('separationReason')}
+                        />
+                        <Textarea
+                          label="Remarks (optional)"
+                          rows={2}
+                          placeholder="Anything else the approvers should know"
+                          {...register('replacementRemarks')}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
+                    <Input
+                      label="Nos. of required post"
+                      type="number"
+                      min={1}
+                      error={errors.requiredPosts?.message}
+                      {...register('requiredPosts')}
+                    />
+                    <Input
+                      label="Total no. of vacant post"
+                      type="number"
+                      readOnly
+                      hint="Auto-filled from the organogram (sanctioned − filled)"
+                      className="bg-slate-50 text-slate-600"
+                      error={errors.totalVacantPosts?.message}
+                      {...register('totalVacantPosts')}
+                    />
+                  </div>
+
+                  {/* Advisory: what the organogram says about these counts. */}
+                  <OrganogramBanner
+                    loading={lookup.isFetching}
+                    show={Boolean(unit && department && designation.trim().length > 2)}
+                    result={lookup.data}
+                    requirement={requirement}
+                    requiredPosts={requiredPosts}
+                  />
+                </FormGroup>
+
+                {/* 3 · Where it's posted and by when */}
+                <FormGroup title="Posting & timing" hint="Location, dates and terms of engagement">
                   <Combobox
                     label="Place of posting"
                     placeholder="Select zone"
@@ -575,63 +717,45 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                       setValue('placeOfPosting', v, { shouldValidate: true })
                     }
                   />
-                </div>
-                <Input
-                  label="Vacant date"
-                  type="date"
-                  error={errors.vacantDate?.message}
-                  {...register('vacantDate')}
-                />
-                <Input
-                  label="When needed (date)"
-                  type="date"
-                  hint="Fresher — 4 weeks · Experienced — 8 weeks lead time"
-                  error={errors.neededDate?.message}
-                  {...register('neededDate')}
-                />
-                <Select
-                  label="Priority"
-                  options={PRIORITY_OPTIONS}
-                  error={errors.priority?.message}
-                  {...register('priority')}
-                />
-                <Select
-                  label="Permanent / Temporary / Contractual"
-                  options={EMPLOYMENT_NATURE_OPTIONS}
-                  error={errors.employmentNature?.message}
-                  {...register('employmentNature')}
-                />
-                {employmentNature !== 'permanent' && (
-                  <div className="sm:col-span-2">
+                  <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <Input
-                      label="Purpose (temporary / contractual)"
-                      placeholder="Reason for the temporary / contractual engagement"
-                      error={errors.contractualPurpose?.message}
-                      {...register('contractualPurpose')}
+                      label="Vacant date"
+                      type="date"
+                      error={errors.vacantDate?.message}
+                      {...register('vacantDate')}
                     />
+                    <Input
+                      label="When needed (date)"
+                      type="date"
+                      hint="Fresher — 4 weeks · Experienced — 8 weeks lead time"
+                      error={errors.neededDate?.message}
+                      {...register('neededDate')}
+                    />
+                    <Select
+                      label="Priority"
+                      options={PRIORITY_OPTIONS}
+                      error={errors.priority?.message}
+                      {...register('priority')}
+                    />
+                    <Select
+                      label="Permanent / Temporary / Contractual"
+                      options={EMPLOYMENT_NATURE_OPTIONS}
+                      error={errors.employmentNature?.message}
+                      {...register('employmentNature')}
+                    />
+                    {employmentNature !== 'permanent' && (
+                      <div className="sm:col-span-2">
+                        <Input
+                          label="Purpose (temporary / contractual)"
+                          placeholder="Reason for the temporary / contractual engagement"
+                          error={errors.contractualPurpose?.message}
+                          {...register('contractualPurpose')}
+                        />
+                      </div>
+                    )}
                   </div>
-                )}
+                </FormGroup>
               </div>
-
-              {/* Organogram verdict */}
-              {unmatched.length > 0 && (
-                <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800 animate-fade-in">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>
-                    The AI suggested {unmatched.join(', ')} — not in the fixed
-                    list, so {unmatched.length > 1 ? 'those fields were' : 'that field was'}{' '}
-                    left blank. Please pick from the dropdown.
-                  </span>
-                </div>
-              )}
-
-              <OrganogramBanner
-                loading={lookup.isFetching}
-                show={Boolean(unit && department && designation.trim().length > 2)}
-                result={lookup.data}
-                requirement={requirement}
-                requiredPosts={requiredPosts}
-              />
             </>
           )}
 
@@ -837,6 +961,35 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
   );
 }
 
+/**
+ * A labelled block of related fields.
+ *
+ * Section A carries fourteen fields; as one flat grid it read as a wall of
+ * dropdowns with no sense of what belonged to what. Grouping them under quiet
+ * headings gives the eye somewhere to rest without adding chrome.
+ */
+function FormGroup({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section>
+      <div className="mb-4 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 border-b border-slate-100 pb-2">
+        <h3 className="text-[0.6875rem] font-semibold uppercase tracking-wider text-slate-500">
+          {title}
+        </h3>
+        {hint && <p className="text-xs text-slate-400">{hint}</p>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 function OrganogramBanner({
   loading,
   show,
@@ -982,6 +1135,17 @@ function toPayload(
   return {
     designation: values.designation,
     requirementType: values.requirementType,
+    lineOfBusiness: values.lineOfBusiness,
+    // Only sent on a replacement — the API clears them on a NEW headcount anyway.
+    ...(values.requirementType === 'existing'
+      ? {
+          replaceOfName: values.replaceOfName?.trim() || undefined,
+          replaceOfEmployeeCode:
+            values.replaceOfEmployeeCode?.trim() || undefined,
+          separationReason: values.separationReason?.trim() || undefined,
+          replacementRemarks: values.replacementRemarks?.trim() || undefined,
+        }
+      : {}),
     requiredPosts: values.requiredPosts,
     totalVacantPosts: values.totalVacantPosts,
     unitFactory: values.unitFactory,

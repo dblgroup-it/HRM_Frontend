@@ -114,7 +114,7 @@ function AiOverlay({ query, total }: { query: string; total: number }) {
       </div>
 
       <div className="text-center">
-        <p key={phase} className="text-[17px] font-semibold text-slate-800"
+        <p key={phase} className="text-[1.0625rem] font-semibold text-slate-800"
           style={{ animation: 'tbPhase .35s ease both' }}>
           {labels[phase]}
         </p>
@@ -125,7 +125,7 @@ function AiOverlay({ query, total }: { query: string; total: number }) {
 
       <div className="flex items-center gap-2.5 rounded-2xl border border-purple-200 bg-white px-5 py-2.5 shadow-sm">
         <Sparkles className="h-4 w-4 text-purple-500" />
-        <span className="text-[13px] font-medium text-purple-700">"{query}"</span>
+        <span className="text-[0.8125rem] font-medium text-purple-700">"{query}"</span>
       </div>
     </div>
   );
@@ -181,14 +181,14 @@ function AddToReqModal({ candidate, onClose }: { candidate: TalentPoolCandidate;
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[13px] font-semibold text-slate-800">{r.designation}</span>
+                      <span className="text-[0.8125rem] font-semibold text-slate-800">{r.designation}</span>
                       {match && (
-                        <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                        <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[0.625rem] font-bold text-emerald-700">
                           Role match
                         </span>
                       )}
                     </div>
-                    <p className="mt-0.5 text-[11px] text-slate-500">{r.code} · {r.unitFactory} · {r.department}</p>
+                    <p className="mt-0.5 text-[0.6875rem] text-slate-500">{r.code} · {r.unitFactory} · {r.department}</p>
                   </div>
                   <Badge tone={r.status === 'posted' ? 'success' : 'brand'}>
                     {r.status === 'posted' ? 'Posted' : 'Approved'}
@@ -257,34 +257,34 @@ function CandidateRow({
       {/* Col 2 — candidate (flex-1) */}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[13px] font-semibold text-slate-800 leading-snug">{c.name}</span>
+          <span className="text-[0.8125rem] font-semibold text-slate-800 leading-snug">{c.name}</span>
           {hit && relPalette && (
-            <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold"
+            <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[0.625rem] font-semibold"
               style={{ background: relPalette.bg, borderColor: relPalette.border, color: relPalette.text }}>
               <BrainCircuit className="h-2.5 w-2.5" />{hit.relevance}% AI
             </span>
           )}
           {scorePalette && !hit && (
-            <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold"
+            <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[0.625rem] font-semibold"
               style={{ background: scorePalette.bg, borderColor: scorePalette.border, color: scorePalette.text }}>
               <Sparkles className="h-2.5 w-2.5" />{c.matchScore}%
             </span>
           )}
         </div>
-        <p className="mt-0.5 text-[11px] text-slate-500 truncate">{c.requisition.designation}</p>
+        <p className="mt-0.5 text-[0.6875rem] text-slate-500 truncate">{c.requisition.designation}</p>
         {hit?.reason && (
-          <p className="mt-1 text-[10.5px] leading-relaxed text-purple-600">{hit.reason}</p>
+          <p className="mt-1 text-[0.65625rem] leading-relaxed text-purple-600">{hit.reason}</p>
         )}
         {/* Mobile-only meta */}
-        <p className="mt-1 text-[10px] text-slate-400 sm:hidden">
+        <p className="mt-1 text-[0.625rem] text-slate-400 sm:hidden">
           {c.requisition.unit} · {c.requisition.code} · {formatDate(c.createdAt)}
         </p>
       </div>
 
       {/* Col 3 — unit / dept (w-44, hidden mobile) */}
       <div className="hidden w-44 shrink-0 sm:block">
-        <p className="truncate text-[12px] font-medium text-slate-700">{c.requisition.unit}</p>
-        <p className="truncate text-[11px] text-slate-400">{c.requisition.department || '—'}</p>
+        <p className="truncate text-[0.75rem] font-medium text-slate-700">{c.requisition.unit}</p>
+        <p className="truncate text-[0.6875rem] text-slate-400">{c.requisition.department || '—'}</p>
       </div>
 
       {/* Col 4 — stage (w-28) */}
@@ -294,11 +294,11 @@ function CandidateRow({
 
       {/* Col 5 — applied date (w-32, hidden below lg) */}
       <div className="hidden w-32 shrink-0 lg:block">
-        <div className="flex items-center gap-1 text-[11px] text-slate-500">
+        <div className="flex items-center gap-1 text-[0.6875rem] text-slate-500">
           <Calendar className="h-3 w-3 shrink-0 text-slate-300" />
           {formatDate(c.createdAt)}
         </div>
-        <p className="mt-0.5 text-[10px] text-slate-400">{c.requisition.code}</p>
+        <p className="mt-0.5 text-[0.625rem] text-slate-400">{c.requisition.code}</p>
       </div>
 
       {/* Col 6 — actions */}
@@ -306,12 +306,12 @@ function CandidateRow({
         {/* View CV — icon-only on mobile, icon+text on sm+ */}
         {c.cvUrl ? (
           <a href={c.cvUrl} target="_blank" rel="noreferrer"
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-2 py-1.5 text-[11px] font-medium text-slate-600 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 sm:px-2.5">
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-2 py-1.5 text-[0.6875rem] font-medium text-slate-600 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 sm:px-2.5">
             <FileText className="h-3.5 w-3.5 shrink-0" />
             <span className="hidden sm:inline">View CV</span>
           </a>
         ) : (
-          <span className="flex items-center gap-1.5 rounded-lg border border-dashed border-slate-200 px-2 py-1.5 text-[11px] text-slate-300 sm:px-2.5">
+          <span className="flex items-center gap-1.5 rounded-lg border border-dashed border-slate-200 px-2 py-1.5 text-[0.6875rem] text-slate-300 sm:px-2.5">
             <FileText className="h-3.5 w-3.5 shrink-0" />
             <span className="hidden sm:inline">No CV</span>
           </span>
@@ -319,14 +319,14 @@ function CandidateRow({
 
         {/* Add to req */}
         <button type="button" onClick={onAddToReq}
-          className="flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-2 py-1.5 text-[11px] font-medium text-brand-700 transition-colors hover:bg-brand-100 sm:px-2.5">
+          className="flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-2 py-1.5 text-[0.6875rem] font-medium text-brand-700 transition-colors hover:bg-brand-100 sm:px-2.5">
           <Plus className="h-3.5 w-3.5 shrink-0" />
           <span className="hidden sm:inline">Add to Req</span>
         </button>
 
         {/* Remove from bank */}
         <button type="button" onClick={onRemove} title="Remove from Talent Bank"
-          className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[11px] font-medium text-red-500 transition-colors hover:bg-red-100 sm:px-2.5">
+          className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[0.6875rem] font-medium text-red-500 transition-colors hover:bg-red-100 sm:px-2.5">
           <Trash2 className="h-3.5 w-3.5 shrink-0" />
           <span className="hidden sm:inline">Remove</span>
         </button>
@@ -410,12 +410,12 @@ export default function TalentPoolPage() {
               <BrainCircuit className="h-4 w-4 text-white" />
             </div>
             <div className="flex-1">
-              <p className="text-[13px] font-semibold text-slate-800">AI Smart Search</p>
-              <p className="text-[11px] text-slate-500">Describe who you need — AI finds the best matches from the bank</p>
+              <p className="text-[0.8125rem] font-semibold text-slate-800">AI Smart Search</p>
+              <p className="text-[0.6875rem] text-slate-500">Describe who you need — AI finds the best matches from the bank</p>
             </div>
             {showAiResults && (
               <button type="button" onClick={clearSearch}
-                className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-[11px] font-medium text-slate-500 hover:bg-slate-50">
+                className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-[0.6875rem] font-medium text-slate-500 hover:bg-slate-50">
                 <X className="h-3.5 w-3.5" />
                 Clear results
               </button>
@@ -439,7 +439,7 @@ export default function TalentPoolPage() {
                   type="button"
                   onClick={runSearch}
                   disabled={!aiQuery.trim() || aiSearch.isPending}
-                  className="absolute bottom-2.5 right-2.5 flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-[12px] font-semibold text-white shadow-sm transition-all hover:scale-[1.03] disabled:scale-100 disabled:opacity-40"
+                  className="absolute bottom-2.5 right-2.5 flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-[0.75rem] font-semibold text-white shadow-sm transition-all hover:scale-[1.03] disabled:scale-100 disabled:opacity-40"
                   style={{ background: 'linear-gradient(135deg,#7c3aed,#1877c0)' }}>
                   <Sparkles className="h-3.5 w-3.5" />
                   Search
@@ -448,11 +448,11 @@ export default function TalentPoolPage() {
 
               {/* Suggestions */}
               <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                <span className="text-[11px] text-slate-400">Try:</span>
+                <span className="text-[0.6875rem] text-slate-400">Try:</span>
                 {AI_SUGGESTIONS.map((s) => (
                   <button key={s} type="button"
                     onClick={() => { setAiQuery(s); textareaRef.current?.focus(); }}
-                    className="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] text-slate-500 transition-colors hover:border-purple-300 hover:bg-purple-50 hover:text-purple-700">
+                    className="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[0.6875rem] text-slate-500 transition-colors hover:border-purple-300 hover:bg-purple-50 hover:text-purple-700">
                     <ChevronRight className="h-3 w-3" />
                     {s}
                   </button>
@@ -464,16 +464,16 @@ export default function TalentPoolPage() {
             <div className="flex flex-wrap items-center gap-3 px-5 py-3">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-purple-500" />
-                <span className="text-[13px] font-semibold text-slate-800">
+                <span className="text-[0.8125rem] font-semibold text-slate-800">
                   {displayList.length} match{displayList.length !== 1 ? 'es' : ''} found
                 </span>
               </div>
               {aiSearch.data?.summary && (
-                <p className="text-[12px] text-slate-500">{aiSearch.data.summary}</p>
+                <p className="text-[0.75rem] text-slate-500">{aiSearch.data.summary}</p>
               )}
               <div className="ml-auto flex items-center gap-1.5 rounded-xl border border-purple-100 bg-purple-50 px-3 py-1.5">
                 <BrainCircuit className="h-3.5 w-3.5 text-purple-500" />
-                <span className="text-[11px] font-medium text-purple-700">"{aiSearch.data?.query}"</span>
+                <span className="text-[0.6875rem] font-medium text-purple-700">"{aiSearch.data?.query}"</span>
               </div>
             </div>
           )}
@@ -491,14 +491,14 @@ export default function TalentPoolPage() {
                 {FILTER_TABS.map((tab) => (
                   <button key={tab.key} type="button" onClick={() => setStageFilter(tab.key)}
                     className={cn(
-                      'flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-[12px] font-semibold transition-all duration-200',
+                      'flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-[0.75rem] font-semibold transition-all duration-200',
                       stageFilter === tab.key
                         ? 'bg-brand-600 text-white shadow-sm shadow-brand-200/50'
                         : 'border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700',
                     )}>
                     {tab.label}
                     <span className={cn(
-                      'rounded-full px-1.5 py-0.5 text-[10px] font-bold',
+                      'rounded-full px-1.5 py-0.5 text-[0.625rem] font-bold',
                       stageFilter === tab.key ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500',
                     )}>
                       {tab.count}
@@ -518,7 +518,7 @@ export default function TalentPoolPage() {
             ) : (
               <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
                 {/* List header — column widths mirror CandidateRow exactly */}
-                <div className="hidden items-center gap-4 border-b border-slate-100 bg-slate-50/80 px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:flex">
+                <div className="hidden items-center gap-4 border-b border-slate-100 bg-slate-50/80 px-5 py-2.5 text-[0.625rem] font-semibold uppercase tracking-wider text-slate-400 sm:flex">
                   <span className="w-10 shrink-0" />
                   <span className="flex-1">Candidate</span>
                   <span className="w-44 shrink-0">Unit / Department</span>

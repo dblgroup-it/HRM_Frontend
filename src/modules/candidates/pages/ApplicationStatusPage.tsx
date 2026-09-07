@@ -88,7 +88,7 @@ function StageProgress({ stage }: { stage: string }) {
                   )}
                 </div>
                 <span
-                  className={`text-[10px] font-semibold whitespace-nowrap ${
+                  className={`text-[0.625rem] font-semibold whitespace-nowrap ${
                     isCurrent ? 'text-brand-600' : reached ? 'text-brand-400' : 'text-slate-300'
                   }`}
                 >
@@ -125,7 +125,7 @@ function ApplicationCard({ app, index }: { app: ApplicationStatus; index: number
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">{app.code}</p>
+          <p className="text-[0.6875rem] font-bold uppercase tracking-widest text-slate-400">{app.code}</p>
           <h3 className="mt-0.5 text-base font-bold text-slate-900 leading-snug">{app.designation}</h3>
         </div>
         <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold ${badgeCls}`}>

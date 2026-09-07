@@ -14,19 +14,29 @@ export const approvalPathsApi = {
       .then((res) => res.data);
   },
 
-  addRaiser(unitId: string, raiserId: string): Promise<RaiserApprovalPath> {
+  addRaiser(
+    unitId: string,
+    raiserId: string,
+    department = '',
+  ): Promise<RaiserApprovalPath> {
     return http
       .post<ApiResponse<RaiserApprovalPath>>(
         `/approval-paths/${unitId}/raisers`,
-        { raiserId },
+        { raiserId, department },
       )
       .then((res) => res.data);
   },
 
-  removeRaiser(unitId: string, raiserId: string): Promise<{ success: boolean }> {
+  removeRaiser(
+    unitId: string,
+    raiserId: string,
+    department = '',
+    all = false,
+  ): Promise<{ success: boolean }> {
     return http
       .delete<ApiResponse<{ success: boolean }>>(
         `/approval-paths/${unitId}/raisers/${raiserId}`,
+        { params: { department, ...(all ? { all: 'true' } : {}) } },
       )
       .then((res) => res.data);
   },
@@ -35,11 +45,13 @@ export const approvalPathsApi = {
     unitId: string,
     raiserId: string,
     levels: ApprovalPathLevelInput[],
+    department = '',
   ): Promise<RaiserApprovalPath> {
     return http
       .put<ApiResponse<RaiserApprovalPath>>(
         `/approval-paths/${unitId}/raisers/${raiserId}`,
         { levels },
+        { params: { department } },
       )
       .then((res) => res.data);
   },

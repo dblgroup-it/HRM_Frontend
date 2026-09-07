@@ -24,8 +24,15 @@ function useInvalidate() {
 export function useAddRaiser() {
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: ({ unitId, raiserId }: { unitId: string; raiserId: string }) =>
-      approvalPathsApi.addRaiser(unitId, raiserId),
+    mutationFn: ({
+      unitId,
+      raiserId,
+      department = '',
+    }: {
+      unitId: string;
+      raiserId: string;
+      department?: string;
+    }) => approvalPathsApi.addRaiser(unitId, raiserId, department),
     onSuccess: invalidate,
   });
 }
@@ -33,8 +40,17 @@ export function useAddRaiser() {
 export function useRemoveRaiser() {
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: ({ unitId, raiserId }: { unitId: string; raiserId: string }) =>
-      approvalPathsApi.removeRaiser(unitId, raiserId),
+    mutationFn: ({
+      unitId,
+      raiserId,
+      department = '',
+      all = false,
+    }: {
+      unitId: string;
+      raiserId: string;
+      department?: string;
+      all?: boolean;
+    }) => approvalPathsApi.removeRaiser(unitId, raiserId, department, all),
     onSuccess: invalidate,
   });
 }
@@ -46,11 +62,13 @@ export function useSaveApprovalPath() {
       unitId,
       raiserId,
       levels,
+      department = '',
     }: {
       unitId: string;
       raiserId: string;
       levels: ApprovalPathLevelInput[];
-    }) => approvalPathsApi.replace(unitId, raiserId, levels),
+      department?: string;
+    }) => approvalPathsApi.replace(unitId, raiserId, levels, department),
     onSuccess: invalidate,
   });
 }

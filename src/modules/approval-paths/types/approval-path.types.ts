@@ -27,6 +27,11 @@ export interface ApprovalPathLevel {
 export interface RaiserApprovalPath {
   unitId: string;
   unitName: string;
+  /**
+   * Department this chain covers. '' is the unit-wide default, used whenever
+   * the requisition's department has no chain of its own.
+   */
+  department: string;
   raiser: ApprovalPathPerson;
   levels: ApprovalPathLevel[];
   updatedAt: string | null;

@@ -250,7 +250,7 @@ function UnitRow({ name, filled, sanctioned, vacant, active, onClick }: { name: 
       </div>
       <div className="mt-2 flex items-center gap-2">
         <FillBar filled={filled} total={sanctioned} />
-        <span className="shrink-0 text-[11px] text-slate-400">{filled}/{sanctioned}</span>
+        <span className="shrink-0 text-[0.6875rem] text-slate-400">{filled}/{sanctioned}</span>
       </div>
     </button>
   );
@@ -262,7 +262,7 @@ function SummaryCell({ label, value, accent }: { label: string; value: number; a
       <p className={cn('text-xl font-bold tracking-tight', accent === 'emerald' ? 'text-emerald-700' : accent === 'amber' ? 'text-amber-700' : 'text-ink-dark')}>
         {formatCompact(value)}
       </p>
-      <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="mt-0.5 text-[0.6875rem] font-medium uppercase tracking-wide text-slate-400">{label}</p>
     </div>
   );
 }

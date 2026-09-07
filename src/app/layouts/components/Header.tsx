@@ -258,7 +258,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                           <p className="truncate text-sm font-semibold text-slate-800">
                             {employee.name}
                           </p>
-                          <span className="shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-medium text-brand-700">
+                          <span className="shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[0.625rem] font-medium text-brand-700">
                             {employee.employeeCode}
                           </span>
                         </div>
@@ -329,7 +329,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                         {WEEKDAYS.map((day) => (
                           <span
                             key={day}
-                            className="py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400"
+                            className="py-1 text-[0.625rem] font-semibold uppercase tracking-wide text-slate-400"
                           >
                             {day}
                           </span>
@@ -401,7 +401,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                         {user?.email}
                       </p>
                       {user?.unit && (
-                        <p className="mt-2 w-fit rounded-full bg-brand-50 px-2 py-1 text-[11px] font-medium text-brand-700">
+                        <p className="mt-2 w-fit rounded-full bg-brand-50 px-2 py-1 text-[0.6875rem] font-medium text-brand-700">
                           {user.unit}
                         </p>
                       )}

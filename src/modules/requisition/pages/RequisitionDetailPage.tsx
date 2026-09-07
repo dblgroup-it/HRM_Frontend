@@ -250,10 +250,31 @@ export default function RequisitionDetailPage() {
     { label: 'Nos. of required post', value: String(req.requiredPosts) },
     { label: 'Total vacant post', value: String(req.totalVacantPosts) },
     { label: 'Unit / Factory', value: req.unitFactory },
+    ...(req.lineOfBusiness
+      ? [{ label: 'Line of Business', value: req.lineOfBusiness }]
+      : []),
     { label: 'Department', value: req.department },
     ...(req.section ? [{ label: 'Section', value: req.section }] : []),
     ...(req.subSection
       ? [{ label: 'Sub-section', value: req.subSection }]
+      : []),
+    // Replacement provenance — who left and why, so an approver can judge the
+    // request without chasing it up.
+    ...(req.replaceOfName
+      ? [
+          {
+            label: 'Replacing',
+            value: req.replaceOfEmployeeCode
+              ? `${req.replaceOfName} (${req.replaceOfEmployeeCode})`
+              : req.replaceOfName,
+          },
+        ]
+      : []),
+    ...(req.separationReason
+      ? [{ label: 'Reason for leaving', value: req.separationReason }]
+      : []),
+    ...(req.replacementRemarks
+      ? [{ label: 'Remarks', value: req.replacementRemarks }]
       : []),
     { label: 'Job Grade', value: req.grade ?? 'Not yet confirmed' },
     ...(gradeLine ? [{ label: 'Grade reference', value: gradeLine }] : []),

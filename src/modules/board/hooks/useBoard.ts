@@ -88,10 +88,29 @@ export function useHrBoardApprove(candidateId: string) {
   });
 }
 
+/** Who the first link of the chain may be addressed to. */
+export function useChainApprovers(candidateId: string, enabled = true) {
+  return useQuery({
+    queryKey: [...boardKeys.approval(candidateId), 'approvers'],
+    queryFn: () => boardApi.listChainApprovers(candidateId),
+    enabled,
+  });
+}
+
 export function useSendBoardApproval(candidateId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (memberIds: string[]) => boardApi.sendForApproval(candidateId, memberIds),
+    mutationFn: (vars: {
+      memberIds: string[];
+      corporateHrId?: string;
+      chroId?: string;
+    }) =>
+      boardApi.sendForApproval(
+        candidateId,
+        vars.memberIds,
+        vars.corporateHrId,
+        vars.chroId,
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: boardKeys.approval(candidateId) });
       toast.success('Board approval requests sent');
@@ -113,7 +132,10 @@ export function useVoteInfo(token: string) {
 export function useSubmitVote(token: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (notes?: string) => boardApi.submitVote(token, notes),
+    mutationFn: (vars: {
+      notes?: string;
+      decision?: 'approved' | 'rejected';
+    }) => boardApi.submitVote(token, vars.notes, vars.decision ?? 'approved'),
     onSuccess: () => qc.invalidateQueries({ queryKey: boardKeys.vote(token) }),
     onError: (e) => toast.error(errMsg(e, 'Could not submit vote')),
   });

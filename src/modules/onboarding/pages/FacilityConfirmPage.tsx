@@ -60,10 +60,10 @@ export default function FacilityConfirmPage() {
     <PageShell>
       <div className="space-y-6">
         <div>
-          <p className="text-[13px] text-slate-500">
+          <p className="text-[0.8125rem] text-slate-500">
             Dear <span className="font-semibold text-slate-700">{data.recipientName}</span>,
           </p>
-          <p className="mt-1 text-[13px] text-slate-500 leading-relaxed">
+          <p className="mt-1 text-[0.8125rem] text-slate-500 leading-relaxed">
             HR has asked you to arrange <b>{data.facilityLabel}</b> for the following new joiner.
             Please confirm below once it&rsquo;s ready.
           </p>
@@ -75,7 +75,7 @@ export default function FacilityConfirmPage() {
             style={{ background: 'linear-gradient(to right,#f8fafc,#eff6ff)' }}
           >
             <p className="text-xl font-bold text-slate-800">{c.name}</p>
-            <p className="mt-0.5 text-[13px] text-slate-500">{c.designation}</p>
+            <p className="mt-0.5 text-[0.8125rem] text-slate-500">{c.designation}</p>
           </div>
           <div className="space-y-2.5 px-5 py-4">
             <InfoRow icon={<Building2 className="h-4 w-4 text-slate-400" />} label="Unit" value={c.unit} />
@@ -90,7 +90,7 @@ export default function FacilityConfirmPage() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-[12px] font-semibold text-slate-700">
+          <label className="mb-1.5 block text-[0.75rem] font-semibold text-slate-700">
             Notes <span className="font-normal text-slate-400">(optional)</span>
           </label>
           <textarea
@@ -106,14 +106,14 @@ export default function FacilityConfirmPage() {
           type="button"
           disabled={submit.isPending}
           onClick={() => submit.mutate(note || undefined, { onSuccess: () => setDone(true) })}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-[15px] font-bold text-white shadow-lg transition-all hover:opacity-90 disabled:opacity-60 active:scale-[0.98]"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-[0.9375rem] font-bold text-white shadow-lg transition-all hover:opacity-90 disabled:opacity-60 active:scale-[0.98]"
           style={{ background: 'linear-gradient(135deg,#059669,#0d9488)', boxShadow: '0 8px 24px -4px rgba(5,150,105,.35)' }}
         >
           <CheckCircle2 className="h-5 w-5" />
           {submit.isPending ? 'Submitting…' : `Confirm ${data.facilityLabel} arranged`}
         </button>
 
-        <p className="text-center text-[11px] text-slate-400">
+        <p className="text-center text-[0.6875rem] text-slate-400">
           This link is valid for 14 days and can only be used once.
         </p>
       </div>
@@ -133,8 +133,8 @@ function PageShell({ children }: { children: React.ReactNode }) {
             <ShieldCheck className="h-5 w-5 text-white" />
           </div>
           <div>
-            <p className="text-[15px] font-bold text-slate-800">DBL Group HR</p>
-            <p className="text-[11px] text-slate-400">Facility Provisioning</p>
+            <p className="text-[0.9375rem] font-bold text-slate-800">DBL Group HR</p>
+            <p className="text-[0.6875rem] text-slate-400">Facility Provisioning</p>
           </div>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">{children}</div>
@@ -145,7 +145,7 @@ function PageShell({ children }: { children: React.ReactNode }) {
 
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-2.5 text-[13px]">
+    <div className="flex items-center gap-2.5 text-[0.8125rem]">
       {icon}
       <span className="w-28 shrink-0 text-slate-400">{label}</span>
       <span className="font-medium text-slate-700">{value}</span>
