@@ -11,8 +11,6 @@ export type RequisitionStatus =
 
 /** Derived from the organogram: existing (replacement) vs new headcount. */
 export type RequirementType = 'existing' | 'new';
-/** Where the requisition originates — drives Factory-HR / SBU steps. */
-export type RequisitionSource = 'factory' | 'ho';
 
 export type Priority = 'top' | 'moderate' | 'ordinary';
 export type EmploymentNature = 'permanent' | 'temporary' | 'contractual';
@@ -170,12 +168,12 @@ export interface Requisition {
   /** Confirmed job grade — set by the current approver during sign-off, not the requisitioner. */
   grade: string | null;
   requirementType: RequirementType;
-  source: RequisitionSource;
   requiredPosts: number;
   totalVacantPosts: number;
   unitFactory: string;
   department: string;
   section?: string;
+  subSection?: string;
   placeOfPosting: string;
   vacantDate: ISODateString | null;
   neededDate: ISODateString | null;
@@ -231,7 +229,7 @@ export interface RequisitionDraft {
   unitFactory: string;
   department: string;
   section: string;
-  source: RequisitionSource;
+  subSection: string;
   requiredPosts: number;
   placeOfPosting: string;
   vacantDate: string;
@@ -251,12 +249,12 @@ export interface RequisitionDraft {
 export interface CreateRequisitionPayload {
   designation: string;
   requirementType: RequirementType;
-  source: RequisitionSource;
   requiredPosts: number;
   totalVacantPosts: number;
   unitFactory: string;
   department: string;
   section?: string;
+  subSection?: string;
   placeOfPosting: string;
   vacantDate: ISODateString | null;
   neededDate: ISODateString | null;

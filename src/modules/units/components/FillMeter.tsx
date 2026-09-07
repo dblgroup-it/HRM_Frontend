@@ -22,19 +22,21 @@ export function FillMeter({
   return (
     <span className={cn('flex items-center gap-2', className)}>
       <span
-        className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-200"
+        className="h-1.5 w-14 overflow-hidden rounded-full bg-slate-200/80 sm:w-20"
         role="img"
         aria-label={`${filled} of ${sanctioned} seats filled`}
       >
         <span
           className={cn(
-            'block h-full rounded-full transition-all',
-            vacant === 0 ? 'bg-emerald-500' : 'bg-brand-500',
+            'block h-full rounded-full transition-[width] duration-500 ease-out',
+            vacant === 0
+              ? 'bg-gradient-to-r from-emerald-400 to-emerald-500'
+              : 'bg-gradient-to-r from-brand-400 to-brand-600',
           )}
           style={{ width: `${pct}%` }}
         />
       </span>
-      <span className="w-12 shrink-0 text-right text-xs tabular-nums text-slate-500">
+      <span className="w-11 shrink-0 text-right text-xs font-medium tabular-nums text-slate-600">
         {filled}/{sanctioned}
       </span>
     </span>

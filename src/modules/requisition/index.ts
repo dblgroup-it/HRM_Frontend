@@ -24,7 +24,6 @@ export type {
   Requisition,
   RequisitionStatus,
   RequirementType,
-  RequisitionSource,
   Priority,
   EmploymentNature,
   PreferredSource,

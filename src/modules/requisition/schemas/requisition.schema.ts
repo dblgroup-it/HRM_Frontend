@@ -17,8 +17,6 @@ export const requisitionSchema = z
   .object({
     // A · Vacancy Information
     designation: z.string().min(2, 'Designation is required'),
-    /** Origin of the requisition (drives Factory-HR / SBU steps). */
-    source: z.enum(['factory', 'ho']),
     /** Auto-derived from the organogram seat lookup. */
     requirementType: z.enum(['existing', 'new']),
     requiredPosts: z.coerce
@@ -33,6 +31,7 @@ export const requisitionSchema = z
     unitFactory: z.string().min(1, 'Select a unit / factory'),
     department: z.string().min(1, 'Select a department'),
     section: z.string().optional(),
+    subSection: z.string().optional(),
     placeOfPosting: z.string().min(2, 'Place of posting is required'),
     vacantDate: z.string().optional(),
     neededDate: z.string().optional(),

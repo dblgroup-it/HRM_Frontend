@@ -50,11 +50,12 @@ export function PersonPicker({
         autoFocus={autoFocus}
         placeholder={placeholder}
         leftIcon={<Search className="h-4 w-4" />}
+        className="border-slate-200 bg-white"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
       {results.length > 0 && (
-        <div className="mt-1 max-h-60 overflow-y-auto rounded-lg border border-slate-200">
+        <div className="animate-branch-open mt-1.5 max-h-60 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-sm">
           {results.map((emp) => {
             const already = emp.userId
               ? excludeUserIds.includes(emp.userId)
@@ -78,28 +79,29 @@ export function PersonPicker({
                   setSearch('');
                 }}
                 className={cn(
-                  'flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm',
+                  'flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm transition-colors duration-150',
+                  'focus-visible:outline-none focus-visible:bg-brand-50/60',
                   unusable || already
                     ? 'cursor-not-allowed opacity-60'
-                    : 'hover:bg-slate-50',
+                    : 'hover:bg-brand-50/50',
                 )}
               >
                 <span className="min-w-0">
-                  <span className="block truncate font-medium text-slate-800">
+                  <span className="block truncate font-medium text-slate-900">
                     {emp.name}
                   </span>
-                  <span className="block truncate text-xs text-slate-400">
+                  <span className="mt-0.5 block truncate text-xs text-slate-500">
                     {emp.employeeCode}
                     {emp.jobTitle ? ` · ${emp.jobTitle}` : ''}
                   </span>
                 </span>
                 {already ? (
-                  <span className="shrink-0 text-[11px] text-slate-400">
+                  <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
                     Added
                   </span>
                 ) : !emp.hasSystemAccess ? (
-                  <span className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-emerald-600">
-                    <KeyRound className="h-3.5 w-3.5" />
+                  <span className="flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 ring-1 ring-emerald-100">
+                    <KeyRound className="h-3 w-3" />
                     Grants access
                   </span>
                 ) : (

@@ -3,20 +3,29 @@ import { Building2, Search, ShieldAlert, UserCheck, Users } from 'lucide-react';
 
 import {
   EmptyState,
-  FullPageSpinner,
+  ErrorCard,
   Input,
   PageHeader,
   StatCard,
 } from '@shared/components/ui';
+import { cn } from '@shared/lib';
 import { useMyPermissions } from '@modules/rbac';
 
 import { useApprovalPaths } from '../hooks/useApprovalPaths';
 import { UnitAccordion } from '../components/UnitAccordion';
+import { PathSkeleton } from '../components/PathSkeleton';
 import { canConfigureApprovalPaths } from '../access';
 
 export default function ApprovalPathsPage() {
   const { data: perms, isLoading: permsLoading } = useMyPermissions();
-  const { data: units = [], isLoading } = useApprovalPaths();
+  const {
+    data: units = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useApprovalPaths();
 
   const [search, setSearch] = useState('');
   const [onlyConfigured, setOnlyConfigured] = useState(false);
@@ -37,18 +46,19 @@ export default function ApprovalPathsPage() {
     [units],
   );
 
-  if (isLoading || permsLoading)
-    return <FullPageSpinner label="Loading approval paths…" />;
+  const loading = isLoading || permsLoading;
 
-  if (!canConfigureApprovalPaths(perms)) {
+  if (!loading && !canConfigureApprovalPaths(perms)) {
     return (
       <div className="space-y-6">
         <PageHeader title="Approval Paths" />
-        <EmptyState
-          icon={<ShieldAlert className="h-6 w-6" />}
-          title="Access restricted"
-          description="Approval paths decide who may raise requisitions and who signs them off, so only Corporate HR, CHRO and super users can configure them."
-        />
+        <div className="rounded-2xl border border-slate-200/70 bg-white shadow-card">
+          <EmptyState
+            icon={<ShieldAlert className="h-6 w-6" />}
+            title="Access restricted"
+            description="Approval paths decide who may raise requisitions and who signs them off, so only Corporate HR, CHRO and super users can configure them."
+          />
+        </div>
       </div>
     );
   }
@@ -80,38 +90,59 @@ export default function ApprovalPathsPage() {
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="min-w-[18rem] flex-1">
+      <div className="flex flex-col gap-2.5 rounded-2xl border border-slate-200/70 bg-white p-3 shadow-card sm:flex-row sm:items-center">
+        <div className="min-w-0 flex-1">
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Find a unit or a raiser…"
             leftIcon={<Search className="h-4 w-4" />}
+            className="border-slate-200 bg-slate-50/70 focus:bg-white"
           />
         </div>
-        <label className="flex cursor-pointer select-none items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600">
+        <label
+          className={cn(
+            'inline-flex h-10 shrink-0 cursor-pointer select-none items-center gap-2 rounded-lg border px-3.5 text-xs font-medium duration-200',
+            'transition-[background-color,border-color,color,box-shadow]',
+            onlyConfigured
+              ? 'border-brand-200 bg-brand-50 text-brand-700 shadow-[inset_0_0_0_1px_rgba(24,119,192,0.08)]'
+              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50',
+          )}
+        >
           <input
             type="checkbox"
             checked={onlyConfigured}
             onChange={(e) => setOnlyConfigured(e.target.checked)}
-            className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+            className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 transition focus:ring-2 focus:ring-brand-500/40 focus:ring-offset-0"
           />
           Only units with raisers
         </label>
       </div>
 
-      {filtered.length === 0 ? (
-        <EmptyState
-          icon={<Building2 className="h-6 w-6" />}
-          title="No unit matches"
-          description="Try a different unit or person name."
+      {loading ? (
+        <PathSkeleton />
+      ) : isError ? (
+        <ErrorCard
+          title="Couldn't load approval paths"
+          message={(error as Error)?.message}
+          onRetry={() => void refetch()}
+          retrying={isFetching}
         />
+      ) : filtered.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60">
+          <EmptyState
+            icon={<Building2 className="h-6 w-6" />}
+            title="No unit matches"
+            description="Try a different unit or person name."
+          />
+        </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((unit) => (
+          {filtered.map((unit, index) => (
             <UnitAccordion
               key={unit.unitId}
               unit={unit}
+              index={index}
               defaultOpen={configured.length === 1 && unit.raisers.length > 0}
             />
           ))}

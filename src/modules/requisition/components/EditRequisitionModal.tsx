@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { Button, Input, Modal, Select, Textarea } from '@shared/components/ui';
 import { JOB_GRADES } from '@modules/salaryFixation';
+import { useMasterData } from '@modules/master-data';
 
 import type {
   EmploymentNature,
@@ -42,6 +43,7 @@ export function EditRequisitionModal({
   const [totalVacantPosts, setTotalVacantPosts] = useState(
     String(requisition.totalVacantPosts),
   );
+  const { data: master } = useMasterData();
   const [placeOfPosting, setPlaceOfPosting] = useState(
     requisition.placeOfPosting,
   );
@@ -144,8 +146,18 @@ export function EditRequisitionModal({
             value={totalVacantPosts}
             onChange={(e) => setTotalVacantPosts(e.target.value)}
           />
-          <Input
+          <Select
             label="Place of posting"
+            placeholder="Select zone"
+            // Requisitions raised before zones were fixed hold free text. Keep
+            // the existing value as an option so editing something else here
+            // can't silently blank it.
+            options={[
+              ...(master?.zones ?? []).map((z) => ({ value: z, label: z })),
+              ...(placeOfPosting && !(master?.zones ?? []).includes(placeOfPosting)
+                ? [{ value: placeOfPosting, label: `${placeOfPosting} (legacy)` }]
+                : []),
+            ]}
             value={placeOfPosting}
             onChange={(e) => setPlaceOfPosting(e.target.value)}
           />

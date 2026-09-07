@@ -10,7 +10,6 @@ import {
   PRIORITY_LABEL,
   PRIORITY_TONE,
   REQUIREMENT_TONE,
-  SOURCE_LABEL,
 } from '../constants';
 import { RequisitionStatusBadge } from './RequisitionStatusBadge';
 
@@ -31,7 +30,7 @@ export function RequisitionTable({ requisitions, isLoading }: Props) {
         <div>
           <p className="font-medium text-slate-800">{r.designation}</p>
           <p className="text-xs text-slate-400">
-            {r.code} · {SOURCE_LABEL[r.source]}
+            {r.code}
           </p>
         </div>
       ),
@@ -115,7 +114,7 @@ export function RequisitionTable({ requisitions, isLoading }: Props) {
                     {r.designation}
                   </p>
                   <p className="truncate text-xs text-slate-400">
-                    {r.code} · {SOURCE_LABEL[r.source]}
+                    {r.code}
                   </p>
                 </div>
                 <RequisitionStatusBadge status={r.status} pipeline={r.pipeline} />

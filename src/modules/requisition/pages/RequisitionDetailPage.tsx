@@ -49,7 +49,6 @@ import { FacilitiesPanel } from '../components/FacilitiesPanel';
 import {
   EMPLOYMENT_NATURE_LABEL,
   REQUIREMENT_LABEL,
-  SOURCE_LABEL,
   preferredSourceLabel,
   PRIORITY_LABEL,
   PRIORITY_TONE,
@@ -232,12 +231,14 @@ export default function RequisitionDetailPage() {
 
   const vacancy: Row[] = [
     { label: 'Requirement', value: REQUIREMENT_LABEL[req.requirementType] },
-    { label: 'Source', value: SOURCE_LABEL[req.source] },
     { label: 'Nos. of required post', value: String(req.requiredPosts) },
     { label: 'Total vacant post', value: String(req.totalVacantPosts) },
     { label: 'Unit / Factory', value: req.unitFactory },
     { label: 'Department', value: req.department },
     ...(req.section ? [{ label: 'Section', value: req.section }] : []),
+    ...(req.subSection
+      ? [{ label: 'Sub-section', value: req.subSection }]
+      : []),
     { label: 'Job Grade', value: req.grade ?? 'Not yet confirmed' },
     ...(gradeLine ? [{ label: 'Grade reference', value: gradeLine }] : []),
     { label: 'Place of posting', value: req.placeOfPosting },

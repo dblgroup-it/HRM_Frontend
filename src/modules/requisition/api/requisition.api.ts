@@ -14,7 +14,6 @@ import type {
   RequisitionDraft,
   RequisitionFilters,
   RequisitionSignatories,
-  RequisitionSource,
   RequirementType,
   RoleProfile,
   UpdateRequisitionInput,
@@ -64,14 +63,13 @@ function initialFacilities(input: CreateRequisitionPayload['facilities']): Facil
 /** Build the dynamic sign-off chain from routing rules + intake signatories. */
 function buildChain(
   requirement: RequirementType,
-  source: RequisitionSource,
   signatories: RequisitionSignatories
 ): ApprovalStep[] {
   const assignees: Partial<Record<string, string>> = {
     department_head: signatories.departmentHeadName,
     factory_hr: signatories.factoryHRName,
   };
-  return buildApprovalRoles(requirement, source).map((role, index) => ({
+  return buildApprovalRoles(requirement).map((role, index) => ({
     id: `mock-step-${role}-${index}`,
     role,
     approverUserId: null,
@@ -113,7 +111,6 @@ let STORE: Requisition[] = [
     designation: 'Assistant Production Officer',
     grade: null,
     requirementType: 'existing',
-    source: 'factory',
     requiredPosts: 3,
     totalVacantPosts: 3,
     unitFactory: 'Jinnat Textile Mills Ltd',
@@ -134,7 +131,7 @@ let STORE: Requisition[] = [
     preferredSources: ['job_advertisement', 'headhunting'],
     // existing + factory ⇒ Dept Head → Factory HR → Corporate HR
     status: 'pending_approval',
-    approvalChain: approveFirst(buildChain('existing', 'factory', SIGN), 1),
+    approvalChain: approveFirst(buildChain('existing', SIGN), 1),
     activityLog: [
       {
         actor: 'Mohammad Abdul Latif',
@@ -155,7 +152,6 @@ let STORE: Requisition[] = [
     designation: 'Senior Merchandiser',
     grade: null,
     requirementType: 'new',
-    source: 'factory',
     requiredPosts: 1,
     totalVacantPosts: 1,
     unitFactory: 'Jinnat Apparels Ltd',
@@ -178,7 +174,7 @@ let STORE: Requisition[] = [
     preferredSources: ['headhunting', 'cv_bank'],
     // new + factory ⇒ Dept Head → Factory HR → SBU Head → Corporate HR
     status: 'profile_generated',
-    approvalChain: approveFirst(buildChain('new', 'factory', SIGN), 4),
+    approvalChain: approveFirst(buildChain('new', SIGN), 4),
     activityLog: [],
     roleProfile: {
       summary:
@@ -210,7 +206,6 @@ let STORE: Requisition[] = [
     designation: 'HR Business Partner',
     grade: null,
     requirementType: 'existing',
-    source: 'ho',
     requiredPosts: 1,
     totalVacantPosts: 1,
     unitFactory: 'DBL Group — Head Office',
@@ -232,7 +227,7 @@ let STORE: Requisition[] = [
     preferredSources: ['headhunting'],
     // existing + HO ⇒ Dept Head → Corporate HR
     status: 'posted',
-    approvalChain: approveFirst(buildChain('existing', 'ho', SIGN), 2),
+    approvalChain: approveFirst(buildChain('existing', SIGN), 2),
     activityLog: [],
     roleProfile: {
       summary:
@@ -389,11 +384,7 @@ export const requisitionApi = {
           id: `req_${1000 + SEQUENCE}`,
           code: `REQ-2026-${String(SEQUENCE).padStart(3, '0')}`,
           status: 'pending_approval',
-          approvalChain: buildChain(
-            payload.requirementType,
-            payload.source,
-            signatories
-          ),
+          approvalChain: buildChain(payload.requirementType, signatories),
           activityLog: [],
           roleProfile: null,
           posting: null,

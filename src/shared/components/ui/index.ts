@@ -5,6 +5,8 @@ export { Input } from './Input';
 export type { InputProps } from './Input';
 
 export { Select } from './Select';
+export { Combobox } from './Combobox';
+export type { ComboboxProps } from './Combobox';
 export type { SelectProps } from './Select';
 
 export { Textarea } from './Textarea';
@@ -35,6 +37,9 @@ export type { Column, DataTableProps } from './DataTable';
 export { EmptyState } from './EmptyState';
 export type { EmptyStateProps } from './EmptyState';
 
+export { ErrorCard } from './ErrorCard';
+export type { ErrorCardProps } from './ErrorCard';
+
 export { Modal } from './Modal';
 export type { ModalProps } from './Modal';
 
@@ -43,6 +48,9 @@ export type { PageHeaderProps } from './PageHeader';
 
 export { StatCard } from './StatCard';
 export type { StatCardProps } from './StatCard';
+
+export { TreeAddNode } from './TreeAddNode';
+export type { TreeAddNodeProps } from './TreeAddNode';
 
 export { Pagination } from './Pagination';
 export type { PaginationProps } from './Pagination';

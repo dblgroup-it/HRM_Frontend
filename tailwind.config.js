@@ -106,6 +106,19 @@ export default {
           '0%':   { opacity: '0', transform: 'translateY(14px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        // --- redesign primitives: short, enterprise-grade motion (150-250ms) ---
+        'card-in': {
+          '0%': { opacity: '0', transform: 'translateY(6px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'branch-open': {
+          '0%': { opacity: '0', transform: 'translateY(-4px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'rail-draw': {
+          '0%': { transform: 'scaleY(0)' },
+          '100%': { transform: 'scaleY(1)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.2s ease-out',
@@ -121,6 +134,9 @@ export default {
         'loader-pop': 'loader-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) both',
         'text-up-out': 'text-up-out 0.2s ease forwards',
         'text-up-in':  'text-up-in  0.2s ease forwards',
+        'card-in': 'card-in 0.22s cubic-bezier(0.16,1,0.3,1) both',
+        'branch-open': 'branch-open 0.18s ease-out both',
+        'rail-draw': 'rail-draw 0.25s ease-out both',
       },
     },
   },

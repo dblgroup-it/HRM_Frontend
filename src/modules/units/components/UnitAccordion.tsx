@@ -3,7 +3,6 @@ import {
   Building2,
   ChevronDown,
   Folder,
-  FolderPlus,
   Layers,
   Pencil,
   Plus,
@@ -11,7 +10,7 @@ import {
   X,
 } from 'lucide-react';
 
-import { Badge, Button, Input } from '@shared/components/ui';
+import { Badge, Button, Input, TreeAddNode } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 
 import type {
@@ -47,7 +46,7 @@ function SeatStatus({ filled, sanctioned }: { filled: number; sanctioned: number
   return (
     <span
       className={cn(
-        'w-16 shrink-0 text-right text-[11px] font-medium',
+        'w-16 shrink-0 text-right text-[11px] font-medium tabular-nums',
         vacant > 0 ? 'text-amber-600' : 'text-emerald-600',
       )}
     >
@@ -72,10 +71,13 @@ function RowAction({
     <button
       type="button"
       title={title}
+      aria-label={title}
       onClick={onClick}
       className={cn(
-        'rounded-lg p-1.5 text-slate-400 transition hover:bg-white',
-        danger ? 'hover:text-rose-500' : 'hover:text-slate-700',
+        'rounded-lg p-1.5 text-slate-400 transition-colors duration-150',
+        'hover:bg-white hover:shadow-sm active:scale-[0.96]',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40',
+        danger ? 'hover:text-rose-600' : 'hover:text-slate-700',
       )}
     >
       {children}
@@ -83,22 +85,37 @@ function RowAction({
   );
 }
 
+/**
+ * Row controls: always reachable on touch, quiet until hover on pointer
+ * devices where the extra chrome would otherwise be constant noise.
+ */
+const HOVER_ACTIONS =
+  'flex shrink-0 items-center gap-0.5 transition-opacity duration-150 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100';
+
+/**
+ * Meters, badges and row controls: their own right-aligned row on phones so the
+ * name keeps the full width, and back in line from sm up (`display: contents`).
+ */
+const META_ROW = 'flex w-full items-center justify-end gap-2 sm:contents';
+
 /** A unit and everything sanctioned under it. */
 export function UnitAccordion({
   unit,
   canEdit,
   canDelete,
   defaultOpen = false,
+  index = 0,
 }: {
   unit: ConfigUnit;
   canEdit: boolean;
   canDelete: boolean;
   defaultOpen?: boolean;
+  /** Position in the list — only used to stagger the entrance animation. */
+  index?: number;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(unit.name);
-  const [addingDept, setAddingDept] = useState(false);
   const [deptName, setDeptName] = useState('');
 
   const renameUnit = useRenameUnit();
@@ -120,14 +137,14 @@ export function UnitAccordion({
     );
   };
 
-  const submitDept = () => {
+  const submitDept = (close: () => void) => {
     if (deptName.trim().length < 2) return;
     addDepartment.mutate(
       { unitId: unit.id, name: deptName.trim() },
       {
         onSuccess: () => {
           setDeptName('');
-          setAddingDept(false);
+          close();
         },
       },
     );
@@ -136,9 +153,12 @@ export function UnitAccordion({
   return (
     <section
       className={cn(
-        'overflow-hidden rounded-xl border bg-white transition',
-        open ? 'border-brand-200 shadow-sm' : 'border-slate-200',
+        'animate-card-in overflow-hidden rounded-2xl border bg-white transition-[box-shadow,border-color] duration-200',
+        open
+          ? 'border-brand-200 shadow-card-hover'
+          : 'border-slate-200/70 shadow-card hover:border-slate-300 hover:shadow-card-hover',
       )}
+      style={{ animationDelay: `${Math.min(index, 8) * 35}ms` }}
     >
       {renaming ? (
         <div className="flex items-center gap-2 px-4 py-3">
@@ -170,8 +190,8 @@ export function UnitAccordion({
       ) : (
         <div
           className={cn(
-            'group flex items-center gap-3 px-4 py-3 transition',
-            open ? 'bg-brand-50/60' : 'hover:bg-slate-50',
+            'group flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3.5 transition-colors duration-200',
+            open ? 'bg-brand-50/50' : 'hover:bg-slate-50/80',
           )}
         >
           <button
@@ -182,17 +202,19 @@ export function UnitAccordion({
           >
             <span
               className={cn(
-                'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition',
-                open ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-500',
+                'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-[background,color,box-shadow] duration-200',
+                open
+                  ? 'bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-[0_4px_10px_-3px_rgba(24,119,192,0.55)]'
+                  : 'bg-slate-100 text-slate-500',
               )}
             >
-              <Building2 className="h-4 w-4" />
+              <Building2 className="h-4.5 w-4.5" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-semibold text-slate-800">
+              <span className="block truncate text-[0.9375rem] font-semibold tracking-tight text-slate-900">
                 {unit.name}
               </span>
-              <span className="block text-xs text-slate-400">
+              <span className="mt-0.5 block truncate text-xs text-slate-500">
                 {unit.departments.length} department
                 {unit.departments.length === 1 ? '' : 's'}
                 {unit._count?.employees
@@ -202,18 +224,50 @@ export function UnitAccordion({
             </span>
           </button>
 
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-label={open ? 'Collapse' : 'Expand'}
+            className={cn(
+              'flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors duration-200 sm:order-last',
+              open
+                ? 'bg-white text-brand-600 ring-1 ring-brand-100'
+                : 'text-slate-400 hover:bg-white hover:text-slate-600',
+            )}
+          >
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 transition-transform duration-200',
+                open && 'rotate-180',
+              )}
+            />
+          </button>
+
+          {/* Below sm this becomes its own right-aligned row so the unit name
+              keeps the full width; sm:contents restores the single-row layout. */}
+          <span className={META_ROW}>
           {sanctioned > 0 ? (
             <>
-              <FillMeter filled={filled} sanctioned={sanctioned} />
-              <Badge tone={vacant > 0 ? 'warning' : 'success'}>
+              <FillMeter
+                filled={filled}
+                sanctioned={sanctioned}
+                className="hidden md:flex"
+              />
+              <Badge
+                tone={vacant > 0 ? 'warning' : 'success'}
+                dot
+                className="shrink-0"
+              >
                 {vacant > 0 ? `${vacant} vacant` : 'Full'}
               </Badge>
             </>
           ) : (
-            <Badge tone="neutral">No seats</Badge>
+            <Badge tone="neutral" className="shrink-0">
+              No seats
+            </Badge>
           )}
 
-          <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
+          <span className={HOVER_ACTIONS}>
             {canEdit && (
               <RowAction
                 title="Rename unit"
@@ -243,79 +297,104 @@ export function UnitAccordion({
               </RowAction>
             )}
           </span>
-
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-label={open ? 'Collapse' : 'Expand'}
-            className="shrink-0"
-          >
-            <ChevronDown
-              className={cn(
-                'h-4 w-4 text-slate-400 transition-transform',
-                open && 'rotate-180',
-              )}
-            />
-          </button>
+          </span>
         </div>
       )}
 
       {open && (
-        <div className="space-y-2.5 border-t border-slate-100 bg-slate-50/50 p-4">
-          {unit.departments.map((dept) => (
-            <DepartmentCard key={dept.id} department={dept} canEdit={canEdit} />
-          ))}
+        <div className="animate-branch-open border-t border-slate-100 bg-gradient-to-b from-slate-50/80 to-white p-4">
+          {/* Departments hang off a single trunk, so the unit → department
+              relationship reads structurally, not just by indentation. */}
+          <div className="relative">
+            {unit.departments.length > 0 && (
+              <span
+                aria-hidden
+                className="absolute bottom-0 left-[1.125rem] top-0 hidden w-px -translate-x-1/2 origin-top animate-rail-draw bg-gradient-to-b from-brand-200 to-slate-200 sm:block"
+              />
+            )}
+
+            <div className="space-y-2.5">
+              {unit.departments.map((dept, i) => (
+                <div key={dept.id} className="relative sm:pl-11">
+                  <span
+                    aria-hidden
+                    className="absolute left-[1.125rem] top-6 hidden h-px w-5 rounded bg-slate-200 sm:block"
+                  />
+                  <span
+                    aria-hidden
+                    className="absolute left-[1.125rem] top-[1.4375rem] hidden h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-brand-400 ring-2 ring-white sm:block"
+                  />
+                  <div
+                    className="animate-card-in"
+                    style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}
+                  >
+                    <DepartmentCard department={dept} canEdit={canEdit} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
           {unit.departments.length === 0 && (
-            <p className="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-6 text-center text-xs text-slate-400">
-              No departments yet.
-            </p>
+            <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                <Folder className="h-5 w-5" />
+              </span>
+              <p className="text-sm font-medium text-slate-700">
+                No departments yet
+              </p>
+              {canEdit && (
+                <p className="max-w-sm text-xs leading-5 text-slate-500">
+                  Add the first department to start building this unit's
+                  organogram.
+                </p>
+              )}
+            </div>
           )}
 
-          {canEdit &&
-            (addingDept ? (
-              <div className="flex items-center gap-2 rounded-lg border border-brand-200 bg-white p-2.5">
-                <Input
-                  value={deptName}
-                  autoFocus
-                  placeholder="Department name"
-                  onChange={(e) => setDeptName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') submitDept();
-                    if (e.key === 'Escape') {
+          {/* The unit's tree grows from here. */}
+          {canEdit && (
+            <TreeAddNode
+              className="mt-2.5"
+              railAbove={unit.departments.length > 0}
+              label="Add department"
+            >
+              {(close) => (
+                <div className="flex items-center gap-2 rounded-xl border border-brand-200 bg-white p-2.5 shadow-sm">
+                  <Input
+                    value={deptName}
+                    autoFocus
+                    placeholder="Department name"
+                    onChange={(e) => setDeptName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') submitDept(close);
+                      if (e.key === 'Escape') {
+                        setDeptName('');
+                        close();
+                      }
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    isLoading={addDepartment.isPending}
+                    disabled={deptName.trim().length < 2}
+                    onClick={() => submitDept(close)}
+                  >
+                    Add
+                  </Button>
+                  <RowAction
+                    title="Cancel"
+                    onClick={() => {
                       setDeptName('');
-                      setAddingDept(false);
-                    }
-                  }}
-                />
-                <Button
-                  size="sm"
-                  isLoading={addDepartment.isPending}
-                  disabled={deptName.trim().length < 2}
-                  onClick={submitDept}
-                >
-                  Add
-                </Button>
-                <RowAction
-                  title="Cancel"
-                  onClick={() => {
-                    setDeptName('');
-                    setAddingDept(false);
-                  }}
-                >
-                  <X className="h-4 w-4" />
-                </RowAction>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setAddingDept(true)}
-                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-xs font-medium text-slate-500 transition hover:border-brand-300 hover:bg-brand-50/50 hover:text-brand-700"
-              >
-                <FolderPlus className="h-3.5 w-3.5" />
-                Add department
-              </button>
-            ))}
+                      close();
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </RowAction>
+                </div>
+              )}
+            </TreeAddNode>
+          )}
         </div>
       )}
     </section>
@@ -376,7 +455,14 @@ function DepartmentCard({
   };
 
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+    <div
+      className={cn(
+        'overflow-hidden rounded-xl border bg-white transition-[box-shadow,border-color] duration-200',
+        open
+          ? 'border-slate-200 shadow-sm'
+          : 'border-slate-200/80 hover:border-slate-300 hover:shadow-sm',
+      )}
+    >
       {renaming ? (
         <div className="flex items-center gap-2 px-3 py-2.5">
           <Input
@@ -405,7 +491,7 @@ function DepartmentCard({
           </RowAction>
         </div>
       ) : (
-        <div className="group flex items-center gap-2.5 px-3 py-2.5 transition hover:bg-slate-50/70">
+        <div className="group flex flex-wrap items-center gap-x-2.5 gap-y-2 px-3 py-2.5 transition-colors duration-200 hover:bg-slate-50/70">
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
@@ -414,29 +500,34 @@ function DepartmentCard({
           >
             <ChevronDown
               className={cn(
-                'h-3.5 w-3.5 shrink-0 text-slate-300 transition-transform',
+                'h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform duration-200',
                 !open && '-rotate-90',
               )}
             />
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-violet-50 text-violet-500">
-              <Folder className="h-3.5 w-3.5" />
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-500 ring-1 ring-violet-100/70">
+              <Folder className="h-4 w-4" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium text-slate-800">
+              <span className="block truncate text-sm font-semibold text-slate-900">
                 {department.name}
               </span>
-              <span className="block text-[11px] text-slate-400">
+              <span className="mt-0.5 block text-[11px] text-slate-500">
                 {department.positions.length} seat
                 {department.positions.length === 1 ? '' : 's'}
               </span>
             </span>
           </button>
 
-          <FillMeter filled={filled} sanctioned={sanctioned} />
+          <span className={META_ROW}>
+          <FillMeter
+            filled={filled}
+            sanctioned={sanctioned}
+            className="hidden md:flex"
+          />
           <SeatStatus filled={filled} sanctioned={sanctioned} />
 
           {canEdit && (
-            <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
+            <span className={HOVER_ACTIONS}>
               <RowAction
                 title="Add seat"
                 onClick={() => setSeatModal({ position: null })}
@@ -465,13 +556,14 @@ function DepartmentCard({
               </RowAction>
             </span>
           )}
+          </span>
         </div>
       )}
 
       {open && (
-        <div className="border-t border-slate-100">
+        <div className="animate-branch-open border-t border-slate-100">
           {department.positions.length === 0 ? (
-            <p className="px-3 py-3 text-xs text-slate-400">
+            <p className="px-3 py-3.5 text-xs text-slate-400">
               {canEdit ? 'No seats yet — add the first one.' : 'No seats yet.'}
             </p>
           ) : (
@@ -490,23 +582,35 @@ function DepartmentCard({
                 const t = tally(list);
                 return (
                   <div key={sec} className="border-t border-slate-100">
-                    <div className="flex items-center gap-2 bg-slate-50/70 px-3 py-1.5">
+                    <div className="flex items-center gap-2 bg-slate-50/80 px-3 py-1.5">
                       <Layers className="h-3 w-3 shrink-0 text-slate-400" />
-                      <span className="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      <span className="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                         {sec}
                       </span>
-                      <FillMeter filled={t.filled} sanctioned={t.sanctioned} />
+                      <FillMeter
+                        filled={t.filled}
+                        sanctioned={t.sanctioned}
+                        className="hidden md:flex"
+                      />
                       <SeatStatus filled={t.filled} sanctioned={t.sanctioned} />
                     </div>
-                    {list.map((pos) => (
-                      <SeatRow
-                        key={pos.id}
-                        position={pos}
-                        canEdit={canEdit}
-                        onEdit={() => setSeatModal({ position: pos })}
-                        indented
+                    {/* Seats in a section sit on their own rail so the
+                        section → seat nesting stays legible at a glance. */}
+                    <div className="relative">
+                      <span
+                        aria-hidden
+                        className="absolute bottom-2 left-[1.375rem] top-0 hidden w-px bg-slate-100 sm:block"
                       />
-                    ))}
+                      {list.map((pos) => (
+                        <SeatRow
+                          key={pos.id}
+                          position={pos}
+                          canEdit={canEdit}
+                          onEdit={() => setSeatModal({ position: pos })}
+                          indented
+                        />
+                      ))}
+                    </div>
                   </div>
                 );
               })}
@@ -546,33 +650,43 @@ function SeatRow({
   return (
     <div
       className={cn(
-        'group flex items-center gap-2.5 border-t border-slate-50 px-3 py-2 transition hover:bg-brand-50/30',
-        indented && 'pl-8',
+        'group relative flex items-center gap-2.5 border-t border-slate-50 px-3 py-2 transition-colors duration-150 hover:bg-brand-50/40',
+        indented && 'pl-8 sm:pl-9',
       )}
     >
+      {indented && (
+        <span
+          aria-hidden
+          className="absolute left-[1.375rem] top-1/2 hidden h-px w-2.5 bg-slate-200 sm:block"
+        />
+      )}
       <span
         aria-hidden
         className={cn(
-          'h-1.5 w-1.5 shrink-0 rounded-full',
+          'h-1.5 w-1.5 shrink-0 rounded-full ring-2 ring-white',
           vacant > 0 ? 'bg-amber-400' : 'bg-emerald-400',
         )}
       />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm text-slate-700">
+        <span className="block truncate text-sm text-slate-800">
           {position.designation}
         </span>
-        <span className="block truncate text-[11px] capitalize text-slate-400">
+        <span className="mt-0.5 block truncate text-[11px] capitalize text-slate-500">
           {position.category.toLowerCase()}
           {position.grade ? ` · grade ${position.grade}` : ''}
         </span>
       </span>
 
-      <FillMeter filled={position.filled} sanctioned={position.sanctioned} />
+      <FillMeter
+        filled={position.filled}
+        sanctioned={position.sanctioned}
+        className="hidden md:flex"
+      />
 
       <SeatStatus filled={position.filled} sanctioned={position.sanctioned} />
 
       {canEdit && (
-        <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
+        <span className={HOVER_ACTIONS}>
           <RowAction title="Edit seat" onClick={onEdit}>
             <Pencil className="h-3.5 w-3.5" />
           </RowAction>

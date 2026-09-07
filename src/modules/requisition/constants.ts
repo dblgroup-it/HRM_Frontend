@@ -8,7 +8,6 @@ import type {
   PreferredSource,
   Priority,
   RequirementType,
-  RequisitionSource,
   RequisitionStatus,
 } from './types/requisition.types';
 
@@ -47,11 +46,6 @@ export const REQUIREMENT_LABEL: Record<RequirementType, string> = {
 export const REQUIREMENT_TONE: Record<RequirementType, BadgeTone> = {
   existing: 'info',
   new: 'warning',
-};
-
-export const SOURCE_LABEL: Record<RequisitionSource, string> = {
-  factory: 'Factory',
-  ho: 'Corporate Office',
 };
 
 export const PRIORITY_LABEL: Record<Priority, string> = {
@@ -157,11 +151,9 @@ export const APPROVAL_ROLE_META: Record<
  */
 export function buildApprovalRoles(
   requirement: RequirementType,
-  source: RequisitionSource
 ): ApprovalRole[] {
   const roles: ApprovalRole[] = ['department_head'];
-  if (source === 'factory') roles.push('factory_hr');
-  if (requirement === 'new' && source === 'factory') roles.push('sbu_head');
+  if (requirement === 'new') roles.push('sbu_head');
   roles.push('corporate_hr');
   return roles;
 }
@@ -194,7 +186,6 @@ export const DEPARTMENT_OPTIONS: SelectOption[] = DEPARTMENTS.map((d) => ({
   label: d,
 }));
 export const PRIORITY_OPTIONS = toOptions(PRIORITY_LABEL);
-export const SOURCE_OPTIONS = toOptions(SOURCE_LABEL);
 export const EMPLOYMENT_NATURE_OPTIONS = toOptions(EMPLOYMENT_NATURE_LABEL);
 export const PREFERRED_SOURCES = (
   Object.keys(PREFERRED_SOURCE_LABEL) as PreferredSource[]

@@ -25,6 +25,7 @@ import type { ReactNode } from 'react';
 import {
   Button,
   Checkbox,
+  Combobox,
   Input,
   Select,
   Textarea,
@@ -35,9 +36,9 @@ import type { SelectOption } from '@shared/types';
 import {
   useSeatLookup,
   useOrganogramUnits,
-  useOrgStructure,
   type SeatLookupResult,
 } from '@modules/organogram';
+import { useMasterData, sectionKey } from '@modules/master-data';
 import { useAuth } from '@modules/auth';
 import { useMyPermissions } from '@modules/rbac';
 
@@ -55,7 +56,6 @@ import {
   EMPLOYMENT_NATURE_OPTIONS,
   PREFERRED_SOURCES,
   PRIORITY_OPTIONS,
-  SOURCE_OPTIONS,
 } from '../constants';
 
 interface Props {
@@ -72,8 +72,8 @@ const STEPS = [
     description: 'Position, unit and timing of the requirement.',
     icon: ClipboardList,
     fields: [
-      'designation', 'source', 'requirementType', 'requiredPosts',
-      'totalVacantPosts', 'unitFactory', 'department', 'section',
+      'designation', 'requirementType', 'requiredPosts',
+      'totalVacantPosts', 'unitFactory', 'department', 'section', 'subSection',
       'placeOfPosting', 'vacantDate', 'neededDate', 'priority',
       'employmentNature', 'contractualPurpose',
     ],
@@ -128,7 +128,6 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
   } = useForm<RequisitionFormValues>({
     resolver: zodResolver(requisitionSchema),
     defaultValues: {
-      source: 'factory',
       requirementType: 'new',
       requiredPosts: 1,
       totalVacantPosts: 0,
@@ -144,7 +143,6 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
     },
   });
 
-  const source = watch('source');
   const employmentNature = watch('employmentNature');
   const laptopDesktopRequested = watch('facilities.laptopDesktop.requested');
   const transportRequested = watch('facilities.transport.requested');
@@ -152,12 +150,13 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
   const seatingRequested = watch('facilities.seating.requested');
   const unit = watch('unitFactory') ?? '';
   const department = watch('department') ?? '';
-  const section = watch('section') ?? '';
   const designation = watch('designation') ?? '';
+  const sectionValue = watch('section') ?? '';
+  const subSection = watch('subSection') ?? '';
+  const placeOfPosting = watch('placeOfPosting') ?? '';
   const requiredPosts = Number(watch('requiredPosts')) || 0;
 
   const { data: orgUnits } = useOrganogramUnits();
-  const { data: structure } = useOrgStructure(unit);
   const { data: perms } = useMyPermissions();
 
   // Only units the requester may actually raise for — the backend requires the
@@ -190,24 +189,48 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allowedKey]);
 
-  // Department → Section → Designation come from the unit's ZingHR structure.
-  const departments = structure?.departments ?? [];
-  const departmentOptions: SelectOption[] = departments.map((d) => ({
-    value: d.department,
-    label: d.department,
+  // Department / section / designation / place of posting come from the fixed
+  // ZingHR-sourced vocabulary, not from the unit's organogram — the organogram
+  // holds only what is currently sanctioned, which is a subset. The organogram
+  // is still consulted below for vacancy (see `lookup`), so a designation that
+  // isn't a sanctioned seat is correctly reported as NEW headcount.
+  const { data: master } = useMasterData();
+
+  const departmentOptions: SelectOption[] = (master?.departments ?? []).map(
+    (d) => ({ value: d, label: d }),
+  );
+  const sections = department ? (master?.departmentSections[department] ?? []) : [];
+  const sectionOptions: SelectOption[] = sections.map((sec) => ({
+    value: sec,
+    label: sec,
   }));
-  const sections =
-    departments.find((d) => d.department === department)?.sections ?? [];
-  const sectionOptions: SelectOption[] = sections.map((s) => ({
-    value: s.section,
-    label: s.section,
+  // Sub-sections hang off the department+section PAIR. ZingHR has no mapping
+  // for every pair, so fall back to the full list rather than an empty dropdown.
+  const subSectionChoices =
+    department && sectionValue
+      ? (master?.sectionSubSections[sectionKey(department, sectionValue)] ??
+         master?.subSections ??
+         [])
+      : [];
+  const subSectionOptions: SelectOption[] = subSectionChoices.map((v) => ({
+    value: v,
+    label: v,
   }));
-  const designationSuggestions =
-    sections.find((s) => s.section === section)?.designations ?? [];
+
+  const designationOptions: SelectOption[] = (master?.designations ?? []).map(
+    (d) => ({ value: d, label: d }),
+  );
+  const zoneOptions: SelectOption[] = (master?.zones ?? []).map((z) => ({
+    value: z,
+    label: z,
+  }));
+  // Grades valid for the chosen designation — shown as a read-only suggestion,
+  // never captured here: the approver still confirms grade at sign-off.
+  const suggestedGrades = designation
+    ? (master?.designationGrades[designation] ?? [])
+    : [];
 
   const unitReg = register('unitFactory');
-  const deptReg = register('department');
-  const sectionReg = register('section');
 
   // Live organogram check → drives New vs Replacement.
   const lookup = useSeatLookup(unit, department, designation);
@@ -228,22 +251,74 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
     if (lookup.data) setValue('totalVacantPosts', lookup.data.vacant);
   }, [lookup.data, setValue]);
 
-  const needsSbu = requirement === 'new' && source === 'factory';
 
   // --- AI quick-fill ------------------------------------------------------
-  // Department/Section are <Select>s whose options only exist once the unit's
-  // structure has loaded, so the draft is applied in stages: unit + plain
-  // fields now, then department, then section as each option list arrives.
+  // The AI returns free text, but department / section / designation / place of
+  // posting are now fixed dropdowns. Each suggested value is snapped onto the
+  // vocabulary and dropped if it has no match, so a select can never hold a
+  // value that isn't a real option. Anything dropped is reported rather than
+  // silently discarded.
   const [pendingDraft, setPendingDraft] = useState<RequisitionDraft | null>(
     null,
   );
+  const [unmatched, setUnmatched] = useState<string[]>([]);
 
   const applyDraft = (d: RequisitionDraft) => {
+    // Master data may still be loading; the effect below applies it once ready.
+    setPendingDraft(d);
+    setStep(0);
+  };
+
+  useEffect(() => {
+    if (!pendingDraft || !master) return;
+    const d = pendingDraft;
+
+    // "R and D" vs "R & D", "IT  Support" vs "IT Support" — the master list
+    // spells out "and", so normalise before comparing rather than demanding an
+    // exact string match.
+    const norm = (v: string) =>
+      v.toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim();
+    const snap = (value: string | undefined, options: string[]) => {
+      if (!value?.trim()) return '';
+      const target = norm(value);
+      return options.find((o) => norm(o) === target) ?? '';
+    };
+
+    const missed: string[] = [];
+    const pick = (label: string, value: string | undefined, options: string[]) => {
+      const hit = snap(value, options);
+      if (!hit && value?.trim()) missed.push(`${label}: “${value.trim()}”`);
+      return hit;
+    };
+
     if (d.unitFactory) setValue('unitFactory', d.unitFactory);
-    setValue('designation', d.designation);
-    setValue('source', d.source);
+
+    const dept = pick('Department', d.department, master.departments);
+    if (dept) setValue('department', dept);
+
+    const sec = dept
+      ? pick('Section', d.section, master.departmentSections[dept] ?? [])
+      : '';
+    if (sec) setValue('section', sec);
+
+    const sub =
+      dept && sec
+        ? pick(
+            'Sub-section',
+            d.subSection,
+            master.sectionSubSections[sectionKey(dept, sec)] ??
+              master.subSections,
+          )
+        : '';
+    if (sub) setValue('subSection', sub);
+
+    const des = pick('Designation', d.designation, master.designations);
+    if (des) setValue('designation', des);
+
+    const zone = pick('Place of posting', d.placeOfPosting, master.zones);
+    if (zone) setValue('placeOfPosting', zone);
+
     setValue('requiredPosts', d.requiredPosts);
-    setValue('placeOfPosting', d.placeOfPosting);
     if (d.vacantDate) setValue('vacantDate', d.vacantDate);
     if (d.neededDate) setValue('neededDate', d.neededDate);
     setValue('priority', d.priority);
@@ -254,37 +329,10 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
     setValue('experience', d.experience);
     setValue('others', d.others);
     setValue('preferredSources', d.preferredSources);
-    // Cascading selects are filled by the effects below.
-    setPendingDraft(d);
-    // Bring the user back to the top of the wizard so they can review from A.
-    setStep(0);
-  };
 
-  const departmentReady =
-    pendingDraft?.department &&
-    departments.some((x) => x.department === pendingDraft.department);
-
-  useEffect(() => {
-    if (departmentReady && pendingDraft) {
-      setValue('department', pendingDraft.department);
-    }
-  }, [departmentReady, pendingDraft, setValue]);
-
-  const sectionReady =
-    pendingDraft &&
-    department === pendingDraft.department &&
-    (!pendingDraft.section ||
-      sections.some((s) => s.section === pendingDraft.section));
-
-  useEffect(() => {
-    if (!pendingDraft || !sectionReady) return;
-    if (pendingDraft.section) setValue('section', pendingDraft.section);
-    // Re-assert the designation: changing unit/department/section clears it.
-    if (pendingDraft.designation) {
-      setValue('designation', pendingDraft.designation);
-    }
+    setUnmatched(missed);
     setPendingDraft(null);
-  }, [sectionReady, pendingDraft, setValue]);
+  }, [pendingDraft, master, setValue]);
 
   // --- Wizard navigation ---------------------------------------------------
   const total = STEPS.length;
@@ -430,54 +478,75 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                     setValue('designation', '');
                   }}
                 />
-                <Select
-                  label="Requisition source"
-                  options={SOURCE_OPTIONS}
-                  error={errors.source?.message}
-                  {...register('source')}
-                />
-                <Select
+                <Combobox
                   label="Department"
-                  placeholder={unit ? 'Select department' : 'Pick a unit first'}
+                  placeholder="Select department"
                   options={departmentOptions}
-                  disabled={!unit}
+                  value={department}
                   error={errors.department?.message}
-                  {...deptReg}
-                  onChange={(e) => {
-                    void deptReg.onChange(e);
+                  onChange={(v) => {
+                    setValue('department', v, { shouldValidate: true });
+                    // Section belongs to a department, sub-section to the pair —
+                    // stale values would be invalid against the new parent.
                     setValue('section', '');
-                    setValue('designation', '');
+                    setValue('subSection', '');
                   }}
                 />
-                <Select
+                <Combobox
                   label="Section"
                   placeholder={
                     department ? 'Select section' : 'Pick a department first'
                   }
                   options={sectionOptions}
+                  value={sectionValue}
                   disabled={!department || sectionOptions.length === 0}
                   error={errors.section?.message}
-                  {...sectionReg}
-                  onChange={(e) => {
-                    void sectionReg.onChange(e);
-                    setValue('designation', '');
+                  onChange={(v) => {
+                    setValue('section', v, { shouldValidate: true });
+                    setValue('subSection', '');
                   }}
                 />
+                <Combobox
+                  label="Sub-section"
+                  placeholder={
+                    sectionValue ? 'Select sub-section' : 'Pick a section first'
+                  }
+                  options={subSectionOptions}
+                  value={subSection}
+                  disabled={!sectionValue || subSectionOptions.length === 0}
+                  error={errors.subSection?.message}
+                  onChange={(v) =>
+                    setValue('subSection', v, { shouldValidate: true })
+                  }
+                />
                 <div className="sm:col-span-2">
-                  <Input
+                  <Combobox
                     label="Designation / Job title"
-                    list="req-designations"
-                    placeholder={
-                      section ? 'Select or type a designation' : 'Pick a section first'
-                    }
+                    placeholder="Select designation"
+                    options={designationOptions}
+                    value={designation}
                     error={errors.designation?.message}
-                    {...register('designation')}
+                    onChange={(v) =>
+                      setValue('designation', v, { shouldValidate: true })
+                    }
                   />
-                  <datalist id="req-designations">
-                    {designationSuggestions.map((d) => (
-                      <option key={d} value={d} />
-                    ))}
-                  </datalist>
+                  {suggestedGrades.length > 0 && (
+                    <p className="mt-1.5 flex flex-wrap items-center gap-1.5 px-1 text-xs text-slate-500">
+                      Suggested grade
+                      {suggestedGrades.length > 1 ? 's' : ''}:
+                      {suggestedGrades.map((g) => (
+                        <span
+                          key={g}
+                          className="rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-medium text-brand-700"
+                        >
+                          {g}
+                        </span>
+                      ))}
+                      <span className="text-slate-400">
+                        · confirmed by the approver at sign-off
+                      </span>
+                    </p>
+                  )}
                 </div>
                 <Input
                   label="Nos. of required post"
@@ -496,11 +565,15 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                   {...register('totalVacantPosts')}
                 />
                 <div className="sm:col-span-2">
-                  <Input
+                  <Combobox
                     label="Place of posting"
-                    placeholder="e.g. Shreehatta Economic Zone, Moulvibazar"
+                    placeholder="Select zone"
+                    options={zoneOptions}
+                    value={placeOfPosting}
                     error={errors.placeOfPosting?.message}
-                    {...register('placeOfPosting')}
+                    onChange={(v) =>
+                      setValue('placeOfPosting', v, { shouldValidate: true })
+                    }
                   />
                 </div>
                 <Input
@@ -541,13 +614,23 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
               </div>
 
               {/* Organogram verdict */}
+              {unmatched.length > 0 && (
+                <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800 animate-fade-in">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    The AI suggested {unmatched.join(', ')} — not in the fixed
+                    list, so {unmatched.length > 1 ? 'those fields were' : 'that field was'}{' '}
+                    left blank. Please pick from the dropdown.
+                  </span>
+                </div>
+              )}
+
               <OrganogramBanner
                 loading={lookup.isFetching}
                 show={Boolean(unit && department && designation.trim().length > 2)}
                 result={lookup.data}
                 requirement={requirement}
                 requiredPosts={requiredPosts}
-                needsSbu={needsSbu}
               />
             </>
           )}
@@ -760,14 +843,12 @@ function OrganogramBanner({
   result,
   requirement,
   requiredPosts,
-  needsSbu,
 }: {
   loading: boolean;
   show: boolean;
   result?: SeatLookupResult;
   requirement?: 'existing' | 'new';
   requiredPosts: number;
-  needsSbu: boolean;
 }) {
   if (!show) return null;
 
@@ -812,12 +893,6 @@ function OrganogramBanner({
         )}
         {message}
       </p>
-      {needsSbu && (
-        <p className="mt-1 text-xs">
-          New factory headcount requires <strong>SBU Head</strong> approval in
-          the sign-off chain.
-        </p>
-      )}
       {(result.seat?.grade || result.gradeReference.length > 0) && (
         <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
           {result.seat?.grade && (
@@ -907,12 +982,12 @@ function toPayload(
   return {
     designation: values.designation,
     requirementType: values.requirementType,
-    source: values.source,
     requiredPosts: values.requiredPosts,
     totalVacantPosts: values.totalVacantPosts,
     unitFactory: values.unitFactory,
     department: values.department,
     section: values.section || undefined,
+    subSection: values.subSection || undefined,
     placeOfPosting: values.placeOfPosting,
     vacantDate: values.vacantDate || null,
     neededDate: values.neededDate || null,

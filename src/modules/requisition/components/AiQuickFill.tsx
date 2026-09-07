@@ -10,10 +10,12 @@ import { cn } from '@shared/lib';
 import { requisitionApi } from '../api/requisition.api';
 import type { RequisitionDraft } from '../types/requisition.types';
 
+// Written against the fixed vocabulary so each one actually resolves:
+// department -> section -> sub-section, a real designation, and a zone.
 const EXAMPLES = [
-  'One executive for production at JTML in Sylhet EZ, urgent',
-  '2 senior officers for quality control, permanent',
-  'Assistant manager for maintenance, 5 years experience',
+  'Officer for Corporate HR, HR Operations payroll, Dhaka Zone',
+  '2 senior officers for Quality Control knitting at JTML, urgent',
+  'Assistant Manager for Maintenance electrical, Kashimpur Zone',
 ];
 
 /**
@@ -185,7 +187,7 @@ export function AiQuickFill({
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) run();
                         }}
-                        placeholder="e.g. Need one executive for the production department at JTML, urgent"
+                        placeholder="e.g. Need 2 officers for Production sewing at JTML, Kashimpur Zone, urgent"
                         className="w-full resize-y rounded-xl border border-slate-200 bg-white/80 px-3.5 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 transition-shadow duration-200 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
                       />
 

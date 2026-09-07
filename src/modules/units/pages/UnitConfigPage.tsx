@@ -12,7 +12,7 @@ import {
 import {
   Button,
   EmptyState,
-  FullPageSpinner,
+  ErrorCard,
   Input,
   Modal,
   PageHeader,
@@ -22,11 +22,19 @@ import { useMyPermissions } from '@modules/rbac';
 
 import { useCreateUnit, useUnitsConfig } from '../hooks/useUnits';
 import { UnitAccordion } from '../components/UnitAccordion';
+import { UnitSkeleton } from '../components/UnitSkeleton';
 import { canAccessUnitConfig, canCreateUnit, canEditUnit } from '../access';
 
 export default function UnitConfigPage() {
   const { data: perms, isLoading: permsLoading } = useMyPermissions();
-  const { data: units = [], isLoading } = useUnitsConfig();
+  const {
+    data: units = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useUnitsConfig();
   const createUnit = useCreateUnit();
 
   const [search, setSearch] = useState('');
@@ -82,17 +90,31 @@ export default function UnitConfigPage() {
     );
   };
 
-  if (isLoading || permsLoading) return <FullPageSpinner label="Loading units…" />;
+  const loading = isLoading || permsLoading;
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Unit Configuration"
+          description="Units → departments → sections → sanctioned seats. This drives the organogram."
+        />
+        <UnitSkeleton />
+      </div>
+    );
+  }
 
   if (!canAccessUnitConfig(perms)) {
     return (
       <div className="space-y-6">
         <PageHeader title="Unit Config" />
-        <EmptyState
-          icon={<ShieldAlert className="h-6 w-6" />}
-          title="Access restricted"
-          description="Unit Config is available to Corporate HR, CHRO and SBU Head (for their own unit) and super users only."
-        />
+        <div className="rounded-2xl border border-slate-200/70 bg-white shadow-card">
+          <EmptyState
+            icon={<ShieldAlert className="h-6 w-6" />}
+            title="Access restricted"
+            description="Unit Config is available to Corporate HR, CHRO and SBU Head (for their own unit) and super users only."
+          />
+        </div>
       </div>
     );
   }
@@ -114,24 +136,33 @@ export default function UnitConfigPage() {
         }
       />
 
-      {visibleUnits.length === 0 ? (
-        <EmptyState
-          icon={<Building2 className="h-6 w-6" />}
-          title={units.length === 0 ? 'No units configured' : 'No units assigned to you'}
-          description={
-            units.length === 0
-              ? 'Add your first unit to start building the organogram.'
-              : "You don't hold a unit-scoped role for any unit yet — ask an admin to assign one."
-          }
-          action={
-            canCreateUnit(perms) ? (
-              <Button onClick={() => setAddOpen(true)}>Add unit</Button>
-            ) : undefined
-          }
+      {isError ? (
+        <ErrorCard
+          title="Couldn't load units"
+          message={(error as Error)?.message}
+          onRetry={() => void refetch()}
+          retrying={isFetching}
         />
+      ) : visibleUnits.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60">
+          <EmptyState
+            icon={<Building2 className="h-6 w-6" />}
+            title={units.length === 0 ? 'No units configured' : 'No units assigned to you'}
+            description={
+              units.length === 0
+                ? 'Add your first unit to start building the organogram.'
+                : "You don't hold a unit-scoped role for any unit yet — ask an admin to assign one."
+            }
+            action={
+              canCreateUnit(perms) ? (
+                <Button onClick={() => setAddOpen(true)}>Add unit</Button>
+              ) : undefined
+            }
+          />
+        </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <StatCard label="Units" value={visibleUnits.length} icon={Network} accent="brand" />
             <StatCard
               label="Sanctioned seats"
@@ -143,25 +174,31 @@ export default function UnitConfigPage() {
             <StatCard label="Vacant" value={totals.vacant} icon={Building2} accent="amber" />
           </div>
 
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Find a unit, department or designation…"
-            leftIcon={<Search className="h-4 w-4" />}
-          />
+          <div className="rounded-2xl border border-slate-200/70 bg-white p-3 shadow-card">
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Find a unit, department or designation…"
+              leftIcon={<Search className="h-4 w-4" />}
+              className="border-slate-200 bg-slate-50/70 focus:bg-white"
+            />
+          </div>
 
           {filtered.length === 0 ? (
-            <EmptyState
-              icon={<Building2 className="h-6 w-6" />}
-              title="No match"
-              description={`Nothing matches “${search.trim()}”.`}
-            />
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60">
+              <EmptyState
+                icon={<Search className="h-6 w-6" />}
+                title="No match"
+                description={`Nothing matches “${search.trim()}”.`}
+              />
+            </div>
           ) : (
             <div className="space-y-3">
-              {filtered.map((unit) => (
+              {filtered.map((unit, index) => (
                 <UnitAccordion
                   key={unit.id}
                   unit={unit}
+                  index={index}
                   canEdit={canEditUnit(perms, unit.name)}
                   canDelete={Boolean(perms?.isSuperUser)}
                   defaultOpen={filtered.length === 1}
@@ -177,7 +214,7 @@ export default function UnitConfigPage() {
         onClose={() => setAddOpen(false)}
         title="Add unit"
         footer={
-          <div className="flex justify-end gap-2">
+          <div className="flex w-full justify-end gap-2">
             <Button variant="outline" onClick={() => setAddOpen(false)}>
               Cancel
             </Button>
@@ -201,7 +238,7 @@ export default function UnitConfigPage() {
             onKeyDown={(e) => e.key === 'Enter' && submit()}
           />
           {createUnit.isError && (
-            <p className="text-sm text-red-600">
+            <p className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700">
               {(createUnit.error as Error).message}
             </p>
           )}
