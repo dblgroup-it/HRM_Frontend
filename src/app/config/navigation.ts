@@ -31,6 +31,8 @@ export interface NavItem {
   roles?: UserRole[];
   /** Gate to recruitment roles (Corporate HR / CHRO / super user). */
   requiresRecruitment?: boolean;
+  /** Candidates & Talent Bank — also open to Corporate Recruiters. */
+  requiresPipeline?: boolean;
   /** Gate to medical officers (and super users). */
   requiresMedical?: boolean;
   /** Gate to management / Corporate HR / CHRO / super (AI insights). */
@@ -41,6 +43,8 @@ export interface NavItem {
   requiresAiSettings?: boolean;
   /** Gate to Corporate HR / CHRO / super — who signs off, per unit. */
   requiresApprovalPaths?: boolean;
+  /** Gate to the platform administrator or a super user. */
+  requiresAccessControl?: boolean;
   /** Optional short tag, e.g. phase marker. */
   badge?: string;
   /** Opens in a new browser tab instead of navigating inside the app. */
@@ -79,13 +83,13 @@ export const NAVIGATION: NavSection[] = [
         label: 'Candidates',
         to: ROUTES.candidates,
         icon: UserSearch,
-        requiresRecruitment: true,
+        requiresPipeline: true,
       },
       {
         label: 'Talent Bank',
         to: ROUTES.talentPool,
         icon: Star,
-        requiresRecruitment: true,
+        requiresPipeline: true,
       },
     ],
   },
@@ -147,7 +151,7 @@ export const NAVIGATION: NavSection[] = [
         label: 'Access Control',
         to: ROUTES.accessControl,
         icon: ShieldCheck,
-        roles: ['admin'],
+        requiresAccessControl: true,
       },
       {
         label: 'AI Settings',
@@ -159,7 +163,9 @@ export const NAVIGATION: NavSection[] = [
         label: 'Integrations',
         to: ROUTES.integrations,
         icon: Plug,
-        roles: ['admin', 'hr_manager'],
+        // Platform administrator only — ZingHR sync, Google OAuth and BDJobs
+        // credentials are account-level settings, not per-role ones.
+        roles: ['admin'],
       },
       {
         label: 'Board Groups',

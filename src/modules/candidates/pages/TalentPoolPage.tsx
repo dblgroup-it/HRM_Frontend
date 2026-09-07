@@ -32,7 +32,7 @@ import {
   useTalentPool,
   useToggleTalentPool,
 } from '../hooks/useCandidates';
-import { canAccessRecruitment } from '../access';
+import { canViewCandidatePipeline } from '../access';
 import type { TalentBankSearchHit, TalentPoolCandidate } from '../types/candidate.types';
 
 /* ─── constants ─── */
@@ -351,7 +351,7 @@ export default function TalentPoolPage() {
 
   if (isLoading || permsLoading) return <FullPageSpinner label="Loading Talent Bank…" />;
 
-  if (!canAccessRecruitment(perms)) {
+  if (!canViewCandidatePipeline(perms)) {
     return (
       <div className="space-y-6">
         <PageHeader title="Talent Bank" />

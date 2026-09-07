@@ -43,6 +43,8 @@ import {
   useHrBoardApprove,
 } from '@modules/board';
 import { useMyPermissions } from '@modules/rbac';
+import { useAuthStore } from '@modules/auth';
+import { canAccessRecruitment } from '@modules/candidates';
 import { FacilitiesPanel } from '@modules/requisition';
 import { OfferLetterModal } from '../components/OfferLetterModal';
 import { FacilityProvisioningPanel } from '../components/FacilityProvisioningPanel';
@@ -101,6 +103,7 @@ export default function OnboardingManagePage() {
   const { candidateId = '' } = useParams();
   const { data, isLoading, isError } = useOnboarding(candidateId);
   const { data: perms } = useMyPermissions();
+  const myUserId = useAuthStore((s) => s.user?.id);
   const { data: boardApproval } = useBoardApprovalStatus(candidateId, Boolean(candidateId));
   const isBoardApproved = boardApproval?.status === 'approved';
   const { data: provisioning } = useFacilityProvisioning(candidateId);
@@ -179,14 +182,14 @@ export default function OnboardingManagePage() {
 
   const c = data.candidate;
   const done = currentIdx >= 0 ? currentIdx : STAGES.length;
-  const unitLower = c.unit.toLowerCase();
-  const canEditFacilities =
-    !!perms?.isSuperUser ||
-    (perms?.roles ?? []).some(
-      (r) =>
-        (r.key === 'corporate_hr' || r.key === 'chro') &&
-        (r.unitId === null || (r.unitName ?? '').toLowerCase() === unitLower),
-    );
+  // Corporate HR / CHRO / super, plus the Corporate Recruiter assigned to this
+  // requisition — they own the requisition after approval, and the API already
+  // lets them through, so hiding the control only stranded facilities at
+  // "Not notified" with nobody able to send them.
+  const canEditFacilities = canAccessRecruitment(perms, c.unit, {
+    recruiterId: c.recruiterId,
+    myUserId,
+  });
 
   return (
     <div className="mx-auto max-w-7xl space-y-5 pb-12">

@@ -15,7 +15,11 @@ export {
   useToggleTalentPool,
 } from './hooks/useCandidates';
 export { candidatesApi } from './api/candidates.api';
-export { canAccessRecruitment } from './access';
+export {
+  canAccessRecruitment,
+  canViewCandidatePipeline,
+  isCorporateRecruiter,
+} from './access';
 export type { RecruitmentPerms } from './access';
 export type {
   Candidate,

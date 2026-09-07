@@ -17,11 +17,14 @@ const STATUS_TONE = {
 
 /**
  * Facility Requirements — what the requisitioner asked for (Laptop/Desktop,
- * Transport, Dormitory, Seating), and HR's confirm/skip call on each. Editable
- * while pending only by the current approver; after approval, Corporate
- * HR/CHRO/super may keep re-confirming or changing a decision (e.g. from the
- * Onboarding page, right up to joining) — `canEdit` reflects whichever gate
- * applies given the caller's context.
+ * Transport, Dormitory, Seating), and HR's confirm/skip call on each.
+ *
+ * Settled by the HR side — Corporate HR / CHRO / super and the assigned
+ * Corporate Recruiter — because confirming a laptop or a desk is a
+ * provisioning commitment made by whoever delivers it, not by whichever
+ * approver happens to hold the requisition. The same people may revise a
+ * decision later (e.g. from Onboarding, right up to joining). Every decision
+ * records who made it and when.
  */
 export function FacilitiesPanel({
   requisition,
@@ -139,10 +142,26 @@ export function FacilitiesPanel({
               )}
 
               {f.status !== 'pending' && (
-                <p className="mt-1.5 text-xs text-slate-400">
-                  {f.status === 'confirmed' ? 'Confirmed' : 'Skipped'} by {f.decidedBy}
-                  {f.decidedAt ? ` · ${formatDate(f.decidedAt)}` : ''}
-                  {f.hrNote && <span> — "{f.hrNote}"</span>}
+                <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-xs">
+                  <span
+                    className={cn(
+                      'font-medium',
+                      f.status === 'confirmed'
+                        ? 'text-emerald-700'
+                        : 'text-rose-700',
+                    )}
+                  >
+                    {f.status === 'confirmed' ? 'Confirmed' : 'Skipped'}
+                  </span>
+                  <span className="text-slate-500">
+                    by {f.decidedBy || 'HR'}
+                    {f.decidedAt
+                      ? ` · ${formatDate(f.decidedAt, 'dd MMM yyyy, p')}`
+                      : ''}
+                  </span>
+                  {f.hrNote && (
+                    <span className="text-slate-500">— “{f.hrNote}”</span>
+                  )}
                 </p>
               )}
 
@@ -175,7 +194,8 @@ export function FacilitiesPanel({
         })}
         {!canEdit && (
           <p className={cn('text-xs text-slate-400')}>
-            Only the current approver in the sign-off chain can confirm or skip a facility.
+            Corporate HR and the assigned Corporate Recruiter confirm or skip
+            facility requests.
           </p>
         )}
       </CardBody>

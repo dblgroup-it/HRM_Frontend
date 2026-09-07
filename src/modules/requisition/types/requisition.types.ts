@@ -208,6 +208,8 @@ export interface Requisition {
   pipeline?: PipelineProgress;
 
   raisedBy: string;
+  /** The requisitioner's user id — used to gate edit/resend while bounced back. */
+  raisedById?: string | null;
   /** Assigned by Corporate HR once approved; owns the downstream lifecycle. */
   recruiter?: RequisitionRecruiter | null;
   recruiterAssignedAt?: ISODateString | null;

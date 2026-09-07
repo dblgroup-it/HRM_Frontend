@@ -6,7 +6,10 @@ import { APP_META } from '@shared/constants';
 import { Logo } from '@shared/components/ui';
 import { useAuth } from '@modules/auth';
 import { useMyPermissions } from '@modules/rbac';
-import { canAccessRecruitment } from '@modules/candidates';
+import {
+  canAccessRecruitment,
+  canViewCandidatePipeline,
+} from '@modules/candidates';
 import { canAccessMedical } from '@modules/onboarding';
 import { canAccessInsights } from '@modules/insights';
 import { canAccessUnitConfig } from '@modules/units';
@@ -33,6 +36,10 @@ export function Sidebar({
   const role = user?.role;
   const { data: perms } = useMyPermissions();
   const canSeeRecruitment = canAccessRecruitment(perms);
+  const canSeePipeline = canViewCandidatePipeline(perms);
+  // Access Control follows the super_user role as well as the static ADMIN
+  // login, so system administration doesn't require the admin account.
+  const canSeeAccessControl = role === 'admin' || Boolean(perms?.isSuperUser);
   const canSeeMedical = canAccessMedical(perms);
   const canSeeInsights = canAccessInsights(perms, role);
   const canSeeUnitConfig = canAccessUnitConfig(perms);
@@ -121,11 +128,13 @@ export function Sidebar({
               (item) =>
                 (!item.roles || (role && item.roles.includes(role))) &&
                 (!item.requiresRecruitment || canSeeRecruitment) &&
+                (!item.requiresPipeline || canSeePipeline) &&
                 (!item.requiresMedical || canSeeMedical) &&
                 (!item.requiresInsights || canSeeInsights) &&
                 (!item.requiresUnitConfig || canSeeUnitConfig) &&
                 (!item.requiresAiSettings || canSeeAiSettings) &&
-                (!item.requiresApprovalPaths || canSeeApprovalPaths)
+                (!item.requiresApprovalPaths || canSeeApprovalPaths) &&
+                (!item.requiresAccessControl || canSeeAccessControl)
             );
             if (items.length === 0) return null;
 

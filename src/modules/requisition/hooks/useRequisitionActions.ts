@@ -34,6 +34,15 @@ export function useUpdateRequisition() {
   });
 }
 
+/** Requisitioner resends a clarified requisition; the chain restarts at step 1. */
+export function useResubmitRequisition() {
+  const sync = useSyncRequisition();
+  return useMutation({
+    mutationFn: (id: string) => requisitionApi.resubmit(id),
+    onSuccess: sync,
+  });
+}
+
 /** HR (whoever's turn it currently is) confirms or skips facility requests. */
 export function useUpdateFacilities() {
   const sync = useSyncRequisition();

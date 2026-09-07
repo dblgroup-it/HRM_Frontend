@@ -82,6 +82,8 @@ export interface OnboardingCandidate {
   salaryJobGrade: string | null;
   /** Laptop/Desktop, Transport, Dormitory, Seating — requested + HR's confirm/skip decision. */
   facilities: Facilities | null;
+  /** The Corporate Recruiter assigned to this requisition, if any. */
+  recruiterId: string | null;
 }
 
 export interface OnboardingResult {

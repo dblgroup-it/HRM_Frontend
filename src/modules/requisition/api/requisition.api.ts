@@ -415,6 +415,26 @@ export const requisitionApi = {
       .then((res) => res.data);
   },
 
+  /** Requisitioner sends a clarified requisition back into the chain. */
+  resubmit(id: string): Promise<Requisition> {
+    if (ENV.USE_MOCK_API) {
+      return delay(MOCK_LATENCY).then(() =>
+        updateStore(id, (r) => ({
+          ...r,
+          approvalChain: r.approvalChain.map((s) => ({
+            ...s,
+            status: 'pending' as const,
+            note: '',
+            actedAt: null,
+          })),
+        }))
+      );
+    }
+    return http
+      .patch<ApiResponse<Requisition>>(`/requisitions/${id}/resubmit`)
+      .then((res) => res.data);
+  },
+
   /** HR (whoever's turn it currently is) confirms or skips facility requests. */
   updateFacilities(
     id: string,

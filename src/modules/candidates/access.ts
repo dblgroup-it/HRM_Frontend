@@ -37,6 +37,21 @@ export function canAccessRecruitment(
   );
 }
 
+/**
+ * The candidate pipeline surfaces — Candidates and Talent Bank.
+ *
+ * Wider than `canAccessRecruitment` on purpose: a Corporate Recruiter reaches
+ * these pages in their own right, because the requisitions they are assigned
+ * to are only discoverable from here. What they actually see is scoped
+ * server-side — the requisition list to what they are recruiting for, and the
+ * Talent Bank being a shared pool by design.
+ */
+export function canViewCandidatePipeline(
+  perms: RecruitmentPerms | undefined | null,
+): boolean {
+  return canAccessRecruitment(perms) || isCorporateRecruiter(perms);
+}
+
 /** True when this user holds the Corporate Recruiter role anywhere. */
 export function isCorporateRecruiter(
   perms: RecruitmentPerms | undefined | null,

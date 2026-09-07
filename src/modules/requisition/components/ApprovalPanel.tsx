@@ -1,5 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { Check, X, Clock, Undo2, History, ArrowUpFromLine } from 'lucide-react';
+import {
+  ArrowUpFromLine,
+  Check,
+  Clock,
+  History,
+  Undo2,
+  UserRound,
+  X,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import {
@@ -21,13 +29,17 @@ import type {
   ApprovalStep,
   Requisition,
 } from '../types/requisition.types';
-import { useApprovalAction } from '../hooks/useRequisitionActions';
+import {
+  useApprovalAction,
+  useResubmitRequisition,
+} from '../hooks/useRequisitionActions';
 
 export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
   const [note, setNote] = useState('');
   const [overlayVisible, setOverlayVisible] = useState(false);
   const lastDecisionRef = useRef<ApprovalDecision | null>(null);
   const action = useApprovalAction();
+  const resubmit = useResubmitRequisition();
   const { data: perms } = useMyPermissions();
   const myUserId = useAuthStore((s) => s.user?.id);
 
@@ -42,10 +54,21 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
   }, [action.isPending]);
 
   const chain = requisition.approvalChain;
-  const nextPendingIndex = chain.findIndex((s) => s.status === 'pending');
   const isRejected = requisition.status === 'rejected';
-  const allDone = nextPendingIndex === -1 && !isRejected;
-  const canRollback = nextPendingIndex > 0;
+
+  // "Need more info" parks the whole chain with the requisitioner: the asking
+  // step is held as info_requested and every later step stays pending, so the
+  // chain has no active approver until the raiser resends it.
+  const infoStep = chain.find((s) => s.status === 'info_requested') ?? null;
+  const awaitingRaiser = !!infoStep && !isRejected;
+
+  const nextPendingIndex = awaitingRaiser
+    ? -1
+    : chain.findIndex((s) => s.status === 'pending');
+  const allDone = !awaitingRaiser && nextPendingIndex === -1 && !isRejected;
+  const isRaiser =
+    !!myUserId && !!requisition.raisedById && requisition.raisedById === myUserId;
+  const canResend = awaitingRaiser && (isRaiser || !!perms?.isSuperUser);
 
   // Can the current user act on the active step? A configured step names one
   // person; legacy chains and the escalated CHRO step still go by role.
@@ -82,6 +105,30 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
       </CardHeader>
       <CardBody>
         <ol className="space-y-1">
+          {/* Who raised it. Not a sign-off step — the raiser's own approval is
+              implicit in submitting — but the chain is unreadable without it:
+              an approver needs to know whose request they are signing. */}
+          {requisition.raisedBy && (
+            <li className="flex gap-3">
+              <div className="flex flex-col items-center">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-slate-300 bg-slate-100 text-slate-500">
+                  <UserRound className="h-4 w-4" />
+                </span>
+                {chain.length > 0 && (
+                  <span className="my-1 w-0.5 flex-1 bg-slate-200" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1 pb-3">
+                <p className="text-sm font-medium text-slate-800">
+                  {requisition.raisedBy}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-400">
+                  Raised this requisition · {formatDate(requisition.createdAt)}
+                </p>
+              </div>
+            </li>
+          )}
+
           {chain.map((step, index) => (
             <ChainRow
               key={step.id}
@@ -129,21 +176,19 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
                       >
                         Reject
                       </Button>
-                      {canRollback && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={note.trim().length < 2}
-                          isLoading={
-                            action.isPending &&
-                            action.variables?.decision === 'need_more_info'
-                          }
-                          leftIcon={<Undo2 className="h-4 w-4" />}
-                          onClick={() => act('need_more_info')}
-                        >
-                          Need more info
-                        </Button>
-                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={note.trim().length < 2}
+                        isLoading={
+                          action.isPending &&
+                          action.variables?.decision === 'need_more_info'
+                        }
+                        leftIcon={<Undo2 className="h-4 w-4" />}
+                        onClick={() => act('need_more_info')}
+                      >
+                        Need more info
+                      </Button>
                       {isLastStep && (
                         <Button
                           size="sm"
@@ -159,12 +204,12 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
                         </Button>
                       )}
                     </div>
-                    {canRollback && (
-                      <p className="text-xs text-slate-400">
-                        “Need more info” sends this back to{' '}
-                        {chain[nextPendingIndex - 1].title} for clarification.
-                      </p>
-                    )}
+                    <p className="text-xs text-slate-400">
+                      “Need more info” sends this back to{' '}
+                      {requisition.raisedBy || 'the requisitioner'} to edit.
+                      Once they resend it, the chain restarts from the first
+                      approver.
+                    </p>
                   </div>
                 ) : (
                   <div className="mt-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
@@ -176,6 +221,44 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
             </ChainRow>
           ))}
         </ol>
+
+        {awaitingRaiser && (
+          <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <p className="flex items-center gap-2 text-sm font-medium text-amber-800">
+              <Undo2 className="h-4 w-4 shrink-0" />
+              Sent back to {requisition.raisedBy || 'the requisitioner'} for
+              clarification
+            </p>
+            <p className="mt-1 text-xs leading-5 text-amber-700">
+              {infoStep?.assignee ? `${infoStep.assignee} ` : ''}asked on the “
+              {infoStep?.title}” step
+              {infoStep?.note ? ` — “${infoStep.note}”` : ''}. Sign-off is paused
+              until it is resent, and the chain then restarts from the first
+              approver.
+            </p>
+            {canResend && (
+              <div className="mt-3">
+                {resubmit.isError && (
+                  <p className="mb-2 text-sm text-red-600">
+                    {(resubmit.error as Error).message}
+                  </p>
+                )}
+                <Button
+                  size="sm"
+                  isLoading={resubmit.isPending}
+                  leftIcon={<ArrowUpFromLine className="h-4 w-4" />}
+                  onClick={() => resubmit.mutate(requisition.id)}
+                >
+                  Send for approval
+                </Button>
+                <p className="mt-2 text-xs text-amber-700">
+                  Edit the details first if you haven't — resending restarts the
+                  chain from step 1.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {allDone && (
           <p className="mt-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
@@ -265,6 +348,7 @@ function ChainRow({
 }) {
   const approved = step.status === 'approved';
   const rejected = step.status === 'rejected';
+  const infoRequested = step.status === 'info_requested';
 
   return (
     <li className="flex gap-3">
@@ -276,15 +360,19 @@ function ChainRow({
               ? 'animate-loader-pop border-accent-500 bg-accent-500 text-white'
               : rejected
                 ? 'border-red-500 bg-red-500 text-white'
-                : isNext
-                  ? 'animate-pulse border-brand-600 bg-brand-50 text-brand-600'
-                  : 'border-slate-200 bg-white text-slate-300'
+                : infoRequested
+                  ? 'border-amber-500 bg-amber-50 text-amber-600'
+                  : isNext
+                    ? 'animate-pulse border-brand-600 bg-brand-50 text-brand-600'
+                    : 'border-slate-200 bg-white text-slate-300'
           )}
         >
           {approved ? (
             <Check className="h-4 w-4" />
           ) : rejected ? (
             <X className="h-4 w-4" />
+          ) : infoRequested ? (
+            <Undo2 className="h-4 w-4" />
           ) : (
             <Clock className="h-4 w-4" />
           )}

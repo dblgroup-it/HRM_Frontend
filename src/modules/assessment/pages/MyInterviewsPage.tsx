@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Building2,
   CalendarClock,
   CheckCircle2,
+  ChevronDown,
   ClipboardCheck,
   Lock,
   Video,
@@ -15,6 +16,7 @@ import {
   EmptyState,
   FullPageSpinner,
   PageHeader,
+  Pagination,
   Textarea,
 } from '@shared/components/ui';
 import { cn } from '@shared/lib';
@@ -25,6 +27,9 @@ import { CriteriaScoringSection } from '../components/CriteriaScoringSection';
 import type { MyInterviewRound } from '../types/assessment.types';
 
 type Filter = 'all' | 'pending' | 'submitted';
+
+/** Enough to scan a screenful without turning the page into a long scroll. */
+const PAGE_SIZE = 8;
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -44,6 +49,12 @@ function getTimingLabel(scheduledAt: string | null) {
 export default function MyInterviewsPage() {
   const { data: rounds = [], isLoading } = useMyInterviews();
   const [filter, setFilter] = useState<Filter>('all');
+  const [page, setPage] = useState(1);
+
+  // Switching filter changes what page 1 even means, so start over.
+  useEffect(() => {
+    setPage(1);
+  }, [filter]);
 
   if (isLoading) return <FullPageSpinner label="Loading your interviews…" />;
 
@@ -60,6 +71,10 @@ export default function MyInterviewsPage() {
     if (filter === 'submitted') return !!r.myEvaluation;
     return true;
   });
+
+  const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paged = visible.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const chips: { key: Filter; label: string; count: number }[] = [
     { key: 'all',       label: 'All',       count: rounds.length },
@@ -128,9 +143,20 @@ export default function MyInterviewsPage() {
           }
         />
       ) : (
-        <div className="space-y-4">
-          {visible.map((r) => <InterviewCard key={r.id} round={r} />)}
-        </div>
+        <>
+          <div className="space-y-4">
+            {paged.map((r) => <InterviewCard key={r.id} round={r} />)}
+          </div>
+          {visible.length > PAGE_SIZE && (
+            <Pagination
+              page={safePage}
+              totalPages={totalPages}
+              total={visible.length}
+              pageSize={PAGE_SIZE}
+              onPageChange={setPage}
+            />
+          )}
+        </>
       )}
     </div>
   );
@@ -148,6 +174,15 @@ function InterviewCard({ round }: { round: MyInterviewRound }) {
     round.myEvaluation?.scores ?? {},
   );
   const [comments, setComments] = useState(round.myEvaluation?.comments ?? '');
+  // Once marks are in there is nothing left to do here, so the card folds down
+  // to its summary and the remaining pending interviews stay on screen.
+  const [showMarks, setShowMarks] = useState(false);
+
+  // Collapse the moment the submission lands, without hiding a card the
+  // reviewer had deliberately opened.
+  useEffect(() => {
+    if (marked) setShowMarks(false);
+  }, [marked]);
 
   const total    = round.criteria.reduce((s, c) => s + (scores[c.key] ?? 0), 0);
   const maxTotal = round.criteria.reduce((s, c) => s + c.max, 0);
@@ -191,6 +226,27 @@ function InterviewCard({ round }: { round: MyInterviewRound }) {
           <Badge tone="neutral">{cap(round.kind)} · {cap(round.mode)}</Badge>
           {cancelled  && <Badge tone="danger">Cancelled</Badge>}
           {marked     && <Badge tone="success"><CheckCircle2 className="mr-1 h-3 w-3" />Marked</Badge>}
+          {marked && (
+            <>
+              <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-emerald-700 ring-1 ring-emerald-100">
+                {round.myEvaluation!.total.toFixed(1)} / {maxTotal}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowMarks((v) => !v)}
+                aria-expanded={showMarks}
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
+              >
+                {showMarks ? 'Hide marks' : 'View marks'}
+                <ChevronDown
+                  className={cn(
+                    'h-3.5 w-3.5 transition-transform duration-200',
+                    showMarks && 'rotate-180',
+                  )}
+                />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -218,15 +274,25 @@ function InterviewCard({ round }: { round: MyInterviewRound }) {
         <span className="text-slate-400">{round.requisition.code}</span>
       </div>
 
-      {/* Body */}
-      <div className="space-y-4 px-5 py-4">
+      {/* Body — omitted entirely for a collapsed, already-marked round so the
+          card folds down to header + meta + footer. */}
+      <div
+        className={cn(
+          'space-y-4 px-5',
+          marked && !cancelled && !showMarks ? 'py-0' : 'py-4',
+        )}
+      >
 
         {cancelled ? (
           <p className="rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-500 border border-slate-100">
             This interview was cancelled — no marks required.
           </p>
         ) : marked ? (
-          <SubmittedSummary criteria={round.criteria} evaluation={round.myEvaluation!} />
+          showMarks && (
+            <div className="animate-branch-open">
+              <SubmittedSummary criteria={round.criteria} evaluation={round.myEvaluation!} />
+            </div>
+          )
         ) : (
           <>
             <CriteriaScoringSection

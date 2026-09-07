@@ -176,22 +176,31 @@ export default function RequisitionDetailPage() {
   const showPosting =
     req.status === 'profile_generated' || req.status === 'posted';
 
-  // The current approver may edit the requisition while it's pending
-  // (e.g. the Department Head after it's bounced back with "need more info").
+  // Who may edit a requisition that is still in the chain.
+  //
+  // Normally it's whoever's step is active. But after "need more info" it goes
+  // back to the requisitioner — they wrote it, so they're the one who can
+  // answer — and no approver holds it until they resend.
+  const awaitingRaiser = req.approvalChain.some(
+    (s) => s.status === 'info_requested'
+  );
   const currentStep = req.approvalChain.find((s) => s.status === 'pending');
   const unitLower = req.unitFactory.toLowerCase();
   const canEdit =
     req.status === 'pending_approval' &&
-    !!currentStep &&
-    (!!perms?.isSuperUser ||
-      (currentStep.approverUserId
-        ? currentStep.approverUserId === myUserId
-        : (perms?.roles ?? []).some(
-            (r) =>
-              r.key === currentStep.role &&
-              (r.unitId === null ||
-                (r.unitName ?? '').toLowerCase() === unitLower)
-          )));
+    (awaitingRaiser
+      ? !!perms?.isSuperUser ||
+        (!!myUserId && req.raisedById === myUserId)
+      : !!currentStep &&
+        (!!perms?.isSuperUser ||
+          (currentStep.approverUserId
+            ? currentStep.approverUserId === myUserId
+            : (perms?.roles ?? []).some(
+                (r) =>
+                  r.key === currentStep.role &&
+                  (r.unitId === null ||
+                    (r.unitName ?? '').toLowerCase() === unitLower)
+              ))));
   // Corporate HR keeps access after assigning a recruiter — the recruiter is
   // added to it, not swapped in.
   const isAssignedRecruiter = !!myUserId && req.recruiter?.id === myUserId;
@@ -203,6 +212,13 @@ export default function RequisitionDetailPage() {
         r.key === 'corporate_hr' &&
         (r.unitId === null || (r.unitName ?? '').toLowerCase() === unitLower)
     );
+  // Facilities are provisioning commitments, so they are settled by the HR
+  // side — Corporate HR / CHRO / super and the assigned recruiter — not by
+  // whichever approver currently holds the requisition.
+  const canDecideFacilities = canAccessRecruitment(perms, req.unitFactory, {
+    recruiterId: req.recruiter?.id,
+    myUserId,
+  });
   // Only Corporate HR / CHRO / super may nominate the recruiter.
   const canAssignRecruiter =
     !!perms?.isSuperUser ||
@@ -447,7 +463,7 @@ export default function RequisitionDetailPage() {
           </div>
 
           <div className="space-y-6">
-            <FacilitiesPanel requisition={req} canEdit={canEdit} />
+            <FacilitiesPanel requisition={req} canEdit={canDecideFacilities} />
 
             <Card>
               <CardHeader>
@@ -481,7 +497,7 @@ export default function RequisitionDetailPage() {
             <ApprovalPanel requisition={req} />
           </div>
           <div className="animate-rise-in" style={{ animationDelay: '80ms' }}>
-            <FacilitiesPanel requisition={req} canEdit={canEdit} />
+            <FacilitiesPanel requisition={req} canEdit={canDecideFacilities} />
           </div>
         </div>
       )}

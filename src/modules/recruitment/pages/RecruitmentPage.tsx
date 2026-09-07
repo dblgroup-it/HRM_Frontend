@@ -32,7 +32,7 @@ import {
   PRIORITY_TONE,
 } from '@modules/requisition/constants';
 import { useMyPermissions } from '@modules/rbac';
-import { canAccessRecruitment } from '@modules/candidates';
+import { canViewCandidatePipeline } from '@modules/candidates';
 
 const STAGE_SEGMENTS: {
   key: keyof Omit<CandidateStats, 'total'>;
@@ -110,7 +110,7 @@ export default function RecruitmentPage() {
   if (isLoading || permsLoading)
     return <FullPageSpinner label="Loading recruitment…" />;
 
-  if (!canAccessRecruitment(perms)) {
+  if (!canViewCandidatePipeline(perms)) {
     return (
       <div className="space-y-6">
         <PageHeader title="Candidates" />
