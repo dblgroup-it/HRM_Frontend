@@ -122,6 +122,25 @@ export interface SheetVoteInfo {
 }
 
 /** A sheet Head of Talent Acquisition has sent, and how far it has got. */
+/** One sent sheet with its rows — for printing or exporting. */
+export interface SheetDetail {
+  id: string;
+  reference: string;
+  status: BoardApprovalStatus;
+  currentStage: BoardApprovalStage;
+  preparedBy: string;
+  chroName: string | null;
+  createdAt: string;
+  rows: SheetRow[];
+  votes: {
+    name: string;
+    stage: BoardApprovalStage;
+    status: BoardVoteStatus;
+    notes: string | null;
+    respondedAt: string | null;
+  }[];
+}
+
 export interface SheetSummary {
   id: string;
   reference: string;

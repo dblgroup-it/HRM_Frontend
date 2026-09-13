@@ -4,10 +4,15 @@ import { FileText, Mail, Printer } from 'lucide-react';
 import { Button, Modal, Spinner } from '@shared/components/ui';
 import { http } from '@shared/api';
 import type { ApiResponse } from '@shared/types';
+import { cn } from '@shared/lib';
 import { printDocument } from '@shared/utils';
 import { toast } from 'sonner';
 
 import { useSendAppointmentLetter } from '../hooks/useOnboarding';
+
+/** Company-wide and not editable — only the serial after it is typed. */
+const APPOINTMENT_REF_PREFIX = 'Corp/HR/AL-';
+
 import type { OnboardingView } from '../types/onboarding.types';
 
 /**
@@ -32,7 +37,14 @@ export function AppointmentLetterModal({
   const ob = onboarding;
   const send = useSendAppointmentLetter(candidate.id);
 
-  const [reference, setReference] = useState(ob?.appointmentRef ?? '');
+  // Prefix is fixed company-wide; only the serial is typed. Stored whole, so a
+  // reference saved before this split still loads and displays.
+  const [refNo, setRefNo] = useState(
+    (ob?.appointmentRef ?? '').replace(APPOINTMENT_REF_PREFIX, ''),
+  );
+  const reference = refNo.trim()
+    ? `${APPOINTMENT_REF_PREFIX}${refNo.trim()}`
+    : '';
   const [address, setAddress] = useState(ob?.candidateAddress ?? '');
   const [joiningDate, setJoiningDate] = useState(ob?.offerJoiningDate ?? '');
   const [html, setHtml] = useState('');
@@ -128,12 +140,17 @@ export function AppointmentLetterModal({
         <div className="space-y-3">
           <label className="block">
             <span className={label}>Reference</span>
-            <input
-              className={field}
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
-              placeholder="Corp/HR/AL-4322/26"
-            />
+            <div className="flex items-stretch">
+              <span className="inline-flex shrink-0 items-center rounded-l-lg border border-r-0 border-slate-200 bg-slate-50 px-2.5 text-xs font-semibold text-slate-500">
+                {APPOINTMENT_REF_PREFIX}
+              </span>
+              <input
+                className={cn(field, 'rounded-l-none')}
+                value={refNo}
+                onChange={(e) => setRefNo(e.target.value)}
+                placeholder="4322/26"
+              />
+            </div>
           </label>
           <label className="block">
             <span className={label}>Address</span>

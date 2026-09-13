@@ -2,7 +2,9 @@ import { Fragment, useMemo, useState } from 'react';
 import {
   ClipboardList,
   FileSpreadsheet,
+  Download,
   FileText,
+  Printer,
   Send,
   CheckCircle2,
   XCircle,
@@ -22,6 +24,10 @@ import {
 } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
+import { toast } from 'sonner';
+
+import { boardApi } from '../api/board.api';
+import { printSheet } from '../utils/exportSheet';
 
 import {
   useHrInbox,
@@ -31,7 +37,11 @@ import {
   useSheets,
   useUpdateSheetRow,
 } from '../hooks/useBoard';
-import type { SheetRow, SheetSummary } from '../types/board.types';
+import type {
+  SheetDetail,
+  SheetRow,
+  SheetSummary,
+} from '../types/board.types';
 
 const money = (n: number | null) =>
   n == null
@@ -295,6 +305,27 @@ export default function ApprovalSheetsPage() {
 
 function SheetRowItem({ sheet }: { sheet: SheetSummary }) {
   const resend = useResendSheet();
+  const [busy, setBusy] = useState<'print' | 'export' | null>(null);
+
+  /**
+   * The rows live only in the sent email and the approver's token page, so
+   * they are fetched on demand rather than loaded for every sheet in the list.
+   */
+  const withSheet = async (
+    what: 'print' | 'export',
+    run: (detail: SheetDetail) => void,
+  ) => {
+    setBusy(what);
+    try {
+      run(await boardApi.sheetDetail(sheet.id));
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : `Could not ${what} ${sheet.reference}`,
+      );
+    } finally {
+      setBusy(null);
+    }
+  };
   const tone =
     sheet.status === 'approved'
       ? 'success'
@@ -329,6 +360,43 @@ function SheetRowItem({ sheet }: { sheet: SheetSummary }) {
         <span className="ml-auto text-xs text-slate-400">
           {formatDate(sheet.createdAt)}
         </span>
+        {/* Each sheet prints and exports on its own — a board pack is
+            assembled one approval at a time, not as a whole year's list. */}
+        <Button
+          size="sm"
+          variant="ghost"
+          isLoading={busy === 'print'}
+          title={`Print ${sheet.reference}`}
+          onClick={() =>
+            void withSheet('print', (d) => {
+              if (!printSheet(d)) {
+                toast.error('Allow pop-ups for this site to print the sheet.');
+              }
+            })
+          }
+        >
+          <Printer className="mr-1.5 h-3.5 w-3.5" /> Print
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          isLoading={busy === 'export'}
+          title={`Export ${sheet.reference} to a spreadsheet`}
+          onClick={() => {
+            setBusy('export');
+            boardApi
+              .exportSheet(sheet.id)
+              .catch((e: unknown) =>
+                toast.error(
+                  e instanceof Error ? e.message : 'Could not export the sheet',
+                ),
+              )
+              .finally(() => setBusy(null));
+          }}
+        >
+          <Download className="mr-1.5 h-3.5 w-3.5" /> Excel
+        </Button>
+
         {/* Links get lost. Re-mails only those still to reply, with a fresh
             link — a decision already given is never asked for twice. */}
         {sheet.status === 'pending' && (

@@ -8,10 +8,15 @@ import { cn } from '@shared/lib';
 import { printDocument } from '@shared/utils';
 import { toast } from 'sonner';
 
+import { useMasterData } from '@modules/master-data';
+
 import { useSendOffer } from '../hooks/useOnboarding';
 import type { OnboardingView } from '../types/onboarding.types';
 
 type Format = 'junior' | 'senior';
+
+/** Company-wide and not editable — only the serial after it is typed. */
+const OFFER_REF_PREFIX = 'Corp/HR/OL-';
 
 const FORMATS: { value: Format; label: string; hint: string }[] = [
   {
@@ -55,17 +60,25 @@ export function OfferLetterModal({
 }) {
   const ob = onboarding;
   const sendOffer = useSendOffer(candidate.id);
+  const { data: master } = useMasterData();
+  const jobLocations = master?.jobLocations ?? [];
 
   const [format, setFormat] = useState<Format>(
     (ob?.offerFormat as Format | null) ?? 'junior',
   );
   const [salutation, setSalutation] = useState('Mr.');
   const [address, setAddress] = useState(ob?.candidateAddress ?? '');
-  const [reference, setReference] = useState(ob?.offerRef ?? '');
-  const [joiningDate, setJoiningDate] = useState(ob?.offerJoiningDate ?? '');
-  const [jobLocation, setJobLocation] = useState(
-    ob?.offerJobLocation ?? candidate.unit,
+  // The prefix is fixed company-wide; only the serial is typed. Stored whole,
+  // so an older reference saved before this split still loads and displays.
+  const [refNo, setRefNo] = useState(
+    (ob?.offerRef ?? '').replace(OFFER_REF_PREFIX, ''),
   );
+  const reference = refNo.trim() ? `${OFFER_REF_PREFIX}${refNo.trim()}` : '';
+  const [joiningDate, setJoiningDate] = useState(ob?.offerJoiningDate ?? '');
+  // Blank means "use the unit's own name", which is what the letter falls back
+  // to server-side. Seeding it with the unit name instead made the picker open
+  // on "Somewhere else…", since a unit name is not one of the addresses.
+  const [jobLocation, setJobLocation] = useState(ob?.offerJobLocation ?? '');
   const [probation, setProbation] = useState(
     String(ob?.offerProbationMonths ?? 6),
   );
@@ -84,9 +97,12 @@ export function OfferLetterModal({
       address: address.trim() || undefined,
       reference: reference.trim() || undefined,
       joiningDate: joiningDate || undefined,
+      // Both formats print the job location, so it is sent for both — while
+      // this sat inside the senior branch the junior preview never saw a
+      // change, and a saved junior letter lost the location entirely.
+      jobLocation: jobLocation.trim() || undefined,
       ...(format === 'senior'
         ? {
-            jobLocation: jobLocation.trim() || undefined,
             benefits: benefits
               .split('\n')
               .map((b) => b.trim())
@@ -221,12 +237,17 @@ export function OfferLetterModal({
             </label>
             <label>
               <span className={label}>Reference</span>
-              <input
-                className={field}
-                value={reference}
-                onChange={(e) => setReference(e.target.value)}
-                placeholder="Corp/HR/OL-4322/26"
-              />
+              <div className="flex items-stretch">
+                <span className="inline-flex shrink-0 items-center rounded-l-lg border border-r-0 border-slate-200 bg-slate-50 px-2.5 text-xs font-semibold text-slate-500">
+                  {OFFER_REF_PREFIX}
+                </span>
+                <input
+                  className={cn(field, 'rounded-l-none')}
+                  value={refNo}
+                  onChange={(e) => setRefNo(e.target.value)}
+                  placeholder="4322/26"
+                />
+              </div>
             </label>
           </div>
 
@@ -250,16 +271,38 @@ export function OfferLetterModal({
             />
           </label>
 
+          {/* Both formats print the job location now, so the picker is not
+              behind the senior/junior branch. */}
+          <label className="block">
+            <span className={label}>Job location</span>
+            <select
+              className={field}
+              value={jobLocations.includes(jobLocation) ? jobLocation : jobLocation ? '__other' : ''}
+              onChange={(e) =>
+                setJobLocation(e.target.value === '__other' ? ' ' : e.target.value)
+              }
+            >
+              <option value="">Not stated — leave the line off</option>
+              {jobLocations.map((loc) => (
+                <option key={loc} value={loc}>
+                  {loc}
+                </option>
+              ))}
+              <option value="__other">Somewhere else…</option>
+            </select>
+            {jobLocation && !jobLocations.includes(jobLocation) && (
+              <input
+                autoFocus
+                className={cn(field, 'mt-2')}
+                value={jobLocation.trim()}
+                onChange={(e) => setJobLocation(e.target.value)}
+                placeholder="Type the address"
+              />
+            )}
+          </label>
+
           {format === 'senior' ? (
             <>
-              <label className="block">
-                <span className={label}>Job location</span>
-                <input
-                  className={field}
-                  value={jobLocation}
-                  onChange={(e) => setJobLocation(e.target.value)}
-                />
-              </label>
               <label className="block">
                 <span className={label}>
                   Benefits <span className="normal-case">— one per line</span>

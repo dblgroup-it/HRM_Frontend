@@ -4,6 +4,7 @@ import type {
   BoardApproval,
   BoardGroup,
   SheetApprovers,
+  SheetDetail,
   SheetSummary,
   SheetVoteInfo,
   SheetRow,
@@ -38,6 +39,52 @@ export const boardApi = {
 
   sheetApprovers: (): Promise<SheetApprovers> =>
     http.get<ApiResponse<SheetApprovers>>('/board-sheets/approvers').then((r) => r.data),
+
+  /**
+   * Download one sheet as a styled workbook.
+   *
+   * Built server-side with ExcelJS — a real .xlsx, not a CSV with a
+   * spreadsheet name. Fetched directly rather than through the axios client,
+   * which unwraps JSON and would corrupt a binary body.
+   */
+  exportSheet: async (batchId: string): Promise<void> => {
+    const base =
+      (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
+      'http://localhost:4000/api';
+    let token: string | null = null;
+    try {
+      const raw = localStorage.getItem('hrm.auth');
+      token = raw
+        ? ((JSON.parse(raw) as { state?: { token?: string } }).state?.token ??
+          null)
+        : null;
+    } catch {
+      /* an unreadable store just means no token */
+    }
+    const res = await fetch(`${base}/board-sheets/${batchId}/export`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error('Could not build the Excel file');
+
+    const blob = await res.blob();
+    const name =
+      /filename="([^"]+)"/.exec(res.headers.get('content-disposition') ?? '')?.[1] ??
+      `${batchId}.xlsx`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Revoked late — Safari cancels the download if the URL goes too early.
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  },
+
+  sheetDetail: (batchId: string): Promise<SheetDetail> =>
+    http
+      .get<ApiResponse<SheetDetail>>(`/board-sheets/${batchId}`)
+      .then((r) => r.data),
 
   resendSheet: (
     batchId: string,

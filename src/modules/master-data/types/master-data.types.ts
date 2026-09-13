@@ -19,4 +19,6 @@ export interface MasterData {
   meetingRooms: Record<string, string[]>;
   /** Fixed terms HR attaches to an appointment (bonus, salary review, tax). */
   specialNotes: string[];
+  /** DBL office and factory addresses, as printed on offer letters. */
+  jobLocations: string[];
 }
