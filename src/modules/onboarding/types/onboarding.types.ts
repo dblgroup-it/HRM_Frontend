@@ -46,10 +46,26 @@ export interface OnboardingView {
   /** HR skipped individually verifying every submitted document. */
   verificationSkippedAt: string | null;
   offerSentAt: string | null;
+  /** 'junior' or 'senior' — DBL issues two house letter formats. */
+  offerFormat: 'junior' | 'senior' | null;
+  offerRef: string | null;
+  offerJoiningDate: string | null;
+  offerJobLocation: string | null;
+  offerProbationMonths: number | null;
+  offerNoticeDays: number | null;
+  offerBenefits: string[];
+  candidateAddress: string | null;
+  appointmentRef: string | null;
+  appointmentSentAt: string | null;
   offerAcceptedAt: string | null;
   medicalStatus: MedicalStatus;
   medicalNote: string;
   medicalClearedAt: string | null;
+  /** Cleared from a paper check rather than the structured report. */
+  medicalManual: boolean;
+  /** When the medical team was alerted that this candidate is waiting. */
+  medicalNotifiedAt: string | null;
+  medicalClearedByName: string | null;
   hrVerifiedAt: string | null;
   crossCheck: CrossCheckResult | null;
   crossCheckedAt: string | null;
@@ -82,6 +98,8 @@ export interface OnboardingCandidate {
   salaryJobGrade: string | null;
   /** Laptop/Desktop, Transport, Dormitory, Seating — requested + HR's confirm/skip decision. */
   facilities: Facilities | null;
+  /** Fixed appointment terms HR attached on the requisition. */
+  specialNotes: string[];
   /** The Corporate Recruiter assigned to this requisition, if any. */
   recruiterId: string | null;
 }
@@ -94,6 +112,15 @@ export interface OnboardingResult {
   requiredDocs: string[];
   candidate: OnboardingCandidate;
   onboarding: OnboardingView | null;
+}
+
+/** One thing that happened to this hire, for the printed record. */
+export interface TimelineEvent {
+  at: string;
+  phase: 'requisition' | 'recruitment' | 'assessment' | 'approval' | 'onboarding';
+  title: string;
+  detail?: string;
+  actor?: string;
 }
 
 export interface MedicalExam {
@@ -154,4 +181,23 @@ export interface PublicOnboarding {
   offerSentAt: string | null;
   offerAcceptedAt: string | null;
   submitted: { id: string; label: string; status: DocStatus }[];
+}
+
+/** The terms printed on an offer letter. */
+export interface OfferLetterInput {
+  format: 'junior' | 'senior';
+  salutation?: string;
+  address?: string;
+  reference?: string;
+  joiningDate?: string;
+  jobLocation?: string;
+  benefits?: string[];
+  probationMonths?: number;
+  noticeDays?: number;
+}
+
+export interface AppointmentLetterInput {
+  reference?: string;
+  joiningDate?: string;
+  address?: string;
 }

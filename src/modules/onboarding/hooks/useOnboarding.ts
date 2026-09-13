@@ -6,6 +6,8 @@ import type {
   MedicalExam,
   MedicalStatus,
   OnboardingResult,
+  OfferLetterInput,
+  AppointmentLetterInput,
 } from '../types/onboarding.types';
 
 export const onboardingKeys = {
@@ -111,8 +113,20 @@ export function useVerifyDoc(candidateId: string) {
 export function useSendOffer(candidateId: string) {
   return useCandidateAction(
     candidateId,
-    () => onboardingApi.sendOffer(candidateId),
-    { success: 'Offer sent', fallback: 'Could not send the offer' },
+    (input: OfferLetterInput) => onboardingApi.sendOffer(candidateId, input),
+    { success: 'Offer letter sent', fallback: 'Could not send the offer' },
+  );
+}
+
+export function useSendAppointmentLetter(candidateId: string) {
+  return useCandidateAction(
+    candidateId,
+    (input: AppointmentLetterInput) =>
+      onboardingApi.sendAppointment(candidateId, input),
+    {
+      success: 'Appointment letter sent',
+      fallback: 'Could not send the appointment letter',
+    },
   );
 }
 
@@ -212,6 +226,37 @@ export function useUploadMedicalReport(onboardingId: string) {
   });
 }
 
+/**
+ * The hire's full history, for the printed record.
+ *
+ * Fetched with the page rather than on the print click: opening the print
+ * window after an await loses the user gesture, and popup blockers stop it.
+ * One extra request on a page that already makes several is the cheaper
+ * trade.
+ */
+export function useCandidateTimeline(candidateId: string, enabled = true) {
+  return useQuery({
+    queryKey: ['onboarding', candidateId, 'timeline'],
+    queryFn: () => onboardingApi.timeline(candidateId),
+    enabled: enabled && Boolean(candidateId),
+  });
+}
+
+export function useAlertMedical() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (onboardingId: string) => onboardingApi.alertMedical(onboardingId),
+    onSuccess: (res) => {
+      void qc.invalidateQueries({ queryKey: ['onboarding'] });
+      toast.success(
+        `Medical team notified (${res.notified} ${res.notified === 1 ? 'person' : 'people'})`,
+      );
+    },
+    onError: (error) =>
+      toast.error(errMsg(error, 'Could not notify the medical team')),
+  });
+}
+
 export function useSetMedical() {
   const qc = useQueryClient();
   return useMutation({
@@ -219,13 +264,19 @@ export function useSetMedical() {
       onboardingId: string;
       status: MedicalStatus;
       note?: string;
+      /** Recorded from an exam done on paper, outside the structured form. */
+      manual?: boolean;
     }) =>
       onboardingApi.setMedical(vars.onboardingId, {
         status: vars.status,
         note: vars.note,
+        manual: vars.manual,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: onboardingKeys.medicalQueue });
+      // HR records by-hand results from the onboarding page, which reads a
+      // different key — without this the step keeps saying "Awaiting".
+      void qc.invalidateQueries({ queryKey: ['onboarding'] });
       toast.success('Medical status recorded');
     },
     onError: (error) =>

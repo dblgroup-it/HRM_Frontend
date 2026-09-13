@@ -4,11 +4,16 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
   BadgeCheck,
+  BellRing,
   Check,
+  ClipboardPen,
   Copy,
   ExternalLink,
   FileText,
+  FileSignature,
   FolderArchive,
+  Sofa,
+  Stamp,
   Lock,
   Mail,
   Paperclip,
@@ -47,6 +52,7 @@ import { useAuthStore } from '@modules/auth';
 import { canAccessRecruitment } from '@modules/candidates';
 import { FacilitiesPanel } from '@modules/requisition';
 import { OfferLetterModal } from '../components/OfferLetterModal';
+import { AppointmentLetterModal } from '../components/AppointmentLetterModal';
 import { FacilityProvisioningPanel } from '../components/FacilityProvisioningPanel';
 
 import { useFacilityProvisioning } from '../hooks/useFacilityProvisioning';
@@ -57,10 +63,12 @@ import {
   useManualCrossCheck,
   useHrVerify,
   useMarkOfferAcceptedManually,
+  useAlertMedical,
+  useCandidateTimeline,
   useMedicalExam,
   useNotifyIt,
+  useSetMedical,
   useOnboarding,
-  useSendOffer,
   useSendOnboardingLink,
   useSkipDocs,
   useSkipVerification,
@@ -90,14 +98,124 @@ const MED_TONE: Record<string, BadgeTone> = {
   rejected: 'danger',
 };
 
-/** 5 stages, header dots and Flow's detail panel are now 1:1. */
+/** 6 stages, header dots and Flow's detail panel are 1:1. */
 const STAGES = [
   'Documents',
-  'Facilities & Offer',
+  'Facilities',
   'Medical',
   'Board & Provisioning',
+  'Offer Letter',
   'Complete',
 ];
+
+/**
+ * Record a medical result that happened on paper.
+ *
+ * The structured exam form belongs to the medical team, but plenty of checks
+ * are done at a clinic and come back as a signed sheet. Without this, HR could
+ * see "Awaiting medical team" and have no way to move the candidate on.
+ */
+function ManualMedicalRecorder({
+  onboardingId,
+  alerted,
+}: {
+  onboardingId: string;
+  alerted: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [verdict, setVerdict] = useState<'cleared' | 'rejected'>('cleared');
+  const [note, setNote] = useState('');
+  const setMedical = useSetMedical();
+  const alertMedical = useAlertMedical();
+
+  if (!open) {
+    return (
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          isLoading={alertMedical.isPending}
+          onClick={() => alertMedical.mutate(onboardingId)}
+        >
+          <BellRing className="mr-1.5 h-3.5 w-3.5" />
+          {alerted ? 'Remind medical team' : 'Alert medical team'}
+        </Button>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+        >
+          <ClipboardPen className="h-3.5 w-3.5" />
+          Record by hand
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 space-y-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3">
+      <p className="text-xs font-semibold text-slate-700">
+        Record a check done on paper
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {(['cleared', 'rejected'] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setVerdict(v)}
+            className={cn(
+              'rounded-lg px-2.5 py-1 text-xs font-medium ring-1 transition-colors',
+              verdict === v
+                ? v === 'cleared'
+                  ? 'bg-emerald-600 text-white ring-emerald-600'
+                  : 'bg-rose-600 text-white ring-rose-600'
+                : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-100',
+            )}
+          >
+            {v === 'cleared' ? 'Medically fit' : 'Not fit'}
+          </button>
+        ))}
+      </div>
+      <textarea
+        rows={2}
+        maxLength={500}
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="What was checked, by whom and where — this note is the whole record"
+        className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+      />
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          variant={verdict === 'cleared' ? 'primary' : 'danger'}
+          isLoading={setMedical.isPending}
+          // The note is the only record of an exam the system never saw.
+          disabled={!note.trim()}
+          onClick={() =>
+            setMedical.mutate(
+              { onboardingId, status: verdict, note: note.trim(), manual: true },
+              {
+                onSuccess: () => {
+                  setOpen(false);
+                  setNote('');
+                },
+              },
+            )
+          }
+        >
+          Record {verdict === 'cleared' ? 'clearance' : 'rejection'}
+        </Button>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="text-xs text-slate-500 hover:text-slate-700"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function OnboardingManagePage() {
   const { candidateId = '' } = useParams();
@@ -126,30 +244,38 @@ export default function OnboardingManagePage() {
         ob.verificationSkippedAt),
   );
   const docsCollected = Boolean(ob && (ob.docs.length > 0 || ob.docsSkippedAt));
-  // 5 stages: (0) Documents — collection & verification, (1) Facility
-  // Requirements & Offer letter, (2) Medical, (3) Board Approval & Facility
-  // Provisioning, (4) Final verification & complete onboarding. Step 3 only
+  // 6 stages: (0) Documents, (1) Facility requirements, (2) Medical,
+  // (3) Board approval & facility provisioning, (4) Offer letter,
+  // (5) Final verification, appointment letter and completion.
+  //
+  // The offer now follows board approval rather than preceding medical, so
+  // the chain reads: verify → medical → board signs off → offer goes out →
+  // candidate accepts → final verification → appointment letter. Step 3 only
   // counts as done once BOTH board approval and facility provisioning are
   // settled — approval alone used to jump the flow straight to "Complete"
   // before provisioning was even looked at.
   const doneFlags = ob
     ? [
         docsCollected && allVerified,
-        Boolean(ob.offerAcceptedAt),
+        // Facility requirements are a review step with no completion event of
+        // its own — it settles with the documents it is reviewed alongside.
+        docsCollected && allVerified,
         ob.medicalStatus === 'cleared',
         isBoardApproved && provisioningDone,
+        Boolean(ob.offerAcceptedAt),
         Boolean(ob.itNotifiedAt),
       ]
-    : [false, false, false, false, false];
+    : [false, false, false, false, false, false];
   const lockedFlags = ob
     ? [
         false,
         false,
-        !ob.offerAcceptedAt,
+        !(docsCollected && allVerified),
         ob.medicalStatus !== 'cleared',
         !isBoardApproved || !provisioningDone,
+        !ob.offerAcceptedAt,
       ]
-    : [false, false, false, false, false];
+    : [false, false, false, false, false, false];
   const currentIdx = doneFlags.findIndex((d, i) => !d && !lockedFlags[i]);
   const stateOf = (i: number): StageState =>
     doneFlags[i] ? 'done' : lockedFlags[i] ? 'locked' : i === currentIdx ? 'current' : 'open';
@@ -182,7 +308,7 @@ export default function OnboardingManagePage() {
 
   const c = data.candidate;
   const done = currentIdx >= 0 ? currentIdx : STAGES.length;
-  // Corporate HR / CHRO / super, plus the Corporate Recruiter assigned to this
+  // Head of Talent Acquisition / CHRO / super, plus the Corporate Recruiter assigned to this
   // requisition — they own the requisition after approval, and the API already
   // lets them through, so hiding the control only stranded facilities at
   // "Not notified" with nobody able to send them.
@@ -343,6 +469,9 @@ function Sidebar({
   ob: OnboardingView;
 }) {
   const c = result.candidate;
+  // Fetched with the page so Print stays a single user gesture — opening the
+  // print window after an await loses it, and popup blockers stop it.
+  const { data: timeline } = useCandidateTimeline(c.id);
 
   const copyLink = async () => {
     await navigator.clipboard.writeText(ob.submissionLink);
@@ -361,7 +490,7 @@ function Sidebar({
             variant="outline"
             className="w-full justify-center"
             leftIcon={<Printer className="h-4 w-4" />}
-            onClick={() => printOnboardingSummary(result)}
+            onClick={() => printOnboardingSummary(result, timeline ?? [])}
           >
             Print summary
           </Button>
@@ -551,7 +680,6 @@ function Flow({
   stateOf: (i: number) => StageState;
 }) {
   const sendLink = useSendOnboardingLink(candidateId);
-  const sendOffer = useSendOffer(candidateId);
   const markOfferAccepted = useMarkOfferAcceptedManually(candidateId);
   const { data: medicalExam } = useMedicalExam(ob.id, true);
   const hrVerify = useHrVerify(candidateId);
@@ -562,6 +690,7 @@ function Flow({
 
   const [itEmail, setItEmail] = useState(ob.itEmail);
   const [offerLetterOpen, setOfferLetterOpen] = useState(false);
+  const [appointmentOpen, setAppointmentOpen] = useState(false);
   const [verifyConfirmOpen, setVerifyConfirmOpen] = useState(false);
 
   // ── Board Approval (moved in here from the sidebar — now step 4) ──
@@ -581,6 +710,8 @@ function Flow({
     );
   };
   const { data: provisioning } = useFacilityProvisioning(candidateId);
+  // Fetched with the page so Print stays a single user gesture.
+  const { data: timeline } = useCandidateTimeline(candidateId);
 
   const allVerified =
     (ob.docs.length > 0 && ob.docs.every((d) => d.status === 'verified')) ||
@@ -748,9 +879,9 @@ function Flow({
       })(),
     },
     {
-      // Step 2 — facility requirements confirmation + offer letter.
-      title: 'Facility Requirements & Offer Letter',
-      icon: Send,
+      // Step 2 — facility requirements confirmation.
+      title: 'Facility Requirements',
+      icon: Sofa,
       content: (
         <div className="space-y-5">
           {result.candidate.facilities && (
@@ -758,83 +889,11 @@ function Flow({
               requisition={{
                 id: result.candidate.requisitionId,
                 facilities: result.candidate.facilities,
+                specialNotes: result.candidate.specialNotes,
               }}
               canEdit={canEditFacilities}
             />
           )}
-          <div
-            className={
-              result.candidate.facilities
-                ? 'border-t border-slate-100 pt-5'
-                : undefined
-            }
-          >
-            {!ob.offerAcceptedAt && (
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-700">
-                    Candidate already confirmed by hand?
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    If they accepted in person or by phone, mark it here
-                    instead of waiting on the online link.
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  isLoading={markOfferAccepted.isPending}
-                  onClick={() => markOfferAccepted.mutate(undefined)}
-                >
-                  Checked by Manual on hand
-                </Button>
-              </div>
-            )}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="text-sm">
-                {ob.offerAcceptedAt ? (
-                  <Badge tone="success">Accepted {fmt(ob.offerAcceptedAt)}</Badge>
-                ) : ob.offerSentAt ? (
-                  <Badge tone="info">
-                    Sent {fmt(ob.offerSentAt)} · awaiting candidate
-                  </Badge>
-                ) : (
-                  <span className="text-slate-500">
-                    Preview and send the offer letter to the candidate.
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="outline"
-                  leftIcon={<FileText className="h-4 w-4" />}
-                  onClick={() => setOfferLetterOpen(true)}
-                >
-                  Preview offer letter
-                </Button>
-                <Button
-                  isLoading={sendOffer.isPending}
-                  disabled={noEmail}
-                  title={emailHint}
-                  leftIcon={<Mail className="h-4 w-4" />}
-                  onClick={() => sendOffer.mutate(undefined)}
-                >
-                  {ob.offerSentAt ? 'Resend offer' : 'Send offer'}
-                </Button>
-              </div>
-            </div>
-            {noEmail ? (
-              <Hint>{emailHint}</Hint>
-            ) : (
-              !allVerified &&
-              !ob.offerSentAt &&
-              ob.docs.length > 0 && (
-                <Hint tone="amber">
-                  Tip: verify all documents before sending the offer.
-                </Hint>
-              )
-            )}
-          </div>
         </div>
       ),
     },
@@ -842,7 +901,7 @@ function Flow({
       // Step 3 — medical clearance.
       title: 'Medical clearance',
       icon: Stethoscope,
-      lockReason: 'Unlocks when the candidate accepts the offer.',
+      lockReason: 'Unlocks once documents are verified.',
       content: (
         <>
           <div className="flex items-center gap-2">
@@ -853,10 +912,39 @@ function Flow({
                   ? 'Not cleared'
                   : 'Awaiting medical team'}
             </Badge>
+            {/* A clearance without the structured report behind it should say
+                so — the note is then the whole record of what was examined. */}
+            {ob.medicalStatus === 'cleared' && ob.medicalManual && (
+              <Badge tone="info">
+                Checked by hand
+                {ob.medicalClearedByName ? ` · ${ob.medicalClearedByName}` : ''}
+              </Badge>
+            )}
             {ob.medicalNote && (
               <span className="text-xs text-slate-500">“{ob.medicalNote}”</span>
             )}
           </div>
+
+          {/* Whether the request actually reached the medical team. Without
+              this, "Awaiting medical team" is indistinguishable from nobody
+              having been told. */}
+          {ob.medicalStatus === 'pending' && (
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
+              {ob.medicalNotifiedAt ? (
+                <>
+                  <BellRing className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                  Medical team alerted {fmt(ob.medicalNotifiedAt)} — it is on
+                  their clearance queue.
+                </>
+              ) : (
+                <>
+                  <BellRing className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                  The medical team has not been alerted yet — that happens once
+                  the documents are settled.
+                </>
+              )}
+            </p>
+          )}
 
           {medicalExam && (
             <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1.5 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-xs sm:grid-cols-3">
@@ -905,7 +993,17 @@ function Flow({
             )}
           </div>
 
-          <Hint>Recorded by the Medical Officer / Team on their queue page.</Hint>
+          {ob.medicalStatus === 'pending' && (
+            <ManualMedicalRecorder
+              onboardingId={ob.id}
+              alerted={Boolean(ob.medicalNotifiedAt)}
+            />
+          )}
+
+          <Hint>
+            Normally recorded by the Medical Officer / Team on their clearance
+            queue. Use “Record by hand” when the check was done on paper.
+          </Hint>
         </>
       ),
     },
@@ -1028,7 +1126,7 @@ function Flow({
                 {boardApproval && (
                   <>
                     {/* Where the request actually is. A bare vote tally read as
-                        "sent to the board" even while it sat with Corporate HR. */}
+                        "sent to the board" even while it sat with Head of Talent Acquisition. */}
                     <div className="space-y-1.5 text-left">
                       {(['corporate_hr', 'chro', 'board'] as const).map((stage, i) => {
                         const votes = boardApproval.votes.filter(
@@ -1043,13 +1141,13 @@ function Flow({
                               : 'upcoming';
                         const who =
                           stage === 'corporate_hr'
-                            ? (boardApproval.corporateHr?.name ?? 'Corporate HR')
+                            ? (boardApproval.corporateHr?.name ?? 'Head of Talent Acquisition')
                             : stage === 'chro'
                               ? (boardApproval.chro?.name ?? 'CHRO')
                               : `${boardApproval.boardMemberCount ?? votes.length} board member(s)`;
                         const title =
                           stage === 'corporate_hr'
-                            ? 'Corporate HR'
+                            ? 'Head of Talent Acquisition'
                             : stage === 'chro'
                               ? 'CHRO'
                               : 'Board';
@@ -1139,10 +1237,93 @@ function Flow({
       ),
     },
     {
+      // Step 5 — the offer letter, once the board has approved the hire.
+      title: 'Offer Letter',
+      icon: FileSignature,
+      lockReason: 'Unlocks after Board Approval.',
+      content: (
+        <div className="space-y-5">
+          <div
+            className={
+              result.candidate.facilities
+                ? 'border-t border-slate-100 pt-5'
+                : undefined
+            }
+          >
+            {!ob.offerAcceptedAt && (
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-700">
+                    Candidate already confirmed by hand?
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    If they accepted in person or by phone, mark it here
+                    instead of waiting on the online link.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  isLoading={markOfferAccepted.isPending}
+                  onClick={() => markOfferAccepted.mutate(undefined)}
+                >
+                  Checked by Manual on hand
+                </Button>
+              </div>
+            )}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm">
+                {ob.offerAcceptedAt ? (
+                  <Badge tone="success">Accepted {fmt(ob.offerAcceptedAt)}</Badge>
+                ) : ob.offerSentAt ? (
+                  <Badge tone="info">
+                    Sent {fmt(ob.offerSentAt)} · awaiting candidate
+                  </Badge>
+                ) : (
+                  <span className="text-slate-500">
+                    Preview and send the offer letter to the candidate.
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {ob.offerFormat && (
+                  <Badge tone="neutral">
+                    {ob.offerFormat === 'senior' ? 'Senior' : 'Junior / Mid'} format
+                  </Badge>
+                )}
+                {/* Composing and sending are one action: the format changes
+                    which terms the letter carries, so there is nothing to
+                    send until those are chosen. */}
+                <Button
+                  disabled={noEmail}
+                  title={emailHint}
+                  leftIcon={<FileText className="h-4 w-4" />}
+                  onClick={() => setOfferLetterOpen(true)}
+                >
+                  {ob.offerSentAt ? 'Review / resend letter' : 'Prepare offer letter'}
+                </Button>
+              </div>
+            </div>
+            {noEmail ? (
+              <Hint>{emailHint}</Hint>
+            ) : (
+              !allVerified &&
+              !ob.offerSentAt &&
+              ob.docs.length > 0 && (
+                <Hint tone="amber">
+                  Tip: verify all documents before sending the offer.
+                </Hint>
+              )
+            )}
+          </div>
+        </div>
+      ),
+    },
+    {
       // Step 5 — final verification then IT provisioning/completion.
       title: 'Final Verification & Complete Onboarding',
       icon: FolderArchive,
-      lockReason: 'Unlocks after Board Approval.',
+      lockReason: 'Unlocks once the candidate accepts the offer.',
       content: (
         <div className="space-y-6">
           <div>
@@ -1186,7 +1367,7 @@ function Flow({
                   <Button
                     variant="outline"
                     leftIcon={<Printer className="h-4 w-4" />}
-                    onClick={() => printOnboardingSummary(result)}
+                    onClick={() => printOnboardingSummary(result, timeline ?? [])}
                   >
                     Print summary
                   </Button>
@@ -1210,6 +1391,52 @@ function Flow({
                 )}
               </div>
             )}
+          </div>
+
+          {/* The appointment letter closes out what the offer promised, and it
+              belongs with verification rather than in a step of its own —
+              nobody is provisioned before their appointment is confirmed. */}
+          <div className="border-t border-slate-100 pt-5">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Appointment letter
+            </p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm">
+                {ob.appointmentSentAt ? (
+                  <Badge tone="success">
+                    Issued {fmt(ob.appointmentSentAt)}
+                    {ob.appointmentRef ? ` · ${ob.appointmentRef}` : ''}
+                  </Badge>
+                ) : !ob.hrVerifiedAt ? (
+                  <span className="flex items-center gap-1.5 text-slate-400">
+                    <Lock className="h-4 w-4 shrink-0" /> Complete final
+                    verification above first.
+                  </span>
+                ) : (
+                  <span className="text-slate-500">
+                    Confirm the appointment in writing, as the offer letter
+                    promised.
+                  </span>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                disabled={noEmail || !ob.hrVerifiedAt}
+                title={
+                  noEmail
+                    ? emailHint
+                    : !ob.hrVerifiedAt
+                      ? 'Complete the final verification first'
+                      : undefined
+                }
+                leftIcon={<Stamp className="h-4 w-4" />}
+                onClick={() => setAppointmentOpen(true)}
+              >
+                {ob.appointmentSentAt
+                  ? 'Review / reissue letter'
+                  : 'Prepare appointment letter'}
+              </Button>
+            </div>
           </div>
 
           <div className="border-t border-slate-100 pt-5">
@@ -1319,8 +1546,15 @@ function Flow({
       {/* Offer letter modal */}
       <OfferLetterModal
         candidate={result.candidate}
+        onboarding={ob}
         open={offerLetterOpen}
         onClose={() => setOfferLetterOpen(false)}
+      />
+      <AppointmentLetterModal
+        candidate={result.candidate}
+        onboarding={ob}
+        open={appointmentOpen}
+        onClose={() => setAppointmentOpen(false)}
       />
       {showBoardModal && (
         <SendApprovalModal
@@ -1379,7 +1613,11 @@ function Flow({
             <SummaryRow
               label="Medical"
               ok={ob.medicalStatus === 'cleared'}
-              detail={ob.medicalStatus === 'cleared' ? `Cleared ${fmt(ob.medicalClearedAt)}` : 'Not cleared'}
+              detail={
+                ob.medicalStatus === 'cleared'
+                  ? `Cleared ${fmt(ob.medicalClearedAt)}${ob.medicalManual ? ' · by hand' : ''}`
+                  : 'Not cleared'
+              }
             />
             <SummaryRow
               label="Board Approval"

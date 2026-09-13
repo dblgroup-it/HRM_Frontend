@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ChevronUp,
   ClipboardList,
+  ClipboardPen,
   Ear,
   Eye,
   FileText,
@@ -311,7 +312,7 @@ export function MedicalExamForm({
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [draft, setDraft] = useState<Draft>({});
-  const [decision, setDecision] = useState<'clear' | 'reject' | null>(null);
+  const [decision, setDecision] = useState<'clear' | 'manual' | 'reject' | null>(null);
   const [note, setNote] = useState('');
 
   // The consultant is whoever is signed in and filling this out — not a
@@ -355,21 +356,28 @@ export function MedicalExamForm({
 
   const submitDecision = async () => {
     if (!decision) return;
-    // Persist whatever's on screen first — including auto-filled defaults
-    // the officer never explicitly "saved" — so the clearance check below
-    // validates the same data the checkmarks are showing, not stale DB rows.
-    try {
-      await upsert.mutateAsync(saveBody());
-    } catch {
-      return; // upsert's own onError already surfaced the reason
+    // A manual clearance attests to an exam done on paper, so there is no
+    // on-screen form to persist first — saving it would write a half-empty
+    // report that never happened.
+    if (decision !== 'manual') {
+      // Persist whatever's on screen first — including auto-filled defaults
+      // the officer never explicitly "saved" — so the clearance check below
+      // validates the same data the checkmarks are showing, not stale DB rows.
+      try {
+        await upsert.mutateAsync(saveBody());
+      } catch {
+        return; // upsert's own onError already surfaced the reason
+      }
     }
     setMedical.mutate(
       {
         onboardingId: item.id,
-        status: decision === 'clear' ? 'cleared' : 'rejected',
+        status: decision === 'reject' ? 'rejected' : 'cleared',
         // Clearing reuses the Remarks already written on the Determination
-        // section — asking for notes a second time was confusing.
+        // section — asking for notes a second time was confusing. A manual
+        // clearance has its own note, since there is no report to read.
         note: (decision === 'clear' ? draft.remarks : note) || undefined,
+        manual: decision === 'manual',
       },
       { onSuccess: onClose },
     );
@@ -737,15 +745,25 @@ export function MedicalExamForm({
                 <p className="text-xs text-slate-400">
                   {allComplete
                     ? 'All sections complete.'
-                    : 'Clearing requires every section above to be complete.'}
+                    : 'Clearing needs every section above — or record a check done on paper.'}
                 </p>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     variant="danger"
                     leftIcon={<XCircle className="h-4 w-4" />}
                     onClick={() => setDecision('reject')}
                   >
                     Reject
+                  </Button>
+                  {/* Plenty of medicals happen at a clinic on paper. This
+                      records the outcome without pretending the digital
+                      report was filled in. */}
+                  <Button
+                    variant="outline"
+                    leftIcon={<ClipboardPen className="h-4 w-4" />}
+                    onClick={() => setDecision('manual')}
+                  >
+                    Checked by hand
                   </Button>
                   <Button
                     className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800"
@@ -762,13 +780,19 @@ export function MedicalExamForm({
                   'space-y-3 rounded-xl border-2 p-3',
                   decision === 'clear'
                     ? 'border-emerald-200 bg-emerald-50/50'
-                    : 'border-rose-200 bg-rose-50/50',
+                    : decision === 'manual'
+                      ? 'border-sky-200 bg-sky-50/50'
+                      : 'border-rose-200 bg-rose-50/50',
                 )}
               >
                 <p
                   className={cn(
                     'flex items-center gap-1.5 text-sm font-semibold',
-                    decision === 'clear' ? 'text-emerald-700' : 'text-rose-700',
+                    decision === 'clear'
+                      ? 'text-emerald-700'
+                      : decision === 'manual'
+                        ? 'text-sky-700'
+                        : 'text-rose-700',
                   )}
                 >
                   {decision === 'clear' ? (
@@ -776,12 +800,23 @@ export function MedicalExamForm({
                       <CheckCircle2 className="h-4 w-4" /> Clearing this candidate — the
                       report above must be complete.
                     </>
+                  ) : decision === 'manual' ? (
+                    <>
+                      <ClipboardPen className="h-4 w-4" /> Recording a manual check
+                    </>
                   ) : (
                     <>
                       <XCircle className="h-4 w-4" /> Marking as rejected
                     </>
                   )}
                 </p>
+                {decision === 'manual' && (
+                  <p className="text-xs leading-5 text-sky-800">
+                    The candidate is cleared without the digital report. It will
+                    be recorded as checked by hand, in your name — attach the
+                    signed copy above if you have it.
+                  </p>
+                )}
                 {decision === 'clear' ? (
                   draft.remarks && (
                     <p className="text-xs text-emerald-800">
@@ -791,8 +826,16 @@ export function MedicalExamForm({
                 ) : (
                   <Textarea
                     rows={2}
-                    label="Reason (optional)"
-                    placeholder="e.g. requires follow-up tests"
+                    label={
+                      decision === 'manual'
+                        ? 'What was checked, and where'
+                        : 'Reason (optional)'
+                    }
+                    placeholder={
+                      decision === 'manual'
+                        ? 'e.g. Fitness certificate issued by Dr. Rahman, Popular Diagnostic, 08 Sep — fit to join'
+                        : 'e.g. requires follow-up tests'
+                    }
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                   />
@@ -800,16 +843,25 @@ export function MedicalExamForm({
                 <div className="flex gap-2">
                   <Button
                     fullWidth
-                    variant={decision === 'clear' ? undefined : 'danger'}
+                    variant={decision === 'reject' ? 'danger' : undefined}
                     className={
                       decision === 'clear'
                         ? 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800'
-                        : undefined
+                        : decision === 'manual'
+                          ? 'bg-sky-600 hover:bg-sky-700 active:bg-sky-800'
+                          : undefined
                     }
+                    // The note is the only record of a check that happened off
+                    // the system, so it isn't optional here.
+                    disabled={decision === 'manual' && !note.trim()}
                     isLoading={upsert.isPending || setMedical.isPending}
                     onClick={submitDecision}
                   >
-                    Confirm {decision === 'clear' ? 'clearance' : 'rejection'}
+                    {decision === 'reject'
+                      ? 'Confirm rejection'
+                      : decision === 'manual'
+                        ? 'Record manual clearance'
+                        : 'Confirm clearance'}
                   </Button>
                   <Button
                     variant="ghost"

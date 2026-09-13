@@ -3,11 +3,14 @@ import type { ApiResponse } from '@shared/types';
 
 import type {
   MedicalExam,
+  TimelineEvent,
   MedicalQueueItem,
   MedicalStatus,
   OnboardingResult,
   OnboardingView,
   PublicOnboarding,
+  OfferLetterInput,
+  AppointmentLetterInput,
 } from '../types/onboarding.types';
 
 const MULTIPART = { headers: { 'Content-Type': 'multipart/form-data' } };
@@ -67,10 +70,47 @@ export const onboardingApi = {
       )
       .then((r) => r.data),
 
-  sendOffer: (candidateId: string): Promise<{ onboarding: OnboardingView }> =>
+  previewOffer: (
+    candidateId: string,
+    input: OfferLetterInput,
+  ): Promise<{ html: string }> =>
+    http
+      .post<ApiResponse<{ html: string }>>(
+        `/candidates/${candidateId}/onboarding/offer/preview`,
+        input,
+      )
+      .then((r) => r.data),
+
+  sendOffer: (
+    candidateId: string,
+    input: OfferLetterInput,
+  ): Promise<{ onboarding: OnboardingView }> =>
     http
       .post<ApiResponse<{ onboarding: OnboardingView }>>(
         `/candidates/${candidateId}/onboarding/offer`,
+        input,
+      )
+      .then((r) => r.data),
+
+  previewAppointment: (
+    candidateId: string,
+    input: AppointmentLetterInput,
+  ): Promise<{ html: string }> =>
+    http
+      .post<ApiResponse<{ html: string }>>(
+        `/candidates/${candidateId}/onboarding/appointment-letter/preview`,
+        input,
+      )
+      .then((r) => r.data),
+
+  sendAppointment: (
+    candidateId: string,
+    input: AppointmentLetterInput,
+  ): Promise<{ onboarding: OnboardingView }> =>
+    http
+      .post<ApiResponse<{ onboarding: OnboardingView }>>(
+        `/candidates/${candidateId}/onboarding/appointment-letter`,
+        input,
       )
       .then((r) => r.data),
 
@@ -122,6 +162,23 @@ export const onboardingApi = {
       )
       .then((r) => r.data),
 
+  /** The whole lifecycle of this hire, oldest first. */
+  timeline: (candidateId: string): Promise<TimelineEvent[]> =>
+    http
+      .get<ApiResponse<TimelineEvent[]>>(`/candidates/${candidateId}/timeline`)
+      .then((r) => r.data),
+
+  /** Ask the medical team to look at this candidate (or remind them). */
+  alertMedical: (
+    onboardingId: string,
+  ): Promise<{ ok: boolean; notified: number }> =>
+    http
+      .post<ApiResponse<{ ok: boolean; notified: number }>>(
+        `/onboarding/${onboardingId}/alert-medical`,
+        {},
+      )
+      .then((r) => r.data),
+
   // --- medical officer ---
   medicalQueue: (): Promise<MedicalQueueItem[]> =>
     http
@@ -130,7 +187,7 @@ export const onboardingApi = {
 
   setMedical: (
     onboardingId: string,
-    body: { status: MedicalStatus; note?: string },
+    body: { status: MedicalStatus; note?: string; manual?: boolean },
   ): Promise<{ ok: boolean }> =>
     http
       .patch<ApiResponse<{ ok: boolean }>>(
