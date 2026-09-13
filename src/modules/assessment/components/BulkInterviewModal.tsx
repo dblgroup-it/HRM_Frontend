@@ -31,6 +31,9 @@ import type {
   InterviewKindKey,
   InterviewModeKey,
 } from '../types/assessment.types';
+import { VenuePicker } from './VenuePicker';
+import { usesRoomList } from './venue';
+import { useMyPermissions } from '@modules/rbac';
 
 type Candidate = { id: string; name: string };
 type Panelist = { userId: string; name: string };
@@ -57,17 +60,37 @@ export function BulkInterviewModal({
   candidates: initialCandidates,
   open,
   onClose,
+  firstRoundOnly = false,
+  reqLabel,
 }: {
   reqId: string;
+  /** Only the id and name are used, so a delegated row fits as well as a full
+   *  candidate record. */
   candidates: Candidate[];
   open: boolean;
   onClose: () => void;
+  /**
+   * Delegated interviewers run the first round only — later rounds go back to
+   * Head of Talent Acquisition. The backend enforces it; hiding the other options stops
+   * someone picking one and hitting a 403.
+   */
+  firstRoundOnly?: boolean;
+  /**
+   * The vacancy these candidates were booked from, e.g. "REQ-2026-007 · Officer".
+   * Shown in the title so a batch opened from a requisition-grouped board says
+   * which post it is for.
+   */
+  reqLabel?: string;
 }) {
   const { data: setup } = useAssessmentSetup(reqId, open);
+  // Corporate schedulers book from DBL's room list; everyone else keeps a
+  // free field.
+  const { data: perms } = useMyPermissions();
+  const roomList = usesRoomList(perms);
   const bulkSchedule = useBulkScheduleInterviews();
 
   // --- candidate list (user can remove individuals before submitting) ---
-  const [candidates, setCandidates] = useState<Candidate[]>(initialCandidates);
+  const [candidates, setCandidates] = useState(initialCandidates);
   useEffect(() => {
     if (open) {
       setCandidates(initialCandidates);
@@ -151,7 +174,13 @@ export function BulkInterviewModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={`Interview Day — ${candidates.length} candidate${candidates.length === 1 ? '' : 's'}`}
+      title={
+        // The batch and the submit button both state the count, so when the
+        // vacancy is known it takes the title instead of stacking two dashes.
+        reqLabel
+          ? `Interview Day — ${reqLabel}`
+          : `Interview Day — ${candidates.length} candidate${candidates.length === 1 ? '' : 's'}`
+      }
       size="lg"
     >
       {/* Outer shell: flex column capped at viewport height so footer always shows */}
@@ -193,7 +222,9 @@ export function BulkInterviewModal({
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3">
             <CalendarClock className="h-4 w-4 shrink-0 text-brand-600" />
             <Segmented
-              options={KIND_OPTIONS.map((k) => ({ value: k.value, label: k.label }))}
+              options={KIND_OPTIONS.filter(
+                (k) => !firstRoundOnly || k.value === 'first',
+              ).map((k) => ({ value: k.value, label: k.label }))}
               value={kind}
               onChange={(v) => setKind(v as InterviewKindKey)}
             />
@@ -216,13 +247,24 @@ export function BulkInterviewModal({
                 <label className="mb-1 block text-[0.6875rem] font-medium text-slate-400">
                   Venue <span className="text-rose-500">*</span>
                 </label>
-                <Input
-                  placeholder="e.g. HQ Conference Room, Factory Training Hall"
-                  value={location}
-                  onChange={(e) => { setLocation(e.target.value); if (e.target.value.trim()) setLocationError(false); }}
-                  leftIcon={<Building2 className="h-4 w-4" />}
-                  className={locationError ? 'border-rose-400 focus:ring-rose-400' : ''}
-                />
+                {roomList ? (
+                  <VenuePicker
+                    value={location}
+                    invalid={locationError}
+                    onChange={(v) => {
+                      setLocation(v);
+                      if (v.trim()) setLocationError(false);
+                    }}
+                  />
+                ) : (
+                  <Input
+                    placeholder="e.g. HQ Conference Room, Factory Training Hall"
+                    value={location}
+                    onChange={(e) => { setLocation(e.target.value); if (e.target.value.trim()) setLocationError(false); }}
+                    leftIcon={<Building2 className="h-4 w-4" />}
+                    className={locationError ? 'border-rose-400 focus:ring-rose-400' : ''}
+                  />
+                )}
                 {locationError && (
                   <p className="mt-1 text-[0.6875rem] font-medium text-rose-600">
                     Venue is required for in-person interviews

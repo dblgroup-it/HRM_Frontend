@@ -49,6 +49,9 @@ import type {
   InterviewModeKey,
   InterviewRoundView,
 } from '../types/assessment.types';
+import { VenuePicker } from './VenuePicker';
+import { usesRoomList } from './venue';
+import { useMyPermissions } from '@modules/rbac';
 
 const KIND_OPTIONS: { value: InterviewKindKey; label: string }[] = [
   { value: 'first', label: 'First' },
@@ -80,11 +83,18 @@ export function CandidateInterviewsModal({
   candidate,
   open,
   onClose,
+  firstRoundOnly = false,
 }: {
   reqId: string;
   candidate: { id: string; name: string };
   open: boolean;
   onClose: () => void;
+  /**
+   * Delegated interviewers run the first round only — later rounds go back to
+   * Head of Talent Acquisition. The backend enforces this; hiding the other options here
+   * keeps someone from picking one and hitting a 403.
+   */
+  firstRoundOnly?: boolean;
 }) {
   /* ── Animation state machine ─────────────────────────────── */
   // `mounted` keeps the portal in the DOM during exit animation.
@@ -110,6 +120,10 @@ export function CandidateInterviewsModal({
 
   /* ── Data ────────────────────────────────────────────────── */
   const { data: setup } = useAssessmentSetup(reqId, open);
+  // Corporate schedulers book from DBL's room list; everyone else keeps a
+  // free field.
+  const { data: perms } = useMyPermissions();
+  const roomList = usesRoomList(perms);
   const { data: rounds = [], isLoading } = useCandidateInterviews(candidate.id, open);
   const schedule = useScheduleInterview(candidate.id);
   const remove = useRemoveInterview(candidate.id);
@@ -134,11 +148,12 @@ export function CandidateInterviewsModal({
   }, [open]);
 
   useEffect(() => {
+    if (firstRoundOnly) return;
     if (open && !kindAutoSetRef.current && rounds.length > 0) {
       setKind(suggestNextKind(rounds));
       kindAutoSetRef.current = true;
     }
-  }, [open, rounds]);
+  }, [open, rounds, firstRoundOnly]);
 
   /* ── Keyboard / body-scroll lock ────────────────────────── */
   const handleEscKey = useCallback(() => onClose(), [onClose]);
@@ -336,7 +351,7 @@ export function CandidateInterviewsModal({
 
               {/* ① Type & mode */}
               <FormStep n={1} title="Which interview?">
-                {lastCompletedKind && (
+                {lastCompletedKind && !firstRoundOnly && (
                   <p className="mb-2 flex items-center gap-1.5 text-[0.6875rem] text-brand-600">
                     <Lightbulb className="h-3.5 w-3.5 shrink-0" />
                     {lastCompletedKind === 'final'
@@ -346,7 +361,9 @@ export function CandidateInterviewsModal({
                 )}
                 <div className="flex flex-wrap items-center gap-3">
                   <Segmented
-                    options={KIND_OPTIONS.map((k) => ({ value: k.value, label: `${k.label} interview` }))}
+                    options={KIND_OPTIONS.filter(
+                      (k) => !firstRoundOnly || k.value === 'first',
+                    ).map((k) => ({ value: k.value, label: `${k.label} interview` }))}
                     value={kind}
                     onChange={(v) => setKind(v as InterviewKindKey)}
                   />
@@ -381,12 +398,23 @@ export function CandidateInterviewsModal({
                     </div>
                   ) : (
                     <div>
-                      <Input
-                        placeholder={mode === 'online' ? 'https://… (Teams, Zoom…)' : 'Venue — e.g. HQ, Board Room 3 *'}
-                        value={location}
-                        onChange={(e) => { setLocation(e.target.value); if (e.target.value.trim()) setLocationError(false); }}
-                        className={locationError && mode !== 'online' ? 'border-rose-400 focus:ring-rose-400' : ''}
-                      />
+                      {roomList && mode !== 'online' ? (
+                        <VenuePicker
+                          value={location}
+                          invalid={locationError}
+                          onChange={(v) => {
+                            setLocation(v);
+                            if (v.trim()) setLocationError(false);
+                          }}
+                        />
+                      ) : (
+                        <Input
+                          placeholder={mode === 'online' ? 'https://… (Teams, Zoom…)' : 'Venue — e.g. HQ, Board Room 3 *'}
+                          value={location}
+                          onChange={(e) => { setLocation(e.target.value); if (e.target.value.trim()) setLocationError(false); }}
+                          className={locationError && mode !== 'online' ? 'border-rose-400 focus:ring-rose-400' : ''}
+                        />
+                      )}
                       {locationError && mode !== 'online' && (
                         <p className="mt-1 flex items-center gap-1 text-[0.6875rem] font-medium text-rose-600">
                           <MapPin className="h-3 w-3" /> Venue is required for in-person interviews

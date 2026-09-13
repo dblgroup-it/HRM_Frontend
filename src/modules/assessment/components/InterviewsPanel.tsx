@@ -3,7 +3,8 @@
  * Left: candidate list (interview stage). Right: schedule + history for the
  * selected candidate. Bulk scheduling via modal.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   BadgeDollarSign,
   Bell,
@@ -42,7 +43,7 @@ import {
 } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
-import { useDebounce } from '@shared/hooks';
+import { useAnchoredPanel, useDebounce } from '@shared/hooks';
 import { useEmployees } from '@modules/employees';
 import type { Requisition } from '@modules/requisition/types/requisition.types';
 import { useCandidates, useUpdateCandidate } from '@modules/candidates';
@@ -106,7 +107,7 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
     sortBy: 'match',
   });
 
-  const candidates = page?.items ?? [];
+  const candidates = useMemo(() => page?.items ?? [], [page]);
   const [selected, setSelected] = useState<Candidate | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -1011,6 +1012,11 @@ function PanelMemberPicker({
 }) {
   const [q, setQ]       = useState('');
   const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  // Portalled: this picker sits inside several overflow-hidden panels, which
+  // clipped the results list down to a sliver.
+  const { triggerRef, panelRef, panelStyle, ready } =
+    useAnchoredPanel<HTMLDivElement>(open, close);
   const debounced = useDebounce(q, 300);
   const { data }  = useEmployees({ search: debounced, page: 1, pageSize: 6 });
   const add       = useAddCommitteeMember(reqId);
@@ -1018,7 +1024,7 @@ function PanelMemberPicker({
   const results = (data?.items ?? []).filter((e) => e.userId && !existingUserIds.includes(e.userId));
 
   return (
-    <div className="relative">
+    <div className="relative" ref={triggerRef}>
       <Input
         value={q}
         onChange={(e) => { setQ(e.target.value); setOpen(true); }}
@@ -1026,10 +1032,13 @@ function PanelMemberPicker({
         placeholder="Add an interviewer to the panel…"
         leftIcon={<Search className="h-4 w-4" />}
       />
-      {open && debounced.length > 0 && results.length > 0 && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+      {open && ready && debounced.length > 0 && results.length > 0 &&
+        createPortal(
+          <div
+            ref={panelRef}
+            data-portal-panel="true"
+            style={panelStyle}
+            className="z-50 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
             {results.map((e) => (
               <button key={e.id} type="button"
                 onClick={() => {
@@ -1046,9 +1055,9 @@ function PanelMemberPicker({
                 </span>
               </button>
             ))}
-          </div>
-        </>
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

@@ -3,6 +3,9 @@ import type { ApiResponse } from '@shared/types';
 
 import type {
   AssessmentSetup,
+  DelegatedCandidate,
+  DelegationTests,
+  InterviewDelegation,
   BulkScheduleInput,
   EvaluationSummaryResult,
   InterviewRoundView,
@@ -10,10 +13,80 @@ import type {
   PublicEvalData,
   ScheduleInterviewInput,
   ScorecardEntry,
+  ScreeningTests,
+  ScreeningTestsInput,
   SubmitEvaluationInput,
 } from '../types/assessment.types';
 
 export const assessmentApi = {
+  /** Hand shortlisted candidates to the people who will interview them. */
+  delegateInterviews: (
+    candidateIds: string[],
+    delegateUserIds: string[],
+    note?: string,
+    tests?: DelegationTests,
+  ): Promise<{ delegated: number }> =>
+    http
+      .post<ApiResponse<{ delegated: number }>>('/interview-delegations', {
+        candidateIds,
+        delegateUserIds,
+        note,
+        tests,
+      })
+      .then((r) => r.data),
+
+  myDelegatedCandidates: (): Promise<DelegatedCandidate[]> =>
+    http
+      .get<ApiResponse<DelegatedCandidate[]>>('/my-delegated-candidates')
+      .then((r) => r.data),
+
+  listDelegations: (candidateId: string): Promise<InterviewDelegation[]> =>
+    http
+      .get<ApiResponse<InterviewDelegation[]>>(
+        `/candidates/${candidateId}/interview-delegations`,
+      )
+      .then((r) => r.data),
+
+  revokeDelegation: (
+    candidateId: string,
+    delegateUserId: string,
+  ): Promise<{ success: boolean }> =>
+    http
+      .delete<ApiResponse<{ success: boolean }>>(
+        `/candidates/${candidateId}/interview-delegations/${delegateUserId}`,
+      )
+      .then((r) => r.data),
+
+  /** First-interview verdict: move the candidate on, or stop them here. */
+  firstInterviewOutcome: (
+    candidateId: string,
+    outcome: 'final' | 'rejected',
+    note?: string,
+  ): Promise<{ id: string; name: string; stage: string }> =>
+    http
+      .post<ApiResponse<{ id: string; name: string; stage: string }>>(
+        `/candidates/${candidateId}/first-interview-outcome`,
+        { outcome, note },
+      )
+      .then((r) => r.data),
+
+  /** Hand-marked screening tests for one candidate — no salary information. */
+  screeningTests: (candidateId: string): Promise<ScreeningTests> =>
+    http
+      .get<ApiResponse<ScreeningTests>>(`/candidates/${candidateId}/screening-tests`)
+      .then((r) => r.data),
+
+  saveScreeningTests: (
+    candidateId: string,
+    input: ScreeningTestsInput,
+  ): Promise<ScreeningTests> =>
+    http
+      .patch<ApiResponse<ScreeningTests>>(
+        `/candidates/${candidateId}/screening-tests`,
+        input,
+      )
+      .then((r) => r.data),
+
   getSetup: (reqId: string): Promise<AssessmentSetup> =>
     http
       .get<ApiResponse<AssessmentSetup>>(`/requisitions/${reqId}/assessment`)

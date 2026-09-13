@@ -67,7 +67,7 @@ export interface PublicEvalData {
   status: string;
   alreadySubmitted: boolean;
   panelistName: string;
-  candidate: { name: string };
+  candidate: { name: string; cvUrl: string | null };
   interview: PublicEvalInterview;
   criteria: EvaluationCriterionView[];
   submittedEval: {
@@ -123,7 +123,13 @@ export interface MyInterviewRound {
   location: string;
   meetLink: string | null;
   status: InterviewStatusKey;
-  candidate: { id: string; name: string; email: string; phone: string };
+  candidate: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    cvUrl: string | null;
+  };
   requisition: { id: string; code: string; designation: string; unit: string };
   criteria: EvaluationCriterionView[];
   myEvaluation: {
@@ -146,4 +152,113 @@ export interface ScheduleInterviewInput {
   panelistUserIds: string[];
   notifyCandidate?: boolean;
   notifyPanel?: boolean;
+}
+
+
+/** A shortlisted candidate handed to someone to run the first interview. */
+export interface DelegatedCandidate {
+  id: string;
+  note: string | null;
+  createdAt: string;
+  delegatedBy: { id: string; name: string } | null;
+  /** Others this candidate was handed to as well. */
+  alsoAssignedTo: string[];
+  requisition: {
+    id: string;
+    code: string;
+    designation: string;
+    unitFactory: string;
+    department: string;
+  };
+  candidate: {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    stage: string;
+    cvUrl: string | null;
+    rejectedAt: string | null;
+    /** 'first_interview' when a factory-side interviewer turned them down. */
+    rejectionStage: string | null;
+    rejectionReason: string | null;
+    rejectedByName: string | null;
+  };
+  rounds: {
+    id: string;
+    kind: string;
+    status: string;
+    scheduledAt: string | null;
+    mode: string;
+    location: string | null;
+    /** A meeting link was issued, so the session runs online. */
+    online: boolean;
+    panelists: number;
+  }[];
+  /** Enabled screening tests only, so a card can show them without a fetch. */
+  tests: DelegatedTest[];
+}
+
+/** One screening test as it stands for a delegated candidate. */
+export interface DelegatedTest {
+  key: string;
+  label: string;
+  total: number | null;
+  obtained: number | null;
+  /** null means not marked yet, which is not the same as failing. */
+  passed: boolean | null;
+}
+
+export interface InterviewDelegation {
+  id: string;
+  note: string | null;
+  createdAt: string;
+  delegatedTo: { id: string; name: string; employeeCode: string };
+  delegatedBy: { id: string; name: string } | null;
+}
+
+/**
+ * The hand-marked screening picture for one candidate.
+ *
+ * Deliberately carries no salary fields — whoever ran the first interview may
+ * enter marks, but band and proposed salary stay with Head of Talent Acquisition.
+ */
+export interface ScreeningTests {
+  candidateId: string;
+  writtenTestEnabled: boolean;
+  writtenTestTotal: number | null;
+  writtenTestObtained: number | null;
+  writtenTestPassPct: number;
+  computerTestEnabled: boolean;
+  computerTestTotal: number | null;
+  computerTestObtained: number | null;
+  computerTestPassPct: number;
+  aiTestEnabled: boolean;
+  aiTestTotal: number | null;
+  aiTestObtained: number | null;
+  aiTestPassPct: number;
+}
+
+export interface ScreeningTestsInput {
+  writtenTestEnabled?: boolean;
+  writtenTestTotal?: number | null;
+  writtenTestObtained?: number | null;
+  computerTestEnabled?: boolean;
+  computerTestTotal?: number | null;
+  computerTestObtained?: number | null;
+  aiTestEnabled?: boolean;
+}
+
+/**
+ * The testing brief attached to a hand-off.
+ *
+ * Which tests these candidates must sit and out of how many marks — set by
+ * Head of Talent Acquisition at send time. Obtained marks are not part of it: those are the
+ * interviewer's to record afterwards.
+ */
+export interface DelegationTests {
+  writtenTestEnabled?: boolean;
+  writtenTestTotal?: number | null;
+  computerTestEnabled?: boolean;
+  computerTestTotal?: number | null;
+  aiTestEnabled?: boolean;
 }

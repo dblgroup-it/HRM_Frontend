@@ -5,6 +5,8 @@ import {
   CalendarClock,
   CheckCircle2,
   Clock,
+  ExternalLink,
+  FileText,
   MapPin,
   MessageSquare,
   Send,
@@ -169,6 +171,31 @@ export default function EvaluateByTokenPage() {
                 {cap(data.interview.kind)}
               </span>
             </div>
+
+            {/* The CV, one click away. A panelist on the token path has no
+                login and no candidate page, so without this they are scoring
+                someone whose background they cannot check. */}
+            {data.candidate.cvUrl && (
+              <a
+                href={data.candidate.cvUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-4 flex items-center gap-3 rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-3 transition-colors hover:border-brand-300 hover:bg-brand-50"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-brand-600 ring-1 ring-brand-100">
+                  <FileText className="h-4 w-4" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-brand-800">
+                    View CV
+                  </span>
+                  <span className="block text-xs text-brand-600/80">
+                    Opens {data.candidate.name}'s CV in a new tab
+                  </span>
+                </span>
+                <ExternalLink className="h-4 w-4 shrink-0 text-brand-500" />
+              </a>
+            )}
 
             {/* Meta pills */}
             <div className="mt-4 flex flex-wrap gap-2">

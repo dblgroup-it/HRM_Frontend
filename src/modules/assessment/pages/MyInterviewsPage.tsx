@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ClipboardCheck,
+  FileText,
   Lock,
   Video,
 } from 'lucide-react';
@@ -136,7 +137,7 @@ export default function MyInterviewsPage() {
           title={filter === 'pending' ? 'All marks submitted' : filter === 'submitted' ? 'Nothing submitted yet' : 'No interviews assigned'}
           description={
             filter === 'all'
-              ? 'When Corporate HR adds you to an interview panel, candidates appear here.'
+              ? 'When Head of Talent Acquisition adds you to an interview panel, candidates appear here.'
               : filter === 'pending'
               ? 'You have submitted marks for all your assigned interviews.'
               : 'Submit your marks after conducting an interview.'
@@ -211,6 +212,20 @@ function InterviewCard({ round }: { round: MyInterviewRound }) {
               {round.requisition.unit}
             </p>
           </div>
+          {/* One click to the CV — you cannot score someone's experience
+              without being able to read it. */}
+          {round.candidate.cvUrl && (
+            <a
+              href={round.candidate.cvUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              title={`Open ${round.candidate.name}'s CV in a new tab`}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50/70 px-2.5 py-1 text-xs font-semibold text-brand-700 transition-colors hover:border-brand-300 hover:bg-brand-100"
+            >
+              <FileText className="h-3.5 w-3.5" /> CV
+            </a>
+          )}
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
           {timing?.urgent && (

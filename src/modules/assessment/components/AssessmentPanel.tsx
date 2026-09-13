@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   BarChart3,
   ClipboardCheck,
@@ -17,7 +18,7 @@ import {
   Spinner,
 } from '@shared/components/ui';
 import { cn } from '@shared/lib';
-import { useDebounce } from '@shared/hooks';
+import { useAnchoredPanel, useDebounce } from '@shared/hooks';
 import { useEmployees } from '@modules/employees';
 import { useCandidates } from '@modules/candidates';
 import type { Requisition } from '@modules/requisition/types/requisition.types';
@@ -437,22 +438,16 @@ function CommitteePicker({ reqId, existingUserIds }: { reqId: string; existingUs
   const debounced = useDebounce(q, 300);
   const { data } = useEmployees({ search: debounced, page: 1, pageSize: 6 });
   const add = useAddCommitteeMember(reqId);
-  const wrapRef = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  // Portalled: the section card clips its children, which cut the results list
+  // off after the first row. Outside-click is handled by the hook.
+  const { triggerRef, panelRef, panelStyle, ready } =
+    useAnchoredPanel<HTMLDivElement>(open, close);
 
   const results = (data?.items ?? []).filter((e) => e.userId && !existingUserIds.includes(e.userId));
 
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      if (wrapRef.current?.contains(e.target as Node)) return;
-      setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, [open]);
-
   return (
-    <div ref={wrapRef} className="relative">
+    <div ref={triggerRef} className="relative">
       <Input
         value={q}
         onChange={(e) => { setQ(e.target.value); setOpen(true); }}
@@ -460,8 +455,13 @@ function CommitteePicker({ reqId, existingUserIds }: { reqId: string; existingUs
         placeholder="Search and add committee members…"
         leftIcon={<Search className="h-4 w-4" />}
       />
-      {open && debounced.length > 0 && results.length > 0 && (
-        <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+      {open && ready && debounced.length > 0 && results.length > 0 &&
+        createPortal(
+          <div
+            ref={panelRef}
+            data-portal-panel="true"
+            style={panelStyle}
+            className="z-50 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
           {results.map((e) => (
             <button
               key={e.id}
@@ -482,8 +482,9 @@ function CommitteePicker({ reqId, existingUserIds }: { reqId: string; existingUs
               </span>
             </button>
           ))}
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

@@ -8,7 +8,9 @@ import type {
   EvaluationSummaryResult,
   MyInterviewRound,
   ScheduleInterviewInput,
+  DelegationTests,
   ScorecardEntry,
+  ScreeningTestsInput,
   SubmitEvaluationInput,
 } from '../types/assessment.types';
 
@@ -18,6 +20,12 @@ export const assessmentKeys = {
   interviews: (candidateId: string) =>
     ['interviews', 'candidate', candidateId] as const,
   myInterviews: ['my-interviews'] as const,
+};
+
+export const delegationKeys = {
+  mine: ['my-delegated-candidates'] as const,
+  forCandidate: (candidateId: string) =>
+    ['interview-delegations', candidateId] as const,
 };
 
 function errMsg(error: unknown, fallback: string): string {
@@ -153,14 +161,21 @@ export function useRemoveInterview(candidateId: string) {
   });
 }
 
-export function useUpdateInterview(candidateId: string) {
+/**
+ * @param silent Suppress the success toast so the caller can raise its own —
+ *   the board does, because its toast carries an Undo.
+ */
+export function useUpdateInterview(candidateId: string, silent = false) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (vars: { roundId: string; status: string }) =>
       assessmentApi.updateInterview(vars.roundId, { status: vars.status }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: assessmentKeys.interviews(candidateId) });
-      toast.success('Interview marked as completed');
+      // The delegate's board reads this too — without it a card stays put
+      // after being moved.
+      void qc.invalidateQueries({ queryKey: delegationKeys.mine });
+      if (!silent) toast.success('Interview marked as completed');
     },
     onError: (error) => toast.error(errMsg(error, 'Could not update interview')),
   });
@@ -224,5 +239,117 @@ export function useResendEvalToken(candidateId: string) {
       toast.success('New evaluation link generated');
     },
     onError: (error) => toast.error(errMsg(error, 'Could not resend link')),
+  });
+}
+
+
+/** Hand-marked screening tests for one candidate. */
+export function useScreeningTests(candidateId: string, enabled = true) {
+  return useQuery({
+    queryKey: ['screening-tests', candidateId],
+    queryFn: () => assessmentApi.screeningTests(candidateId),
+    enabled: Boolean(candidateId) && enabled,
+  });
+}
+
+export function useSaveScreeningTests(candidateId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ScreeningTestsInput) =>
+      assessmentApi.saveScreeningTests(candidateId, input),
+    onSuccess: (data) => {
+      qc.setQueryData(['screening-tests', candidateId], data);
+      void qc.invalidateQueries({ queryKey: ['salary-fixation'] });
+      toast.success('Test marks saved');
+    },
+    onError: (error) => toast.error(errMsg(error, 'Could not save the marks')),
+  });
+}
+
+/** Candidates handed to me to arrange the first interview for. */
+export function useMyDelegatedCandidates() {
+  return useQuery({
+    queryKey: delegationKeys.mine,
+    queryFn: () => assessmentApi.myDelegatedCandidates(),
+    // The sidebar reads this too, to decide whether to show the nav item;
+    // holding it a while keeps that from refetching on every page change.
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCandidateDelegations(candidateId: string, enabled = true) {
+  return useQuery({
+    queryKey: delegationKeys.forCandidate(candidateId),
+    queryFn: () => assessmentApi.listDelegations(candidateId),
+    enabled,
+  });
+}
+
+/** Send shortlisted candidates to interviewers — bulk on both axes. */
+export function useDelegateInterviews() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: {
+      candidateIds: string[];
+      delegateUserIds: string[];
+      note?: string;
+      tests?: DelegationTests;
+    }) =>
+      assessmentApi.delegateInterviews(
+        vars.candidateIds,
+        vars.delegateUserIds,
+        vars.note,
+        vars.tests,
+      ),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: delegationKeys.mine });
+      void qc.invalidateQueries({ queryKey: ['interview-delegations'] });
+    },
+  });
+}
+
+export function useRevokeDelegation(candidateId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (delegateUserId: string) =>
+      assessmentApi.revokeDelegation(candidateId, delegateUserId),
+    onSuccess: () => {
+      void qc.invalidateQueries({
+        queryKey: delegationKeys.forCandidate(candidateId),
+      });
+    },
+  });
+}
+
+/**
+ * Record the verdict of the first interview.
+ *
+ * Whoever ran the session decides only this much: the candidate goes to the
+ * final round, or stops here. Everything after that belongs to Head of Talent Acquisition.
+ */
+export function useFirstInterviewOutcome() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: {
+      candidateId: string;
+      outcome: 'final' | 'rejected';
+      note?: string;
+    }) =>
+      assessmentApi.firstInterviewOutcome(
+        vars.candidateId,
+        vars.outcome,
+        vars.note,
+      ),
+    onSuccess: (data) => {
+      void qc.invalidateQueries({ queryKey: delegationKeys.mine });
+      void qc.invalidateQueries({ queryKey: ['candidates'] });
+      toast.success(
+        data.stage === 'FINAL' || data.stage === 'final'
+          ? `${data.name} moved to the final round`
+          : `${data.name} was rejected after the first interview`,
+      );
+    },
+    onError: (error) =>
+      toast.error(errMsg(error, 'Could not record the outcome')),
   });
 }
