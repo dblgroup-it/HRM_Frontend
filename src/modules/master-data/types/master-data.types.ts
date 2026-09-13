@@ -13,4 +13,10 @@ export interface MasterData {
   zones: string[];
   /** DBL business verticals, picked after the unit. */
   linesOfBusiness: string[];
+  /** Why the person being replaced left. */
+  separationReasons: string[];
+  /** building -> its bookable interview rooms, e.g. "Head Office" -> ["Room-301", …]. */
+  meetingRooms: Record<string, string[]>;
+  /** Fixed terms HR attaches to an appointment (bonus, salary review, tax). */
+  specialNotes: string[];
 }

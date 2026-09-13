@@ -51,10 +51,17 @@ export function useUpdateFacilities() {
     mutationFn: ({
       id,
       decisions,
+      specialNotes,
     }: {
       id: string;
-      decisions: { key: FacilityKey; status: 'confirmed' | 'skipped'; hrNote?: string }[];
-    }) => requisitionApi.updateFacilities(id, decisions),
+      decisions?: {
+        key: FacilityKey;
+        status: 'confirmed' | 'skipped';
+        hrNote?: string;
+      }[];
+      /** The complete list — omit to leave the existing notes untouched. */
+      specialNotes?: string[];
+    }) => requisitionApi.updateFacilities(id, decisions, specialNotes),
     onSuccess: (updated) => {
       sync(updated);
       // FacilitiesPanel is also rendered on the Onboarding page, which reads
@@ -84,7 +91,7 @@ export function useApprovalAction() {
   });
 }
 
-/** Corporate HR nominates the recruiter who runs this requisition. */
+/** Head of Talent Acquisition nominates the recruiter who runs this requisition. */
 export function useAssignRecruiter() {
   const sync = useSyncRequisition();
   return useMutation({

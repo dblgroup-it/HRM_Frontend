@@ -65,7 +65,7 @@ export default function RequisitionCreatePage() {
         <EmptyState
           icon={<ShieldAlert className="h-6 w-6" />}
           title="You can't raise requisitions"
-          description="Only a Requisition Raiser for a unit (or a super user) can open one. Ask Corporate HR to add you in Configuration → Approval Paths."
+          description="Only a Requisition Raiser for a unit (or a super user) can open one. Ask Head of Talent Acquisition to add you in Configuration → Approval Paths."
         />
       </div>
     );

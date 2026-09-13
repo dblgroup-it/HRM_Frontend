@@ -25,8 +25,15 @@ export type FacilityKey = 'laptopDesktop' | 'transport' | 'dormitory' | 'seating
 /** A single facility line: the requisitioner's request + HR's confirm/skip decision. */
 export interface FacilityDecision {
   requested: boolean;
-  /** 'laptop'|'desktop' for laptopDesktop; 'existing'|'new' for seating; null otherwise. */
+  /**
+   * 'laptop'|'desktop' for laptopDesktop; 'existing'|'new' for seating;
+   * 'shared'|'full_time' for transport; null otherwise.
+   */
   option: string | null;
+  /** Transport, full-time only: 'sedan' | 'suv'. */
+  vehicleType?: string | null;
+  /** Transport: where the person is picked up from. */
+  pickupLocation?: string | null;
   note: string;
   status: 'pending' | 'confirmed' | 'skipped';
   hrNote: string;
@@ -40,6 +47,8 @@ export type Facilities = Record<FacilityKey, FacilityDecision>;
 export interface FacilityRequestInput {
   requested: boolean;
   option?: string;
+  vehicleType?: string;
+  pickupLocation?: string;
   note?: string;
 }
 
@@ -196,6 +205,8 @@ export interface Requisition {
 
   // C · Logistics Requirement
   facilities: Facilities;
+  /** Fixed appointment terms HR attaches — bonus share, salary review, tax. */
+  specialNotes?: string[];
 
   // E · Group HR
   preferredSources: PreferredSource[];
@@ -217,7 +228,7 @@ export interface Requisition {
   raisedBy: string;
   /** The requisitioner's user id — used to gate edit/resend while bounced back. */
   raisedById?: string | null;
-  /** Assigned by Corporate HR once approved; owns the downstream lifecycle. */
+  /** Assigned by Head of Talent Acquisition once approved; owns the downstream lifecycle. */
   recruiter?: RequisitionRecruiter | null;
   recruiterAssignedAt?: ISODateString | null;
   createdAt: ISODateString;

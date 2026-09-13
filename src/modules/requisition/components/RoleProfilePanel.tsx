@@ -75,11 +75,11 @@ export function RoleProfilePanel({
               <p className="font-medium text-slate-800">
                 {canContinue
                   ? 'Generate the AI role profile'
-                  : 'Awaiting Corporate HR'}
+                  : 'Awaiting Head of Talent Acquisition'}
               </p>
               <p className="mt-1 max-w-sm text-sm text-slate-500">
                 Generate it with AI, then fine-tune it by hand — or write it from
-                scratch. Corporate HR continues from this step after full
+                scratch. Head of Talent Acquisition continues from this step after full
                 approval.
               </p>
             </div>
@@ -94,7 +94,7 @@ export function RoleProfilePanel({
                   ? generate.isPending
                     ? 'Generating…'
                     : 'Generate with AI'
-                  : 'Corporate HR required'}
+                  : 'Head of Talent Acquisition required'}
               </Button>
               {canContinue && (
                 <Button variant="outline" onClick={() => setEditing(true)}>

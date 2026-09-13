@@ -129,7 +129,7 @@ let STORE: Requisition[] = [
     others: 'Ability to work in a shift-based environment',
     facilities: mockFacilities({}),
     preferredSources: ['job_advertisement', 'headhunting'],
-    // existing + factory ⇒ Dept Head → Factory HR → Corporate HR
+    // existing + factory ⇒ Dept Head → Factory HR → Head of Talent Acquisition
     status: 'pending_approval',
     approvalChain: approveFirst(buildChain('existing', SIGN), 1),
     activityLog: [
@@ -172,7 +172,7 @@ let STORE: Requisition[] = [
       seating: { requested: true, option: 'new' },
     }),
     preferredSources: ['headhunting', 'cv_bank'],
-    // new + factory ⇒ Dept Head → Factory HR → SBU Head → Corporate HR
+    // new + factory ⇒ Dept Head → Factory HR → SBU Head → Head of Talent Acquisition
     status: 'profile_generated',
     approvalChain: approveFirst(buildChain('new', SIGN), 4),
     activityLog: [],
@@ -225,7 +225,7 @@ let STORE: Requisition[] = [
       laptopDesktop: { requested: true, option: 'laptop', note: 'HRIS and reporting' },
     }),
     preferredSources: ['headhunting'],
-    // existing + HO ⇒ Dept Head → Corporate HR
+    // existing + HO ⇒ Dept Head → Head of Talent Acquisition
     status: 'posted',
     approvalChain: approveFirst(buildChain('existing', SIGN), 2),
     activityLog: [],
@@ -439,13 +439,15 @@ export const requisitionApi = {
   /** HR (whoever's turn it currently is) confirms or skips facility requests. */
   updateFacilities(
     id: string,
-    decisions: { key: FacilityKey; status: 'confirmed' | 'skipped'; hrNote?: string }[]
+    decisions?: { key: FacilityKey; status: 'confirmed' | 'skipped'; hrNote?: string }[],
+    /** Complete list of the fixed appointment terms; omit to leave unchanged. */
+    specialNotes?: string[]
   ): Promise<Requisition> {
     if (ENV.USE_MOCK_API) {
       return delay(MOCK_LATENCY).then(() =>
         updateStore(id, (r) => {
           const next = { ...r.facilities };
-          for (const d of decisions) {
+          for (const d of decisions ?? []) {
             next[d.key] = {
               ...next[d.key],
               status: d.status,
@@ -454,12 +456,21 @@ export const requisitionApi = {
               decidedAt: new Date().toISOString(),
             };
           }
-          return { ...r, facilities: next };
+          return {
+            ...r,
+            facilities: next,
+            specialNotes: specialNotes ?? r.specialNotes,
+          };
         })
       );
     }
     return http
-      .patch<ApiResponse<Requisition>>(`/requisitions/${id}/facilities`, { decisions })
+      .patch<ApiResponse<Requisition>>(`/requisitions/${id}/facilities`, {
+        // Sending an empty decisions array would fail ArrayMinSize; a
+        // notes-only save simply omits the field.
+        ...(decisions?.length ? { decisions } : {}),
+        ...(specialNotes ? { specialNotes } : {}),
+      })
       .then((res) => res.data);
   },
 

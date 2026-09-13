@@ -6,9 +6,19 @@ const facilityItemSchema = z.object({
   note: z.string().optional(),
 });
 
+/**
+ * Transport carries more than a yes/no: a shared run and a dedicated car are
+ * different commitments, a dedicated car is a choice of vehicle, and none of
+ * it can be arranged without knowing where the person is picked up from.
+ */
+const transportFacilitySchema = facilityItemSchema.extend({
+  vehicleType: z.string().optional(),
+  pickupLocation: z.string().optional(),
+});
+
 const facilitiesSchema = z.object({
   laptopDesktop: facilityItemSchema,
-  transport: facilityItemSchema,
+  transport: transportFacilitySchema,
   dormitory: facilityItemSchema,
   seating: facilityItemSchema,
 });
@@ -81,9 +91,9 @@ export const requisitionSchema = z
   .refine(
     (data) =>
       data.requirementType !== 'existing' ||
-      (data.separationReason && data.separationReason.trim().length > 2),
+      (data.separationReason && data.separationReason.trim().length > 0),
     {
-      message: 'Give the reason for leaving',
+      message: 'Select the reason for leaving',
       path: ['separationReason'],
     }
   );

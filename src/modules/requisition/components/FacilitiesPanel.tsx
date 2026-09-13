@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Check, Sofa, X } from 'lucide-react';
+import { Check, MapPin, Sofa, StickyNote, X } from 'lucide-react';
 
 import { Badge, Button, Card, CardBody, CardHeader, CardTitle } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
+
+import { useMasterData } from '@modules/master-data';
 
 import { FACILITY_META, FACILITY_OPTION_LABEL } from '../constants';
 import { useUpdateFacilities } from '../hooks/useRequisitionActions';
@@ -19,7 +21,7 @@ const STATUS_TONE = {
  * Facility Requirements — what the requisitioner asked for (Laptop/Desktop,
  * Transport, Dormitory, Seating), and HR's confirm/skip call on each.
  *
- * Settled by the HR side — Corporate HR / CHRO / super and the assigned
+ * Settled by the HR side — Head of Talent Acquisition / CHRO / super and the assigned
  * Corporate Recruiter — because confirming a laptop or a desk is a
  * provisioning commitment made by whoever delivers it, not by whichever
  * approver happens to hold the requisition. The same people may revise a
@@ -30,12 +32,25 @@ export function FacilitiesPanel({
   requisition,
   canEdit,
 }: {
-  requisition: { id: string; facilities: Facilities | null };
+  requisition: {
+    id: string;
+    facilities: Facilities | null;
+    specialNotes?: string[];
+  };
   canEdit: boolean;
 }) {
   const update = useUpdateFacilities();
+  const { data: master } = useMasterData();
   const [noteDraft, setNoteDraft] = useState<Record<string, string>>({});
   const [editingKey, setEditingKey] = useState<FacilityKey | null>(null);
+
+  const chosenNotes = requisition.specialNotes ?? [];
+  const toggleNote = (note: string) => {
+    const next = chosenNotes.includes(note)
+      ? chosenNotes.filter((n) => n !== note)
+      : [...chosenNotes, note];
+    update.mutate({ id: requisition.id, specialNotes: next });
+  };
 
   const decide = (key: FacilityKey, status: 'confirmed' | 'skipped') => {
     update.mutate(
@@ -95,6 +110,14 @@ export function FacilitiesPanel({
                       {f.option && (
                         <Badge tone="brand">{FACILITY_OPTION_LABEL[f.option] ?? f.option}</Badge>
                       )}
+                      {/* A dedicated car is a choice of vehicle; a shared run
+                          is whatever is on it, so this only shows when it
+                          means something. */}
+                      {f.vehicleType && (
+                        <Badge tone="neutral">
+                          {FACILITY_OPTION_LABEL[f.vehicleType] ?? f.vehicleType}
+                        </Badge>
+                      )}
                       {!canAct && (
                         <Badge tone={STATUS_TONE[f.status]}>
                           {f.status === 'pending' ? 'Awaiting HR' : f.status === 'confirmed' ? 'Confirmed' : 'Skipped'}
@@ -135,6 +158,13 @@ export function FacilitiesPanel({
                   </div>
                 )}
               </div>
+
+              {f.requested && f.pickupLocation && (
+                <p className="mt-1.5 flex items-center gap-1 text-xs text-slate-600">
+                  <MapPin className="h-3 w-3 shrink-0 text-slate-400" />
+                  Pick-up from {f.pickupLocation}
+                </p>
+              )}
 
               {f.requested && f.note && (
                 <p className="mt-1.5 text-xs text-slate-500">
@@ -194,9 +224,71 @@ export function FacilitiesPanel({
             </div>
           );
         })}
+
+        {/* Special notes — the fixed terms that travel with the appointment:
+            the bonus share, the salary review, the tax line. Picked from a
+            maintained list rather than retyped, because these are the exact
+            words that end up in an offer. */}
+        {(canEdit || chosenNotes.length > 0) && (
+          <div className="rounded-xl border border-slate-200 p-3.5">
+            <p className="flex items-center gap-2 text-sm font-medium text-slate-800">
+              <StickyNote className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+              Special Note
+              {chosenNotes.length > 0 && (
+                <Badge tone="brand">{chosenNotes.length} selected</Badge>
+              )}
+            </p>
+
+            {canEdit ? (
+              <div className="mt-2.5 space-y-1.5">
+                {(master?.specialNotes ?? []).map((note) => {
+                  const on = chosenNotes.includes(note);
+                  return (
+                    <label
+                      key={note}
+                      className={cn(
+                        'flex cursor-pointer items-start gap-2 rounded-lg border p-2 text-xs transition-colors',
+                        on
+                          ? 'border-brand-200 bg-brand-50/60 text-slate-800'
+                          : 'border-slate-200 text-slate-600 hover:bg-slate-50',
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        disabled={update.isPending}
+                        onChange={() => toggleNote(note)}
+                        className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                      />
+                      <span className="leading-relaxed">{note}</span>
+                    </label>
+                  );
+                })}
+                {!master?.specialNotes?.length && (
+                  <p className="text-xs text-slate-400">
+                    No special notes are configured yet.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <ul className="mt-2 space-y-1">
+                {chosenNotes.map((note) => (
+                  <li
+                    key={note}
+                    className="flex items-start gap-1.5 text-xs leading-relaxed text-slate-600"
+                  >
+                    <Check className="mt-0.5 h-3 w-3 shrink-0 text-emerald-600" />
+                    {note}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
         {!canEdit && (
           <p className={cn('text-xs text-slate-400')}>
-            Corporate HR and the assigned Corporate Recruiter confirm or skip
+            Head of Talent Acquisition and the assigned Corporate Recruiter confirm or skip
             facility requests.
           </p>
         )}

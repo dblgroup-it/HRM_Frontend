@@ -17,8 +17,8 @@ import { requisitionApi } from '../api/requisition.api';
 import { useAssignRecruiter } from '../hooks/useRequisitionActions';
 
 /**
- * Corporate HR nominates the Corporate Recruiter who runs this requisition's
- * hiring lifecycle. Additive — Corporate HR and CHRO keep their own access.
+ * Head of Talent Acquisition nominates the Corporate Recruiter who runs this requisition's
+ * hiring lifecycle. Additive — Head of Talent Acquisition and CHRO keep their own access.
  */
 export function RecruiterPanel({
   requisition,
@@ -69,7 +69,7 @@ export function RecruiterPanel({
           </div>
         ) : (
           <p className="text-sm text-slate-500">
-            No recruiter assigned yet — Corporate HR still runs this
+            No recruiter assigned yet — Head of Talent Acquisition still runs this
             requisition.
           </p>
         )}

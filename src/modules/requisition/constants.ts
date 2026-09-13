@@ -79,7 +79,23 @@ export const FACILITY_OPTION_LABEL: Record<string, string> = {
   laptop: 'Laptop',
   existing: 'Existing seat',
   new: 'New seat',
+  shared: 'Shared car',
+  full_time: 'Full-time car',
+  sedan: 'Sedan',
+  suv: 'SUV',
 };
+
+/** How a transport facility is provided — a shared run, or a dedicated car. */
+export const TRANSPORT_OPTIONS = [
+  { value: 'shared', label: 'Shared car' },
+  { value: 'full_time', label: 'Full-time car' },
+] as const;
+
+/** Only asked when the car is full-time; a shared run is whatever is on it. */
+export const VEHICLE_TYPES = [
+  { value: 'sedan', label: 'Sedan' },
+  { value: 'suv', label: 'SUV' },
+] as const;
 
 export const PREFERRED_SOURCE_LABEL: Record<PreferredSource, string> = {
   job_advertisement: 'Job advertisement',
@@ -133,7 +149,7 @@ export const APPROVAL_ROLE_META: Record<
     subtitle: 'Approves new headcount beyond organogram',
   },
   corporate_hr: {
-    title: 'Corporate HR',
+    title: 'Head of Talent Acquisition',
     subtitle: 'Final approval to commence hiring',
   },
   chro: {
@@ -147,7 +163,7 @@ export const APPROVAL_ROLE_META: Record<
  *  - Department Head always first.
  *  - Factory HR when the source is a factory.
  *  - SBU Head only for NEW headcount raised from a factory.
- *  - Corporate HR is the single final approver.
+ *  - Head of Talent Acquisition is the single final approver.
  */
 export function buildApprovalRoles(
   requirement: RequirementType,

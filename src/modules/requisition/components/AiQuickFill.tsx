@@ -13,7 +13,7 @@ import type { RequisitionDraft } from '../types/requisition.types';
 // Written against the fixed vocabulary so each one actually resolves:
 // department -> section -> sub-section, a real designation, and a zone.
 const EXAMPLES = [
-  'Officer for Corporate HR, HR Operations payroll, Dhaka Zone',
+  'Officer for Head of Talent Acquisition, HR Operations payroll, Dhaka Zone',
   '2 senior officers for Quality Control knitting at JTML, urgent',
   'Assistant Manager for Maintenance electrical, Kashimpur Zone',
 ];

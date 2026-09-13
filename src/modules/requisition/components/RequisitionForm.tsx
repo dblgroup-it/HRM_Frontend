@@ -42,6 +42,7 @@ import { useMasterData, sectionKey } from '@modules/master-data';
 import { EmployeePicker } from './EmployeePicker';
 import { useAuth } from '@modules/auth';
 import { useMyPermissions } from '@modules/rbac';
+import { useMyRaiserScope } from '@modules/approval-paths';
 
 import {
   requisitionSchema,
@@ -57,12 +58,21 @@ import {
   EMPLOYMENT_NATURE_OPTIONS,
   PREFERRED_SOURCES,
   PRIORITY_OPTIONS,
+  TRANSPORT_OPTIONS,
+  VEHICLE_TYPES,
 } from '../constants';
 
 interface Props {
   onSubmit: (payload: CreateRequisitionPayload, attachments: File[]) => void;
   isSubmitting?: boolean;
   onCancel?: () => void;
+}
+
+/** Loose unit-name match — ZingHR and hand-configured names drift on trailing
+ *  punctuation (CLAUDE.md §10). Mirrors the backend's normalizeUnitName. */
+function sameUnitName(a: string, b: string): boolean {
+  const norm = (v: string) => v.trim().toLowerCase().replace(/[.,;:'`-]+$/, '');
+  return norm(a) === norm(b);
 }
 
 const STEPS = [
@@ -143,7 +153,13 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
       employmentNature: 'permanent',
       facilities: {
         laptopDesktop: { requested: false, option: 'desktop', note: '' },
-        transport: { requested: false, note: '' },
+        transport: {
+          requested: false,
+          note: '',
+          option: 'shared',
+          vehicleType: '',
+          pickupLocation: '',
+        },
         dormitory: { requested: false, note: '' },
         seating: { requested: false, option: 'existing', note: '' },
       },
@@ -154,12 +170,14 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
   const employmentNature = watch('employmentNature');
   const laptopDesktopRequested = watch('facilities.laptopDesktop.requested');
   const transportRequested = watch('facilities.transport.requested');
+  const transportOption = watch('facilities.transport.option');
   const dormitoryRequested = watch('facilities.dormitory.requested');
   const seatingRequested = watch('facilities.seating.requested');
   const unit = watch('unitFactory') ?? '';
   const lineOfBusiness = watch('lineOfBusiness') ?? '';
   const requirementType = watch('requirementType') ?? 'new';
   const replaceOfName = watch('replaceOfName') ?? '';
+  const separationReason = watch('separationReason') ?? '';
   const department = watch('department') ?? '';
   const designation = watch('designation') ?? '';
   const sectionValue = watch('section') ?? '';
@@ -170,20 +188,36 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
   const { data: orgUnits } = useOrganogramUnits();
   const { data: perms } = useMyPermissions();
 
-  // Only units the requester may actually raise for — the backend requires the
-  // Requisition Raiser role, so offering any other unit here would just produce
-  // a 403 on submit. Super users may raise for any unit.
+  // Where and what this person may raise for, straight from Approval Paths —
+  // the same table `buildStepsForRaiser` resolves the chain from, so the form
+  // offers exactly what will succeed.
+  const { data: raiserScope, isSuccess: scopeLoaded } = useMyRaiserScope();
+
+  // Only units the requester may actually raise for. The `requisition_raiser`
+  // role is NOT the gate: it is granted on nomination and deliberately never
+  // revoked (CLAUDE.md §5), so it lingers on units whose path has since been
+  // removed. The nomination itself is the gate. Super users raise anywhere.
   const allowedUnitNames = useMemo(() => {
     if (perms?.isSuperUser) return (orgUnits ?? []).map((u) => u.unit);
-    return [
-      ...new Set(
-        (perms?.roles ?? [])
-          .filter((r) => r.key === 'requisition_raiser')
-          .map((r) => r.unitName)
-          .filter((n): n is string => Boolean(n)),
-      ),
-    ];
-  }, [perms, orgUnits]);
+    // Until the scope arrives, fall back to the role so the field isn't empty
+    // on first paint; it narrows a moment later.
+    if (!scopeLoaded) {
+      return [
+        ...new Set(
+          (perms?.roles ?? [])
+            .filter((r) => r.key === 'requisition_raiser')
+            .map((r) => r.unitName)
+            .filter((n): n is string => Boolean(n)),
+        ),
+      ];
+    }
+    return (raiserScope ?? []).map((sc) => sc.unitName);
+  }, [perms, orgUnits, raiserScope, scopeLoaded]);
+
+  // A raiser whose nominations were all removed can't raise anywhere. Say so
+  // rather than presenting an empty dropdown with no explanation.
+  const noRaiserScope =
+    scopeLoaded && !perms?.isSuperUser && allowedUnitNames.length === 0;
 
   const unitOptions: SelectOption[] = allowedUnitNames.map((n) => ({
     value: n,
@@ -207,9 +241,52 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
   // isn't a sanctioned seat is correctly reported as NEW headcount.
   const { data: master } = useMasterData();
 
-  const departmentOptions: SelectOption[] = (master?.departments ?? []).map(
-    (d) => ({ value: d, label: d }),
+  // Departments are scoped the same way units are: a raiser is nominated on
+  // (unit, department) pairs in Approval Paths, and `buildStepsForRaiser`
+  // refuses anything else. Offering the full vocabulary here would let someone
+  // fill in the whole form only to be told on submit that no chain exists.
+  // A path on the '' department is the unit-wide wildcard — everything is open.
+  const unitScope = useMemo(
+    () => (raiserScope ?? []).find((sc) => sameUnitName(sc.unitName, unit)),
+    [raiserScope, unit],
   );
+  const allDepartments = useMemo(() => master?.departments ?? [], [master]);
+  const allowedDepartments = useMemo(() => {
+    // Super users raise for anything, and so does a unit-wide wildcard path.
+    if (perms?.isSuperUser || unitScope?.anyDepartment) return allDepartments;
+    if (unitScope) return unitScope.departments;
+    // No nomination for this unit. Before the scope loads that just means
+    // "not known yet"; once it has, the unit genuinely isn't theirs and an
+    // empty list is the honest answer — the unit shouldn't be selectable
+    // either, so this is only reachable mid-load or for a stale selection.
+    return scopeLoaded && unit ? [] : allDepartments;
+  }, [perms, unit, unitScope, allDepartments, scopeLoaded]);
+
+  const departmentOptions: SelectOption[] = allowedDepartments.map((d) => ({
+    value: d,
+    label: d,
+  }));
+  const lockedDepartment = allowedDepartments.length === 1;
+
+  // Fill in the only option they have, and drop a selection the chosen unit
+  // doesn't allow (switching units can strand one).
+  const allowedDeptKey = allowedDepartments.join('|');
+  useEffect(() => {
+    if (lockedDepartment) {
+      if (department !== allowedDepartments[0]) {
+        setValue('department', allowedDepartments[0], { shouldValidate: true });
+        setValue('section', '');
+        setValue('subSection', '');
+      }
+      return;
+    }
+    if (department && !allowedDepartments.includes(department)) {
+      setValue('department', '');
+      setValue('section', '');
+      setValue('subSection', '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allowedDeptKey]);
   const sections = department ? (master?.departmentSections[department] ?? []) : [];
   const sectionOptions: SelectOption[] = sections.map((sec) => ({
     value: sec,
@@ -238,6 +315,9 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
   const lineOfBusinessOptions: SelectOption[] = (
     master?.linesOfBusiness ?? []
   ).map((l) => ({ value: l, label: l }));
+  const separationReasonOptions: SelectOption[] = (
+    master?.separationReasons ?? []
+  ).map((r) => ({ value: r, label: r }));
   // Grades valid for the chosen designation — shown as a read-only suggestion,
   // never captured here: the approver still confirms grade at sign-off.
   const suggestedGrades = designation
@@ -495,6 +575,16 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
               <div className="space-y-7">
                 {/* 1 · Where the role sits */}
                 <FormGroup title="Placement" hint="Where in the organisation this post belongs">
+                  {noRaiserScope && (
+                    <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs leading-5 text-amber-800">
+                      You are not currently nominated to raise requisitions for
+                      any unit. Ask Head of Talent Acquisition to add you under{' '}
+                      <span className="font-semibold">
+                        Configuration → Approval Paths
+                      </span>
+                      , choosing the department you should raise for.
+                    </p>
+                  )}
                   <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <Select
                       label="Unit / Factory"
@@ -526,9 +616,17 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                   <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
                     <Combobox
                       label="Department"
-                      placeholder="Select department"
+                      placeholder={
+                        unit ? 'Select department' : 'Pick a unit first'
+                      }
                       options={departmentOptions}
                       value={department}
+                      disabled={lockedDepartment}
+                      hint={
+                        lockedDepartment
+                          ? 'The department you are approved to raise for'
+                          : undefined
+                      }
                       error={errors.department?.message}
                       onChange={(v) => {
                         setValue('department', v, { shouldValidate: true });
@@ -659,12 +757,17 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                             );
                           }}
                         />
-                        <Textarea
+                        <Combobox
                           label="Reason for leaving"
-                          rows={2}
-                          placeholder="e.g. Resigned on 30 Aug, joined a competitor"
+                          placeholder="Select a reason"
+                          options={separationReasonOptions}
+                          value={separationReason}
                           error={errors.separationReason?.message}
-                          {...register('separationReason')}
+                          onChange={(v) =>
+                            setValue('separationReason', v, {
+                              shouldValidate: true,
+                            })
+                          }
                         />
                         <Textarea
                           label="Remarks (optional)"
@@ -821,7 +924,31 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                 requested={Boolean(transportRequested)}
                 toggleReg={register('facilities.transport.requested')}
                 noteReg={register('facilities.transport.note')}
-                notePlaceholder="e.g. pickup from Savar area"
+                notePlaceholder="e.g. shift timing, or anything unusual about the run"
+                optionField={
+                  <div className="space-y-3">
+                    <Select
+                      label="How it is provided"
+                      options={TRANSPORT_OPTIONS.map((o) => ({ ...o }))}
+                      {...register('facilities.transport.option')}
+                    />
+                    {/* A shared run is whatever vehicle is on it; only a
+                        dedicated car is a choice between models. */}
+                    {transportOption === 'full_time' && (
+                      <Select
+                        label="Vehicle"
+                        placeholder="Sedan or SUV"
+                        options={VEHICLE_TYPES.map((o) => ({ ...o }))}
+                        {...register('facilities.transport.vehicleType')}
+                      />
+                    )}
+                    <Input
+                      label="Pick-up from"
+                      placeholder="e.g. Savar, Hemayetpur bus stand"
+                      {...register('facilities.transport.pickupLocation')}
+                    />
+                  </div>
+                }
               />
               <FacilityField
                 icon={Warehouse}
@@ -1162,7 +1289,20 @@ function toPayload(
     education: values.education,
     experience: values.experience,
     others: values.others ?? '',
-    facilities: values.facilities,
+    facilities: {
+      ...values.facilities,
+      // The backend validates vehicleType against ['sedan','suv'], so an
+      // untouched select must be left out rather than sent as "". A shared
+      // car has no vehicle choice at all.
+      transport: {
+        ...values.facilities.transport,
+        vehicleType:
+          values.facilities.transport.option === 'full_time'
+            ? values.facilities.transport.vehicleType || undefined
+            : undefined,
+        pickupLocation: values.facilities.transport.pickupLocation || undefined,
+      },
+    },
     preferredSources: values.preferredSources,
     // The requester is the Department Head; Factory HR / others come from
     // role assignments on the backend.

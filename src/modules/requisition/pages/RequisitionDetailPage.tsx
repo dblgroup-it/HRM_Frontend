@@ -201,7 +201,7 @@ export default function RequisitionDetailPage() {
                   (r.unitId === null ||
                     (r.unitName ?? '').toLowerCase() === unitLower)
               ))));
-  // Corporate HR keeps access after assigning a recruiter — the recruiter is
+  // Head of Talent Acquisition keeps access after assigning a recruiter — the recruiter is
   // added to it, not swapped in.
   const isAssignedRecruiter = !!myUserId && req.recruiter?.id === myUserId;
   const canCorporateHrContinue =
@@ -213,13 +213,13 @@ export default function RequisitionDetailPage() {
         (r.unitId === null || (r.unitName ?? '').toLowerCase() === unitLower)
     );
   // Facilities are provisioning commitments, so they are settled by the HR
-  // side — Corporate HR / CHRO / super and the assigned recruiter — not by
+  // side — Head of Talent Acquisition / CHRO / super and the assigned recruiter — not by
   // whichever approver currently holds the requisition.
   const canDecideFacilities = canAccessRecruitment(perms, req.unitFactory, {
     recruiterId: req.recruiter?.id,
     myUserId,
   });
-  // Only Corporate HR / CHRO / super may nominate the recruiter.
+  // Only Head of Talent Acquisition / CHRO / super may nominate the recruiter.
   const canAssignRecruiter =
     !!perms?.isSuperUser ||
     (perms?.roles ?? []).some(
@@ -227,7 +227,7 @@ export default function RequisitionDetailPage() {
         (r.key === 'corporate_hr' || r.key === 'chro') &&
         (r.unitId === null || (r.unitName ?? '').toLowerCase() === unitLower)
     );
-  // The candidate pipeline is visible only to Corporate HR, CHRO & super users.
+  // The candidate pipeline is visible only to Head of Talent Acquisition, CHRO & super users.
   const showCandidates =
     canAccessRecruitment(perms, req.unitFactory, {
       recruiterId: req.recruiter?.id,

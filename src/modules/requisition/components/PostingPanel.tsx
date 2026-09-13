@@ -127,7 +127,7 @@ export function PostingPanel({
 
         {!canContinue && (
           <p className="text-sm text-slate-500">
-            Corporate HR continues job posting after the role profile is ready.
+            Head of Talent Acquisition continues job posting after the role profile is ready.
           </p>
         )}
 

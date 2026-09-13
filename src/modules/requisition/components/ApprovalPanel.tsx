@@ -283,7 +283,7 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
   );
 }
 
-/** Post-approval status message — updates as Corporate HR moves the requisition on. */
+/** Post-approval status message — updates as Head of Talent Acquisition moves the requisition on. */
 const APPROVED_MESSAGE: Record<string, string> = {
   approved: 'Fully approved — ready to generate the role profile.',
   profile_generated: 'Role profile ready — continue to post the vacancy.',
