@@ -42,7 +42,7 @@ export function SendApprovalModal({
   const { data: groups = [] } = useBoardGroups();
   const send = useSendBoardApproval(candidateId);
   const { data: approvers } = useChainApprovers(candidateId);
-  // Corporate HR is held by several people — the requester names the one who
+  // Head of Talent Acquisition is held by several people — the requester names the one who
   // should sign, rather than every holder being emailed.
   const needsCorporateHr = approvers?.startsAt === 'corporate_hr';
   // The CHRO link is reached from either start, so it is named in both cases.
@@ -74,7 +74,7 @@ export function SendApprovalModal({
     <Modal open onClose={onClose} title="Send for Board Approval" size="md">
       <div className="space-y-4">
         <p className="text-sm text-slate-500">
-          This request travels in order — Corporate HR, then the CHRO, then the
+          This request travels in order — Head of Talent Acquisition, then the CHRO, then the
           board. Each person gets their own one-click approve link, and the
           board is only emailed once the CHRO has signed off.
         </p>
@@ -82,7 +82,7 @@ export function SendApprovalModal({
         {needsCorporateHr && (
           <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
             <p className="mb-2 text-[0.75rem] font-semibold uppercase tracking-wider text-slate-500">
-              1 · Send to Corporate HR
+              1 · Send to Head of Talent Acquisition
             </p>
             <Combobox
               placeholder="Choose who should approve first"
@@ -222,7 +222,7 @@ export function SendApprovalModal({
             }
           >
             <Send className="mr-1.5 h-3.5 w-3.5" />
-            {needsCorporateHr ? 'Send to Corporate HR' : 'Send Approval Emails'}
+            {needsCorporateHr ? 'Send to Head of Talent Acquisition' : 'Send Approval Emails'}
           </Button>
         </div>
       </div>
@@ -244,12 +244,12 @@ export function BoardApprovalPanel({ candidateId }: { candidateId: string }) {
   // to. Without this the panel only ever said "sent to the board".
   const stageOrder: BoardApprovalStage[] = ['corporate_hr', 'chro', 'board'];
   const stageNames: Record<BoardApprovalStage, string> = {
-    corporate_hr: approval?.corporateHr?.name ?? 'Corporate HR',
+    corporate_hr: approval?.corporateHr?.name ?? 'Head of Talent Acquisition',
     chro: approval?.chro?.name ?? 'CHRO',
     board: 'Board members',
   };
   const stageTitles: Record<BoardApprovalStage, string> = {
-    corporate_hr: 'Corporate HR',
+    corporate_hr: 'Head of Talent Acquisition',
     chro: 'CHRO',
     board: 'Board',
   };

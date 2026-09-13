@@ -140,3 +140,107 @@ export function useSubmitVote(token: string) {
     onError: (e) => toast.error(errMsg(e, 'Could not submit vote')),
   });
 }
+
+/* --- Hiring Approval Sheets --- */
+
+export const sheetKeys = {
+  inbox: ['board-approvals', 'inbox'] as const,
+  sheets: ['board-sheets'] as const,
+  sheet: (token: string) => ['board-sheet', token] as const,
+};
+
+/** Everything waiting on this Head of Talent Acquisition, ready to go onto a sheet. */
+export function useHrInbox() {
+  return useQuery({
+    queryKey: sheetKeys.inbox,
+    queryFn: () => boardApi.hrInbox(),
+  });
+}
+
+export function useSheetApprovers(enabled = true) {
+  return useQuery({
+    queryKey: ['board-sheets', 'approvers'],
+    queryFn: () => boardApi.sheetApprovers(),
+    enabled,
+  });
+}
+
+export function useSheets() {
+  return useQuery({
+    queryKey: sheetKeys.sheets,
+    queryFn: () => boardApi.listSheets(),
+  });
+}
+
+/** Mail the sheet's current stage again, to whoever still owes a reply. */
+export function useResendSheet() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (batchId: string) => boardApi.resendSheet(batchId),
+    onSuccess: (r) => {
+      void qc.invalidateQueries({ queryKey: sheetKeys.sheets });
+      const who = r.stage === 'chro' ? 'the CHRO' : 'the board';
+      toast.success(
+        r.skipped.length
+          ? `${r.reference} resent to ${r.sent} of ${who} — no email on file for ${r.skipped.join(', ')}`
+          : `${r.reference} resent to ${who}`,
+      );
+    },
+    onError: (e) => toast.error(errMsg(e, 'Could not resend the sheet')),
+  });
+}
+
+/** Correct one row's CV-derived columns before the sheet goes out. */
+export function useUpdateSheetRow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: {
+      approvalId: string;
+      education?: string | null;
+      totalExperience?: string | null;
+      lastOrganization?: string | null;
+    }) => {
+      const { approvalId, ...patch } = vars;
+      return boardApi.updateSheetRow(approvalId, patch);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: sheetKeys.inbox }),
+    onError: (e) => toast.error(errMsg(e, 'Could not save')),
+  });
+}
+
+export function useSendSheet() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: {
+      approvalIds: string[];
+      chroId: string;
+      boardMemberIds: string[];
+    }) => boardApi.sendSheet(vars.approvalIds, vars.chroId, vars.boardMemberIds),
+    onSuccess: (r) => {
+      void qc.invalidateQueries({ queryKey: sheetKeys.inbox });
+      void qc.invalidateQueries({ queryKey: sheetKeys.sheets });
+      toast.success(
+        `${r.reference} sent — ${r.candidates} candidate${r.candidates === 1 ? '' : 's'} on the sheet`,
+      );
+    },
+    onError: (e) => toast.error(errMsg(e, 'Could not send the sheet')),
+  });
+}
+
+export function useSheetVote(token: string) {
+  return useQuery({
+    queryKey: sheetKeys.sheet(token),
+    queryFn: () => boardApi.getSheet(token),
+    retry: false,
+  });
+}
+
+export function useSubmitSheetVote(token: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { decision: 'approved' | 'rejected'; notes?: string }) =>
+      boardApi.submitSheet(token, vars.decision, vars.notes),
+    onSuccess: () => qc.invalidateQueries({ queryKey: sheetKeys.sheet(token) }),
+    onError: (e) => toast.error(errMsg(e, 'Could not submit your decision')),
+  });
+}

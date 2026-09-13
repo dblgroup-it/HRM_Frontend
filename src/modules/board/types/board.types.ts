@@ -78,3 +78,76 @@ export interface VotePageInfo {
   stageLabel?: string;
   decision?: 'approved' | 'rejected';
 }
+
+/** One line of a Hiring Approval Sheet — the paper form's columns. */
+export interface SheetRow {
+  approvalId: string;
+  candidateId: string;
+  name: string;
+  cvUrl: string | null;
+  position: string;
+  department: string;
+  unit: string;
+  /** Read from the CV screening extract unless HR corrected it. */
+  education: string | null;
+  totalExperience: string | null;
+  lastOrganization: string | null;
+  /** True while Education is still the AI's uncorrected reading. */
+  educationFromCv: boolean;
+  requisitionCode: string;
+  /** "New" or "Replacement". */
+  requirement: string;
+  /** The manager the vacancy was raised for. */
+  team: string;
+  salary: number | null;
+  /** Who is being replaced, or "New". */
+  remark: string;
+  /** The vacancy's own sign-off chain, written as one line. */
+  approvalChain: string;
+  forwardedBy: string;
+  forwardedAt: string;
+}
+
+/** What the CHRO or a board member sees when they open a sheet link. */
+export interface SheetVoteInfo {
+  reference: string;
+  memberName: string;
+  stageLabel: string;
+  preparedBy: string;
+  status: BoardVoteStatus;
+  alreadyVoted: boolean;
+  batchStatus: BoardApprovalStatus;
+  rejectedReason: string | null;
+  rows: SheetRow[];
+}
+
+/** A sheet Head of Talent Acquisition has sent, and how far it has got. */
+export interface SheetSummary {
+  id: string;
+  reference: string;
+  status: BoardApprovalStatus;
+  currentStage: BoardApprovalStage;
+  chroName: string | null;
+  preparedBy: string;
+  candidateCount: number;
+  candidateNames: string[];
+  rejectedReason: string | null;
+  createdAt: string;
+  votes: {
+    name: string;
+    stage: BoardApprovalStage;
+    status: BoardVoteStatus;
+    notes: string | null;
+    respondedAt: string | null;
+  }[];
+}
+
+/** Who may sign a sheet. */
+export interface SheetApprovers {
+  chro: { id: string; name: string; employeeCode: string }[];
+  groups: {
+    id: string;
+    name: string;
+    members: { id: string; name: string; hasEmail: boolean }[];
+  }[];
+}
