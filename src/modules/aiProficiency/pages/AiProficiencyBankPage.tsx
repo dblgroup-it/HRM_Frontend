@@ -97,7 +97,7 @@ export default function AiProficiencyBankPage() {
         <EmptyState
           icon={<ShieldAlert className="h-6 w-6" />}
           title="Access restricted"
-          description="The AI Proficiency question bank is available to Corporate HR, CHRO and super users only."
+          description="The AI Proficiency question bank is available to Head of Talent Acquisition, CHRO and super users only."
         />
       </div>
     );

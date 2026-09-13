@@ -21,6 +21,7 @@ import {
   Trophy,
   Users,
   X,
+  Send,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -38,7 +39,11 @@ import {
 } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import type { Requisition } from '@modules/requisition/types/requisition.types';
-import { BulkInterviewModal, CandidateInterviewsModal } from '@modules/assessment';
+import {
+  BulkInterviewModal,
+  CandidateInterviewsModal,
+  DelegateInterviewsModal,
+} from '@modules/assessment';
 import { SalaryFixationModal } from '@modules/salaryFixation';
 
 import {
@@ -186,8 +191,20 @@ export function CandidatesPanel({
   const [salaryTarget, setSalaryTarget] = useState<Candidate | null>(null);
 
   // Selected candidates tracked as Map<id, {id,name}> so names survive page changes
-  const [selectedCandidates, setSelectedCandidates] = useState<Map<string, { id: string; name: string }>>(new Map());
+  const [selectedCandidates, setSelectedCandidates] = useState<
+    Map<string, { id: string; name: string; stage: CandidateStage }>
+  >(new Map());
+  const [delegateOpen, setDelegateOpen] = useState(false);
   const selectedIds = useMemo(() => new Set(selectedCandidates.keys()), [selectedCandidates]);
+  // Only shortlisted CVs go out to a factory interviewer. Select-all is shared
+  // with the other bulk actions, so rather than crippling it we judge the
+  // selection here — and the modal shows what it left behind.
+  const sendableCount = useMemo(
+    () =>
+      [...selectedCandidates.values()].filter((c) => c.stage === 'shortlisted')
+        .length,
+    [selectedCandidates],
+  );
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bdJobsOpen, setBdJobsOpen] = useState(false);
 
@@ -562,6 +579,25 @@ export function CandidatesPanel({
                   >
                     Schedule Interview Day
                   </Button>
+                  {/* Hand these candidates to a factory or named people, who
+                      then arrange the first session themselves. */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={sendableCount === 0}
+                    title={
+                      sendableCount === 0
+                        ? 'Only shortlisted CVs can be sent for interview — none of the selection is shortlisted yet'
+                        : `Send ${sendableCount} shortlisted CV${sendableCount === 1 ? '' : 's'}`
+                    }
+                    leftIcon={<Send className="h-3.5 w-3.5" />}
+                    onClick={() => setDelegateOpen(true)}
+                  >
+                    Send for Interview
+                    {sendableCount > 0 && sendableCount !== selectedIds.size
+                      ? ` (${sendableCount})`
+                      : ''}
+                  </Button>
                   <button
                     type="button"
                     onClick={() => setSelectedCandidates(new Map())}
@@ -606,7 +642,7 @@ export function CandidatesPanel({
                             setSelectedCandidates((prev) => {
                               const next = new Map(prev);
                               if (allSel) items.forEach((c) => next.delete(c.id));
-                              else items.forEach((c) => next.set(c.id, { id: c.id, name: c.name }));
+                              else items.forEach((c) => next.set(c.id, { id: c.id, name: c.name, stage: c.stage }));
                               return next;
                             })
                           }
@@ -660,7 +696,7 @@ export function CandidatesPanel({
                                 setSelectedCandidates((prev) => {
                                   const next = new Map(prev);
                                   if (allChipSel) stageRows.forEach((c) => next.delete(c.id));
-                                  else stageRows.forEach((c) => next.set(c.id, { id: c.id, name: c.name }));
+                                  else stageRows.forEach((c) => next.set(c.id, { id: c.id, name: c.name, stage: c.stage }));
                                   return next;
                                 })
                               }
@@ -690,13 +726,22 @@ export function CandidatesPanel({
                         onSelect={(cand, checked) => {
                           setSelectedCandidates((prev) => {
                             const next = new Map(prev);
-                            if (checked) next.set(cand.id, { id: cand.id, name: cand.name });
+                            if (checked) next.set(cand.id, { id: cand.id, name: cand.name, stage: cand.stage });
                             else next.delete(cand.id);
                             return next;
                           });
                         }}
                         onEmail={setEmailTarget}
                         onInterviews={setInterviewTarget}
+                        onSendForInterview={(c) => {
+                          // Reuse the bulk modal with a selection of one.
+                          setSelectedCandidates(
+                            new Map([
+                              [c.id, { id: c.id, name: c.name, stage: c.stage }],
+                            ]),
+                          );
+                          setDelegateOpen(true);
+                        }}
                         onSalaryFixation={setSalaryTarget}
                       />
                     ))}
@@ -801,6 +846,16 @@ export function CandidatesPanel({
           setSelectedCandidates(new Map());
         }}
       />
+
+      {delegateOpen && (
+        <DelegateInterviewsModal
+          candidates={[...selectedCandidates.values()]}
+          onClose={() => {
+            setDelegateOpen(false);
+            setSelectedCandidates(new Map());
+          }}
+        />
+      )}
 
       <PostToBdJobsModal
         open={bdJobsOpen}

@@ -6,7 +6,7 @@ export interface ApprovalPathPerms {
 
 /**
  * Approval paths decide who signs off on every requisition in a unit, so
- * configuring them is deliberately narrower than Unit Config: Corporate HR,
+ * configuring them is deliberately narrower than Unit Config: Head of Talent Acquisition,
  * CHRO and super users only. Factory HR / SBU Head can configure their unit's
  * seats but must not be able to rewrite their own approval chain.
  */

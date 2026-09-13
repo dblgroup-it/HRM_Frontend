@@ -19,10 +19,12 @@ import {
   Upload,
   UserCheck,
   X,
+  Send,
 } from 'lucide-react';
 
 import { Avatar, BusyOverlay } from '@shared/components/ui';
 import { cn } from '@shared/lib';
+import { formatDate } from '@shared/utils';
 import { ROUTES } from '@app/router/paths';
 
 import {
@@ -89,6 +91,7 @@ export function CandidateRow({
   onSelect,
   onEmail,
   onInterviews,
+  onSendForInterview,
   onSalaryFixation,
 }: {
   candidate: Candidate;
@@ -99,6 +102,7 @@ export function CandidateRow({
   onSelect?: (c: Candidate, checked: boolean) => void;
   onEmail: (c: Candidate) => void;
   onInterviews: (c: Candidate) => void;
+  onSendForInterview: (c: Candidate) => void;
   onSalaryFixation: (c: Candidate) => void;
 }) {
   const update = useUpdateCandidate(reqId);
@@ -272,6 +276,29 @@ export function CandidateRow({
             <p className="text-xs leading-snug text-amber-800">{candidate.redFlagReason}</p>
           </div>
         )}
+        {/* Who turned this candidate down and why. A rejection at the first
+            interview is a factory interviewer's call; one at CV stage is
+            Head of Talent Acquisition's — the row has to say which, or "Rejected" is a dead
+            end for whoever picks the pipeline up next. */}
+        {candidate.stage === 'rejected' && candidate.rejectedAt && (
+          <div className="mt-1.5 max-w-md rounded-r-lg border-l-4 border-rose-400 bg-rose-50 px-3 py-1.5">
+            <p className="text-xs font-semibold leading-snug text-rose-800">
+              Rejected
+              {candidate.rejectionStage === 'first_interview'
+                ? ' at the first interview'
+                : ''}
+              {candidate.rejectedByName ? ` by ${candidate.rejectedByName}` : ''}
+              <span className="font-normal text-rose-500">
+                {' '}· {formatDate(candidate.rejectedAt)}
+              </span>
+            </p>
+            {candidate.rejectionReason && (
+              <p className="mt-0.5 text-xs leading-snug text-rose-700/90">
+                {candidate.rejectionReason}
+              </p>
+            )}
+          </div>
+        )}
         {candidate.matchSummary && (
           <div className="mt-1">
             <p
@@ -350,6 +377,18 @@ export function CandidateRow({
           <ActionBtn title="Schedule / view interviews" onClick={() => onInterviews(candidate)}>
             <CalendarClock className="h-3.5 w-3.5" /> Interviews
           </ActionBtn>
+
+          {/* Optional hand-off: Head of Talent Acquisition / the recruiter can pass a
+              shortlisted CV to a factory or named people who then run the
+              first interview. Shortlisted only — nothing earlier or later. */}
+          {candidate.stage === 'shortlisted' && (
+            <ActionBtn
+              title="Send this CV to a factory or named interviewers"
+              onClick={() => onSendForInterview(candidate)}
+            >
+              <Send className="h-3.5 w-3.5" /> Send for Interview
+            </ActionBtn>
+          )}
 
           {['interview', 'final', 'selected'].includes(candidate.stage) && (
             <ActionBtn title="Salary fixation" onClick={() => onSalaryFixation(candidate)}>

@@ -39,6 +39,8 @@ export interface Employee {
 export interface EmployeeFilters {
   search?: string;
   department?: string;
+  /** Restrict to one factory / unit — used when delegating interviews. */
+  unit?: string;
   status?: EmploymentStatus | 'all';
   page?: number;
   pageSize?: number;

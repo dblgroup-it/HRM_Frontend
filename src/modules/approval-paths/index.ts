@@ -1,5 +1,6 @@
 export {
   useApprovalPaths,
+  useMyRaiserScope,
   useAddRaiser,
   useRemoveRaiser,
   useSaveApprovalPath,
@@ -13,4 +14,5 @@ export type {
   ApprovalPathLevel,
   ApprovalPathPerson,
   ApprovalPathLevelInput,
+  RaiserScope,
 } from './types/approval-path.types';

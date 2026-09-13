@@ -5,7 +5,7 @@ export interface AiSettingsPerms {
 }
 
 /** AI Settings (and the Screening Pass Marks card on the same page) is
- * visible to Corporate HR / CHRO — both GLOBAL roles, so no unit scoping
+ * visible to Head of Talent Acquisition / CHRO — both GLOBAL roles, so no unit scoping
  * needed — and super users. */
 export function canAccessAiSettings(
   perms: AiSettingsPerms | undefined | null,

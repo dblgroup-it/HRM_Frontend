@@ -56,7 +56,7 @@ export default function ApprovalPathsPage() {
           <EmptyState
             icon={<ShieldAlert className="h-6 w-6" />}
             title="Access restricted"
-            description="Approval paths decide who may raise requisitions and who signs them off, so only Corporate HR, CHRO and super users can configure them."
+            description="Approval paths decide who may raise requisitions and who signs them off, so only Head of Talent Acquisition, CHRO and super users can configure them."
           />
         </div>
       </div>
@@ -71,7 +71,7 @@ export default function ApprovalPathsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Approval Paths"
-        description="Who may raise requisitions in each unit, and the steps their requisitions travel through. Corporate HR always signs last."
+        description="Who may raise requisitions in each unit, and the steps their requisitions travel through. Head of Talent Acquisition always signs last."
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

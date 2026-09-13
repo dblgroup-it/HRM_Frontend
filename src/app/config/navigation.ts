@@ -11,6 +11,9 @@ import {
   Sparkles,
   Users,
   UserSearch,
+  UserCheck,
+  FileSpreadsheet,
+  History,
   Star,
   Bell,
   Settings,
@@ -29,19 +32,21 @@ export interface NavItem {
   icon: LucideIcon;
   /** Optional role gating; omit to allow everyone. */
   roles?: UserRole[];
-  /** Gate to recruitment roles (Corporate HR / CHRO / super user). */
+  /** Gate to recruitment roles (Head of Talent Acquisition / CHRO / super user). */
   requiresRecruitment?: boolean;
   /** Candidates & Talent Bank — also open to Corporate Recruiters. */
   requiresPipeline?: boolean;
   /** Gate to medical officers (and super users). */
   requiresMedical?: boolean;
-  /** Gate to management / Corporate HR / CHRO / super (AI insights). */
+  /** Only for people actually holding interview delegations right now. */
+  requiresDelegations?: boolean;
+  /** Gate to management / Head of Talent Acquisition / CHRO / super (AI insights). */
   requiresInsights?: boolean;
-  /** Gate to Corporate HR / CHRO / Factory HR / SBU Head for their unit(s) / super. */
+  /** Gate to Head of Talent Acquisition / CHRO / Factory HR / SBU Head for their unit(s) / super. */
   requiresUnitConfig?: boolean;
-  /** Gate to Corporate HR / CHRO / super (both GLOBAL roles). */
+  /** Gate to Head of Talent Acquisition / CHRO / super (both GLOBAL roles). */
   requiresAiSettings?: boolean;
-  /** Gate to Corporate HR / CHRO / super — who signs off, per unit. */
+  /** Gate to Head of Talent Acquisition / CHRO / super — who signs off, per unit. */
   requiresApprovalPaths?: boolean;
   /** Gate to the platform administrator or a super user. */
   requiresAccessControl?: boolean;
@@ -91,6 +96,12 @@ export const NAVIGATION: NavSection[] = [
         icon: Star,
         requiresPipeline: true,
       },
+      {
+        label: 'Approval Sheets',
+        to: ROUTES.approvalSheets,
+        icon: FileSpreadsheet,
+        requiresRecruitment: true,
+      },
     ],
   },
   {
@@ -100,6 +111,12 @@ export const NAVIGATION: NavSection[] = [
         label: 'My Interviews',
         to: ROUTES.myInterviews,
         icon: ClipboardCheck,
+      },
+      {
+        label: 'Assigned to Me',
+        to: ROUTES.assignedCandidates,
+        icon: UserCheck,
+        requiresDelegations: true,
       },
       {
         label: 'Medical Clearance',
@@ -146,6 +163,12 @@ export const NAVIGATION: NavSection[] = [
         to: ROUTES.approvalPaths,
         icon: GitBranch,
         requiresApprovalPaths: true,
+      },
+      {
+        label: 'System Activity',
+        to: ROUTES.activityLog,
+        icon: History,
+        requiresAccessControl: true,
       },
       {
         label: 'Access Control',

@@ -5,7 +5,7 @@ export interface RecruitmentPerms {
 }
 
 /**
- * Recruitment (the candidate pipeline) is visible to Corporate HR, CHRO and
+ * Recruitment (the candidate pipeline) is visible to Head of Talent Acquisition, CHRO and
  * super users — plus the Corporate Recruiter assigned to that requisition.
  *
  * Pass `unitName` to scope the check to a requisition's unit; omit it to ask

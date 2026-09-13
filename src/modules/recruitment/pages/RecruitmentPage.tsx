@@ -117,7 +117,7 @@ export default function RecruitmentPage() {
         <EmptyState
           icon={<ShieldAlert className="h-6 w-6" />}
           title="Restricted to recruitment roles"
-          description="The candidate pipeline is available to Corporate HR, CHRO and super users only."
+          description="The candidate pipeline is available to Head of Talent Acquisition, CHRO and super users only."
         />
       </div>
     );
@@ -152,7 +152,7 @@ export default function RecruitmentPage() {
         <EmptyState
           icon={<Users className="h-6 w-6" />}
           title="No active recruitment yet"
-          description="Once Corporate HR posts an approved requisition, it appears here with its CV workspace."
+          description="Once Head of Talent Acquisition posts an approved requisition, it appears here with its CV workspace."
         />
       ) : (
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[268px_1fr]">

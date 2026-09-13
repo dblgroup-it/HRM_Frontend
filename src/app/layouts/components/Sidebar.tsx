@@ -15,6 +15,7 @@ import { canAccessInsights } from '@modules/insights';
 import { canAccessUnitConfig } from '@modules/units';
 import { canAccessAiSettings } from '@modules/settings';
 import { canConfigureApprovalPaths } from '@modules/approval-paths';
+import { useMyDelegatedCandidates } from '@modules/assessment';
 import { NAVIGATION } from '@app/config/navigation';
 
 interface SidebarProps {
@@ -45,6 +46,10 @@ export function Sidebar({
   const canSeeUnitConfig = canAccessUnitConfig(perms);
   const canSeeAiSettings = canAccessAiSettings(perms);
   const canSeeApprovalPaths = canConfigureApprovalPaths(perms);
+  // "Assigned to Me" isn't a permission — it's whether anyone has actually
+  // handed this person candidates to interview, so it comes from the data.
+  const { data: delegated } = useMyDelegatedCandidates();
+  const hasDelegations = (delegated?.length ?? 0) > 0;
 
   return (
     <>
@@ -130,6 +135,7 @@ export function Sidebar({
                 (!item.requiresRecruitment || canSeeRecruitment) &&
                 (!item.requiresPipeline || canSeePipeline) &&
                 (!item.requiresMedical || canSeeMedical) &&
+                (!item.requiresDelegations || hasDelegations) &&
                 (!item.requiresInsights || canSeeInsights) &&
                 (!item.requiresUnitConfig || canSeeUnitConfig) &&
                 (!item.requiresAiSettings || canSeeAiSettings) &&

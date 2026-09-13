@@ -41,6 +41,7 @@ interface AiSettings {
 
 interface ScreeningSettings {
   writtenTestPassPct: number;
+  computerTestPassPct: number;
   aiTestPassPct: number;
 }
 
@@ -104,24 +105,29 @@ export default function AiSettingsPage() {
   });
 
   const [writtenPassPct, setWrittenPassPct] = useState(50);
+  const [computerPassPct, setComputerPassPct] = useState(50);
   const [aiPassPct, setAiPassPct] = useState(50);
 
   useEffect(() => {
     if (screening) {
       setWrittenPassPct(screening.writtenTestPassPct);
+      setComputerPassPct(screening.computerTestPassPct);
       setAiPassPct(screening.aiTestPassPct);
     }
   }, [screening]);
 
   const screeningDirty =
     !!screening &&
-    (writtenPassPct !== screening.writtenTestPassPct || aiPassPct !== screening.aiTestPassPct);
+    (writtenPassPct !== screening.writtenTestPassPct ||
+      computerPassPct !== screening.computerTestPassPct ||
+      aiPassPct !== screening.aiTestPassPct);
 
   const saveScreening = useMutation({
     mutationFn: () =>
       http
         .patch<ApiResponse<ScreeningSettings>>('/settings/screening', {
           writtenTestPassPct: writtenPassPct,
+          computerTestPassPct: computerPassPct,
           aiTestPassPct: aiPassPct,
         })
         .then((r) => r.data),
@@ -143,7 +149,7 @@ export default function AiSettingsPage() {
         <EmptyState
           icon={<ShieldAlert className="h-6 w-6" />}
           title="Access restricted"
-          description="AI Settings is available to Corporate HR, CHRO and super users only."
+          description="AI Settings is available to Head of Talent Acquisition, CHRO and super users only."
         />
       </div>
     );
@@ -153,7 +159,7 @@ export default function AiSettingsPage() {
     <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader
         title="AI Settings"
-        description="Tune how AI assists recruitment across the system. Corporate HR, CHRO and super users."
+        description="Tune how AI assists recruitment across the system. Head of Talent Acquisition, CHRO and super users."
       />
 
       {isLoading || !data ? (
@@ -312,6 +318,12 @@ export default function AiSettingsPage() {
                     and interviewer scoring is blocked.
                   </p>
                   <PassMarkSlider label="Written Test" value={writtenPassPct} onChange={setWrittenPassPct} />
+                  <Divider />
+                  <PassMarkSlider
+                    label="Computer Literacy Test"
+                    value={computerPassPct}
+                    onChange={setComputerPassPct}
+                  />
                   <Divider />
                   <PassMarkSlider
                     label="AI Proficiency Test"

@@ -5,12 +5,25 @@ import type { ApprovalPathLevelInput } from '../types/approval-path.types';
 
 export const approvalPathKeys = {
   all: ['approval-paths'] as const,
+  myScope: ['approval-paths', 'my-scope'] as const,
 };
 
 export function useApprovalPaths() {
   return useQuery({
     queryKey: approvalPathKeys.all,
     queryFn: () => approvalPathsApi.list(),
+  });
+}
+
+/** Which units and departments the signed-in user may raise requisitions for. */
+export function useMyRaiserScope() {
+  return useQuery({
+    queryKey: approvalPathKeys.myScope,
+    queryFn: () => approvalPathsApi.myScope(),
+    // No staleTime on purpose: only the new-requisition form reads this, and
+    // it must reflect a nomination made moments ago. One small query per visit
+    // is cheaper than a raiser being told they may not raise for a department
+    // Head of Talent Acquisition just granted them.
   });
 }
 

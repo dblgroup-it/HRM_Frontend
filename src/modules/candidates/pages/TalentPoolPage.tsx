@@ -357,7 +357,7 @@ export default function TalentPoolPage() {
         <PageHeader title="Talent Bank" />
         <EmptyState icon={<ShieldAlert className="h-6 w-6" />}
           title="Access restricted"
-          description="Talent Bank is available to Corporate HR, CHRO and super users only." />
+          description="Talent Bank is available to Head of Talent Acquisition, CHRO and super users only." />
       </div>
     );
   }

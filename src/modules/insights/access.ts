@@ -4,7 +4,7 @@ interface Perms {
 }
 
 /**
- * HR Insights are for management, Corporate HR / CHRO and super users.
+ * HR Insights are for management, Head of Talent Acquisition / CHRO and super users.
  * `role` is the User.role (admin / hr_manager / management / employee).
  */
 export function canAccessInsights(

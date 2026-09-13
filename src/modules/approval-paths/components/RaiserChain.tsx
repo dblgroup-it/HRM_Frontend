@@ -148,7 +148,7 @@ export function RaiserChain({ path }: { path: RaiserApprovalPath }) {
         </div>
         <Badge tone={levels.length === 0 ? 'neutral' : 'brand'} className="shrink-0">
           {levels.length === 0
-            ? 'Direct to Corporate HR'
+            ? 'Direct to Head of Talent Acquisition'
             : `${levels.length} step${levels.length > 1 ? 's' : ''}`}
         </Badge>
         {dirty && (
@@ -349,7 +349,7 @@ export function RaiserChain({ path }: { path: RaiserApprovalPath }) {
             <div className="min-w-0 flex-1 rounded-xl border border-emerald-100 bg-emerald-50/50 px-2.5 py-1.5">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <p className="text-sm font-semibold text-slate-900">
-                  Corporate HR
+                  Head of Talent Acquisition
                 </p>
                 <Badge tone="success">Always last</Badge>
               </div>

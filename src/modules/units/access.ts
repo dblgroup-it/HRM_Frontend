@@ -27,7 +27,7 @@ function sameUnitName(a: string, b: string): boolean {
 }
 
 /**
- * Can this user edit THIS SPECIFIC unit's configuration? Corporate HR/CHRO
+ * Can this user edit THIS SPECIFIC unit's configuration? Head of Talent Acquisition/CHRO
  * (global) and super users can edit any unit; Factory HR/SBU Head only the
  * unit(s) they actually hold that role for — same rule the backend enforces,
  * so the UI doesn't offer controls a write would just get rejected for.

@@ -46,6 +46,12 @@ export interface Candidate {
   isRedFlagged: boolean;
   redFlagReason: string | null;
   redFlaggedAt: string | null;
+  rejectedAt: string | null;
+  /** Where the rejection happened — 'first_interview' is a factory-side call. */
+  rejectionStage: string | null;
+  rejectionReason: string | null;
+  /** Who turned them down, when the query supplies it. */
+  rejectedByName: string | null;
   createdAt: string;
   updatedAt: string;
 }

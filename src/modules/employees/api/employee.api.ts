@@ -76,6 +76,7 @@ function toParams(filters: EmployeeFilters) {
     ...(filters.department && filters.department !== 'all'
       ? { department: filters.department }
       : {}),
+    ...(filters.unit && filters.unit !== 'all' ? { unit: filters.unit } : {}),
   };
 }
 

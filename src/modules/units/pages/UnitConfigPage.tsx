@@ -43,7 +43,7 @@ export default function UnitConfigPage() {
 
   // Factory HR / SBU Head only ever see the unit(s) they're actually
   // assigned to here — not shown read-only, just not in the list at all.
-  // Corporate HR / CHRO / super users see every unit, unaffected.
+  // Head of Talent Acquisition / CHRO / super users see every unit, unaffected.
   const visibleUnits = useMemo(
     () => units.filter((u) => canEditUnit(perms, u.name)),
     [units, perms],
@@ -112,7 +112,7 @@ export default function UnitConfigPage() {
           <EmptyState
             icon={<ShieldAlert className="h-6 w-6" />}
             title="Access restricted"
-            description="Unit Config is available to Corporate HR, CHRO and SBU Head (for their own unit) and super users only."
+            description="Unit Config is available to Head of Talent Acquisition, CHRO and SBU Head (for their own unit) and super users only."
           />
         </div>
       </div>

@@ -20,9 +20,9 @@ export interface ApprovalPathLevel {
 /**
  * One Requisition Raiser's chain for a unit.
  *
- * `levels` holds only the intermediate approvers — a Corporate HR step is
+ * `levels` holds only the intermediate approvers — a Head of Talent Acquisition step is
  * always appended when a requisition is raised, so an empty list is valid and
- * means "straight to Corporate HR".
+ * means "straight to Head of Talent Acquisition".
  */
 export interface RaiserApprovalPath {
   unitId: string;
@@ -49,4 +49,17 @@ export interface ApprovalPathLevelInput {
   userId: string;
   title: string;
   subtitle?: string;
+}
+
+/**
+ * What one raiser may raise for in a unit.
+ *
+ * `anyDepartment` comes from a path on the '' department — the unit-wide
+ * wildcard — and means every department is open to them there.
+ */
+export interface RaiserScope {
+  unitId: string;
+  unitName: string;
+  departments: string[];
+  anyDepartment: boolean;
 }

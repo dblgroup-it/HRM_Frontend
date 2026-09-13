@@ -4,6 +4,7 @@ import type { ApiResponse } from '@shared/types';
 import type {
   ApprovalPathLevelInput,
   RaiserApprovalPath,
+  RaiserScope,
   UnitApprovalPaths,
 } from '../types/approval-path.types';
 
@@ -11,6 +12,13 @@ export const approvalPathsApi = {
   list(): Promise<UnitApprovalPaths[]> {
     return http
       .get<ApiResponse<UnitApprovalPaths[]>>('/approval-paths')
+      .then((res) => res.data);
+  },
+
+  /** The unit/department pairs the signed-in user may raise for. */
+  myScope(): Promise<RaiserScope[]> {
+    return http
+      .get<ApiResponse<RaiserScope[]>>('/approval-paths/my-scope')
       .then((res) => res.data);
   },
 

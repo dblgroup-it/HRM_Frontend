@@ -24,6 +24,11 @@ const ApprovalPathsPage = lazy(
 );
 const BoardGroupsPage = lazy(() => import('@modules/board/pages/BoardGroupsPage'));
 const BoardVotePage   = lazy(() => import('@modules/board/pages/BoardVotePage'));
+const ActivityLogPage = lazy(() => import('@modules/audit/pages/ActivityLogPage'));
+const BoardSheetPage  = lazy(() => import('@modules/board/pages/BoardSheetPage'));
+const ApprovalSheetsPage = lazy(
+  () => import('@modules/board/pages/ApprovalSheetsPage'),
+);
 const FacilityConfirmPage = lazy(() => import('@modules/onboarding/pages/FacilityConfirmPage'));
 const IntegrationsPage = lazy(
   () => import('@modules/integrations/pages/IntegrationsPage')
@@ -55,6 +60,9 @@ const TalentPoolPage = lazy(
 );
 const MyInterviewsPage = lazy(
   () => import('@modules/assessment/pages/MyInterviewsPage')
+);
+const AssignedCandidatesPage = lazy(
+  () => import('@modules/assessment/pages/AssignedCandidatesPage')
 );
 const AiProficiencyExamPage = lazy(
   () => import('@modules/aiProficiency/pages/AiProficiencyExamPage'),
@@ -108,6 +116,7 @@ export function AppRouter() {
         <Route path="/evaluate/:token" element={<EvaluateByTokenPage />} />
         <Route path={ROUTES.onboarding()} element={<OnboardingPage />} />
         <Route path={ROUTES.boardVote()} element={<BoardVotePage />} />
+        <Route path={ROUTES.boardSheet()} element={<BoardSheetPage />} />
         <Route path={ROUTES.facilityConfirm()} element={<FacilityConfirmPage />} />
 
         {/* Authenticated */}
@@ -120,6 +129,10 @@ export function AppRouter() {
             <Route
               path={ROUTES.approvalPaths}
               element={<ApprovalPathsPage />}
+            />
+            <Route
+              path={ROUTES.activityLog}
+              element={<ActivityLogPage />}
             />
             <Route
               path={ROUTES.accessControl}
@@ -146,8 +159,16 @@ export function AppRouter() {
             <Route path={ROUTES.candidates} element={<CandidatesPage />} />
             <Route path={ROUTES.talentPool} element={<TalentPoolPage />} />
             <Route
+              path={ROUTES.approvalSheets}
+              element={<ApprovalSheetsPage />}
+            />
+            <Route
               path={ROUTES.myInterviews}
               element={<MyInterviewsPage />}
+            />
+            <Route
+              path={ROUTES.assignedCandidates}
+              element={<AssignedCandidatesPage />}
             />
             <Route path={ROUTES.medical} element={<MedicalQueuePage />} />
             <Route path={ROUTES.insights} element={<InsightsPage />} />

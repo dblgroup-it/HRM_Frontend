@@ -7,6 +7,8 @@ export const ROUTES = {
   organogram: '/organogram',
   unitConfig: '/configuration/units',
   approvalPaths: '/configuration/approval-paths',
+  /** Super-user-only system activity log. */
+  activityLog: '/configuration/activity-log',
   accessControl: '/configuration/access',
   integrations: '/configuration/integrations',
   aiSettings: '/configuration/ai',
@@ -28,6 +30,7 @@ export const ROUTES = {
   applyStatus: '/apply/status',
   /** Committee member's own interview marking. */
   myInterviews: '/my-interviews',
+  assignedCandidates: '/assigned-candidates',
   /** Medical officer's clearance queue (Phase 5). */
   medical: '/medical',
   /** Full-page onboarding workspace for a selected candidate. */
@@ -47,6 +50,10 @@ export const ROUTES = {
   boardGroups: '/configuration/board-groups',
   /** Public board-member approval page (no auth). */
   boardVote: (token = ':token') => `/board-vote/${token}`,
+  /** Head of Talent Acquisition's consolidated board-approval page. */
+  approvalSheets: '/approval-sheets',
+  /** Public Hiring Approval Sheet (no auth) — CHRO and board members. */
+  boardSheet: (token = ':token') => `/board-sheet/${token}`,
   /** Public — Admin/IT recipient's facility-provisioning confirmation link. */
   facilityConfirm: (token = ':token') => `/facility-provisioning/${token}`,
 

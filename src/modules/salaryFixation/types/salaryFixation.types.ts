@@ -26,6 +26,9 @@ export interface SalaryFixation {
   writtenTestEnabled: boolean;
   writtenTestTotal: number | null;
   writtenTestObtained: number | null;
+  computerTestEnabled: boolean;
+  computerTestTotal: number | null;
+  computerTestObtained: number | null;
   /** HR can skip Step 2 per candidate; defaults true (mandatory). */
   aiTestEnabled: boolean;
   aiTestTotal: number | null;
@@ -33,6 +36,7 @@ export interface SalaryFixation {
 
   /** Admin-configured minimum % to pass each test (Settings → Screening). */
   writtenTestPassPct: number;
+  computerTestPassPct: number;
   aiTestPassPct: number;
 
   /** Committee scores, live-derived from Evaluation records — read-only. */
@@ -70,6 +74,9 @@ export interface UpsertSalaryFixationInput {
   writtenTestEnabled?: boolean;
   writtenTestTotal?: number | null;
   writtenTestObtained?: number | null;
+  computerTestEnabled?: boolean;
+  computerTestTotal?: number | null;
+  computerTestObtained?: number | null;
   aiTestEnabled?: boolean;
   aiTestTotal?: number | null;
   aiTestObtained?: number | null;
