@@ -44,6 +44,7 @@ import type {
   DelegatedCandidate,
   DelegatedTest,
 } from '../types/assessment.types';
+import { resolveApiFileUrl } from '@shared/api';
 
 /* ------------------------------------------------------------------ *
  * A board, because the work is a pipeline.
@@ -940,7 +941,7 @@ function BoardCard({
               {row.candidate.cvUrl && (
                 <>
                   <a
-                    href={row.candidate.cvUrl}
+                    href={resolveApiFileUrl(row.candidate.cvUrl)}
                     target="_blank"
                     rel="noreferrer"
                     draggable={false}

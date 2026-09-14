@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install (locked)
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      # The frontend lint is already clean at --max-warnings 0, so unlike the
+      # backend this one is a real gate.
+      - name: Tests
+        run: npm test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Dependency audit
+        continue-on-error: true
+        # Production dependencies only — dev-time advisories in the test
+        # runner or bundler never reach the built assets.
+        run: npm audit --omit=dev --audit-level=high

@@ -1,6 +1,7 @@
 export { AssessmentPanel } from './components/AssessmentPanel';
 export { InterviewsPanel } from './components/InterviewsPanel';
 export { DelegateInterviewsModal } from './components/DelegateInterviewsModal';
+export { DelegationBoard } from './components/DelegationBoard';
 export { BulkInterviewModal } from './components/BulkInterviewModal';
 export { CandidateInterviewsModal } from './components/CandidateInterviewsModal';
 export {

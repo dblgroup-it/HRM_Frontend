@@ -16,6 +16,7 @@ import {
   useRemoveAttachment,
   useUploadAttachment,
 } from '../hooks/useRequisitions';
+import { resolveApiFileUrl } from '@shared/api';
 
 const MAX_BYTES = 15 * 1024 * 1024;
 
@@ -76,7 +77,7 @@ export function AttachmentsPanel({
                 className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2"
               >
                 <a
-                  href={a.url}
+                  href={resolveApiFileUrl(a.url)}
                   target="_blank"
                   rel="noreferrer"
                   className="flex min-w-0 items-center gap-2 text-sm text-slate-700 hover:text-brand-700"

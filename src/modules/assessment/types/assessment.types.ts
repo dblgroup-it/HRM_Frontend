@@ -214,6 +214,17 @@ export interface InterviewDelegation {
   createdAt: string;
   delegatedTo: { id: string; name: string; employeeCode: string };
   delegatedBy: { id: string; name: string } | null;
+  /** 1 on the first send; above that the interviewer has been chased. */
+  sendCount: number;
+  lastSentAt: string;
+  resent: boolean;
+  /** Whole days since the most recent send. */
+  waitingDays: number;
+  stage: DelegationStage;
+  stageLabel: string;
+  /** Nothing further is owed by the interviewer. */
+  complete: boolean;
+  scheduledAt: string | null;
 }
 
 /**
@@ -261,4 +272,64 @@ export interface DelegationTests {
   computerTestEnabled?: boolean;
   computerTestTotal?: number | null;
   aiTestEnabled?: boolean;
+}
+
+/**
+ * How far a delegated candidate has got. Ordered: each is further along than
+ * the one before. Mirrors `delegation-progress.ts` on the backend — the two
+ * must agree or the board and the interviewer's own list tell different
+ * stories about the same candidate.
+ */
+export type DelegationStage =
+  | 'sent'
+  | 'scheduled'
+  | 'interviewed'
+  | 'marked'
+  | 'decided';
+
+/** What one interviewer is currently carrying, across all requisitions. */
+export interface DelegateWorkload {
+  userId: string;
+  holds: number;
+  /** Handed over with nothing arranged — the number that matters when picking. */
+  waiting: number;
+  inProgress: number;
+  done: number;
+  oldestWaitingDays: number;
+  resent: number;
+}
+
+/** One row of the requisition delegation scoreboard. */
+export interface DelegationBoardRow {
+  id: string;
+  candidate: { id: string; name: string; stage: string };
+  delegatedTo: { id: string; name: string; employeeCode: string };
+  delegatedBy: { id: string; name: string } | null;
+  note: string | null;
+  firstSentAt: string;
+  lastSentAt: string;
+  sendCount: number;
+  resent: boolean;
+  waitingDays: number;
+  stage: DelegationStage;
+  stageLabel: string;
+  complete: boolean;
+  scheduledAt: string | null;
+}
+
+export interface DelegationBoard {
+  total: number;
+  waiting: number;
+  inProgress: number;
+  done: number;
+  delegates: {
+    delegateId: string;
+    delegate: { id: string; name: string; employeeCode: string };
+    holds: number;
+    waiting: number;
+    done: number;
+    oldestWaitingDays: number;
+    candidates: DelegationBoardRow[];
+  }[];
+  items: DelegationBoardRow[];
 }

@@ -9,7 +9,11 @@ interface AuthState {
   user: AuthUser | null;
   token: string | null;
   isAuthenticated: boolean;
+  /** Mirrors the backend's own restriction — see AuthSession. */
+  mustChangePassword: boolean;
   setSession: (session: AuthSession) => void;
+  /** Called after a successful change: swaps in the fresh token and unblocks. */
+  passwordChanged: (token: string) => void;
   updateUser: (patch: Partial<AuthUser>) => void;
   clearSession: () => void;
 }
@@ -24,18 +28,26 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isAuthenticated: false,
+      mustChangePassword: false,
       setSession: (session) =>
         set({
           user: session.user,
           token: session.token,
           isAuthenticated: true,
+          mustChangePassword: session.mustChangePassword ?? false,
         }),
+      passwordChanged: (token) => set({ token, mustChangePassword: false }),
       updateUser: (patch) =>
         set((state) =>
           state.user ? { user: { ...state.user, ...patch } } : state
         ),
       clearSession: () =>
-        set({ user: null, token: null, isAuthenticated: false }),
+        set({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+          mustChangePassword: false,
+        }),
     }),
     {
       name: STORAGE_KEYS.AUTH,
@@ -44,6 +56,7 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         token: state.token,
         isAuthenticated: state.isAuthenticated,
+        mustChangePassword: state.mustChangePassword,
       }),
     }
   )

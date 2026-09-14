@@ -86,6 +86,7 @@ import type {
 } from '../types/onboarding.types';
 import { printMedicalReport } from '../utils/printMedicalReport';
 import { printOnboardingSummary } from '../utils/printSummary';
+import { resolveApiFileUrl } from '@shared/api';
 
 const DOC_TONE: Record<DocStatus, BadgeTone> = {
   pending: 'warning',
@@ -972,7 +973,7 @@ function Flow({
           <div className="mt-3 flex flex-wrap items-center gap-3">
             {medicalReportDoc && (
               <a
-                href={medicalReportDoc.url}
+                href={resolveApiFileUrl(medicalReportDoc.url)}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-600 hover:underline"
@@ -1042,7 +1043,7 @@ function Flow({
                     )}
                     {boardApproval.hrApprovalAttachmentUrl && (
                       <a
-                        href={boardApproval.hrApprovalAttachmentUrl}
+                        href={resolveApiFileUrl(boardApproval.hrApprovalAttachmentUrl)}
                         target="_blank"
                         rel="noreferrer"
                         className="mt-1 flex items-center gap-1.5 text-[0.6875rem] font-medium text-brand-600 hover:underline"
@@ -1999,7 +2000,7 @@ function DocRow({
     <div className="rounded-lg border border-slate-200 px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-2">
         <a
-          href={doc.url}
+          href={resolveApiFileUrl(doc.url)}
           target="_blank"
           rel="noreferrer"
           className="flex min-w-0 flex-1 items-center gap-2 text-sm font-medium text-slate-800 hover:text-brand-600"

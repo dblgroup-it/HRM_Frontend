@@ -23,5 +23,11 @@ dist-ssr
 *.sw?
 
 # Env
+# --- Environment files -----------------------------------------------------
+# Every .env variant EXCEPT the committed template. The previous rules covered
+# `.env` and `.env.*.local` only, which left `.env.production`, `.env.local`,
+# `.env.bak` and similar committable — the exact files an operator creates on a
+# server or when editing one by hand.
 .env
-.env.*.local
+.env.*
+!.env.example

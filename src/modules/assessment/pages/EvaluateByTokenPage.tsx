@@ -18,6 +18,7 @@ import { Spinner } from '@shared/components/ui';
 
 import { usePublicEval, useSubmitPublicEval } from '../hooks/useAssessment';
 import { CriteriaScoringSection } from '../components/CriteriaScoringSection';
+import { resolveApiFileUrl } from '@shared/api';
 
 // ---------------------------------------------------------------------------
 // helpers
@@ -177,7 +178,7 @@ export default function EvaluateByTokenPage() {
                 someone whose background they cannot check. */}
             {data.candidate.cvUrl && (
               <a
-                href={data.candidate.cvUrl}
+                href={resolveApiFileUrl(data.candidate.cvUrl)}
                 target="_blank"
                 rel="noreferrer"
                 className="mt-4 flex items-center gap-3 rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-3 transition-colors hover:border-brand-300 hover:bg-brand-50"

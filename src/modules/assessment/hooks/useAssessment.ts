@@ -304,6 +304,11 @@ export function useDelegateInterviews() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: delegationKeys.mine });
       void qc.invalidateQueries({ queryKey: ['interview-delegations'] });
+      // The scoreboard and the workload counts both move on every send.
+      void qc.invalidateQueries({ queryKey: ['interview-delegation-board'] });
+      void qc.invalidateQueries({
+        queryKey: ['interview-delegate-workload'],
+      });
     },
   });
 }
@@ -351,5 +356,31 @@ export function useFirstInterviewOutcome() {
     },
     onError: (error) =>
       toast.error(errMsg(error, 'Could not record the outcome')),
+  });
+}
+
+/**
+ * What each interviewer in the picker is currently carrying.
+ *
+ * Keyed on the sorted id list so paging the search does not thrash the cache,
+ * and kept fresh for a minute — a workload count does not need to be live, but
+ * it must not be stale from an earlier sitting.
+ */
+export function useDelegateWorkload(userIds: string[]) {
+  const key = [...userIds].sort();
+  return useQuery({
+    queryKey: ['interview-delegate-workload', key] as const,
+    queryFn: () => assessmentApi.delegateWorkload(key),
+    enabled: key.length > 0,
+    staleTime: 60_000,
+  });
+}
+
+/** The requisition delegation scoreboard. */
+export function useDelegationBoard(reqId: string | undefined) {
+  return useQuery({
+    queryKey: ['interview-delegation-board', reqId] as const,
+    queryFn: () => assessmentApi.delegationBoard(reqId!),
+    enabled: Boolean(reqId),
   });
 }

@@ -4,6 +4,7 @@ import { BadgeCheck, Building2, CheckCircle2, Clock, FileText, Layers, Sparkles,
 
 import { FullPageSpinner } from '@shared/components/ui';
 import { useSubmitVote, useVoteInfo } from '../hooks/useBoard';
+import { resolveApiFileUrl } from '@shared/api';
 
 export default function BoardVotePage() {
   const { token = '' } = useParams<{ token: string }>();
@@ -100,7 +101,7 @@ export default function BoardVotePage() {
 
           {c.cvUrl && (
             <div className="border-t border-slate-100 px-5 py-3">
-              <a href={c.cvUrl} target="_blank" rel="noreferrer"
+              <a href={resolveApiFileUrl(c.cvUrl)} target="_blank" rel="noreferrer"
                 className="inline-flex items-center gap-2 text-[0.8125rem] font-medium text-brand-600 hover:text-brand-700">
                 <FileText className="h-4 w-4" />
                 View Candidate CV

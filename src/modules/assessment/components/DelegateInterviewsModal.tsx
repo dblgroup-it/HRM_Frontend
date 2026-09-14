@@ -14,7 +14,15 @@ import { cn } from '@shared/lib';
 import { useEmployees } from '@modules/employees';
 import { useOrganogramUnits } from '@modules/organogram';
 
-import { useDelegateInterviews } from '../hooks/useAssessment';
+import {
+  useCandidateDelegations,
+  useDelegateInterviews,
+  useDelegateWorkload,
+} from '../hooks/useAssessment';
+import type {
+  DelegateWorkload,
+  InterviewDelegation,
+} from '../types/assessment.types';
 
 /**
  * Hand shortlisted candidates to the people who will run their first interview.
@@ -53,6 +61,28 @@ export function DelegateInterviewsModal({
     page: 1,
     pageSize: 8,
   });
+
+  // What each person on screen is already carrying. Asked for the visible page
+  // only — the point is to inform the click that is about to happen, not to
+  // aggregate the whole directory.
+  const visibleUserIds = (data?.items ?? [])
+    .map((e) => e.userId)
+    .filter((id): id is string => Boolean(id));
+  const { data: workload } = useDelegateWorkload(visibleUserIds);
+  const loadFor = new Map<string, DelegateWorkload>(
+    (workload ?? []).map((w) => [w.userId, w]),
+  );
+
+  // Who already holds these candidates. Only meaningful for a single
+  // candidate; in bulk the answer would be a different set per row.
+  const singleCandidateId = eligible.length === 1 ? eligible[0].id : undefined;
+  const { data: existing } = useCandidateDelegations(
+    singleCandidateId ?? '',
+    Boolean(singleCandidateId),
+  );
+  const alreadyWith = new Map<string, InterviewDelegation>(
+    (existing ?? []).map((d) => [d.delegatedTo.id, d]),
+  );
   const [picked, setPicked] = useState<Map<string, string>>(new Map());
   const [note, setNote] = useState('');
 
@@ -284,6 +314,10 @@ export function DelegateInterviewsModal({
                 // Only people with a login can act on what they're sent.
                 const disabled = !emp.userId;
                 const isPicked = emp.userId ? picked.has(emp.userId) : false;
+                const load = emp.userId ? loadFor.get(emp.userId) : undefined;
+                const prior = emp.userId
+                  ? alreadyWith.get(emp.userId)
+                  : undefined;
                 return (
                   <button
                     key={emp.id}
@@ -300,14 +334,66 @@ export function DelegateInterviewsModal({
                     )}
                   >
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-medium text-slate-900">
-                        {emp.name}
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate text-sm font-medium text-slate-900">
+                          {emp.name}
+                        </span>
+                        {prior && (
+                          <span
+                            title={
+                              prior.resent
+                                ? `Already sent ${prior.sendCount} times — last ${relativeDays(prior.waitingDays)}`
+                                : `Already sent ${relativeDays(prior.waitingDays)}`
+                            }
+                            className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800"
+                          >
+                            {prior.resent
+                              ? `sent ×${prior.sendCount}`
+                              : 'already sent'}
+                          </span>
+                        )}
                       </span>
                       <span className="mt-0.5 block truncate text-xs text-slate-500">
                         {emp.employeeCode}
                         {emp.jobTitle ? ` · ${emp.jobTitle}` : ''}
                         {disabled ? ' · no sign-in' : ''}
                       </span>
+                      {/* The load they are already carrying. Shown before the
+                          click, because afterwards it is somebody else's
+                          problem to discover. */}
+                      {load && load.holds > 0 && (
+                        <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-500">
+                          <span className="font-medium text-slate-600">
+                            holds {load.holds}
+                          </span>
+                          {load.waiting > 0 && (
+                            <span
+                              className={cn(
+                                load.oldestWaitingDays >= 7
+                                  ? 'font-medium text-amber-700'
+                                  : 'text-slate-500',
+                              )}
+                            >
+                              · {load.waiting} not started
+                              {load.oldestWaitingDays > 0 &&
+                                ` (oldest ${load.oldestWaitingDays}d)`}
+                            </span>
+                          )}
+                          {load.inProgress > 0 && (
+                            <span>· {load.inProgress} in progress</span>
+                          )}
+                          {load.done > 0 && (
+                            <span className="text-emerald-700">
+                              · {load.done} done
+                            </span>
+                          )}
+                        </span>
+                      )}
+                      {load && load.holds === 0 && (
+                        <span className="mt-1 block text-[11px] text-slate-400">
+                          nothing assigned
+                        </span>
+                      )}
                     </span>
                     <span
                       className={cn(
@@ -399,4 +485,11 @@ function TestToggle({
       )}
     </div>
   );
+}
+
+/** "today" / "yesterday" / "9 days ago" — for a tooltip, not a table. */
+function relativeDays(days: number): string {
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  return `${days} days ago`;
 }

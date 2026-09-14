@@ -38,6 +38,7 @@ import {
 } from '../hooks/useCandidates';
 import type { Candidate, CandidateStage } from '../types/candidate.types';
 import { MatchPopover } from './MatchPopover';
+import { resolveApiFileUrl } from '@shared/api';
 
 const ACCEPT = '.pdf,application/pdf';
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
@@ -345,7 +346,7 @@ export function CandidateRow({
       {canManage && (
         <div className="flex flex-wrap items-center justify-center gap-1.5">
           {candidate.cvUrl ? (
-            <ActionBtn as="a" href={candidate.cvUrl} target="_blank" rel="noreferrer" title="View CV">
+            <ActionBtn as="a" href={resolveApiFileUrl(candidate.cvUrl)} target="_blank" rel="noreferrer" title="View CV">
               <FileText className="h-3.5 w-3.5" /> CV
             </ActionBtn>
           ) : (

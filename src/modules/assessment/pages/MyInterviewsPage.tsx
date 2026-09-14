@@ -26,6 +26,7 @@ import { formatDate } from '@shared/utils';
 import { useMyInterviews, useSubmitEvaluation } from '../hooks/useAssessment';
 import { CriteriaScoringSection } from '../components/CriteriaScoringSection';
 import type { MyInterviewRound } from '../types/assessment.types';
+import { resolveApiFileUrl } from '@shared/api';
 
 type Filter = 'all' | 'pending' | 'submitted';
 
@@ -216,7 +217,7 @@ function InterviewCard({ round }: { round: MyInterviewRound }) {
               without being able to read it. */}
           {round.candidate.cvUrl && (
             <a
-              href={round.candidate.cvUrl}
+              href={resolveApiFileUrl(round.candidate.cvUrl)}
               target="_blank"
               rel="noreferrer"
               onClick={(e) => e.stopPropagation()}

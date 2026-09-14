@@ -7,6 +7,7 @@ import { cn } from '@shared/lib';
 
 import { useSheetVote, useSubmitSheetVote } from '../hooks/useBoard';
 import type { SheetRow } from '../types/board.types';
+import { resolveApiFileUrl } from '@shared/api';
 
 const money = (n: number | null) =>
   n == null
@@ -150,7 +151,7 @@ export default function BoardSheetPage() {
                         read the CV without leaving the sheet. */}
                     {r.cvUrl && (
                       <a
-                        href={r.cvUrl}
+                        href={resolveApiFileUrl(r.cvUrl)}
                         target="_blank"
                         rel="noreferrer"
                         className="mt-0.5 flex items-center gap-1 text-[0.6875rem] font-normal text-brand-600 hover:underline"

@@ -22,6 +22,7 @@ import {
   Users,
   X,
   Send,
+  ClipboardList,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -43,6 +44,7 @@ import {
   BulkInterviewModal,
   CandidateInterviewsModal,
   DelegateInterviewsModal,
+  DelegationBoard,
 } from '@modules/assessment';
 import { SalaryFixationModal } from '@modules/salaryFixation';
 
@@ -71,6 +73,7 @@ import { CandidateRow } from './CandidateRow';
 import { AddCandidateModal } from './AddCandidateModal';
 import { EmailCandidateModal } from './EmailCandidateModal';
 import { PostToBdJobsModal } from '@modules/integrations/bdjobs';
+import { resolveApiFileUrl } from '@shared/api';
 
 type Tab = 'all' | CandidateStage;
 
@@ -158,6 +161,9 @@ export function CandidatesPanel({
   const rescanTalentBank = useSyncTalentBankMatches(reqId);
   const copyToRequisition = useCopyToRequisition();
   const [talentBankModalOpen, setTalentBankModalOpen] = useState(false);
+  // The delegation scoreboard: what came of the candidates sent out for a
+  // first interview. Previously there was nowhere to look once they were sent.
+  const [delegationBoardOpen, setDelegationBoardOpen] = useState(false);
 
   // Screening progress (poll every 2s when active)
   const [screeningActive, setScreeningActive] = useState(false);
@@ -258,6 +264,15 @@ export function CandidatesPanel({
         </CardTitle>
         {canManage && drive && (
           <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              leftIcon={<ClipboardList className="h-4 w-4 text-slate-600" />}
+              onClick={() => setDelegationBoardOpen(true)}
+              title="Who this requisition's candidates were sent to for a first interview, and what has happened since"
+            >
+              First interviews
+            </Button>
             {showTalentBankTab && (talentMatches?.length ?? 0) > 0 && (
               <Button
                 size="sm"
@@ -785,6 +800,15 @@ export function CandidatesPanel({
 
       {/* Modals */}
       <Modal
+        open={delegationBoardOpen}
+        onClose={() => setDelegationBoardOpen(false)}
+        title="First interviews — who has what"
+        size="lg"
+      >
+        <DelegationBoard requisitionId={reqId} />
+      </Modal>
+
+      <Modal
         open={talentBankModalOpen}
         onClose={() => setTalentBankModalOpen(false)}
         title="Talent Bank Matches"
@@ -980,7 +1004,7 @@ function TalentBankMatchRow({
       <div className="flex shrink-0 items-center gap-1.5">
         {match.cvUrl && (
           <a
-            href={match.cvUrl}
+            href={resolveApiFileUrl(match.cvUrl)}
             target="_blank"
             rel="noreferrer"
             className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-brand-600"

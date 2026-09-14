@@ -34,6 +34,7 @@ import {
 } from '../hooks/useCandidates';
 import { canViewCandidatePipeline } from '../access';
 import type { TalentBankSearchHit, TalentPoolCandidate } from '../types/candidate.types';
+import { resolveApiFileUrl } from '@shared/api';
 
 /* ─── constants ─── */
 const STAGE: Record<string, { label: string; tone: 'success' | 'brand' | 'warning' | 'neutral' }> = {
@@ -305,7 +306,7 @@ function CandidateRow({
       <div className="flex shrink-0 items-center gap-2">
         {/* View CV — icon-only on mobile, icon+text on sm+ */}
         {c.cvUrl ? (
-          <a href={c.cvUrl} target="_blank" rel="noreferrer"
+          <a href={resolveApiFileUrl(c.cvUrl)} target="_blank" rel="noreferrer"
             className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-2 py-1.5 text-[0.6875rem] font-medium text-slate-600 transition-colors hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 sm:px-2.5">
             <FileText className="h-3.5 w-3.5 shrink-0" />
             <span className="hidden sm:inline">View CV</span>

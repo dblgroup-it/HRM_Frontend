@@ -1,4 +1,7 @@
-import { defineConfig } from 'vite';
+// `vitest/config` re-exports Vite's own defineConfig with the `test` block
+// typed. A triple-slash reference is not enough here: tsc type-checks this
+// file directly and would reject `test` as an unknown property.
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
@@ -22,5 +25,11 @@ export default defineConfig({
   },
   preview: {
     port: 3000,
+  },
+  test: {
+    // Node environment: the units under test are pure functions (URL
+    // resolution, formatting). Nothing here needs a DOM.
+    environment: 'node',
+    include: ['src/**/*.spec.ts'],
   },
 });

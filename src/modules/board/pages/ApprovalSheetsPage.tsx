@@ -42,6 +42,7 @@ import type {
   SheetRow,
   SheetSummary,
 } from '../types/board.types';
+import { resolveApiFileUrl } from '@shared/api';
 
 const money = (n: number | null) =>
   n == null
@@ -186,7 +187,7 @@ export default function ApprovalSheetsPage() {
                           paper form and gains no column of its own. */}
                       {r.cvUrl && (
                         <a
-                          href={r.cvUrl}
+                          href={resolveApiFileUrl(r.cvUrl)}
                           target="_blank"
                           rel="noreferrer"
                           onClick={(e) => e.stopPropagation()}
@@ -619,7 +620,7 @@ function SheetRowEditor({ row, index }: { row: SheetRow; index: number }) {
         <span className="font-semibold text-slate-900">{row.name}</span>
         {row.cvUrl && (
           <a
-            href={row.cvUrl}
+            href={resolveApiFileUrl(row.cvUrl)}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1 text-brand-600 hover:underline"

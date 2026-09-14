@@ -24,6 +24,13 @@ export interface LoginCredentials {
 export interface AuthSession {
   user: AuthUser;
   token: string;
+  /**
+   * The account still holds a password somebody else chose for it — the
+   * employee code it was provisioned with, or an administrator's reset. The
+   * backend refuses every other endpoint until it is changed, so the app sends
+   * the user straight to the change-password screen.
+   */
+  mustChangePassword?: boolean;
 }
 
 /** Returned by login when the account has 2FA — prompts the code step. */

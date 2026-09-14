@@ -31,6 +31,7 @@ import {
 } from '../hooks/useOnboarding';
 import type { MedicalExam, MedicalQueueItem } from '../types/onboarding.types';
 import { printMedicalReport } from '../utils/printMedicalReport';
+import { resolveApiFileUrl } from '@shared/api';
 
 type Draft = Partial<MedicalExam>;
 
@@ -426,7 +427,7 @@ export function MedicalExamForm({
           </Button>
           {reportDoc && (
             <a
-              href={reportDoc.url}
+              href={resolveApiFileUrl(reportDoc.url)}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-600 hover:underline"

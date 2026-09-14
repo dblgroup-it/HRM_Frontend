@@ -16,6 +16,8 @@ import type {
   ScreeningTests,
   ScreeningTestsInput,
   SubmitEvaluationInput,
+  DelegateWorkload,
+  DelegationBoard,
 } from '../types/assessment.types';
 
 export const assessmentApi = {
@@ -44,6 +46,23 @@ export const assessmentApi = {
     http
       .get<ApiResponse<InterviewDelegation[]>>(
         `/candidates/${candidateId}/interview-delegations`,
+      )
+      .then((r) => r.data),
+
+  /** What each named interviewer is currently carrying (send dialog). */
+  delegateWorkload: (userIds: string[]): Promise<DelegateWorkload[]> =>
+    http
+      .post<ApiResponse<DelegateWorkload[]>>(
+        '/interview-delegations/workload',
+        { userIds },
+      )
+      .then((r) => r.data),
+
+  /** The scoreboard: every delegation on a requisition and where it stands. */
+  delegationBoard: (reqId: string): Promise<DelegationBoard> =>
+    http
+      .get<ApiResponse<DelegationBoard>>(
+        `/requisitions/${reqId}/interview-delegations`,
       )
       .then((r) => r.data),
 
