@@ -1,7 +1,7 @@
 import type { Facilities } from '@modules/requisition/types/requisition.types';
 
 export type DocStatus = 'pending' | 'verified' | 'rejected';
-export type MedicalStatus = 'pending' | 'cleared' | 'rejected';
+export type MedicalStatus = 'pending' | 'submitted' | 'cleared' | 'rejected';
 
 export interface OnboardingDoc {
   id: string;
@@ -63,6 +63,18 @@ export interface OnboardingView {
   medicalStatus: MedicalStatus;
   medicalNote: string;
   medicalClearedAt: string | null;
+  /** What was put forward while a finding waits with the Central Medical Officer. */
+  medicalProposed?: 'cleared' | 'rejected' | null;
+  medicalSubmittedAt?: string | null;
+  /**
+   * The Central Medical Officer's note.
+   *
+   * Present on a returned candidate, and the only record of why it came back —
+   * a candidate reappearing in the queue unexplained is the most confusing
+   * thing this layer could do.
+   */
+  medicalCmoNote?: string | null;
+  medicalApprovedAt?: string | null;
   /** Cleared from a paper check rather than the structured report. */
   medicalManual: boolean;
   /** When the medical team was alerted that this candidate is waiting. */
@@ -209,4 +221,40 @@ export interface AppointmentLetterInput {
   reference?: string;
   joiningDate?: string;
   address?: string;
+}
+
+/** What the Central Medical Officer can do with a submitted finding. */
+export type CmoDecision = 'approve' | 'reject' | 'return';
+
+/** One row of the Central Medical Officer's queue. */
+export interface MedicalApprovalRow {
+  onboardingId: string;
+  candidateId: string;
+  candidateName: string;
+  requisition: {
+    id: string;
+    code: string;
+    designation: string;
+    unitFactory: string;
+    department: string;
+  };
+  /** What the examining officer put forward — what is being confirmed. */
+  proposed: 'cleared' | 'rejected' | null;
+  note: string | null;
+  submittedAt: string | null;
+  submittedBy: string | null;
+  /** The full clinical record. The CMO is medical; they read all of it. */
+  exam: MedicalExam | null;
+}
+
+/** A bulk decision reports per record — some rows may already be handled. */
+export interface MedicalBulkResult {
+  decided: number;
+  skipped: number;
+  results: {
+    onboardingId: string;
+    ok: boolean;
+    status?: string;
+    error?: string;
+  }[];
 }

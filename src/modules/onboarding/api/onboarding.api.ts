@@ -11,11 +11,47 @@ import type {
   PublicOnboarding,
   OfferLetterInput,
   AppointmentLetterInput,
+  MedicalApprovalRow,
+  MedicalBulkResult,
+  CmoDecision,
 } from '../types/onboarding.types';
 
 const MULTIPART = { headers: { 'Content-Type': 'multipart/form-data' } };
 
 export const onboardingApi = {
+  /** Everything waiting on the Central Medical Officer, oldest first. */
+  medicalApprovalQueue: (): Promise<MedicalApprovalRow[]> =>
+    http
+      .get<ApiResponse<MedicalApprovalRow[]>>('/medical-approvals')
+      .then((r) => r.data),
+
+  /** Confirm, overturn or return one submitted finding. */
+  decideMedical: (
+    onboardingId: string,
+    body: { decision: CmoDecision; note?: string },
+  ): Promise<{ ok: boolean; status: string }> =>
+    http
+      .post<ApiResponse<{ ok: boolean; status: string }>>(
+        `/medical-approvals/${onboardingId}/decide`,
+        body,
+      )
+      .then((r) => r.data),
+
+  /**
+   * The same verdict across a selection.
+   *
+   * Resolves even when some rows were skipped — a bulk decision is a list of
+   * independent ones, and the caller shows what did not apply.
+   */
+  decideMedicalMany: (body: {
+    onboardingIds: string[];
+    decision: CmoDecision;
+    note?: string;
+  }): Promise<MedicalBulkResult> =>
+    http
+      .post<ApiResponse<MedicalBulkResult>>('/medical-approvals/decide', body)
+      .then((r) => r.data),
+
   get: (candidateId: string): Promise<OnboardingResult> =>
     http
       .get<ApiResponse<OnboardingResult>>(`/candidates/${candidateId}/onboarding`)

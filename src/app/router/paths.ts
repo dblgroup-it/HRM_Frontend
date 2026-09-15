@@ -33,6 +33,8 @@ export const ROUTES = {
   assignedCandidates: '/assigned-candidates',
   /** Medical officer's clearance queue (Phase 5). */
   medical: '/medical',
+  /** The Central Medical Officer's approval queue. */
+  medicalApprovals: '/medical-approvals',
   /** Full-page onboarding workspace for a selected candidate. */
   onboardingManage: (candidateId = ':candidateId') =>
     `/onboarding/manage/${candidateId}`,

@@ -211,6 +211,21 @@ export function useMedicalQueue() {
   });
 }
 
+/**
+ * Findings waiting on the Central Medical Officer.
+ *
+ * `enabled` so the dashboard can mount the card for everyone and only fetch for
+ * a CMO — the endpoint refuses anyone else, and a 403 on every dashboard load
+ * would be noise in the logs and a wasted request.
+ */
+export function useMedicalApprovalQueue(enabled = true) {
+  return useQuery({
+    queryKey: ['medical-approvals'],
+    queryFn: () => onboardingApi.medicalApprovalQueue(),
+    enabled,
+  });
+}
+
 export function useMedicalExam(onboardingId: string, enabled = true) {
   return useQuery({
     queryKey: onboardingKeys.medicalExam(onboardingId),

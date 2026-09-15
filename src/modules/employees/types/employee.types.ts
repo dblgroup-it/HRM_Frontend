@@ -19,6 +19,10 @@ export interface Employee {
   salary: number;
   joinedAt: ISODateString;
   avatarUrl?: string | null;
+  /** The person's e-signature, or null when they have none. */
+  signatureUrl?: string | null;
+  /** True when they uploaded it themselves; HR may not then replace it. */
+  signatureSelfUploaded?: boolean;
   manager?: string;
   managerCode?: string | null;
   managerId?: string | null;

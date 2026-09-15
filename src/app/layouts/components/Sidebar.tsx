@@ -10,7 +10,10 @@ import {
   canAccessRecruitment,
   canViewCandidatePipeline,
 } from '@modules/candidates';
-import { canAccessMedical } from '@modules/onboarding';
+import { canAccessMedical,
+  canApproveMedical,
+  isMedicalOnly,
+} from '@modules/onboarding';
 import { canAccessInsights } from '@modules/insights';
 import { canAccessUnitConfig } from '@modules/units';
 import { canAccessAiSettings } from '@modules/settings';
@@ -42,6 +45,10 @@ export function Sidebar({
   // login, so system administration doesn't require the admin account.
   const canSeeAccessControl = role === 'admin' || Boolean(perms?.isSuperUser);
   const canSeeMedical = canAccessMedical(perms);
+  const canApproveMedicals = canApproveMedical(perms);
+  // Medical-only staff get a navigation built around their work, not a tour of
+  // everyone else's — see isMedicalOnly.
+  const medicalOnly = isMedicalOnly(perms);
   const canSeeInsights = canAccessInsights(perms, role);
   const canSeeUnitConfig = canAccessUnitConfig(perms);
   const canSeeAiSettings = canAccessAiSettings(perms);
@@ -135,6 +142,8 @@ export function Sidebar({
                 (!item.requiresRecruitment || canSeeRecruitment) &&
                 (!item.requiresPipeline || canSeePipeline) &&
                 (!item.requiresMedical || canSeeMedical) &&
+                (!item.requiresMedicalApproval || canApproveMedicals) &&
+                (!item.hideForMedicalOnly || !medicalOnly) &&
                 (!item.requiresDelegations || hasDelegations) &&
                 (!item.requiresInsights || canSeeInsights) &&
                 (!item.requiresUnitConfig || canSeeUnitConfig) &&

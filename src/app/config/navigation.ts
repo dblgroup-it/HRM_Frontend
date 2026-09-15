@@ -1,24 +1,24 @@
 import {
-  LayoutDashboard,
-  ClipboardList,
-  ClipboardCheck,
-  Stethoscope,
-  Network,
-  SlidersHorizontal,
-  GitBranch,
-  Plug,
-  ShieldCheck,
-  Sparkles,
-  Users,
-  UserSearch,
-  UserCheck,
-  FileSpreadsheet,
-  History,
-  Star,
   Bell,
-  Settings,
   Briefcase,
+  ClipboardCheck,
+  ClipboardList,
+  FileSpreadsheet,
+  GitBranch,
+  History,
+  LayoutDashboard,
+  Network,
+  Plug,
   Search,
+  Settings,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sparkles,
+  Star,
+  Stethoscope,
+  UserCheck,
+  UserSearch,
+  Users,
   UsersRound,
   type LucideIcon,
 } from 'lucide-react';
@@ -38,6 +38,16 @@ export interface NavItem {
   requiresPipeline?: boolean;
   /** Gate to medical officers (and super users). */
   requiresMedical?: boolean;
+  /** Central Medical Officer only — the approval queue. */
+  requiresMedicalApproval?: boolean;
+  /**
+   * Hidden from someone whose only roles are medical.
+   *
+   * A Medical Officer or CMO holding no recruitment role cannot raise, approve
+   * or recruit, so the Organogram and the Requisitions list are a wall of other
+   * people's work with nothing on them to act on.
+   */
+  hideForMedicalOnly?: boolean;
   /** Only for people actually holding interview delegations right now. */
   requiresDelegations?: boolean;
   /** Gate to management / Head of Talent Acquisition / CHRO / super (AI insights). */
@@ -78,11 +88,17 @@ export const NAVIGATION: NavSection[] = [
   {
     heading: 'Recruitment',
     items: [
-      { label: 'Organogram', to: ROUTES.organogram, icon: Network },
+      {
+        label: 'Organogram',
+        to: ROUTES.organogram,
+        icon: Network,
+        hideForMedicalOnly: true,
+      },
       {
         label: 'Requisitions',
         to: ROUTES.requisitions,
         icon: ClipboardList,
+        hideForMedicalOnly: true,
       },
       {
         label: 'Candidates',
@@ -123,6 +139,12 @@ export const NAVIGATION: NavSection[] = [
         to: ROUTES.medical,
         icon: Stethoscope,
         requiresMedical: true,
+      },
+      {
+        label: 'Medical Approvals',
+        to: ROUTES.medicalApprovals,
+        icon: ShieldCheck,
+        requiresMedicalApproval: true,
       },
     ],
   },

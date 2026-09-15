@@ -13,6 +13,10 @@ export interface AuthUser {
   department: string | null;
   unit?: string | null;
   avatarUrl?: string | null;
+  /** The user's e-signature, or null when they have none. */
+  signatureUrl?: string | null;
+  /** True when they uploaded it themselves — HR may not then replace it. */
+  signatureSelfUploaded?: boolean;
 }
 
 export interface LoginCredentials {

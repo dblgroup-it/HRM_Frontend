@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Mail, MapPin, Pencil, Phone, User, X } from 'lucide-react';
 
@@ -16,6 +16,12 @@ import { formatDate } from '@shared/utils';
 import { ROUTES } from '@app/router/paths';
 
 import { useEmployee, useUpdateEmployee } from '../hooks/useEmployees';
+import { useMyPermissions } from '@modules/rbac';
+import { canAdministerEmployees } from '../access';
+import { useAuth, authApi } from '@modules/auth';
+import { toast } from 'sonner';
+import { resolveApiFileUrl } from '@shared/api/fileUrl';
+import { SignatureCropper } from '@modules/settings';
 import { EmployeeStatusBadge } from '../components/EmployeeStatusBadge';
 
 interface EditForm {
@@ -28,11 +34,50 @@ interface EditForm {
 
 export default function EmployeeDetailPage() {
   const { id = '' } = useParams();
-  const { data: employee, isLoading, isError } = useEmployee(id);
+  const { data: employee, isLoading, isError, refetch } = useEmployee(id);
   const updateEmployee = useUpdateEmployee(id);
 
   const [editing, setEditing] = useState(false);
+  const { data: perms } = useMyPermissions();
+  const { user: signedInUser } = useAuth();
+  // Super user, CHRO, Head of Talent Acquisition or Corporate Recruiter. The
+  // server refuses everyone else regardless; this stops the rest being shown a
+  // button that only produces a 403.
+  const canAdminister = canAdministerEmployees(perms);
+  /** Is this my own record? Your own signature is always yours to manage. */
+  const isOwnProfile =
+    Boolean(signedInUser?.id) && signedInUser?.id === employee?.userId;
+  const canSeeSignature = canAdminister || isOwnProfile;
   const [form, setForm] = useState<EditForm>({ name: '', email: '', phone: '', gender: '', dateOfBirth: '' });
+
+  /**
+   * The signature is part of the edit form, not a control that acts on its own.
+   *
+   * Picking an image stages it; nothing reaches the server until Save changes.
+   * An upload that fired on selection would commit a change to someone else's
+   * record while the rest of the form was still being typed, and Cancel would
+   * not undo it.
+   */
+  const [pendingSignature, setPendingSignature] = useState<File | null>(null);
+  const [clearSignature, setClearSignature] = useState(false);
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const [savingSignature, setSavingSignature] = useState(false);
+  const signatureInputRef = useRef<HTMLInputElement>(null);
+
+  // Preview of a staged image, revoked when it is replaced or dropped.
+  const pendingPreview = useMemo(
+    () => (pendingSignature ? URL.createObjectURL(pendingSignature) : null),
+    [pendingSignature],
+  );
+  useEffect(() => {
+    return () => {
+      if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    };
+  }, [pendingPreview]);
+
+  /** HR may not touch a signature its owner uploaded. */
+  const signatureLocked =
+    !isOwnProfile && Boolean(employee?.signatureSelfUploaded);
 
   function openEdit() {
     if (!employee) return;
@@ -43,6 +88,9 @@ export default function EmployeeDetailPage() {
       gender: employee.gender ?? '',
       dateOfBirth: employee.dateOfBirth ? employee.dateOfBirth.slice(0, 10) : '',
     });
+    setPendingSignature(null);
+    setClearSignature(false);
+    setCropFile(null);
     setEditing(true);
   }
 
@@ -50,7 +98,7 @@ export default function EmployeeDetailPage() {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  function handleSave() {
+  async function handleSave() {
     const dto: Record<string, string> = {};
     if (form.name.trim()) dto.name = form.name.trim();
     if (form.email.trim()) dto.email = form.email.trim();
@@ -58,7 +106,34 @@ export default function EmployeeDetailPage() {
     if (form.gender) dto.gender = form.gender;
     if (form.dateOfBirth) dto.dateOfBirth = form.dateOfBirth;
 
-    updateEmployee.mutate(dto, { onSuccess: () => setEditing(false) });
+    // The signature is a separate endpoint — it is an image upload, not a
+    // column — so "Save changes" performs both and only closes the form when
+    // both have succeeded. Details first: if the signature upload fails, the
+    // typed corrections are already safe and the form stays open with the
+    // staged image still there to retry.
+    setSavingSignature(true);
+    try {
+      await updateEmployee.mutateAsync(dto);
+
+      if (pendingSignature) {
+        await authApi.uploadSignature(pendingSignature, employee?.userId);
+      } else if (clearSignature) {
+        await authApi.deleteSignature(employee?.userId);
+      }
+
+      setPendingSignature(null);
+      setClearSignature(false);
+      setEditing(false);
+      await refetch();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Could not save every change — nothing after the failure was applied.',
+      );
+    } finally {
+      setSavingSignature(false);
+    }
   }
 
   if (isLoading) return <FullPageSpinner label="Loading employee…" />;
@@ -121,7 +196,7 @@ export default function EmployeeDetailPage() {
               {employee.jobTitle} · {employee.department}
             </p>
           </div>
-          {!editing && (
+          {!editing && canAdminister && (
             <Button variant="outline" size="sm" onClick={openEdit}>
               <Pencil className="mr-1.5 h-3.5 w-3.5" />
               Edit info
@@ -130,7 +205,7 @@ export default function EmployeeDetailPage() {
         </CardBody>
       </Card>
 
-      {editing && (
+      {editing && canAdminister && (
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -195,16 +270,119 @@ export default function EmployeeDetailPage() {
                 />
               </div>
             </div>
+
+            {/* E-signature — staged here, written by Save changes. */}
+            <div className="mt-5 border-t border-slate-100 pt-4">
+              <label className="mb-1 block text-xs font-medium text-slate-600">
+                E-signature
+              </label>
+
+              {cropFile ? (
+                <SignatureCropper
+                  file={cropFile}
+                  onCancel={() => setCropFile(null)}
+                  onCropped={(cropped) => {
+                    // Staged only — nothing is sent until Save changes.
+                    setPendingSignature(cropped);
+                    setClearSignature(false);
+                    setCropFile(null);
+                  }}
+                />
+              ) : (
+                <div className="flex flex-wrap items-start gap-4">
+                  <div className="flex aspect-[3/1] w-56 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white">
+                    {pendingPreview ? (
+                      <img src={pendingPreview} alt="New signature" className="h-full w-full object-contain" />
+                    ) : !clearSignature && employee.signatureUrl ? (
+                      <img
+                        src={resolveApiFileUrl(employee.signatureUrl)}
+                        alt={`${employee.name} signature`}
+                        className="h-full w-full object-contain"
+                      />
+                    ) : (
+                      <span className="text-xs text-slate-400">No signature</span>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    {signatureLocked ? (
+                      <p className="max-w-xs rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                        {employee.name.split(' ')[0]} uploaded this signature
+                        themselves, so it cannot be changed here. Ask them to
+                        replace it from their own profile.
+                      </p>
+                    ) : (
+                      <>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => signatureInputRef.current?.click()}
+                          >
+                            {employee.signatureUrl || pendingSignature
+                              ? 'Choose new image'
+                              : 'Choose image'}
+                          </Button>
+                          {(employee.signatureUrl || pendingSignature) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setPendingSignature(null);
+                                setClearSignature(Boolean(employee.signatureUrl));
+                              }}
+                            >
+                              Remove
+                            </Button>
+                          )}
+                        </div>
+                        <p className="max-w-xs text-xs text-slate-500">
+                          PNG or JPEG, up to 2 MB. You will crop it to 3:1, and
+                          it is applied when you press Save changes.
+                        </p>
+                        {(pendingSignature || clearSignature) && (
+                          <p className="text-xs font-medium text-brand-700">
+                            {pendingSignature
+                              ? 'New signature ready — press Save changes to apply it.'
+                              : 'Signature will be removed when you press Save changes.'}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <input
+                ref={signatureInputRef}
+                type="file"
+                accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    if (file.size > 2 * 1024 * 1024) {
+                      toast.error('Image must be 2 MB or smaller');
+                    } else {
+                      setCropFile(file);
+                    }
+                  }
+                  e.target.value = '';
+                }}
+              />
+            </div>
             <div className="mt-5 flex justify-end gap-2">
               <Button variant="outline" size="sm" onClick={() => setEditing(false)}>
                 Cancel
               </Button>
               <Button
                 size="sm"
-                onClick={handleSave}
-                disabled={updateEmployee.isPending}
+                onClick={() => void handleSave()}
+                disabled={updateEmployee.isPending || savingSignature}
               >
-                {updateEmployee.isPending ? 'Saving…' : 'Save changes'}
+                {updateEmployee.isPending || savingSignature
+                  ? 'Saving…'
+                  : 'Save changes'}
               </Button>
             </div>
           </CardBody>
@@ -228,6 +406,41 @@ export default function EmployeeDetailPage() {
                 </div>
               </div>
             ))}
+
+            {/*
+              E-signature — shown only to the person themselves and to the four
+              administrative roles.
+
+              A colleague has no reason to see whether someone has registered a
+              signature, and "Not provided" on every other profile is noise that
+              reads as something missing. Hidden entirely rather than shown
+              empty.
+            */}
+            {canSeeSignature && (
+              <div className="border-t border-slate-100 pt-4">
+                <p className="mb-2 text-xs text-slate-400">E-signature</p>
+                {/* No `userId` on your own profile, so it posts to /users/me
+                    — the one path that never depends on holding a role. */}
+                {/* Read-only here. Administrators change it inside the edit
+                    form, where it is applied by Save changes; the owner changes
+                    their own from Settings. One place to edit, not two. */}
+                {employee.signatureUrl ? (
+                  <div className="flex aspect-[3/1] w-full max-w-[16rem] items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white">
+                    <img
+                      src={resolveApiFileUrl(employee.signatureUrl)}
+                      alt={`${employee.name} signature`}
+                      className="h-full w-full object-contain"
+                    />
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-400">
+                    {isOwnProfile
+                      ? 'Not set — add one from Settings → Profile.'
+                      : 'Not provided'}
+                  </p>
+                )}
+              </div>
+            )}
 
             {employee.manager && (
               <div className="flex items-start gap-3">

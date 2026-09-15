@@ -85,6 +85,42 @@ export const authApi = {
       .then((res) => res.data);
   },
 
+  /**
+   * E-signature. `userId` omitted means your own; supplied means HR placing one
+   * on someone else's profile, which the server refuses once that person has
+   * uploaded their own.
+   */
+  uploadSignature(
+    file: File,
+    userId?: string,
+  ): Promise<{ signatureUrl: string | null; signatureSelfUploaded: boolean }> {
+    const fd = new FormData();
+    fd.append('image', file);
+    return http
+      .post<
+        ApiResponse<{
+          signatureUrl: string | null;
+          signatureSelfUploaded: boolean;
+        }>
+      >(`/users/${userId ?? 'me'}/signature`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((res) => res.data);
+  },
+
+  deleteSignature(
+    userId?: string,
+  ): Promise<{ signatureUrl: string | null; signatureSelfUploaded: boolean }> {
+    return http
+      .delete<
+        ApiResponse<{
+          signatureUrl: string | null;
+          signatureSelfUploaded: boolean;
+        }>
+      >(`/users/${userId ?? 'me'}/signature`)
+      .then((res) => res.data);
+  },
+
   deleteAvatar(): Promise<{ avatarUrl: string | null }> {
     return http
       .delete<ApiResponse<{ avatarUrl: string | null }>>('/users/me/avatar')
