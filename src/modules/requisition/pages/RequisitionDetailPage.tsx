@@ -245,8 +245,53 @@ export default function RequisitionDetailPage() {
       : null,
   ].filter(Boolean).join(' · ');
 
+  /**
+   * Everyone this requisition replaces, one line each.
+   *
+   * Reads the list the API now returns and falls back to the older single
+   * fields, so a requisition raised before multi-replacement still shows its
+   * person rather than an empty row. Each line carries that person's own
+   * reason and vacancy date — an approver judging a three-seat requisition
+   * needs to see three leavers, not one standing in for all of them.
+   */
+  const replacedPeople: string[] = (
+    req.replacements?.length
+      ? req.replacements
+      : req.replaceOfName
+        ? [
+            {
+              id: 'legacy',
+              employeeName: req.replaceOfName,
+              employeeCode: req.replaceOfEmployeeCode ?? null,
+              separationReason: req.separationReason ?? null,
+              vacantDate: req.vacantDate ?? null,
+              remarks: req.replacementRemarks ?? null,
+            },
+          ]
+        : []
+  ).map((r) => {
+    const who = r.employeeCode
+      ? `${r.employeeName} (${r.employeeCode})`
+      : r.employeeName;
+    const detail = [
+      r.separationReason,
+      r.vacantDate ? `vacant from ${formatDate(r.vacantDate)}` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    return detail ? `${who} — ${detail}` : who;
+  });
+
   const vacancy: Row[] = [
     { label: 'Requirement', value: REQUIREMENT_LABEL[req.requirementType] },
+    ...(req.alternateDesignations?.length
+      ? [
+          {
+            label: 'Open at levels',
+            value: [req.designation, ...req.alternateDesignations].join('\n'),
+          },
+        ]
+      : []),
     { label: 'Nos. of required post', value: String(req.requiredPosts) },
     { label: 'Total vacant post', value: String(req.totalVacantPosts) },
     { label: 'Unit / Factory', value: req.unitFactory },
@@ -258,22 +303,18 @@ export default function RequisitionDetailPage() {
     ...(req.subSection
       ? [{ label: 'Sub-section', value: req.subSection }]
       : []),
-    // Replacement provenance — who left and why, so an approver can judge the
-    // request without chasing it up.
-    ...(req.replaceOfName
+    ...(replacedPeople.length
       ? [
           {
-            label: 'Replacing',
-            value: req.replaceOfEmployeeCode
-              ? `${req.replaceOfName} (${req.replaceOfEmployeeCode})`
-              : req.replaceOfName,
+            label:
+              replacedPeople.length === 1
+                ? 'Replacing'
+                : `Replacing (${replacedPeople.length})`,
+            value: replacedPeople.join('\n'),
           },
         ]
       : []),
-    ...(req.separationReason
-      ? [{ label: 'Reason for leaving', value: req.separationReason }]
-      : []),
-    ...(req.replacementRemarks
+    ...(replacedPeople.length === 0 && req.replacementRemarks
       ? [{ label: 'Remarks', value: req.replacementRemarks }]
       : []),
     { label: 'Job Grade', value: req.grade ?? 'Not yet confirmed' },
@@ -376,7 +417,12 @@ export default function RequisitionDetailPage() {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-xl font-semibold text-slate-900 sm:text-[1.35rem]">
-                {req.designation}
+                {/* Every level this post is open at — the one a candidate is
+                    hired at is fixed during onboarding. */}
+                {req.designationLabel ||
+                  [req.designation, ...(req.alternateDesignations ?? [])].join(
+                    ' / ',
+                  )}
               </h1>
               <RequisitionStatusBadge status={req.status} pipeline={req.pipeline} />
               <Badge tone={PRIORITY_TONE[req.priority]} dot>
@@ -595,10 +641,26 @@ function DetailCard({ title, rows }: { title: string; rows: Row[] }) {
 }
 
 function FieldRow({ label, value }: Row) {
+  // A row can now hold several lines — every level a post is open at, every
+  // person it replaces. `items-start` keeps the label against the first line
+  // instead of floating to the middle of a tall value.
+  const multiline = value.includes('\n');
   return (
-    <div className="flex items-center justify-between gap-4 rounded-lg px-1.5 py-2.5 transition-colors hover:bg-slate-50">
-      <dt className="text-xs text-slate-400">{label}</dt>
-      <dd className="text-right text-sm font-medium text-slate-700">{value}</dd>
+    <div
+      className={cn(
+        'flex justify-between gap-4 rounded-lg px-1.5 py-2.5 transition-colors hover:bg-slate-50',
+        multiline ? 'items-start' : 'items-center',
+      )}
+    >
+      <dt className="shrink-0 text-xs text-slate-400">{label}</dt>
+      <dd
+        className={cn(
+          'text-right text-sm font-medium text-slate-700',
+          multiline && 'whitespace-pre-line leading-relaxed',
+        )}
+      >
+        {value}
+      </dd>
     </div>
   );
 }

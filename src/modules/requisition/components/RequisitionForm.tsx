@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useForm, type FieldErrors, type UseFormRegisterReturn } from 'react-hook-form';
+import {
+  useFieldArray,
+  useForm,
+  type FieldErrors,
+  type UseFormRegisterReturn,
+} from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Armchair,
@@ -17,6 +22,7 @@ import {
   Loader2,
   Paperclip,
   Warehouse,
+  Plus,
   X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -85,7 +91,8 @@ const STEPS = [
     fields: [
       'designation', 'requirementType', 'requiredPosts',
       'totalVacantPosts', 'unitFactory', 'lineOfBusiness', 'department',
-      'section', 'subSection', 'replaceOfName', 'replaceOfEmployeeCode',
+      'section', 'subSection', 'alternateDesignations', 'replacements',
+      'replaceOfName', 'replaceOfEmployeeCode',
       'separationReason', 'replacementRemarks',
       'placeOfPosting', 'vacantDate', 'neededDate', 'priority',
       'employmentNature', 'contractualPurpose',
@@ -137,11 +144,14 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
     handleSubmit,
     watch,
     setValue,
+    control,
     formState: { errors },
   } = useForm<RequisitionFormValues>({
     resolver: zodResolver(requisitionSchema),
     defaultValues: {
       requirementType: 'new',
+      alternateDesignations: [],
+      replacements: [],
       lineOfBusiness: '',
       replaceOfName: '',
       replaceOfEmployeeCode: '',
@@ -176,14 +186,43 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
   const unit = watch('unitFactory') ?? '';
   const lineOfBusiness = watch('lineOfBusiness') ?? '';
   const requirementType = watch('requirementType') ?? 'new';
-  const replaceOfName = watch('replaceOfName') ?? '';
-  const separationReason = watch('separationReason') ?? '';
+  const alternateDesignations = watch('alternateDesignations') ?? [];
+
+  /**
+   * The people being replaced — a list, because one requisition often refills
+   * several seats at once.
+   */
+  const replacementRows = useFieldArray({
+    control,
+    name: 'replacements',
+  });
+  const replacements = watch('replacements') ?? [];
+  const namedReplacements = replacements.filter(
+    (r) => (r.employeeName ?? '').trim().length > 1,
+  );
+
+
   const department = watch('department') ?? '';
   const designation = watch('designation') ?? '';
   const sectionValue = watch('section') ?? '';
   const subSection = watch('subSection') ?? '';
   const placeOfPosting = watch('placeOfPosting') ?? '';
   const requiredPosts = Number(watch('requiredPosts')) || 0;
+
+  /**
+   * A notice, never a block: replacing three leavers with two hires is a real
+   * decision, and refusing it would push the raiser into raising a requisition
+   * they do not want just to get past a validator.
+   */
+  const countNotice =
+    requirementType === 'existing' &&
+    namedReplacements.length > 0 &&
+    requiredPosts > 0 &&
+    namedReplacements.length !== requiredPosts
+      ? `Replacing ${namedReplacements.length} ${namedReplacements.length === 1 ? 'person' : 'people'} but requesting ${requiredPosts} ${requiredPosts === 1 ? 'post' : 'posts'} — headcount goes ${
+          namedReplacements.length > requiredPosts ? 'down' : 'up'
+        } by ${Math.abs(namedReplacements.length - requiredPosts)}.`
+      : null;
 
   const { data: orgUnits } = useOrganogramUnits();
   const { data: perms } = useMyPermissions();
@@ -678,6 +717,81 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                       setValue('designation', v, { shouldValidate: true })
                     }
                   />
+
+                  {/* Other levels this post may be filled at. The one a
+                      candidate is actually hired at is fixed at onboarding. */}
+                  <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-slate-700">
+                        Also open at another level?
+                      </p>
+                      <span className="text-[0.6875rem] text-slate-500">
+                        Optional · the final level is fixed at onboarding
+                      </span>
+                    </div>
+
+                    {alternateDesignations.length > 0 && (
+                      <div className="mt-2.5 flex flex-wrap gap-1.5">
+                        {alternateDesignations.map((d, i) => (
+                          <span
+                            key={`${d}-${i}`}
+                            className="inline-flex items-center gap-1 rounded-full bg-brand-50 py-1 pl-2.5 pr-1 text-xs font-medium text-brand-700"
+                          >
+                            {d}
+                            <button
+                              type="button"
+                              aria-label={`Remove ${d}`}
+                              onClick={() =>
+                                setValue(
+                                  'alternateDesignations',
+                                  alternateDesignations.filter(
+                                    (_, j) => j !== i,
+                                  ),
+                                  { shouldValidate: true },
+                                )
+                              }
+                              className="rounded-full p-0.5 text-brand-500 hover:bg-brand-100 hover:text-brand-800"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="mt-2.5">
+                      <Combobox
+                        label=""
+                        placeholder="Add another designation"
+                        options={designationOptions.filter(
+                          (o) =>
+                            o.value !== designation &&
+                            !alternateDesignations.includes(o.value),
+                        )}
+                        value=""
+                        onChange={(v) => {
+                          // Guarded here as well as on the server: the same
+                          // level twice reads as a mistake on a signed sheet.
+                          if (!v || v === designation) return;
+                          if (alternateDesignations.includes(v)) return;
+                          setValue(
+                            'alternateDesignations',
+                            [...alternateDesignations, v],
+                            { shouldValidate: true },
+                          );
+                        }}
+                      />
+                    </div>
+
+                    {alternateDesignations.length > 0 && (
+                      <p className="mt-2 text-[0.6875rem] text-slate-500">
+                        This post will read as{' '}
+                        <span className="font-medium text-slate-700">
+                          {[designation, ...alternateDesignations].join(' / ')}
+                        </span>
+                      </p>
+                    )}
+                  </div>
                   {suggestedGrades.length > 0 && (
                     <p className="mt-1.5 flex flex-wrap items-center gap-1.5 px-1 text-xs text-slate-500">
                       Suggested grade
@@ -714,9 +828,26 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                             key={opt.value}
                             type="button"
                             onClick={() =>
-                              setValue('requirementType', opt.value, {
-                                shouldValidate: true,
-                              })
+                              {
+                                setValue('requirementType', opt.value, {
+                                  shouldValidate: true,
+                                });
+                                // Choosing Replacement with no rows leaves an
+                                // empty panel and no way to start; give them
+                                // the first one.
+                                if (
+                                  opt.value === 'existing' &&
+                                  replacementRows.fields.length === 0
+                                ) {
+                                  replacementRows.append({
+                                    employeeName: '',
+                                    employeeCode: '',
+                                    separationReason: '',
+                                    vacantDate: '',
+                                    remarks: '',
+                                  });
+                                }
+                              }
                             }
                             className={cn(
                               'rounded-xl border px-4 py-3 text-left transition-colors duration-200',
@@ -742,39 +873,130 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                     </div>
 
                     {requirementType === 'existing' && (
-                      <div className="mt-4 animate-branch-open space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
-                        <EmployeePicker
-                          label="Replacing whom"
-                          value={replaceOfName}
-                          error={errors.replaceOfName?.message}
-                          onPick={(emp) => {
-                            setValue('replaceOfName', emp?.name ?? '', {
-                              shouldValidate: true,
-                            });
-                            setValue(
-                              'replaceOfEmployeeCode',
-                              emp?.employeeCode ?? '',
-                            );
-                          }}
-                        />
-                        <Combobox
-                          label="Reason for leaving"
-                          placeholder="Select a reason"
-                          options={separationReasonOptions}
-                          value={separationReason}
-                          error={errors.separationReason?.message}
-                          onChange={(v) =>
-                            setValue('separationReason', v, {
-                              shouldValidate: true,
+                      <div className="mt-4 animate-branch-open space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-xs font-semibold text-slate-700">
+                            Replacing whom
+                          </p>
+                          <span className="text-[0.6875rem] text-slate-500">
+                            Add everyone this requisition replaces
+                          </span>
+                        </div>
+
+                        {/* One block per leaver. They rarely leave on the same
+                            day for the same reason, so each carries its own. */}
+                        {replacementRows.fields.map((field, index) => (
+                          <div
+                            key={field.id}
+                            className="space-y-3 rounded-lg border border-slate-200 bg-white p-3.5"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-400">
+                                Person {index + 1}
+                              </span>
+                              {replacementRows.fields.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => replacementRows.remove(index)}
+                                  className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-medium text-slate-500 hover:bg-rose-50 hover:text-rose-600"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                  Remove
+                                </button>
+                              )}
+                            </div>
+
+                            <EmployeePicker
+                              label="Employee"
+                              value={
+                                replacements[index]?.employeeName ?? ''
+                              }
+                              onPick={(emp) => {
+                                setValue(
+                                  `replacements.${index}.employeeName`,
+                                  emp?.name ?? '',
+                                  { shouldValidate: true },
+                                );
+                                setValue(
+                                  `replacements.${index}.employeeCode`,
+                                  emp?.employeeCode ?? '',
+                                );
+                                // The first entry also fills the single
+                                // columns the approval sheet and the board
+                                // export still read.
+                                if (index === 0) {
+                                  setValue('replaceOfName', emp?.name ?? '');
+                                  setValue(
+                                    'replaceOfEmployeeCode',
+                                    emp?.employeeCode ?? '',
+                                  );
+                                }
+                              }}
+                            />
+
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              <Combobox
+                                label="Reason for leaving"
+                                placeholder="Select a reason"
+                                options={separationReasonOptions}
+                                value={
+                                  replacements[index]?.separationReason ?? ''
+                                }
+                                onChange={(v) => {
+                                  setValue(
+                                    `replacements.${index}.separationReason`,
+                                    v,
+                                    { shouldValidate: true },
+                                  );
+                                  if (index === 0) setValue('separationReason', v);
+                                }}
+                              />
+                              <Input
+                                label="Vacant from (optional)"
+                                type="date"
+                                {...register(
+                                  `replacements.${index}.vacantDate`,
+                                )}
+                              />
+                            </div>
+
+                            <Textarea
+                              label="Remarks (optional)"
+                              rows={2}
+                              placeholder="Anything else the approvers should know"
+                              {...register(`replacements.${index}.remarks`)}
+                            />
+                          </div>
+                        ))}
+
+                        {errors.replacements?.message && (
+                          <p className="text-xs font-medium text-rose-600">
+                            {errors.replacements.message}
+                          </p>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            replacementRows.append({
+                              employeeName: '',
+                              employeeCode: '',
+                              separationReason: '',
+                              vacantDate: '',
+                              remarks: '',
                             })
                           }
-                        />
-                        <Textarea
-                          label="Remarks (optional)"
-                          rows={2}
-                          placeholder="Anything else the approvers should know"
-                          {...register('replacementRemarks')}
-                        />
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 hover:border-brand-400 hover:text-brand-700"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Add another employee
+                        </button>
+
+                        {countNotice && (
+                          <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                            {countNotice}
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1261,17 +1483,37 @@ function toPayload(
 ): CreateRequisitionPayload {
   return {
     designation: values.designation,
+    // Other levels this post may be filled at; empty on an ordinary one.
+    alternateDesignations: values.alternateDesignations?.length
+      ? values.alternateDesignations
+      : undefined,
     requirementType: values.requirementType,
     lineOfBusiness: values.lineOfBusiness,
     // Only sent on a replacement — the API clears them on a NEW headcount anyway.
     ...(values.requirementType === 'existing'
-      ? {
-          replaceOfName: values.replaceOfName?.trim() || undefined,
-          replaceOfEmployeeCode:
-            values.replaceOfEmployeeCode?.trim() || undefined,
-          separationReason: values.separationReason?.trim() || undefined,
-          replacementRemarks: values.replacementRemarks?.trim() || undefined,
-        }
+      ? (() => {
+          // Rows the raiser added but never filled are dropped here rather
+          // than sent as blanks for the server to reject.
+          const rows = (values.replacements ?? [])
+            .filter((r) => (r.employeeName ?? '').trim().length > 1)
+            .map((r) => ({
+              employeeName: r.employeeName.trim(),
+              employeeCode: r.employeeCode?.trim() || undefined,
+              separationReason: r.separationReason?.trim() || undefined,
+              vacantDate: r.vacantDate?.trim() || undefined,
+              remarks: r.remarks?.trim() || undefined,
+            }));
+          const first = rows[0];
+          return {
+            replacements: rows,
+            // The first entry also fills the single columns the approval
+            // sheet and the board export still read.
+            replaceOfName: first?.employeeName,
+            replaceOfEmployeeCode: first?.employeeCode,
+            separationReason: first?.separationReason,
+            replacementRemarks: first?.remarks,
+          };
+        })()
       : {}),
     requiredPosts: values.requiredPosts,
     totalVacantPosts: values.totalVacantPosts,

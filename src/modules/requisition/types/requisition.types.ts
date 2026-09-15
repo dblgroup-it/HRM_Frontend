@@ -9,6 +9,25 @@ export type RequisitionStatus =
   | 'profile_generated'
   | 'posted';
 
+/** One person a requisition replaces, as the API returns it. */
+export interface ReplacedEmployee {
+  id: string;
+  employeeName: string;
+  employeeCode: string | null;
+  separationReason: string | null;
+  vacantDate: string | null;
+  remarks: string | null;
+}
+
+/** The same, as the form sends it — no id yet, dates as plain strings. */
+export interface ReplacedEmployeeInput {
+  employeeName: string;
+  employeeCode?: string;
+  separationReason?: string;
+  vacantDate?: string;
+  remarks?: string;
+}
+
 /** Derived from the organogram: existing (replacement) vs new headcount. */
 export type RequirementType = 'existing' | 'new';
 
@@ -185,7 +204,15 @@ export interface Requisition {
   department: string;
   section?: string;
   subSection?: string;
-  /** Replacement details — set only when requirementType is 'existing'. */
+  /** Other levels this post may be filled at, beyond `designation`. */
+  alternateDesignations?: string[];
+  /** Every level, primary first: "Senior Executive / Assistant Manager". */
+  designationLabel?: string;
+
+  /** Everyone this requisition replaces. Empty on a new headcount. */
+  replacements?: ReplacedEmployee[];
+
+  /** Replacement details — the FIRST replaced employee, kept for existing readers. */
   replaceOfName?: string | null;
   replaceOfEmployeeCode?: string | null;
   separationReason?: string | null;
@@ -276,6 +303,8 @@ export interface CreateRequisitionPayload {
   department: string;
   section?: string;
   subSection?: string;
+  alternateDesignations?: string[];
+  replacements?: ReplacedEmployeeInput[];
   replaceOfName?: string;
   replaceOfEmployeeCode?: string;
   separationReason?: string;

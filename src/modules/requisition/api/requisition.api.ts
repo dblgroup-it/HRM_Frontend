@@ -376,10 +376,23 @@ export const requisitionApi = {
       return delay(MOCK_LATENCY).then(() => {
         SEQUENCE += 1;
         const now = new Date().toISOString();
-        const { signatories, facilities, ...fields } = payload;
+        const { signatories, facilities, replacements, ...fields } = payload;
         const created: Requisition = {
           ...fields,
           grade: null,
+          // The mock stands in for the server, which assigns the ids.
+          replacements: (replacements ?? []).map((r, i) => ({
+            id: `rep_${1000 + SEQUENCE}_${i}`,
+            employeeName: r.employeeName,
+            employeeCode: r.employeeCode ?? null,
+            separationReason: r.separationReason ?? null,
+            vacantDate: r.vacantDate ?? null,
+            remarks: r.remarks ?? null,
+          })),
+          designationLabel: [
+            payload.designation,
+            ...(payload.alternateDesignations ?? []),
+          ].join(' / '),
           facilities: initialFacilities(facilities),
           id: `req_${1000 + SEQUENCE}`,
           code: `REQ-2026-${String(SEQUENCE).padStart(3, '0')}`,

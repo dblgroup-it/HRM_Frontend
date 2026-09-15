@@ -27,6 +27,12 @@ export const requisitionSchema = z
   .object({
     // A · Vacancy Information
     designation: z.string().min(2, 'Designation is required'),
+    /**
+     * Other levels this post may be filled at — "Senior Executive" raised
+     * alongside "Assistant Manager" when the level depends on who is found.
+     * Which one a candidate is actually hired at is settled during onboarding.
+     */
+    alternateDesignations: z.array(z.string().min(1)).optional().default([]),
     /** The requisitioner's declaration: 'new' headcount or 'existing' (Replace). */
     requirementType: z.enum(['existing', 'new']),
     requiredPosts: z.coerce
@@ -43,7 +49,24 @@ export const requisitionSchema = z
     department: z.string().min(1, 'Select a department'),
     section: z.string().optional(),
     subSection: z.string().optional(),
-    // Replacement details — enforced by the refinements below when Replace.
+    /**
+     * Everyone this requisition replaces — three leavers, one requisition to
+     * refill the line. Each carries their own reason and vacancy date, because
+     * people rarely leave on the same day for the same reason.
+     */
+    replacements: z
+      .array(
+        z.object({
+          employeeName: z.string().optional().default(''),
+          employeeCode: z.string().optional().default(''),
+          separationReason: z.string().optional().default(''),
+          vacantDate: z.string().optional().default(''),
+          remarks: z.string().optional().default(''),
+        })
+      )
+      .optional()
+      .default([]),
+    // The first replaced employee, kept so existing readers keep working.
     replaceOfName: z.string().optional(),
     replaceOfEmployeeCode: z.string().optional(),
     separationReason: z.string().optional(),
@@ -82,19 +105,23 @@ export const requisitionSchema = z
   .refine(
     (data) =>
       data.requirementType !== 'existing' ||
-      (data.replaceOfName && data.replaceOfName.trim().length > 1),
+      (data.replacements ?? []).some((r) => r.employeeName.trim().length > 1),
     {
-      message: 'Select the employee being replaced',
-      path: ['replaceOfName'],
+      message: 'Name at least one employee being replaced',
+      path: ['replacements'],
     }
   )
   .refine(
     (data) =>
       data.requirementType !== 'existing' ||
-      (data.separationReason && data.separationReason.trim().length > 0),
+      (data.replacements ?? [])
+        .filter((r) => r.employeeName.trim().length > 1)
+        .every((r) => r.separationReason.trim().length > 0),
     {
-      message: 'Select the reason for leaving',
-      path: ['separationReason'],
+      // Every named person, not just the first: a sheet listing three leavers
+      // with one reason between them is not auditable.
+      message: 'Give a reason for leaving for each person listed',
+      path: ['replacements'],
     }
   );
 
