@@ -27,6 +27,11 @@ export interface Candidate {
   stage: CandidateStage;
   cvFileId: string | null;
   cvUrl: string | null;
+  /**
+   * A CV can be rendered from stored data even though no file was sent —
+   * every Bdjobs applicant, who applies as fields rather than a document.
+   */
+  hasGeneratedCv?: boolean;
   notes: string;
   salaryExpectation: number | null;
   /** Finalized salary fixation result — null until Salary Fixation is finalized for this candidate. */

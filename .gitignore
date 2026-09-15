@@ -31,3 +31,6 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# TypeScript incremental build cache — a build artefact, not source.
+*.tsbuildinfo

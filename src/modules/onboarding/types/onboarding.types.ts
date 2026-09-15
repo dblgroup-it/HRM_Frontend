@@ -48,6 +48,8 @@ export interface OnboardingView {
   offerSentAt: string | null;
   /** 'junior' or 'senior' — DBL issues two house letter formats. */
   offerFormat: 'junior' | 'senior' | null;
+  /** The level this candidate is hired at; null until settled. */
+  fixedDesignation?: string | null;
   offerRef: string | null;
   offerJoiningDate: string | null;
   offerJobLocation: string | null;
@@ -164,7 +166,14 @@ export interface MedicalQueueItem extends OnboardingView {
     id: string;
     name: string;
     email: string;
+    /** What to SHOW — the settled level if there is one, else the primary. */
     designation: string;
+    /** The requisition's own primary, so the picker can offer the full list. */
+    requisitionDesignation?: string;
+    /** Other levels this requisition was raised for; empty on most. */
+    alternateDesignations?: string[];
+    /** The level settled for this person; null until chosen. */
+    fixedDesignation?: string | null;
     unit: string;
     department: string;
     location: string;

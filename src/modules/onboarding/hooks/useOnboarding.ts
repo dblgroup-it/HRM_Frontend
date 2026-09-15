@@ -68,6 +68,26 @@ export function useStartOnboarding(candidateId: string) {
   });
 }
 
+/**
+ * Settle which level this candidate is hired at.
+ *
+ * The response is the whole onboarding result, so useCandidateAction drops it
+ * straight into the cache and the sidebar, the header card and the letter all
+ * change together — rather than the letter saying one thing and the card
+ * beside it another.
+ */
+export function useSetOnboardingDesignation(candidateId: string) {
+  return useCandidateAction(
+    candidateId,
+    (designation: string) =>
+      onboardingApi.setDesignation(candidateId, designation),
+    {
+      success: 'Designation confirmed',
+      fallback: 'Could not confirm the designation',
+    },
+  );
+}
+
 export function useSendOnboardingLink(candidateId: string) {
   return useCandidateAction(
     candidateId,

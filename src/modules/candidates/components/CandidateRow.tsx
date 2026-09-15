@@ -38,6 +38,7 @@ import {
 } from '../hooks/useCandidates';
 import type { Candidate, CandidateStage } from '../types/candidate.types';
 import { MatchPopover } from './MatchPopover';
+import { GeneratedCvModal } from './GeneratedCvModal';
 import { resolveApiFileUrl } from '@shared/api';
 
 const ACCEPT = '.pdf,application/pdf';
@@ -116,6 +117,7 @@ export function CandidateRow({
   const navigate = useNavigate();
   const rowRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [cvOpen, setCvOpen] = useState(false);
   const [showFullSummary, setShowFullSummary] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [flagModalOpen, setFlagModalOpen] = useState(false);
@@ -349,6 +351,15 @@ export function CandidateRow({
             <ActionBtn as="a" href={resolveApiFileUrl(candidate.cvUrl)} target="_blank" rel="noreferrer" title="View CV">
               <FileText className="h-3.5 w-3.5" /> CV
             </ActionBtn>
+          ) : candidate.hasGeneratedCv ? (
+            /* Applied through Bdjobs — fields, no document. The CV is built
+               from what they submitted rather than leaving nothing to read. */
+            <ActionBtn
+              title="View the CV built from this application"
+              onClick={() => setCvOpen(true)}
+            >
+              <FileText className="h-3.5 w-3.5" /> CV
+            </ActionBtn>
           ) : (
             <ActionBtn title="Upload CV" onClick={() => fileRef.current?.click()} disabled={upload.isPending}>
               <Upload className="h-3.5 w-3.5" /> {upload.isPending ? 'Uploading…' : 'Upload CV'}
@@ -453,6 +464,17 @@ export function CandidateRow({
           e.target.value = '';
         }}
       />
+
+      {/* Only mounted once opened — it fetches the document on mount, and a
+          long candidate list must not fetch one CV per row. */}
+      {cvOpen && (
+        <GeneratedCvModal
+          candidateId={candidate.id}
+          candidateName={candidate.name}
+          open={cvOpen}
+          onClose={() => setCvOpen(false)}
+        />
+      )}
 
       <BusyOverlay
         show={screen.isPending}

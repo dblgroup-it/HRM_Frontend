@@ -21,6 +21,23 @@ export const onboardingApi = {
       .get<ApiResponse<OnboardingResult>>(`/candidates/${candidateId}/onboarding`)
       .then((r) => r.data),
 
+  /**
+   * Settle which level this candidate is hired at.
+   *
+   * Returns the whole onboarding result, so every screen reading `designation`
+   * updates from one response rather than each guessing at the new value.
+   */
+  setDesignation: (
+    candidateId: string,
+    designation: string,
+  ): Promise<OnboardingResult> =>
+    http
+      .patch<ApiResponse<OnboardingResult>>(
+        `/candidates/${candidateId}/onboarding/designation`,
+        { designation },
+      )
+      .then((r) => r.data),
+
   start: (candidateId: string): Promise<OnboardingResult> =>
     http
       .post<ApiResponse<OnboardingResult>>(`/candidates/${candidateId}/onboarding`)

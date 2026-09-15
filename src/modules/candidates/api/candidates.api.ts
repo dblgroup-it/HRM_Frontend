@@ -205,6 +205,19 @@ export const candidatesApi = {
   applyHistory: (id: string): Promise<ApplyHistory> =>
     http.get<ApiResponse<ApplyHistory>>(`/candidates/${id}/apply-history`).then((r) => r.data),
 
+  /**
+   * The CV rendered from stored data, for candidates who never sent a file.
+   *
+   * Returns raw HTML rather than the API's { success, data } envelope, because
+   * a browser has to render it — hence `responseType: 'text'` and no unwrap.
+   * Fetched through the authenticated client rather than linked directly: the
+   * route is JWT-guarded, and a plain <a href> in a new tab sends no token.
+   */
+  generatedCv: (id: string): Promise<string> =>
+    http.get<string>(`/candidates/${id}/cv/document`, {
+      responseType: 'text',
+    }),
+
   email: (
     id: string,
     input: EmailCandidateInput,

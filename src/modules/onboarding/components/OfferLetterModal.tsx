@@ -10,7 +10,10 @@ import { toast } from 'sonner';
 
 import { useMasterData } from '@modules/master-data';
 
-import { useSendOffer } from '../hooks/useOnboarding';
+import {
+  useSendOffer,
+  useSetOnboardingDesignation,
+} from '../hooks/useOnboarding';
 import type { OnboardingView } from '../types/onboarding.types';
 
 type Format = 'junior' | 'senior';
@@ -53,7 +56,15 @@ export function OfferLetterModal({
   open,
   onClose,
 }: {
-  candidate: { id: string; name: string; designation: string; unit: string };
+  candidate: {
+    id: string;
+    name: string;
+    designation: string;
+    requisitionDesignation?: string;
+    alternateDesignations?: string[];
+    fixedDesignation?: string | null;
+    unit: string;
+  };
   onboarding: OnboardingView | null;
   open: boolean;
   onClose: () => void;
@@ -66,6 +77,26 @@ export function OfferLetterModal({
   const [format, setFormat] = useState<Format>(
     (ob?.offerFormat as Format | null) ?? 'junior',
   );
+
+  /**
+   * Which level this person is actually hired at.
+   *
+   * A requisition can be raised for several — "Senior Executive or Assistant
+   * Manager" — because the level depends on who is found. The letter is signed
+   * and sent, so it has to name one, and this is where that is settled.
+   * Single-designation requisitions never see this control.
+   */
+  // Built from the requisition's own primary, not from `candidate.designation`
+  // — that now shows the settled level, so deriving the list from it would
+  // drop the primary from the choices as soon as an alternate was picked.
+  const levels = [
+    candidate.requisitionDesignation ?? candidate.designation,
+    ...(candidate.alternateDesignations ?? []),
+  ];
+  const multiLevel = levels.length > 1;
+  const setDesignation = useSetOnboardingDesignation(candidate.id);
+  const fixedDesignation =
+    candidate.fixedDesignation ?? (multiLevel ? '' : levels[0]);
   const [salutation, setSalutation] = useState('Mr.');
   const [address, setAddress] = useState(ob?.candidateAddress ?? '');
   // The prefix is fixed company-wide; only the serial is typed. Stored whole,
@@ -93,6 +124,8 @@ export function OfferLetterModal({
   const payload = useMemo(
     () => ({
       format,
+      // Omitted on a single-designation requisition, where the primary applies.
+      fixedDesignation: multiLevel ? fixedDesignation || undefined : undefined,
       salutation: salutation.trim() || undefined,
       address: address.trim() || undefined,
       reference: reference.trim() || undefined,
@@ -113,7 +146,7 @@ export function OfferLetterModal({
             noticeDays: Number(notice) || 0,
           }),
     }),
-    [format, salutation, address, reference, joiningDate, jobLocation, benefits, probation, notice],
+    [format, fixedDesignation, multiLevel, salutation, address, reference, joiningDate, jobLocation, benefits, probation, notice],
   );
 
   // Re-render on any change, debounced — the preview is the point of the page.
@@ -186,6 +219,15 @@ export function OfferLetterModal({
               size="sm"
               leftIcon={<Mail className="h-3.5 w-3.5" />}
               isLoading={sendOffer.isPending}
+              // Sending a letter that names the wrong level is not correctable
+              // once it is in the candidate's inbox, so the choice is required
+              // rather than defaulted.
+              disabled={multiLevel && !fixedDesignation}
+              title={
+                multiLevel && !fixedDesignation
+                  ? 'Choose the confirmed designation first'
+                  : undefined
+              }
               onClick={() =>
                 sendOffer.mutate(payload, { onSuccess: onClose })
               }
@@ -199,6 +241,47 @@ export function OfferLetterModal({
       <div className="grid gap-5 lg:grid-cols-[20rem,1fr]">
         {/* Terms */}
         <div className="space-y-3">
+          {/* Only for a requisition raised at more than one level. The letter
+              is signed and sent, so it has to name one. */}
+          {multiLevel && (
+            <div>
+              <span className={label}>Confirmed designation</span>
+              <div className="grid gap-1.5">
+                {levels.map((level) => (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => setDesignation.mutate(level)}
+                    disabled={setDesignation.isPending}
+                    className={cn(
+                      'rounded-xl border px-3 py-2 text-left text-sm font-semibold transition-colors',
+                      fixedDesignation === level
+                        ? 'border-brand-300 bg-brand-50/60 text-slate-800'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
+                    )}
+                  >
+                    {level}
+                    {level === candidate.designation && (
+                      <span className="ml-1.5 text-[0.6875rem] font-normal text-slate-400">
+                        primary
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <p
+                className={cn(
+                  'mt-1.5 text-xs',
+                  fixedDesignation ? 'text-slate-500' : 'font-medium text-amber-700',
+                )}
+              >
+                {fixedDesignation
+                  ? 'This is what the offer and appointment letters will print.'
+                  : 'Choose the level before sending — it is printed on the letter.'}
+              </p>
+            </div>
+          )}
+
           <div>
             <span className={label}>Format</span>
             <div className="grid gap-1.5">
