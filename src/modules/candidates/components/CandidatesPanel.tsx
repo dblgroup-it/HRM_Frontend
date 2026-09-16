@@ -11,6 +11,7 @@ import {
   FolderOpen,
   FolderPlus,
   Link2,
+  Megaphone,
   Plus,
   RefreshCw,
   RotateCcw,
@@ -72,7 +73,7 @@ import type {
 import { CandidateRow } from './CandidateRow';
 import { AddCandidateModal } from './AddCandidateModal';
 import { EmailCandidateModal } from './EmailCandidateModal';
-import { PostToBdJobsModal } from '@modules/integrations/bdjobs';
+import { PostToBdJobsModal, useBdJobsPost } from '@modules/integrations/bdjobs';
 import { resolveApiFileUrl } from '@shared/api';
 
 type Tab = 'all' | CandidateStage;
@@ -213,6 +214,10 @@ export function CandidatesPanel({
   );
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bdJobsOpen, setBdJobsOpen] = useState(false);
+  // Drives the BDJobs button's wording: a requisition that is already live
+  // cannot be posted twice, so it must not read like an action.
+  const { data: bdJobsPost } = useBdJobsPost(reqId);
+  const bdJobsLive = bdJobsPost?.status === 'posted';
 
   const drive = workspace?.drive ?? requisition.drive ?? null;
   const driveConnected = workspace?.connected ?? true;
@@ -310,7 +315,7 @@ export function CandidatesPanel({
                 }
                 onClick={handleScreenAll}
                 disabled={screenAll.isPending || screeningActive}
-                title="AI-screen new applied CVs against this role"
+                title="AI-screen CVs that have no match score yet — including Bdjobs applications, which arrive as data rather than a file"
               >
                 {screeningActive ? 'Screening…' : 'AI Screen'}
               </Button>
@@ -354,10 +359,32 @@ export function CandidatesPanel({
               size="sm"
               variant="outline"
               onClick={() => setBdJobsOpen(true)}
-              className="border-[#e8753c] text-[#e8753c] hover:bg-orange-50"
-              title="Post this job to BDJobs"
+              className={cn(
+                bdJobsLive
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                  : 'border-[#e8753c] text-[#e8753c] hover:bg-orange-50',
+              )}
+              leftIcon={
+                bdJobsLive ? (
+                  <span className="relative flex h-2 w-2" aria-hidden>
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                  </span>
+                ) : (
+                  <Megaphone className="h-4 w-4" />
+                )
+              }
+              title={
+                bdJobsLive
+                  ? `This job is live on BDJobs${bdJobsPost?.bdJobsJobId ? ` (job #${bdJobsPost.bdJobsJobId})` : ''} — open to see what was published`
+                  : bdJobsPost?.status === 'draft'
+                    ? 'A BDJobs draft is saved — finish it to go live'
+                    : bdJobsPost?.status === 'failed'
+                      ? 'The last BDJobs attempt failed — open to see why and retry'
+                      : 'Publish this job on BDJobs'
+              }
             >
-              🅱 BDJobs
+              {bdJobsLive ? 'Live in BDJobs' : 'Post to BDJobs'}
             </Button>
             <Button
               size="sm"

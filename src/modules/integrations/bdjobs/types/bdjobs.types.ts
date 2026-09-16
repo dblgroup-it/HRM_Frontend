@@ -68,7 +68,6 @@ export interface BdJobsFormData {
   restrictGender: boolean;
   restrictExperience: boolean;
   applyOnline: boolean;
-  publishLinkedIn: boolean;
 }
 
 /** Admin-editable BDJobs configuration (secrets are write-only). */
@@ -107,4 +106,11 @@ export interface BdJobsPost {
   errorMessage: string | null;
   postedAt: string | null;
   note?: string;
+}
+
+/** Is posting available, and how long the listing stays open. */
+export interface BdJobsStatus {
+  configured: boolean;
+  /** Days from posting to the application deadline BDJobs will carry. */
+  deadlineDays: number;
 }

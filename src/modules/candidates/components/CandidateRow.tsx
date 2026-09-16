@@ -366,7 +366,9 @@ export function CandidateRow({
             </ActionBtn>
           )}
 
-          {candidate.cvUrl && (
+          {/* Bdjobs applicants have no file, but their structured profile is a CV
+              the AI can read — so they get the same scan action. */}
+          {(candidate.cvUrl || candidate.hasGeneratedCv) && (
             <ActionBtn
               title={candidate.matchScore !== null ? 'Re-screen CV with AI' : 'Screen CV with AI'}
               onClick={() => screen.mutate(candidate.id)}

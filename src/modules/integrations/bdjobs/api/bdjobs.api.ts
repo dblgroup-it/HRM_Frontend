@@ -11,6 +11,7 @@ import type {
   BdJobsSettingsInput,
   BdJobsSettingsView,
   BdJobsSkill,
+  BdJobsStatus,
 } from '../types/bdjobs.types';
 
 export const bdJobsApi = {
@@ -52,9 +53,9 @@ export const bdJobsApi = {
       .get<ApiResponse<BdJobsCategory[]>>('/integrations/bdjobs/categories')
       .then((r) => r.data),
 
-  getStatus: (): Promise<{ configured: boolean }> =>
+  getStatus: (): Promise<BdJobsStatus> =>
     http
-      .get<ApiResponse<{ configured: boolean }>>('/integrations/bdjobs/status')
+      .get<ApiResponse<BdJobsStatus>>('/integrations/bdjobs/status')
       .then((r) => r.data),
 
   // --- admin configuration ---
