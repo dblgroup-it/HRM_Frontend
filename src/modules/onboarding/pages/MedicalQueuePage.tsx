@@ -151,6 +151,7 @@ export default function MedicalQueuePage() {
           </div>
         )}
       </Card>
+
     </div>
   );
 }
@@ -276,8 +277,10 @@ function QueueRow({
         </Button>
       </div>
 
+      {/* Same reasoning as the approvals panel: the alignment indent is a
+          wide-screen nicety, not worth losing the form's right edge for. */}
       {open && (
-        <div className="px-4 pb-4 pl-[4.25rem]">
+        <div className="px-3 pb-4 sm:px-4 sm:pl-[4.25rem]">
           <MedicalExamForm item={item} onClose={onToggle} />
         </div>
       )}

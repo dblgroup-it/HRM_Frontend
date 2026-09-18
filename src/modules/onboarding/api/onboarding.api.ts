@@ -14,11 +14,41 @@ import type {
   MedicalApprovalRow,
   MedicalBulkResult,
   CmoDecision,
+  MedicalAgeBand,
+  MedicalLetterDraft,
+  SendMedicalLetterResult,
 } from '../types/onboarding.types';
 
 const MULTIPART = { headers: { 'Content-Type': 'multipart/form-data' } };
 
 export const onboardingApi = {
+  /** What the send screen needs: band, reference, venue, who it will reach. */
+  medicalLetterDraft: (onboardingId: string): Promise<MedicalLetterDraft> =>
+    http
+      .get<ApiResponse<MedicalLetterDraft>>(
+        `/onboarding/${onboardingId}/medical-letter`,
+      )
+      .then((r) => r.data),
+
+  /** Send the letter to the medical team and the appointment to the candidate. */
+  sendMedicalLetter: (
+    onboardingId: string,
+    body: {
+      band: MedicalAgeBand;
+      examAt: string;
+      venue?: string;
+      salutation?: string;
+      notifyMedicalTeam?: boolean;
+      notifyCandidate?: boolean;
+    },
+  ): Promise<SendMedicalLetterResult> =>
+    http
+      .post<ApiResponse<SendMedicalLetterResult>>(
+        `/onboarding/${onboardingId}/medical-letter`,
+        body,
+      )
+      .then((r) => r.data),
+
   /** Everything waiting on the Central Medical Officer, oldest first. */
   medicalApprovalQueue: (): Promise<MedicalApprovalRow[]> =>
     http

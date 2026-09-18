@@ -476,8 +476,12 @@ function Row({
 
       {/* Mounted only when opened — the queue can be long and every row
           carries a full clinical record. */}
+      {/* The indent aligns the panel under the row's text on a wide screen. It
+          is dropped below `sm` — a fixed 3.25rem inset plus the panel's own
+          padding pushes the right-hand column off a phone, which is where the
+          findings were being clipped. */}
       {open && (
-        <div className="px-4 pb-4 pl-[3.25rem]">
+        <div className="px-3 pb-4 sm:px-4 sm:pl-[3.25rem]">
           <MedicalExamDetail exam={row.exam} />
         </div>
       )}

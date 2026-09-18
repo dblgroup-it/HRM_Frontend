@@ -74,6 +74,13 @@ export interface OnboardingView {
    * thing this layer could do.
    */
   medicalCmoNote?: string | null;
+  /** The pre-employment test letter: reference, appointment, and when sent. */
+  medicalRefNo?: string | null;
+  medicalExamAt?: string | null;
+  medicalLetterSentAt?: string | null;
+  /** Tracked per side — either send can fail on its own. */
+  medicalLetterTeamSentAt?: string | null;
+  medicalLetterCandidateSentAt?: string | null;
   medicalApprovedAt?: string | null;
   /** Cleared from a paper check rather than the structured report. */
   medicalManual: boolean;
@@ -124,6 +131,11 @@ export interface OnboardingResult {
   mailConfigured: boolean;
   itWebhook: boolean;
   requiredDocs: string[];
+  /**
+   * Uploaded like the rest, but absent never blocks anything — progress and
+   * the "all collected" gate count only the required list.
+   */
+  optionalDocs?: string[];
   candidate: OnboardingCandidate;
   onboarding: OnboardingView | null;
 }
@@ -199,6 +211,11 @@ export interface PublicOnboarding {
   unit: string;
   status: string;
   requiredDocs: string[];
+  /**
+   * Uploaded like the rest, but absent never blocks anything — progress and
+   * the "all collected" gate count only the required list.
+   */
+  optionalDocs?: string[];
   offerSentAt: string | null;
   offerAcceptedAt: string | null;
   submitted: { id: string; label: string; status: DocStatus }[];
@@ -257,4 +274,36 @@ export interface MedicalBulkResult {
     status?: string;
     error?: string;
   }[];
+}
+
+/** Which pre-employment test list applies. The two differ by an actual test. */
+export type MedicalAgeBand = 'below_40' | 'above_40';
+
+/** What the send screen needs before the medical test letter can go out. */
+export interface MedicalLetterDraft {
+  candidateName: string;
+  candidateEmail: string | null;
+  unitName: string;
+  dateOfBirth: string | null;
+  /** Null when there is no usable date of birth — HR must then choose. */
+  suggestedBand: MedicalAgeBand | null;
+  /** Set once a letter has been sent; a re-send repeats it. */
+  refNo: string | null;
+  examAt: string | null;
+  /** Pre-filled: what this candidate's last letter used, else the default. */
+  venue: string;
+  band: MedicalAgeBand | null;
+  sentAt: string | null;
+  teamSentAt: string | null;
+  candidateSentAt: string | null;
+  /** Resolved from the medical roles — shown before sending, not after. */
+  recipients: { name: string; email: string | null; hasEmail: boolean }[];
+}
+
+export interface SendMedicalLetterResult {
+  refNo: string;
+  sent: string[];
+  failed: { to: string; reason: string }[];
+  skippedNoEmail: string[];
+  letterHtml: string;
 }

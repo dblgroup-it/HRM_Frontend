@@ -48,7 +48,10 @@ function Group({ title, rows }: { title: string; rows: Row[] }) {
         {filled.map(([label, value]) => (
           <div key={label} className="flex gap-2 text-xs leading-5">
             <dt className="shrink-0 text-slate-400">{label}</dt>
-            <dd className="min-w-0 break-words font-medium text-slate-700">
+            {/* `break-words` alone still lets one long unbroken token (a
+                registration number, a run-on remark) push the column wider
+                than its cell; `min-w-0` plus an explicit wrap keeps it in. */}
+            <dd className="min-w-0 flex-1 whitespace-normal break-words font-medium text-slate-700">
               {value}
             </dd>
           </div>
@@ -77,7 +80,7 @@ export function MedicalExamDetail({ exam }: { exam: MedicalExam | null }) {
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-x-8 gap-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-x-8 gap-y-4 rounded-xl border border-slate-200 bg-slate-50/60 px-5 py-4 sm:grid-cols-2 lg:grid-cols-3">
       <Group
         title="Examination"
         rows={[

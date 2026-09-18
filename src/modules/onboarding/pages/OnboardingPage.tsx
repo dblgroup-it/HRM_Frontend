@@ -119,6 +119,77 @@ export default function OnboardingPage() {
   const allUploaded = totalDocs > 0 && uploadedDocs === totalDocs;
   const progressPct = totalDocs > 0 ? Math.round((uploadedDocs / totalDocs) * 100) : 0;
 
+  /**
+   * One checklist row.
+   *
+   * Shared by the required and the optional list so the two cannot drift into
+   * looking like different things — the only difference between them is
+   * whether being absent holds anything up.
+   */
+  const renderDocRow = (label: string, i: number) => {
+                    const submitted = data.submitted.filter((s) => s.label === label);
+                    const latest = submitted[submitted.length - 1];
+                    const isUploading = upload.isPending && activeLabel === label;
+
+                    return (
+                      <div
+                        key={label}
+                        className="flex flex-wrap items-center gap-3 px-5 py-4 sm:flex-nowrap animate-fade-in"
+                        style={{ animationDelay: `${i * 50}ms` }}
+                      >
+                        {/* Icon */}
+                        <div className={cn(
+                          'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
+                          latest?.status === 'verified' ? 'bg-emerald-100' : 'bg-slate-100'
+                        )}>
+                          {latest?.status === 'verified' ? (
+                            <FileCheck2 className="h-5 w-5 text-emerald-600" />
+                          ) : (
+                            <FileText className="h-5 w-5 text-slate-400" />
+                          )}
+                        </div>
+
+                        {/* Name + badge */}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-slate-800">{label}</p>
+                          {latest && (
+                            <span className={cn(
+                              'mt-0.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[0.625rem] font-semibold',
+                              DOC_STATUS_META[latest.status].cls
+                            )}>
+                              <span className={cn('h-1.5 w-1.5 rounded-full', DOC_STATUS_META[latest.status].dot)} />
+                              {DOC_STATUS_META[latest.status].label}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Upload button */}
+                        <button
+                          type="button"
+                          disabled={isUploading}
+                          onClick={() => {
+                            setActiveLabel(label);
+                            fileRef.current?.click();
+                          }}
+                          className={cn(
+                            'flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition active:scale-95',
+                            latest
+                              ? 'border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600'
+                              : 'border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100',
+                            isUploading && 'opacity-60 cursor-not-allowed'
+                          )}
+                        >
+                          {isUploading ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <UploadCloud className="h-3.5 w-3.5" />
+                          )}
+                          {isUploading ? 'Uploading…' : latest ? 'Replace' : 'Upload'}
+                        </button>
+                      </div>
+                    );
+  };
+
   // ── Main ──
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
@@ -260,70 +331,30 @@ export default function OnboardingPage() {
                 </div>
 
                 <div className="divide-y divide-slate-100">
-                  {data.requiredDocs.map((label, i) => {
-                    const submitted = data.submitted.filter((s) => s.label === label);
-                    const latest = submitted[submitted.length - 1];
-                    const isUploading = upload.isPending && activeLabel === label;
-
-                    return (
-                      <div
-                        key={label}
-                        className="flex flex-wrap items-center gap-3 px-5 py-4 sm:flex-nowrap animate-fade-in"
-                        style={{ animationDelay: `${i * 50}ms` }}
-                      >
-                        {/* Icon */}
-                        <div className={cn(
-                          'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
-                          latest?.status === 'verified' ? 'bg-emerald-100' : 'bg-slate-100'
-                        )}>
-                          {latest?.status === 'verified' ? (
-                            <FileCheck2 className="h-5 w-5 text-emerald-600" />
-                          ) : (
-                            <FileText className="h-5 w-5 text-slate-400" />
-                          )}
-                        </div>
-
-                        {/* Name + badge */}
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-slate-800">{label}</p>
-                          {latest && (
-                            <span className={cn(
-                              'mt-0.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[0.625rem] font-semibold',
-                              DOC_STATUS_META[latest.status].cls
-                            )}>
-                              <span className={cn('h-1.5 w-1.5 rounded-full', DOC_STATUS_META[latest.status].dot)} />
-                              {DOC_STATUS_META[latest.status].label}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Upload button */}
-                        <button
-                          type="button"
-                          disabled={isUploading}
-                          onClick={() => {
-                            setActiveLabel(label);
-                            fileRef.current?.click();
-                          }}
-                          className={cn(
-                            'flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition active:scale-95',
-                            latest
-                              ? 'border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600'
-                              : 'border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100',
-                            isUploading && 'opacity-60 cursor-not-allowed'
-                          )}
-                        >
-                          {isUploading ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <UploadCloud className="h-3.5 w-3.5" />
-                          )}
-                          {isUploading ? 'Uploading…' : latest ? 'Replace' : 'Upload'}
-                        </button>
-                      </div>
-                    );
-                  })}
+                  {data.requiredDocs.map(renderDocRow)}
                 </div>
+
+                {/* Optional documents.
+                    Kept visually separate and clearly labelled: they are
+                    uploaded and verified exactly like the rest, but a
+                    candidate who has none is not incomplete — a fresh graduate
+                    has no pay slip, and a checklist that can never reach 100%
+                    is one people stop trusting. */}
+                {(data.optionalDocs?.length ?? 0) > 0 && (
+                  <>
+                    <div className="border-t border-slate-100 bg-slate-50/60 px-5 py-2.5">
+                      <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-500">
+                        If available
+                      </p>
+                      <p className="mt-0.5 text-xs text-slate-400">
+                        Not required — upload these only if you have them.
+                      </p>
+                    </div>
+                    <div className="divide-y divide-slate-100">
+                      {data.optionalDocs!.map(renderDocRow)}
+                    </div>
+                  </>
+                )}
 
                 {/* Privacy notice */}
                 <div className="border-t border-slate-100 px-5 py-4">

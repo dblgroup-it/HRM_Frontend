@@ -85,6 +85,7 @@ import type {
   OnboardingView,
 } from '../types/onboarding.types';
 import { printMedicalReport } from '../utils/printMedicalReport';
+import { MedicalLetterModal } from '../components/MedicalLetterModal';
 import { printOnboardingSummary } from '../utils/printSummary';
 import { resolveApiFileUrl } from '@shared/api';
 
@@ -116,6 +117,31 @@ const STAGES = [
  * are done at a clinic and come back as a signed sheet. Without this, HR could
  * see "Awaiting medical team" and have no way to move the candidate on.
  */
+/**
+ * Whether one side of the medical letter actually went out.
+ *
+ * Green with a date, or plainly "not sent" — never blank. A missing line reads
+ * as "no information"; this has to read as "nobody told them".
+ */
+function SentFlag({ label, at }: { label: string; at?: string | null }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs">
+      <span
+        className={cn(
+          'h-1.5 w-1.5 rounded-full',
+          at ? 'bg-emerald-500' : 'bg-slate-300',
+        )}
+      />
+      <span className="text-slate-500">{label}</span>
+      <span className={at ? 'font-medium text-slate-700' : 'text-slate-400'}>
+        {at
+          ? new Date(at).toLocaleDateString('en-GB', { dateStyle: 'medium' })
+          : 'not sent'}
+      </span>
+    </span>
+  );
+}
+
 function ManualMedicalRecorder({
   onboardingId,
   alerted,
@@ -698,6 +724,8 @@ function Flow({
   const { data: boardApproval } = useBoardApprovalStatus(candidateId, true);
   const hrApprove = useHrBoardApprove(candidateId);
   const [showBoardModal, setShowBoardModal] = useState(false);
+  /** The medical test letter dialog — HR raises it from the Medical step. */
+  const [medicalLetterOpen, setMedicalLetterOpen] = useState(false);
   const [showHrForm, setShowHrForm] = useState(false);
   const [hrNote, setHrNote] = useState('');
   const [hrFile, setHrFile] = useState<File | null>(null);
@@ -992,7 +1020,76 @@ function Flow({
                 Print Medical Fitness Report
               </button>
             )}
+
           </div>
+
+          {/*
+            The medical test letter.
+            Nothing sends this automatically — HR raises it, and until they do
+            the candidate has no appointment and the clinic expects nobody. So
+            it is a filled button before it has gone out, not a quiet link
+            among the others, and it states plainly who has been told.
+          */}
+          <div
+            className={cn(
+              'mt-4 rounded-xl border px-4 py-3.5',
+              ob.medicalLetterSentAt
+                ? 'border-slate-200 bg-white'
+                : 'border-amber-300 bg-amber-50',
+            )}
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-800">
+                  Pre-employment medical test letter
+                </p>
+                {ob.medicalLetterSentAt ? (
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {ob.medicalRefNo ? `${ob.medicalRefNo} · ` : ''}
+                    {ob.medicalExamAt
+                      ? `appointment ${new Date(ob.medicalExamAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}`
+                      : 'no appointment recorded'}
+                  </p>
+                ) : (
+                  <p className="mt-0.5 text-xs font-medium text-amber-800">
+                    Not sent yet — the candidate has no appointment and the
+                    medical team is not expecting them.
+                  </p>
+                )}
+
+                {/* Each side separately: "was the candidate actually told?" is
+                    the question asked when somebody does not turn up. */}
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                  <SentFlag
+                    label="Medical team"
+                    at={ob.medicalLetterTeamSentAt}
+                  />
+                  <SentFlag
+                    label="Candidate"
+                    at={ob.medicalLetterCandidateSentAt}
+                  />
+                </div>
+              </div>
+
+              <Button
+                size="sm"
+                variant={ob.medicalLetterSentAt ? 'outline' : 'primary'}
+                className="shrink-0"
+                leftIcon={<Send className="h-3.5 w-3.5" />}
+                onClick={() => setMedicalLetterOpen(true)}
+              >
+                {ob.medicalLetterSentAt ? 'Re-send' : 'Send letter'}
+              </Button>
+            </div>
+          </div>
+
+          {medicalLetterOpen && (
+            <MedicalLetterModal
+              onboardingId={ob.id}
+              open={medicalLetterOpen}
+              onClose={() => setMedicalLetterOpen(false)}
+            />
+          )}
 
           {ob.medicalStatus === 'pending' && (
             <ManualMedicalRecorder

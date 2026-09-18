@@ -218,6 +218,14 @@ export function useMedicalQueue() {
  * a CMO — the endpoint refuses anyone else, and a 403 on every dashboard load
  * would be noise in the logs and a wasted request.
  */
+export function useMedicalLetterDraft(onboardingId: string, enabled = true) {
+  return useQuery({
+    queryKey: ['medical-letter', onboardingId],
+    queryFn: () => onboardingApi.medicalLetterDraft(onboardingId),
+    enabled: enabled && Boolean(onboardingId),
+  });
+}
+
 export function useMedicalApprovalQueue(enabled = true) {
   return useQuery({
     queryKey: ['medical-approvals'],
