@@ -105,8 +105,8 @@ const STAGES = [
   'Documents',
   'Facilities',
   'Medical',
-  'Board & Provisioning',
-  'Offer Letter',
+  'Board Approval',
+  'Offer & Provisioning',
   'Complete',
 ];
 
@@ -272,15 +272,17 @@ export default function OnboardingManagePage() {
   );
   const docsCollected = Boolean(ob && (ob.docs.length > 0 || ob.docsSkippedAt));
   // 6 stages: (0) Documents, (1) Facility requirements, (2) Medical,
-  // (3) Board approval & facility provisioning, (4) Offer letter,
+  // (3) Board approval, (4) Offer letter & facility provisioning,
   // (5) Final verification, appointment letter and completion.
   //
-  // The offer now follows board approval rather than preceding medical, so
-  // the chain reads: verify → medical → board signs off → offer goes out →
-  // candidate accepts → final verification → appointment letter. Step 3 only
-  // counts as done once BOTH board approval and facility provisioning are
-  // settled — approval alone used to jump the flow straight to "Complete"
-  // before provisioning was even looked at.
+  // The chain reads: verify → medical → board signs off → offer goes out →
+  // facilities are arranged → candidate accepts → final verification →
+  // appointment letter. Provisioning sits with the offer because the offer is
+  // what commits the company to those facilities; step 4 therefore only counts
+  // as done once the candidate has accepted AND every facility has been passed
+  // to somebody. It cannot gate the step it lives in, so the offer unlocks on
+  // board approval alone — otherwise the provisioning panel would be locked
+  // behind the very thing it is waiting for.
   const doneFlags = ob
     ? [
         docsCollected && allVerified,
@@ -288,8 +290,8 @@ export default function OnboardingManagePage() {
         // its own — it settles with the documents it is reviewed alongside.
         docsCollected && allVerified,
         ob.medicalStatus === 'cleared',
-        isBoardApproved && provisioningDone,
-        Boolean(ob.offerAcceptedAt),
+        isBoardApproved,
+        Boolean(ob.offerAcceptedAt) && provisioningDone,
         Boolean(ob.itNotifiedAt),
       ]
     : [false, false, false, false, false, false];
@@ -299,7 +301,7 @@ export default function OnboardingManagePage() {
         false,
         !(docsCollected && allVerified),
         ob.medicalStatus !== 'cleared',
-        !isBoardApproved || !provisioningDone,
+        !isBoardApproved,
         !ob.offerAcceptedAt,
       ]
     : [false, false, false, false, false, false];
@@ -1106,8 +1108,8 @@ function Flow({
       ),
     },
     {
-      // Step 4 — board approval + facility provisioning.
-      title: 'Board Approval & Facility Provisioning',
+      // Step 4 — board approval.
+      title: 'Board Approval',
       icon: BadgeCheck,
       lockReason: 'Unlocks after medical clearance.',
       content: (
@@ -1321,22 +1323,13 @@ function Flow({
               </div>
             )}
           </div>
-
-          <div className="border-t border-slate-100 pt-5">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Facility Provisioning
-            </p>
-            <FacilityProvisioningPanel
-              candidateId={candidateId}
-              canEdit={canEditFacilities}
-            />
-          </div>
         </div>
       ),
     },
     {
-      // Step 5 — the offer letter, once the board has approved the hire.
-      title: 'Offer Letter',
+      // Step 5 — the offer letter, once the board has approved the hire, and
+      // then the facilities that letter commits the company to.
+      title: 'Offer Letter & Facility Provisioning',
       icon: FileSignature,
       lockReason: 'Unlocks after Board Approval.',
       content: (
@@ -1413,6 +1406,16 @@ function Flow({
                 </Hint>
               )
             )}
+          </div>
+
+          <div className="border-t border-slate-100 pt-5">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Facility Provisioning
+            </p>
+            <FacilityProvisioningPanel
+              candidateId={candidateId}
+              canEdit={canEditFacilities}
+            />
           </div>
         </div>
       ),
