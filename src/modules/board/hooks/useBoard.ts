@@ -203,7 +203,11 @@ export function useUpdateSheetRow() {
       const { approvalId, ...patch } = vars;
       return boardApi.updateSheetRow(approvalId, patch);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: sheetKeys.inbox }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: sheetKeys.inbox });
+      // The same row is rendered on the candidate's own board panel.
+      void qc.invalidateQueries({ queryKey: ['board-approval'] });
+    },
     onError: (e) => toast.error(errMsg(e, 'Could not save')),
   });
 }
@@ -219,6 +223,15 @@ export function useSendSheet() {
     onSuccess: (r) => {
       void qc.invalidateQueries({ queryKey: sheetKeys.inbox });
       void qc.invalidateQueries({ queryKey: sheetKeys.sheets });
+      // Every candidate on the sheet now has a board approval in flight, and
+      // each one's own panel reads ['board-approval', candidateId]. Without
+      // this, sending in bulk left those panels showing the pre-send state
+      // until the page was reloaded — the sheet said sent, the candidate said
+      // nothing had happened. The prefix covers all of them at once; the ids
+      // are not returned, and listing them would be a worse coupling.
+      void qc.invalidateQueries({ queryKey: ['board-approval'] });
+      // The pipeline shows a board-approval badge per candidate.
+      void qc.invalidateQueries({ queryKey: ['candidates'] });
       toast.success(
         `${r.reference} sent — ${r.candidates} candidate${r.candidates === 1 ? '' : 's'} on the sheet`,
       );
