@@ -1464,7 +1464,7 @@ function Flow({
                     <Badge tone="success">Signed {fmt(ob.cocSignedAt)}</Badge>
                     {ob.cocUrl && (
                       <a
-                        href={ob.cocUrl}
+                        href={resolveApiFileUrl(ob.cocUrl)}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline"
