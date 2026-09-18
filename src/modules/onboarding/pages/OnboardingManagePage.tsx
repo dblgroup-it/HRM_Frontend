@@ -54,6 +54,9 @@ import { FacilitiesPanel } from '@modules/requisition';
 import { OfferLetterModal } from '../components/OfferLetterModal';
 import { AppointmentLetterModal } from '../components/AppointmentLetterModal';
 import { FacilityProvisioningPanel } from '../components/FacilityProvisioningPanel';
+import { ReferenceChecksPanel } from '../components/ReferenceChecksPanel';
+import { useReferenceChecks } from '../hooks/useReferenceChecks';
+import { useRequisition } from '@modules/requisition';
 
 import { useFacilityProvisioning } from '../hooks/useFacilityProvisioning';
 import { onboardingKeys } from '../hooks/useOnboarding';
@@ -502,6 +505,10 @@ function Sidebar({
   // Fetched with the page so Print stays a single user gesture — opening the
   // print window after an await loses it, and popup blockers stop it.
   const { data: timeline } = useCandidateTimeline(c.id);
+  // Same reason as the timeline above: Print must stay a single gesture, and
+  // the summary opens with the requisition this hire was approved against.
+  const { data: printReq } = useRequisition(c.requisitionId);
+  const { data: refChecks } = useReferenceChecks(c.id);
 
   const copyLink = async () => {
     await navigator.clipboard.writeText(ob.submissionLink);
@@ -520,7 +527,14 @@ function Sidebar({
             variant="outline"
             className="w-full justify-center"
             leftIcon={<Printer className="h-4 w-4" />}
-            onClick={() => printOnboardingSummary(result, timeline ?? [])}
+            onClick={() =>
+              printOnboardingSummary(
+                result,
+                timeline ?? [],
+                printReq ?? null,
+                refChecks?.items ?? [],
+              )
+            }
           >
             Print summary
           </Button>
@@ -811,13 +825,30 @@ function Flow({
           Boolean(ob.docsSkippedAt) &&
           Boolean(ob.verificationSkippedAt) &&
           ob.docs.length === 0;
+        // Reference checks are the recruiter's own work, not the candidate's
+        // uploads: they belong on this step whether or not the online
+        // collection flow was skipped.
+        const referenceChecks = (
+          <div className="mt-5 border-t border-slate-100 pt-5">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Reference checks
+            </p>
+            <ReferenceChecksPanel
+              candidateId={candidateId}
+              canEdit={canEditFacilities}
+            />
+          </div>
+        );
         if (bothSkipped) {
           return (
-            <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-500">
-              <Check className="h-4 w-4 shrink-0 text-slate-400" />
-              Checked by Manual on hand — HR verified the documents in person;
-              no online submission was needed.
-            </div>
+            <>
+              <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-500">
+                <Check className="h-4 w-4 shrink-0 text-slate-400" />
+                Checked by Manual on hand — HR verified the documents in person;
+                no online submission was needed.
+              </div>
+              {referenceChecks}
+            </>
           );
         }
         const stepDone = docsCollected && allVerified;
@@ -910,6 +941,7 @@ function Flow({
                 <CrossCheckPanel candidateId={candidateId} ob={ob} aiOn={aiOn} />
               )}
             </div>
+            {referenceChecks}
           </>
         );
       })(),

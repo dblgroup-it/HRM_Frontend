@@ -4,10 +4,17 @@ import {
 } from '@modules/requisition/constants';
 import { formatCurrency } from '@shared/utils';
 
+import type { Requisition } from '@modules/requisition';
+
 import type {
   OnboardingResult,
   TimelineEvent,
 } from '../types/onboarding.types';
+import {
+  RATING_QUESTIONS,
+  scaleFor,
+  type ReferenceCheck,
+} from '../types/referenceCheck.types';
 
 const esc = (v: string | null | undefined): string =>
   (v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -90,6 +97,161 @@ function historyHtml(events: TimelineEvent[]): string {
     .join('');
 }
 
+
+/** "12 Sep 2026" or an em dash — dates are read, not parsed, in a print-out. */
+const dayOnly = (iso: string | null | undefined): string =>
+  iso
+    ? new Date(iso).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })
+    : '—';
+
+const sentence = (v: string | null | undefined): string =>
+  (v ?? '').trim() ? esc(v).replace(/\n/g, '<br>') : '—';
+
+/** A numbered part heading — the file reads as a sequence of parts. */
+const part = (n: number, title: string): string =>
+  `<h2><span class="n">${n}</span>${esc(title)}</h2>`;
+
+/**
+ * Everything the requisition says, laid out as it is on the form.
+ *
+ * This is the front of a personnel file: the post that was approved, on what
+ * grounds and by whom. Printing the hire without it leaves the reader holding
+ * an answer with no question.
+ */
+function requisitionHtml(req: Requisition | null | undefined): string {
+  if (!req) {
+    return '<p class="muted">Requisition details unavailable.</p>';
+  }
+  const replacements = (req.replacements ?? [])
+    .map(
+      (r) =>
+        `<li>${esc(r.employeeName)}${r.employeeCode ? ` (${esc(r.employeeCode)})` : ''}${
+          r.vacantDate ? ` — vacant ${dayOnly(r.vacantDate)}` : ''
+        }</li>`,
+    )
+    .join('');
+
+  const chain = (req.approvalChain ?? [])
+    .map(
+      (step, i) => `<tr>
+        <td class="nowrap">${i + 1}</td>
+        <td>${esc(step.assignee || step.title || step.role || '—')}${
+          step.subtitle ? `<span class="sub-inline">${esc(step.subtitle)}</span>` : ''
+        }</td>
+        <td>${esc((step.status ?? '').replace(/_/g, ' '))}</td>
+        <td class="nowrap">${step.actedAt ? dt(step.actedAt) : '—'}</td>
+        <td>${sentence(step.note)}</td>
+      </tr>`,
+    )
+    .join('');
+
+  return `
+<dl>
+  ${field('Requisition', esc(req.code))}
+  ${field('Status', esc((req.status ?? '').replace(/_/g, ' ')))}
+  ${field('Raised by', esc(req.raisedBy))}
+  ${field('Designation', esc(req.designationLabel || req.designation))}
+  ${field('Job grade', esc(req.grade))}
+  ${field('Requirement', esc((req.requirementType ?? '').replace(/_/g, ' ')))}
+  ${field('Posts required', String(req.requiredPosts ?? '—'))}
+  ${field('Vacant posts', String(req.totalVacantPosts ?? '—'))}
+  ${field('Unit / factory', esc(req.unitFactory))}
+  ${field('Department', esc(req.department))}
+  ${field('Section', esc(req.section))}
+  ${field('Sub-section', esc(req.subSection))}
+  ${field('Line of business', esc(req.lineOfBusiness))}
+  ${field('Place of posting', esc(req.placeOfPosting))}
+  ${field('Priority', esc(req.priority))}
+  ${field('Employment nature', esc(req.employmentNature))}
+  ${field('Contractual purpose', esc(req.contractualPurpose))}
+  ${field('Vacant from', dayOnly(req.vacantDate))}
+  ${field('Needed by', dayOnly(req.neededDate))}
+  ${field('Raised on', dayOnly(req.createdAt))}
+</dl>
+${
+  replacements
+    ? `<p class="sub">Replacing</p><ul class="notes">${replacements}</ul>`
+    : ''
+}
+${
+  req.separationReason || req.replacementRemarks
+    ? `<dl class="two" style="margin-top:8px">
+        ${req.separationReason ? field('Separation reason', esc(req.separationReason)) : ''}
+        ${req.replacementRemarks ? field('Remarks', esc(req.replacementRemarks)) : ''}
+      </dl>`
+    : ''
+}
+
+<p class="sub">Job analysis</p>
+<dl class="two">
+  ${field('Education', sentence(req.education))}
+  ${field('Experience', sentence(req.experience))}
+</dl>
+<p class="body">${sentence(req.jobDescription)}</p>
+${req.others?.trim() ? `<p class="body muted">${sentence(req.others)}</p>` : ''}
+
+${
+  chain
+    ? `<p class="sub">Approval chain</p>
+<table>
+  <tr><th style="width:26px">#</th><th>Approver</th><th style="width:110px">Decision</th><th style="width:130px">When</th><th>Note</th></tr>
+  ${chain}
+</table>`
+    : ''
+}`;
+}
+
+/**
+ * The reference checks, summarised.
+ *
+ * The ratings print as the words the referee chose rather than a score: the
+ * form has no score, and inventing one would put a number in a personnel file
+ * that nobody said.
+ */
+function referenceChecksHtml(items: ReferenceCheck[]): string {
+  if (!items.length) {
+    return '<p class="muted">No reference checks recorded.</p>';
+  }
+  return items
+    .map((rc) => {
+      const ratings = RATING_QUESTIONS.map((q) => {
+        const chosen = rc.ratings?.[q.key];
+        if (!chosen) return '';
+        const label =
+          scaleFor(q.key).find((o) => o.value === chosen)?.label ?? chosen;
+        return `<tr><td>${esc(q.text)}</td><td class="nowrap"><b>${esc(label)}</b></td></tr>`;
+      })
+        .filter(Boolean)
+        .join('');
+
+      return `
+<section class="rc">
+  <p class="rc-head">${esc(rc.refereeName)}${
+    rc.refereeDesignation ? ` · ${esc(rc.refereeDesignation)}` : ''
+  }${rc.refereeOrganization ? ` · ${esc(rc.refereeOrganization)}` : ''}</p>
+  <dl class="two">
+    ${field('Known', sentence(rc.knownDuration))}
+    ${field('Relationship', sentence(rc.relationship))}
+    ${field('Strengths', sentence(rc.strengths))}
+    ${field('Weaknesses', sentence(rc.weaknesses))}
+    ${field('Handover on leaving', sentence(rc.handover))}
+    ${field('Eligible for rehire', sentence(rc.rehireEligible))}
+    ${field('Concerns raised', sentence(rc.concerns))}
+    ${field('Overall comments', sentence(rc.overallComments))}
+  </dl>
+  ${ratings ? `<table class="ratings">${ratings}</table>` : ''}
+  <p class="muted rc-foot">Checked by ${esc(rc.conductedByName)} · ${dayOnly(rc.conductedAt)} · contact ${esc(rc.refereeEmail) || '—'}${
+    rc.refereePhone ? ` · ${esc(rc.refereePhone)}` : ''
+  }</p>
+</section>`;
+    })
+    .join('');
+}
+
 /**
  * A print-ready record of the hire, for the hard-copy personnel file.
  *
@@ -99,6 +261,9 @@ function historyHtml(events: TimelineEvent[]): string {
 export function printOnboardingSummary(
   data: OnboardingResult,
   timeline: TimelineEvent[] = [],
+  /** The requisition this hire was raised against — the front of the file. */
+  req?: Requisition | null,
+  referenceChecks: ReferenceCheck[] = [],
 ): void {
   const c = data.candidate;
   const ob = data.onboarding;
@@ -162,8 +327,27 @@ export function printOnboardingSummary(
             background: #eef4fa; color: #2b5c86; font-weight: 700; font-size: 10px;
             text-transform: uppercase; letter-spacing: .4px; }
 
-  h2 { font-size: 10px; text-transform: uppercase; letter-spacing: .9px; color: #4a5b6e;
-       margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #dce4ee; }
+  /* Each part is numbered: the file is read in order, and a reader who is
+     handed page 3 should still know which part they are in. */
+  h2 { font-size: 10px; text-transform: uppercase; letter-spacing: .9px; color: #24405c;
+       margin: 18px 0 8px; padding-bottom: 4px; border-bottom: 1.5px solid #c9d7e6;
+       display: flex; align-items: center; gap: 8px; break-after: avoid; }
+  h2 .n { display: inline-flex; align-items: center; justify-content: center;
+          width: 15px; height: 15px; border-radius: 3px; background: #1877c0; color: #fff;
+          font-size: 9px; letter-spacing: 0; }
+  p.sub { margin: 12px 0 5px; font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+          letter-spacing: .6px; color: #6b7c90; }
+  .sub-inline { display: block; font-size: 9px; font-weight: 400; color: #8795a8; }
+  p.body { margin: 6px 0 0; text-align: justify; }
+
+  /* A reference check is read as one thing — never split across a page. */
+  section.rc { break-inside: avoid; border: 1px solid #e6ecf4; border-radius: 5px;
+               padding: 8px 10px; margin-bottom: 8px; }
+  section.rc .rc-head { margin: 0 0 6px; font-weight: 700; font-size: 11.5px; color: #24405c; }
+  section.rc .rc-foot { margin: 6px 0 0; font-size: 9px; }
+  table.ratings { margin-top: 6px; }
+  table.ratings td { padding: 3px 8px; font-size: 10px; }
+  table.ratings td:last-child { width: 150px; }
 
   dl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 20px; margin: 0; }
   dl.two { grid-template-columns: repeat(2, 1fr); }
@@ -219,7 +403,7 @@ export function printOnboardingSummary(
 <header>
   <div>
     <p class="brand">DBL Group</p>
-    <p class="doc">Hiring Record</p>
+    <p class="doc">Group Corporate Human Resources · Hiring Record</p>
     <p class="who">${esc(c.name)}</p>
     <p class="role">${esc(c.designation)} · ${esc(c.department)} · ${esc(c.unit)}</p>
   </div>
@@ -230,57 +414,84 @@ export function printOnboardingSummary(
   </div>
 </header>
 
-<h2>Candidate</h2>
+${part(1, 'Requisition')}
+${requisitionHtml(req)}
+
+${part(2, 'Candidate')}
 <dl>
+  ${field('Name', esc(c.name))}
   ${field('Email', esc(c.email))}
   ${field('Phone', esc(c.phone))}
   ${field('Pipeline stage', esc(c.stage.replace(/_/g, ' ')))}
   ${field('CV source', esc(c.source))}
-  ${field(
-    'AI CV match',
-    c.matchScore != null ? `${c.matchScore}/100` : '—',
-  )}
-  ${field('Recruiter assigned', c.recruiterId ? 'Yes' : '—')}
+  ${field('AI CV match', c.matchScore != null ? `${c.matchScore}/100` : '—')}
 </dl>
-${c.matchSummary ? `<p class="muted" style="margin:6px 0 0">${esc(c.matchSummary)}</p>` : ''}
+${c.matchSummary ? `<p class="body muted">${esc(c.matchSummary)}</p>` : ''}
 
-${
-  c.proposedSalary != null || c.specialNotes?.length
-    ? `<h2>Appointment terms</h2>
+${part(3, 'Appointment terms')}
 <dl class="two">
-  ${c.salaryJobGrade ? field('Job grade', esc(c.salaryJobGrade)) : ''}
-  ${c.proposedSalary != null ? field('Fixed salary', esc(formatCurrency(c.proposedSalary))) : ''}
+  ${field('Job grade', esc(c.salaryJobGrade))}
+  ${field('Fixed salary', c.proposedSalary != null ? esc(formatCurrency(c.proposedSalary)) : '—')}
+  ${field('Offer sent', dt(ob.offerSentAt))}
+  ${field(
+    'Offer answer',
+    ob.offerAcceptedAt
+      ? `Accepted ${dt(ob.offerAcceptedAt)}`
+      : ob.offerDeclinedAt
+        ? `Declined ${dt(ob.offerDeclinedAt)}`
+        : 'Awaiting',
+  )}
+  ${field('Appointment letter', dt(ob.appointmentSentAt))}
+  ${field('Code of Conduct', ob.cocSignedAt ? `Signed ${dayOnly(ob.cocSignedAt)}` : ob.cocSentAt ? 'Sent · unsigned' : 'Not sent')}
 </dl>
+${
+  ob.offerDeclinedAt && ob.offerDeclineReason
+    ? `<p class="body">Declined: &ldquo;${esc(ob.offerDeclineReason)}&rdquo;</p>`
+    : ''
+}
 ${
   c.specialNotes?.length
     ? `<ul class="notes" style="margin-top:8px">${c.specialNotes
         .map((n) => `<li>${esc(n)}</li>`)
         .join('')}</ul>`
     : ''
-}`
-    : ''
 }
 
-${facilities ? `<h2>Facilities</h2><dl>${facilities}</dl>` : ''}
+${facilities ? `${part(4, 'Facilities')}<dl>${facilities}</dl>` : ''}
 
-<h2>Joining documents (${ob.docs.length})</h2>
+${part(facilities ? 5 : 4, 'Medical clearance')}
+<dl class="two">
+  ${field('Status', esc(ob.medicalStatus))}
+  ${field('Cleared', ob.medicalClearedAt ? `${dt(ob.medicalClearedAt)}${ob.medicalManual ? ' · recorded by hand' : ''}` : '—')}
+</dl>
+${ob.medicalNote ? `<p class="body">${esc(ob.medicalNote)}</p>` : ''}
+
+${part(facilities ? 6 : 5, `Joining documents (${ob.docs.length})`)}
 ${
   ob.docs.length
     ? `<table><tr><th>Document</th><th style="width:110px">Status</th><th style="width:150px">Submitted</th></tr>${docsRows}</table>`
     : '<p class="muted">No documents submitted.</p>'
 }
+${
+  ob.docsSkippedAt || ob.verificationSkippedAt
+    ? '<p class="muted" style="margin-top:6px">Collection and/or verification were recorded as checked by hand.</p>'
+    : ''
+}
 
-<h2>AI cross-verification</h2>
+${part(facilities ? 7 : 6, `Reference checks (${referenceChecks.length})`)}
+${referenceChecksHtml(referenceChecks)}
+
+${part(facilities ? 8 : 7, 'AI cross-verification')}
 ${
   cc
     ? `<span class="verdict ${esc(cc.verdict)}">${esc(cc.verdict.replace(/_/g, ' '))}</span>
-       <p style="margin:6px 0 0">${esc(cc.overview)}</p>
+       <p class="body">${esc(cc.overview)}</p>
        ${ccFindings ? `<ul class="notes" style="margin-top:5px">${ccFindings}</ul>` : ''}
        <p class="muted" style="margin:5px 0 0">Checked ${dt(ob.crossCheckedAt)} — advisory only; originals verified by HR.</p>`
     : '<p class="muted">Not run.</p>'
 }
 
-<h2>Full history (${timeline.length} ${timeline.length === 1 ? 'entry' : 'entries'})</h2>
+${part(facilities ? 9 : 8, `Full history (${timeline.length} ${timeline.length === 1 ? 'entry' : 'entries'})`)}
 ${historyHtml(timeline)}
 
 <div class="sig">
