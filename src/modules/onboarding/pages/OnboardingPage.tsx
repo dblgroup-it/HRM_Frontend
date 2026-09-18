@@ -8,6 +8,7 @@ import {
   FileText,
   Loader2,
   Ban,
+  FileSignature,
   Lock,
   PartyPopper,
   ShieldCheck,
@@ -19,6 +20,8 @@ import { toast } from 'sonner';
 
 import { Logo } from '@shared/components/ui';
 import { cn } from '@shared/lib';
+
+import { SignatureCropper } from '@modules/settings';
 
 import { onboardingApi } from '../api/onboarding.api';
 import type { DocStatus } from '../types/onboarding.types';
@@ -81,6 +84,22 @@ export default function OnboardingPage() {
       toast.success('Offer accepted! Welcome to DBL Group 🎉');
     },
     onError: () => toast.error('Could not accept the offer'),
+  });
+
+  const [cocFile, setCocFile] = useState<File | null>(null);
+  const [cocAgreed, setCocAgreed] = useState(false);
+  const cocInputRef = useRef<HTMLInputElement>(null);
+
+  const signCoc = useMutation({
+    mutationFn: (file: File) => onboardingApi.publicSignCoc(token, file),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['public-onboarding', token] });
+      setCocFile(null);
+      setCocAgreed(false);
+      toast.success('Thank you — your acknowledgement has been recorded.');
+    },
+    onError: () =>
+      toast.error('Could not record that — please check the image and retry'),
   });
 
   const decline = useMutation({
@@ -276,6 +295,83 @@ export default function OnboardingPage() {
             {/* Left sidebar */}
             <aside className="order-2 lg:order-1 lg:col-span-2">
               <div className="sticky top-20 space-y-4">
+                {/* Code of Conduct — only once HR has sent it. */}
+                {data.cocSentAt && (
+                  <div
+                    className={cn(
+                      'rounded-2xl border p-5 shadow-sm animate-rise-in',
+                      data.cocSignedAt
+                        ? 'border-emerald-200 bg-emerald-50'
+                        : 'border-amber-200 bg-amber-50',
+                    )}
+                    style={{ animationDelay: '60ms' }}
+                  >
+                    {data.cocSignedAt ? (
+                      <div className="text-center">
+                        <FileSignature className="mx-auto h-8 w-8 text-emerald-500" />
+                        <p className="mt-2 text-sm font-bold text-emerald-700">
+                          Code of Conduct signed
+                        </p>
+                        <p className="mt-1 text-xs text-emerald-600">
+                          Thank you — your acknowledgement is on file.
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-sm font-bold text-amber-900">
+                          Code of Conduct
+                        </p>
+                        <p className="mt-1 text-xs text-amber-800">
+                          Please read the Code of Conduct attached to our email,
+                          then confirm below. You will need a picture of your
+                          signature.
+                        </p>
+                        <label className="mt-3 flex cursor-pointer items-start gap-2 text-xs text-amber-900">
+                          <input
+                            type="checkbox"
+                            checked={cocAgreed}
+                            onChange={(e) => setCocAgreed(e.target.checked)}
+                            className="mt-0.5 h-3.5 w-3.5 rounded border-amber-300"
+                          />
+                          <span>
+                            I acknowledge that I have received, read and
+                            understood the DBL Group Code of Conduct, and I agree
+                            to comply with it.
+                          </span>
+                        </label>
+                        <input
+                          ref={cocInputRef}
+                          type="file"
+                          accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            e.target.value = '';
+                            if (!f) return;
+                            if (f.size > 2 * 1024 * 1024) {
+                              toast.error('Please keep the image under 2 MB');
+                              return;
+                            }
+                            setCocFile(f);
+                          }}
+                        />
+                        <button
+                          disabled={!cocAgreed}
+                          onClick={() => cocInputRef.current?.click()}
+                          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 py-2.5 text-sm font-bold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <FileSignature className="h-4 w-4" />
+                          Sign with my signature
+                        </button>
+                        <p className="mt-2 text-[0.6875rem] text-amber-700">
+                          PNG or JPEG. You will be able to crop it to the right
+                          shape on the next screen.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Offer banner */}
                 {data.offerSentAt && (
                   <div
@@ -451,6 +547,25 @@ export default function OnboardingPage() {
           </div>
         </div>
       </main>
+
+      {/* Cropping to 3:1 happens here rather than being demanded of the
+          candidate: they photograph a signature on paper and we cut it to the
+          shape the form needs. */}
+      {cocFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-xl">
+            <p className="mb-3 text-sm font-bold text-slate-800">
+              Crop your signature
+            </p>
+            <SignatureCropper
+              file={cocFile}
+              isUploading={signCoc.isPending}
+              onCancel={() => setCocFile(null)}
+              onCropped={(cropped) => signCoc.mutate(cropped)}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Hidden file input */}
       <input

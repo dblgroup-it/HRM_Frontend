@@ -344,6 +344,30 @@ export const onboardingApi = {
       )
       .then((r) => r.data),
 
+  /** HR sends the Code of Conduct for the candidate to sign. */
+  sendCoc: (candidateId: string): Promise<OnboardingResult> =>
+    http
+      .post<ApiResponse<OnboardingResult>>(
+        `/candidates/${candidateId}/onboarding/coc/send`,
+      )
+      .then((r) => r.data),
+
+  /** The candidate signs it, with a picture of their signature. */
+  publicSignCoc: (
+    token: string,
+    file: File,
+  ): Promise<{ ok: boolean; alreadySigned: boolean }> => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return http
+      .post<ApiResponse<{ ok: boolean; alreadySigned: boolean }>>(
+        `/onboarding/public/${token}/coc`,
+        fd,
+        MULTIPART,
+      )
+      .then((r) => r.data);
+  },
+
   publicDecline: (
     token: string,
     reason: string,

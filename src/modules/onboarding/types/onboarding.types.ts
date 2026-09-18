@@ -63,6 +63,14 @@ export interface OnboardingView {
   /** The candidate turned the offer down; the reason is shown to HR. */
   offerDeclinedAt: string | null;
   offerDeclineReason: string | null;
+  /** Required documents nobody has collected yet (empty once HR waives it). */
+  missingDocs: string[];
+  /** Collected, but still waiting on HR to look at them. */
+  pendingDocs: string[];
+  /** Code of Conduct acknowledgement — sent to the candidate, signed by them. */
+  cocSentAt: string | null;
+  cocSignedAt: string | null;
+  cocUrl: string | null;
   medicalStatus: MedicalStatus;
   medicalNote: string;
   medicalClearedAt: string | null;
@@ -223,6 +231,8 @@ export interface PublicOnboarding {
   offerAcceptedAt: string | null;
   offerDeclinedAt: string | null;
   offerDeclineReason: string | null;
+  cocSentAt: string | null;
+  cocSignedAt: string | null;
   submitted: { id: string; label: string; status: DocStatus }[];
 }
 

@@ -62,6 +62,7 @@ import {
   useCrossCheck,
   useManualCrossCheck,
   useHrVerify,
+  useSendCoc,
   useMarkOfferAcceptedManually,
   useAlertMedical,
   useCandidateTimeline,
@@ -712,6 +713,7 @@ function Flow({
   const markOfferAccepted = useMarkOfferAcceptedManually(candidateId);
   const { data: medicalExam } = useMedicalExam(ob.id, true);
   const hrVerify = useHrVerify(candidateId);
+  const sendCoc = useSendCoc(candidateId);
   const archive = useArchiveOnboarding(candidateId);
   const notifyIt = useNotifyIt(candidateId);
   const skipDocs = useSkipDocs(candidateId);
@@ -748,6 +750,9 @@ function Flow({
     (ob.docs.length > 0 && ob.docs.every((d) => d.status === 'verified')) ||
     Boolean(ob.verificationSkippedAt);
   const docsCollected = ob.docs.length > 0 || Boolean(ob.docsSkippedAt);
+  // The server works the same thing out in hr-verify.ts and refuses on it, so
+  // this reads its answer rather than reimplementing the rule here.
+  const docsSettled = ob.missingDocs.length === 0 && ob.pendingDocs.length === 0;
   // Unified "Checked by Manual on hand" — HR physically verified the
   // documents, so skip both the online collection link and per-doc
   // verification in one action instead of two separate skip buttons.
@@ -1445,7 +1450,62 @@ function Flow({
       lockReason: 'Unlocks once the candidate accepts the offer.',
       content: (
         <div className="space-y-6">
+          {/* The Code of Conduct sits with final verification: it is the last
+              thing the candidate signs, and HR wants it in the file before the
+              hire is closed. */}
           <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Code of Conduct
+            </p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm">
+                {ob.cocSignedAt ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge tone="success">Signed {fmt(ob.cocSignedAt)}</Badge>
+                    {ob.cocUrl && (
+                      <a
+                        href={ob.cocUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" /> Open signed form
+                      </a>
+                    )}
+                  </div>
+                ) : ob.cocSentAt ? (
+                  <Badge tone="info">
+                    Sent {fmt(ob.cocSentAt)} · awaiting signature
+                  </Badge>
+                ) : (
+                  <span className="text-slate-500">
+                    Send the acknowledgement for the candidate to read and sign.
+                  </span>
+                )}
+              </div>
+              {!ob.cocSignedAt && (
+                <Button
+                  variant={ob.cocSentAt ? 'outline' : 'primary'}
+                  disabled={noEmail}
+                  title={emailHint}
+                  isLoading={sendCoc.isPending}
+                  leftIcon={<FileSignature className="h-4 w-4" />}
+                  onClick={() => sendCoc.mutate(undefined)}
+                >
+                  {ob.cocSentAt ? 'Resend CoC' : 'Send CoC'}
+                </Button>
+              )}
+            </div>
+            {ob.cocSentAt && !ob.cocSignedAt && (
+              <Hint>
+                The candidate signs it on their own onboarding page by uploading
+                a picture of their signature. It is filed with their joining
+                documents once they do.
+              </Hint>
+            )}
+          </div>
+
+          <div className="border-t border-slate-100 pt-5">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
               Final verification
             </p>
@@ -1696,6 +1756,12 @@ function Flow({
             </Button>
             <Button
               isLoading={hrVerify.isPending}
+              disabled={!docsSettled}
+              title={
+                docsSettled
+                  ? undefined
+                  : 'Collect and verify every document first, or record that you checked them by hand.'
+              }
               leftIcon={<UserCheck className="h-4 w-4" />}
               onClick={() =>
                 hrVerify.mutate(undefined, {
@@ -1715,13 +1781,15 @@ function Flow({
           <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200">
             <SummaryRow
               label="Documents"
-              ok={(ob.docs.length > 0 || Boolean(ob.docsSkippedAt)) && allVerified}
+              ok={docsSettled}
               detail={
                 ob.docsSkippedAt || ob.verificationSkippedAt
                   ? 'Checked manually on hand'
-                  : allVerified
+                  : docsSettled
                     ? `${ob.docs.length} verified`
-                    : 'Not fully verified'
+                    : ob.missingDocs.length > 0
+                      ? `${ob.missingDocs.length} not collected`
+                      : `${ob.pendingDocs.length} not verified`
               }
             />
             <SummaryRow
@@ -1739,6 +1807,17 @@ function Flow({
               }
             />
             <SummaryRow
+              label="Code of Conduct"
+              ok={Boolean(ob.cocSignedAt)}
+              detail={
+                ob.cocSignedAt
+                  ? `Signed ${fmt(ob.cocSignedAt)}`
+                  : ob.cocSentAt
+                    ? 'Sent · not signed yet'
+                    : 'Not sent'
+              }
+            />
+            <SummaryRow
               label="Board Approval"
               ok={isApproved}
               detail={isApproved ? 'Approved' : 'Not approved'}
@@ -1753,6 +1832,32 @@ function Flow({
               }
             />
           </dl>
+          {!docsSettled && (
+            <div className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3">
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-rose-700">
+                Outstanding documents
+              </p>
+              <ul className="mt-1.5 space-y-1">
+                {ob.missingDocs.map((label) => (
+                  <li key={`m-${label}`} className="flex items-center gap-2 text-xs text-rose-800">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-rose-400" />
+                    {label} <span className="text-rose-500">— not collected</span>
+                  </li>
+                ))}
+                {ob.pendingDocs.map((label) => (
+                  <li key={`p-${label}`} className="flex items-center gap-2 text-xs text-amber-800">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
+                    {label} <span className="text-amber-600">— not verified yet</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-[0.6875rem] text-rose-600">
+                Every document is required. If you have already checked these on
+                paper, record that on the Documents step with &ldquo;Checked by
+                Manual on hand&rdquo; — then this will unlock.
+              </p>
+            </div>
+          )}
           <p className="text-xs text-amber-600">
             This finalizes the hire and automatically rejects any other
             applicants still in this requisition&rsquo;s pipeline.

@@ -158,6 +158,17 @@ export function useHrVerify(candidateId: string) {
   );
 }
 
+export function useSendCoc(candidateId: string) {
+  return useCandidateAction(
+    candidateId,
+    () => onboardingApi.sendCoc(candidateId),
+    {
+      success: 'Code of Conduct sent to the candidate',
+      fallback: 'Could not send the Code of Conduct',
+    },
+  );
+}
+
 export function useMarkOfferAcceptedManually(candidateId: string) {
   return useCandidateAction(
     candidateId,
