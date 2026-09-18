@@ -1366,6 +1366,8 @@ function Flow({
               <div className="text-sm">
                 {ob.offerAcceptedAt ? (
                   <Badge tone="success">Accepted {fmt(ob.offerAcceptedAt)}</Badge>
+                ) : ob.offerDeclinedAt ? (
+                  <Badge tone="danger">Declined {fmt(ob.offerDeclinedAt)}</Badge>
                 ) : ob.offerSentAt ? (
                   <Badge tone="info">
                     Sent {fmt(ob.offerSentAt)} · awaiting candidate
@@ -1395,6 +1397,22 @@ function Flow({
                 </Button>
               </div>
             </div>
+            {ob.offerDeclinedAt && !ob.offerAcceptedAt && (
+              <div className="mt-3 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3">
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-rose-700">
+                  Candidate declined this offer
+                </p>
+                <p className="mt-1 text-sm text-rose-800">
+                  {ob.offerDeclineReason
+                    ? `“${ob.offerDeclineReason}”`
+                    : 'No reason was recorded.'}
+                </p>
+                <p className="mt-1.5 text-[0.6875rem] text-rose-500">
+                  Sending a revised offer clears this and puts the decision back
+                  to them.
+                </p>
+              </div>
+            )}
             {noEmail ? (
               <Hint>{emailHint}</Hint>
             ) : (

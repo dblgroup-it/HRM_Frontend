@@ -60,6 +60,9 @@ export interface OnboardingView {
   appointmentRef: string | null;
   appointmentSentAt: string | null;
   offerAcceptedAt: string | null;
+  /** The candidate turned the offer down; the reason is shown to HR. */
+  offerDeclinedAt: string | null;
+  offerDeclineReason: string | null;
   medicalStatus: MedicalStatus;
   medicalNote: string;
   medicalClearedAt: string | null;
@@ -218,6 +221,8 @@ export interface PublicOnboarding {
   optionalDocs?: string[];
   offerSentAt: string | null;
   offerAcceptedAt: string | null;
+  offerDeclinedAt: string | null;
+  offerDeclineReason: string | null;
   submitted: { id: string; label: string; status: DocStatus }[];
 }
 

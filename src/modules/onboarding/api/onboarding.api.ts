@@ -343,4 +343,15 @@ export const onboardingApi = {
         `/onboarding/public/${token}/accept-offer`,
       )
       .then((r) => r.data),
+
+  publicDecline: (
+    token: string,
+    reason: string,
+  ): Promise<{ ok: boolean; alreadyDeclined: boolean }> =>
+    http
+      .post<ApiResponse<{ ok: boolean; alreadyDeclined: boolean }>>(
+        `/onboarding/public/${token}/decline-offer`,
+        { reason },
+      )
+      .then((r) => r.data),
 };

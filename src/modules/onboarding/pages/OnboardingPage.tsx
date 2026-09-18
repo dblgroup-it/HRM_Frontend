@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Building2,
@@ -7,6 +7,7 @@ import {
   FileCheck2,
   FileText,
   Loader2,
+  Ban,
   Lock,
   PartyPopper,
   ShieldCheck,
@@ -43,11 +44,18 @@ const DOC_STATUS_META: Record<DocStatus, { label: string; cls: string; dot: stri
   },
 };
 
+/** Mirrors the server's minimum, so the button and the API agree. */
+const MIN_DECLINE_REASON = 3;
+
 export default function OnboardingPage() {
   const { token = '' } = useParams();
+  const [params] = useSearchParams();
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
+  // The offer mail's second link lands here with the form already open.
+  const [declining, setDeclining] = useState(params.get('action') === 'decline');
+  const [declineReason, setDeclineReason] = useState('');
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['public-onboarding', token],
@@ -73,6 +81,16 @@ export default function OnboardingPage() {
       toast.success('Offer accepted! Welcome to DBL Group 🎉');
     },
     onError: () => toast.error('Could not accept the offer'),
+  });
+
+  const decline = useMutation({
+    mutationFn: (reason: string) => onboardingApi.publicDecline(token, reason),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['public-onboarding', token] });
+      setDeclining(false);
+      toast.success('Thank you — HR has been told.');
+    },
+    onError: () => toast.error('Could not submit that — please try again'),
   });
 
   // ── Loading ──
@@ -265,7 +283,9 @@ export default function OnboardingPage() {
                       'rounded-2xl border p-5 shadow-sm animate-rise-in',
                       data.offerAcceptedAt
                         ? 'border-emerald-200 bg-emerald-50'
-                        : 'border-brand-200 bg-brand-50',
+                        : data.offerDeclinedAt
+                          ? 'border-slate-200 bg-slate-50'
+                          : 'border-brand-200 bg-brand-50',
                     )}
                     style={{ animationDelay: '80ms' }}
                   >
@@ -274,6 +294,56 @@ export default function OnboardingPage() {
                         <PartyPopper className="mx-auto h-8 w-8 text-emerald-500" />
                         <p className="mt-2 text-sm font-bold text-emerald-700">Offer accepted!</p>
                         <p className="mt-1 text-xs text-emerald-600">Welcome aboard — next steps will follow by email.</p>
+                      </div>
+                    ) : data.offerDeclinedAt ? (
+                      <div className="text-center">
+                        <Ban className="mx-auto h-8 w-8 text-slate-400" />
+                        <p className="mt-2 text-sm font-bold text-slate-700">Offer declined</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          You let us know this offer isn&rsquo;t right for you. HR has your
+                          message and may be in touch.
+                        </p>
+                        {data.offerDeclineReason && (
+                          <p className="mt-3 rounded-xl bg-white/70 px-3 py-2 text-left text-xs text-slate-600">
+                            &ldquo;{data.offerDeclineReason}&rdquo;
+                          </p>
+                        )}
+                      </div>
+                    ) : declining ? (
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">Declining the offer</p>
+                        <p className="mt-1 text-xs text-slate-600">
+                          Please tell us why — it goes straight to the HR team handling
+                          your application.
+                        </p>
+                        <textarea
+                          value={declineReason}
+                          onChange={(e) => setDeclineReason(e.target.value)}
+                          rows={3}
+                          autoFocus
+                          placeholder="e.g. I have accepted another offer closer to home."
+                          className="mt-3 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-100"
+                        />
+                        <button
+                          disabled={
+                            decline.isPending ||
+                            declineReason.trim().length < MIN_DECLINE_REASON
+                          }
+                          onClick={() => decline.mutate(declineReason.trim())}
+                          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-rose-600 py-2.5 text-sm font-bold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {decline.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            'Submit'
+                          )}
+                        </button>
+                        <button
+                          onClick={() => setDeclining(false)}
+                          className="mt-2 w-full rounded-xl border border-slate-200 bg-white py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                        >
+                          Back
+                        </button>
                       </div>
                     ) : (
                       <div>
@@ -285,6 +355,12 @@ export default function OnboardingPage() {
                           className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 py-2.5 text-sm font-bold text-white transition hover:bg-brand-700 disabled:opacity-60"
                         >
                           {accept.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Accept offer'}
+                        </button>
+                        <button
+                          onClick={() => setDeclining(true)}
+                          className="mt-2 w-full rounded-xl border border-slate-200 bg-white/70 py-2 text-xs font-semibold text-slate-600 transition hover:bg-white"
+                        >
+                          I need to decline this offer
                         </button>
                       </div>
                     )}
