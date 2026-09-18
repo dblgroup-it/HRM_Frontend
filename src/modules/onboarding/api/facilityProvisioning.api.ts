@@ -50,4 +50,12 @@ export const facilityConfirmApi = {
         { note },
       )
       .then((r) => r.data),
+
+  decline: (token: string, reason: string): Promise<{ ok: boolean; alreadyDeclined: boolean }> =>
+    http
+      .post<ApiResponse<{ ok: boolean; alreadyDeclined: boolean }>>(
+        `/facility-provisioning/${token}/decline`,
+        { reason },
+      )
+      .then((r) => r.data),
 };

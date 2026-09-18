@@ -50,3 +50,9 @@ export function useSubmitFacilityConfirm(token: string) {
     mutationFn: (note?: string) => facilityConfirmApi.confirm(token, note),
   });
 }
+
+export function useSubmitFacilityDecline(token: string) {
+  return useMutation({
+    mutationFn: (reason: string) => facilityConfirmApi.decline(token, reason),
+  });
+}

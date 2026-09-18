@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Laptop, Mail, Search, Send, ShieldCheck, X } from 'lucide-react';
+import { Ban, Check, Laptop, Mail, Search, Send, ShieldCheck, X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 import { Badge, Button, Card, CardBody, CardHeader, CardTitle, Input, Modal, Spinner } from '@shared/components/ui';
@@ -7,6 +7,7 @@ import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
 import { employeeApi } from '@modules/employees';
 
+import { facilityRowState } from './facilityRowState';
 import {
   useFacilityProvisioning,
   useNotifyFacility,
@@ -80,9 +81,7 @@ function ProvisioningRow({
   canEdit: boolean;
   onNotify: () => void;
 }) {
-  const arranged = Boolean(item.confirmedAt);
-  const pendingRecipients = item.recipients.filter((r) => !r.confirmedAt);
-  const status = arranged ? 'confirmed' : item.recipients.length > 0 ? 'pending' : 'not_sent';
+  const { status, pendingRecipients, refused, arranged } = facilityRowState(item);
 
   return (
     <div className="rounded-xl border border-slate-200 p-3.5">
@@ -97,11 +96,16 @@ function ProvisioningRow({
           <Badge tone="neutral">{item.kind === 'it' ? 'IT' : 'Admin'}</Badge>
           {status === 'not_sent' && <Badge tone="neutral">Not notified</Badge>}
           {status === 'pending' && <Badge tone="warning">Awaiting confirmation</Badge>}
+          {status === 'declined' && <Badge tone="danger">Can&rsquo;t be arranged</Badge>}
           {status === 'confirmed' && <Badge tone="success">Arranged</Badge>}
         </div>
         {canEdit && (
           <Button size="sm" variant="outline" leftIcon={<Mail className="h-3.5 w-3.5" />} onClick={onNotify}>
-            {status === 'not_sent' ? `Notify ${item.kind === 'it' ? 'IT' : 'Admin'}` : 'Notify more'}
+            {status === 'not_sent'
+              ? `Notify ${item.kind === 'it' ? 'IT' : 'Admin'}`
+              : status === 'declined'
+                ? 'Notify someone else'
+                : 'Notify more'}
           </Button>
         )}
       </div>
@@ -112,16 +116,25 @@ function ProvisioningRow({
             <li key={`${r.recipientEmail}-${i}`} className="flex items-center gap-1.5 text-xs">
               {r.confirmedAt ? (
                 <Check className="h-3 w-3 shrink-0 text-emerald-600" />
+              ) : r.declinedAt ? (
+                <Ban className="h-3 w-3 shrink-0 text-red-500" />
               ) : (
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
               )}
-              <span className={cn('font-medium', r.confirmedAt ? 'text-emerald-700' : 'text-slate-600')}>
+              <span
+                className={cn(
+                  'font-medium',
+                  r.confirmedAt ? 'text-emerald-700' : r.declinedAt ? 'text-red-700' : 'text-slate-600',
+                )}
+              >
                 {r.recipientName}
               </span>
               <span className="text-slate-400">
                 {r.confirmedAt
                   ? `confirmed ${formatDate(r.confirmedAt)}`
-                  : `notified ${formatDate(r.sentAt)}`}
+                  : r.declinedAt
+                    ? `declined ${formatDate(r.declinedAt)}`
+                    : `notified ${formatDate(r.sentAt)}`}
               </span>
             </li>
           ))}
@@ -129,6 +142,19 @@ function ProvisioningRow({
       )}
       {arranged && item.confirmNote && (
         <p className="mt-1 text-xs text-emerald-600">— "{item.confirmNote}"</p>
+      )}
+      {refused && item.declineReason && (
+        <div className="mt-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2">
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-red-700">
+            {item.declinedBy} can&rsquo;t arrange this
+          </p>
+          <p className="mt-0.5 text-xs text-red-700">"{item.declineReason}"</p>
+          {pendingRecipients.length === 0 && (
+            <p className="mt-1 text-[0.6875rem] text-red-500">
+              Nobody else has this open — notify someone who can, or change what was requested.
+            </p>
+          )}
+        </div>
       )}
       {arranged && pendingRecipients.length > 0 && (
         <p className="mt-1 text-[0.6875rem] text-slate-400">

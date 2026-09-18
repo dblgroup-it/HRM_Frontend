@@ -6,6 +6,9 @@ export interface ProvisioningRecipientStatus {
   sentAt: string;
   confirmedAt: string | null;
   confirmNote: string | null;
+  /** Set when this recipient refused; the reason is mandatory, so never empty. */
+  declinedAt: string | null;
+  declineReason: string | null;
 }
 
 export interface FacilityProvisioningItem {
@@ -18,6 +21,10 @@ export interface FacilityProvisioningItem {
   confirmedBy: string | null;
   confirmedAt: string | null;
   confirmNote: string | null;
+  /** Latest recipient who refused and has not since confirmed — needs HR's attention. */
+  declinedBy: string | null;
+  declinedAt: string | null;
+  declineReason: string | null;
 }
 
 export interface FacilityProvisioningStatus {
@@ -46,6 +53,8 @@ export interface NotifyFacilityInput {
 /** Public — what the Admin/IT recipient sees at their confirmation link. */
 export interface FacilityConfirmInfo {
   alreadyConfirmed: boolean;
+  alreadyDeclined?: boolean;
+  declineReason?: string | null;
   recipientName: string;
   facilityKey?: string;
   facilityLabel?: string;
