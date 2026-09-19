@@ -239,10 +239,13 @@ export interface ScreeningTests {
   writtenTestTotal: number | null;
   writtenTestObtained: number | null;
   writtenTestPassPct: number;
+  /** The marked answer script, when one was attached. Served by the API. */
+  writtenTestSheetUrl: string | null;
   computerTestEnabled: boolean;
   computerTestTotal: number | null;
   computerTestObtained: number | null;
   computerTestPassPct: number;
+  computerTestSheetUrl: string | null;
   aiTestEnabled: boolean;
   aiTestTotal: number | null;
   aiTestObtained: number | null;

@@ -10,6 +10,7 @@ import type {
   ScheduleInterviewInput,
   DelegationTests,
   ScorecardEntry,
+  ScreeningTests,
   ScreeningTestsInput,
   SubmitEvaluationInput,
 } from '../types/assessment.types';
@@ -264,6 +265,35 @@ export function useSaveScreeningTests(candidateId: string) {
     },
     onError: (error) => toast.error(errMsg(error, 'Could not save the marks')),
   });
+}
+
+/** Attach or detach the marked answer script for a hand-marked test. */
+export function useTestSheet(candidateId: string) {
+  const qc = useQueryClient();
+  const applied = (data: ScreeningTests) => {
+    qc.setQueryData(['screening-tests', candidateId], data);
+    void qc.invalidateQueries({ queryKey: ['salary-fixation'] });
+  };
+  const upload = useMutation({
+    mutationFn: ({ kind, file }: { kind: 'written' | 'computer'; file: File }) =>
+      assessmentApi.uploadTestSheet(candidateId, kind, file),
+    onSuccess: (data) => {
+      applied(data);
+      toast.success('Exam sheet attached');
+    },
+    onError: (error) =>
+      toast.error(errMsg(error, 'Could not attach the exam sheet')),
+  });
+  const remove = useMutation({
+    mutationFn: (kind: 'written' | 'computer') =>
+      assessmentApi.removeTestSheet(candidateId, kind),
+    onSuccess: (data) => {
+      applied(data);
+      toast.success('Exam sheet removed');
+    },
+    onError: (error) => toast.error(errMsg(error, 'Could not remove it')),
+  });
+  return { upload, remove };
 }
 
 /** Candidates handed to me to arrange the first interview for. */

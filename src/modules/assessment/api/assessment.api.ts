@@ -106,6 +106,33 @@ export const assessmentApi = {
       )
       .then((r) => r.data),
 
+  /** Attach the marked answer script (PDF). Optional throughout. */
+  uploadTestSheet: (
+    candidateId: string,
+    kind: 'written' | 'computer',
+    file: File,
+  ): Promise<ScreeningTests> => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return http
+      .post<ApiResponse<ScreeningTests>>(
+        `/candidates/${candidateId}/screening-tests/${kind}/sheet`,
+        fd,
+        { headers: { 'Content-Type': 'multipart/form-data' } },
+      )
+      .then((r) => r.data);
+  },
+
+  removeTestSheet: (
+    candidateId: string,
+    kind: 'written' | 'computer',
+  ): Promise<ScreeningTests> =>
+    http
+      .delete<ApiResponse<ScreeningTests>>(
+        `/candidates/${candidateId}/screening-tests/${kind}/sheet`,
+      )
+      .then((r) => r.data),
+
   getSetup: (reqId: string): Promise<AssessmentSetup> =>
     http
       .get<ApiResponse<AssessmentSetup>>(`/requisitions/${reqId}/assessment`)

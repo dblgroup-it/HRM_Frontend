@@ -24,6 +24,7 @@ import {
   type SalaryFixation,
 } from '@modules/salaryFixation';
 import { AiProficiencyStep, useBulkAssignAiProficiencyTest } from '@modules/aiProficiency';
+import { ExamSheetControl } from './ExamSheetControl';
 
 function Shimmer({ className }: { className?: string }) {
   return (
@@ -405,6 +406,8 @@ const MANUAL_TESTS = {
     totalKey: 'writtenTestTotal',
     obtainedKey: 'writtenTestObtained',
     passKey: 'writtenTestPassPct',
+    sheetKey: 'writtenTestSheetUrl',
+    sheetKind: 'written',
   },
   computer: {
     label: 'Computer Literacy',
@@ -412,6 +415,8 @@ const MANUAL_TESTS = {
     totalKey: 'computerTestTotal',
     obtainedKey: 'computerTestObtained',
     passKey: 'computerTestPassPct',
+    sheetKey: 'computerTestSheetUrl',
+    sheetKind: 'computer',
   },
 } as const;
 
@@ -484,6 +489,16 @@ function ManualTestCell({
           {result.status === 'fail' && <Badge tone="danger">Fail</Badge>}
           {result.status === 'pending' && <Badge tone="neutral">Pending</Badge>}
         </div>
+      )}
+      {/* The marked script, attached here or by whoever ran the session — this
+          is the side that reads it, and can also attach a late-arriving one. */}
+      {enabled && (
+        <ExamSheetControl
+          candidateId={candidateId}
+          kind={cfg.sheetKind}
+          sheetUrl={data[cfg.sheetKey] ?? null}
+          canEdit
+        />
       )}
     </div>
   );

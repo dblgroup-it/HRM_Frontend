@@ -9,6 +9,7 @@ import {
   useSaveScreeningTests,
   useScreeningTests,
 } from '../hooks/useAssessment';
+import { ExamSheetControl } from './ExamSheetControl';
 import type { ScreeningTests } from '../types/assessment.types';
 
 /**
@@ -58,6 +59,9 @@ export function ScreeningMarksModal({
         <div className="space-y-3">
           <ManualTest
             label="Written Test"
+            candidateId={candidate.id}
+            kind="written"
+            sheetUrl={data.writtenTestSheetUrl}
             passPct={data.writtenTestPassPct}
             enabled={data.writtenTestEnabled}
             total={data.writtenTestTotal}
@@ -73,6 +77,9 @@ export function ScreeningMarksModal({
           />
           <ManualTest
             label="Computer Literacy"
+            candidateId={candidate.id}
+            kind="computer"
+            sheetUrl={data.computerTestSheetUrl}
             passPct={data.computerTestPassPct}
             enabled={data.computerTestEnabled}
             total={data.computerTestTotal}
@@ -113,6 +120,9 @@ function verdict(
 
 function ManualTest({
   label,
+  candidateId,
+  kind,
+  sheetUrl,
   passPct,
   enabled,
   total,
@@ -122,6 +132,9 @@ function ManualTest({
   onSave,
 }: {
   label: string;
+  candidateId: string;
+  kind: 'written' | 'computer';
+  sheetUrl: string | null;
   passPct: number;
   enabled: boolean;
   total: number | null;
@@ -238,6 +251,16 @@ function ManualTest({
           Obtained can't be more than the total.
         </p>
       )}
+
+      {/* The marked script. Whoever may enter the mark may attach it, and
+          Corporate HR sees it beside the mark on their own panel. */}
+      <ExamSheetControl
+        candidateId={candidateId}
+        kind={kind}
+        sheetUrl={sheetUrl}
+        canEdit
+        className="mt-2.5 border-t border-slate-100 pt-2.5"
+      />
     </div>
   );
 }
