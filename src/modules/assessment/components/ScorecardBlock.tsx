@@ -1,7 +1,12 @@
-import { useState } from 'react';
-import { ChevronDown, ExternalLink, RefreshCw, Users } from 'lucide-react';
+import { Fragment, useMemo, useState } from 'react';
+import {
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  RefreshCw,
+} from 'lucide-react';
 
-import { Avatar, Badge, Spinner } from '@shared/components/ui';
+import { Spinner } from '@shared/components/ui';
 import { resolveApiFileUrl } from '@shared/api';
 import { cn } from '@shared/lib';
 
@@ -11,141 +16,174 @@ import type {
   ScorecardTest,
 } from '../types/assessment.types';
 
-const RANK_MEDAL = [
-  'bg-amber-400 text-white',
-  'bg-slate-300 text-white',
-  'bg-amber-700/80 text-white',
-];
+type SortKey =
+  | 'combined'
+  | 'cvScore'
+  | 'written'
+  | 'computer'
+  | 'aiTest'
+  | 'interviewAvg'
+  | 'candidateName';
 
 const STAGE_TONE: Record<string, string> = {
-  applied: 'bg-slate-100 text-slate-600',
-  ai_shortlisted: 'bg-violet-100 text-violet-700',
-  shortlisted: 'bg-sky-100 text-sky-700',
-  interview: 'bg-amber-100 text-amber-700',
-  final: 'bg-indigo-100 text-indigo-700',
-  selected: 'bg-emerald-100 text-emerald-700',
-  rejected: 'bg-rose-100 text-rose-700',
+  applied: 'text-slate-500',
+  ai_shortlisted: 'text-violet-600',
+  shortlisted: 'text-sky-600',
+  interview: 'text-amber-600',
+  final: 'text-indigo-600',
+  selected: 'text-emerald-600',
+  rejected: 'text-rose-500',
 };
 
-const pct = (v: number | null) => (v === null ? '—' : `${v.toFixed(1)}%`);
-
-/** Green above 75, amber above 50, red below — one scale for every number here. */
-function toneFor(value: number | null) {
-  if (value === null) return 'bg-slate-200';
-  return value >= 75 ? 'bg-emerald-500' : value >= 50 ? 'bg-amber-400' : 'bg-rose-400';
-}
-
 /**
- * One number with its bar.
+ * A faint tint, not a bar.
  *
- * `raw` is the marks behind the percentage ("72 / 100"). A percentage on its
- * own is the thing people argue about afterwards; the raw mark settles it.
+ * The grid is read by comparing numbers down a column, so the numbers have to
+ * stay the loudest thing on the page. A background wash puts the shape of the
+ * data underneath them without competing for attention — and it survives
+ * printing, which a coloured bar does not.
  */
-function Metric({
-  label,
-  value,
-  raw,
-  status,
-  children,
-}: {
-  label: string;
-  value: number | null;
-  raw?: string | null;
-  status?: ScorecardTest['status'];
-  children?: React.ReactNode;
-}) {
+function cellTint(value: number | null): string {
+  if (value === null) return '';
+  if (value >= 75) return 'bg-emerald-50/70';
+  if (value >= 50) return 'bg-amber-50/60';
+  return 'bg-rose-50/60';
+}
+
+function valueTone(value: number | null): string {
+  if (value === null) return 'text-slate-300';
+  if (value >= 75) return 'text-emerald-700';
+  if (value >= 50) return 'text-amber-700';
+  return 'text-rose-700';
+}
+
+const sortValue = (row: ScorecardEntry, key: SortKey): number | string => {
+  switch (key) {
+    case 'candidateName':
+      return row.candidateName.toLowerCase();
+    case 'written':
+      return row.written.pct ?? -1;
+    case 'computer':
+      return row.computer.pct ?? -1;
+    case 'aiTest':
+      return row.aiTest.pct ?? -1;
+    default:
+      return row[key] ?? -1;
+  }
+};
+
+/** A test cell: the mark, the percentage under it, tinted by the percentage. */
+function TestCell({ test }: { test: ScorecardTest }) {
+  if (!test.enabled) {
+    return (
+      <td className="px-3 py-2 text-center text-xs text-slate-300">skipped</td>
+    );
+  }
+  if (test.pct === null) {
+    return (
+      <td className="px-3 py-2 text-center text-xs text-amber-600">pending</td>
+    );
+  }
   return (
-    <div className="min-w-0">
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="truncate text-[0.6875rem] font-medium uppercase tracking-wide text-slate-400">
-          {label}
-        </span>
-        {status === 'skipped' ? (
-          <span className="text-[0.6875rem] text-slate-300">skipped</span>
-        ) : status === 'pending' ? (
-          <span className="text-[0.6875rem] text-amber-600">pending</span>
-        ) : null}
-      </div>
-      <div className="mt-1 flex items-baseline gap-1.5">
-        <span
-          className={cn(
-            'text-sm font-semibold tabular-nums',
-            value === null ? 'text-slate-300' : 'text-slate-800',
-          )}
-        >
-          {pct(value)}
-        </span>
-        {raw && (
-          <span className="text-[0.6875rem] tabular-nums text-slate-400">{raw}</span>
-        )}
-      </div>
-      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
-        <div
-          className={cn('h-full rounded-full transition-all duration-700', toneFor(value))}
-          style={{ width: value === null ? '0%' : `${Math.min(value, 100)}%` }}
-        />
-      </div>
-      {children}
-    </div>
+    <td className={cn('px-3 py-2 text-right tabular-nums', cellTint(test.pct))}>
+      <span className={cn('text-sm font-semibold', valueTone(test.pct))}>
+        {test.pct.toFixed(1)}
+      </span>
+      <span className="ml-1 text-[0.6875rem] text-slate-400">
+        {test.obtained}/{test.total}
+      </span>
+    </td>
   );
 }
 
-function TestMetric({
+function ScoreCell({ value }: { value: number | null }) {
+  return (
+    <td className={cn('px-3 py-2 text-right tabular-nums', cellTint(value))}>
+      <span className={cn('text-sm font-semibold', valueTone(value))}>
+        {value === null ? '—' : value.toFixed(1)}
+      </span>
+    </td>
+  );
+}
+
+function SortHead({
   label,
-  test,
+  sortKey,
+  active,
+  dir,
+  onSort,
+  align = 'right',
 }: {
   label: string;
-  test: ScorecardTest;
+  sortKey: SortKey;
+  active: boolean;
+  dir: 'asc' | 'desc';
+  onSort: (k: SortKey) => void;
+  align?: 'left' | 'right';
 }) {
   return (
-    <Metric
-      label={label}
-      value={test.pct}
-      raw={
-        test.obtained !== null && test.total !== null
-          ? `${test.obtained} / ${test.total}`
-          : null
-      }
-      status={test.status}
+    <th
+      className={cn(
+        'whitespace-nowrap px-3 py-2 text-[0.6875rem] font-semibold uppercase tracking-wide',
+        align === 'left' ? 'text-left' : 'text-right',
+        active ? 'text-slate-700' : 'text-slate-400',
+      )}
     >
-      <div className="mt-1 flex items-center gap-2">
-        {test.status === 'pass' && (
-          <span className="text-[0.625rem] font-semibold uppercase tracking-wide text-emerald-600">
-            Pass
-          </span>
-        )}
-        {test.status === 'fail' && (
-          <span className="text-[0.625rem] font-semibold uppercase tracking-wide text-rose-600">
-            Fail
-          </span>
-        )}
-        {test.sheetUrl && (
-          <a
-            href={resolveApiFileUrl(test.sheetUrl)}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1 text-[0.625rem] font-medium text-brand-600 hover:underline"
-          >
-            <ExternalLink className="h-3 w-3" /> Exam sheet
-          </a>
-        )}
-      </div>
-    </Metric>
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className="inline-flex items-center gap-1 hover:text-slate-700"
+      >
+        {label}
+        {active &&
+          (dir === 'desc' ? (
+            <ChevronDown className="h-3 w-3" />
+          ) : (
+            <ChevronUp className="h-3 w-3" />
+          ))}
+      </button>
+    </th>
   );
 }
 
 /**
- * The scorecard, with its working shown.
+ * The scorecard as a comparison matrix.
  *
- * Every component that made the combined figure gets its own column — CV
- * match, each screening test with the marks it was out of, and the interview
- * average — and each row opens to the individual panelists' marks. The point
- * is that a reader can see how a candidate reached their number, and open the
- * marked script where one exists, without leaving the page.
+ * One row per candidate, one column per component, so the question this table
+ * exists to answer — "who is ahead, and on what" — is read straight down a
+ * column. Every figure carries the marks it came from, because a percentage
+ * is the derived number and the mark is the one people argue about. Opening a
+ * row shows what each panelist gave and the marked script.
  */
 export function ScorecardBlock({ reqId }: { reqId: string }) {
   const { data: rows, isLoading, refetch, isFetching } = useScorecard(reqId);
+  const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({
+    key: 'combined',
+    dir: 'desc',
+  });
   const [open, setOpen] = useState<string | null>(null);
+
+  const sorted = useMemo(() => {
+    if (!rows) return [];
+    const copy = [...rows];
+    copy.sort((a, b) => {
+      const av = sortValue(a, sort.key);
+      const bv = sortValue(b, sort.key);
+      const cmp =
+        typeof av === 'string' && typeof bv === 'string'
+          ? av.localeCompare(bv)
+          : Number(av) - Number(bv);
+      return sort.dir === 'desc' ? -cmp : cmp;
+    });
+    return copy;
+  }, [rows, sort]);
+
+  const onSort = (key: SortKey) =>
+    setSort((cur) =>
+      cur.key === key
+        ? { key, dir: cur.dir === 'desc' ? 'asc' : 'desc' }
+        : { key, dir: key === 'candidateName' ? 'asc' : 'desc' },
+    );
 
   if (isLoading) {
     return (
@@ -164,13 +202,17 @@ export function ScorecardBlock({ reqId }: { reqId: string }) {
     );
   }
 
-  const sorted = [...rows].sort((a, b) => (b.combined ?? -1) - (a.combined ?? -1));
+  const ranked = new Map(
+    [...rows]
+      .sort((a, b) => (b.combined ?? -1) - (a.combined ?? -1))
+      .map((r, i) => [r.candidateId, i + 1]),
+  );
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-[0.6875rem] text-slate-400">
-          Ranked by combined score. Open a row for each panelist&rsquo;s marks.
+          Click a column to sort · click a row for panelist marks
         </p>
         <button
           type="button"
@@ -182,153 +224,181 @@ export function ScorecardBlock({ reqId }: { reqId: string }) {
         </button>
       </div>
 
-      {sorted.map((row, idx) => (
-        <ScorecardRow
-          key={row.candidateId}
-          row={row}
-          rank={idx}
-          open={open === row.candidateId}
-          onToggle={() =>
-            setOpen((cur) => (cur === row.candidateId ? null : row.candidateId))
-          }
-        />
-      ))}
+      <div className="overflow-x-auto rounded-xl border border-slate-200">
+        <table className="min-w-full border-collapse text-sm">
+          <thead className="border-b border-slate-200 bg-slate-50">
+            <tr>
+              <th className="w-10 px-3 py-2 text-left text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-400">
+                #
+              </th>
+              <SortHead
+                label="Candidate"
+                sortKey="candidateName"
+                align="left"
+                active={sort.key === 'candidateName'}
+                dir={sort.dir}
+                onSort={onSort}
+              />
+              <th className="px-3 py-2 text-left text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-400">
+                Stage
+              </th>
+              <SortHead label="CV" sortKey="cvScore" active={sort.key === 'cvScore'} dir={sort.dir} onSort={onSort} />
+              <SortHead label="Written" sortKey="written" active={sort.key === 'written'} dir={sort.dir} onSort={onSort} />
+              <SortHead label="Computer" sortKey="computer" active={sort.key === 'computer'} dir={sort.dir} onSort={onSort} />
+              <SortHead label="AI test" sortKey="aiTest" active={sort.key === 'aiTest'} dir={sort.dir} onSort={onSort} />
+              <SortHead label="Interview" sortKey="interviewAvg" active={sort.key === 'interviewAvg'} dir={sort.dir} onSort={onSort} />
+              <SortHead label="Combined" sortKey="combined" active={sort.key === 'combined'} dir={sort.dir} onSort={onSort} />
+              <th className="w-8 px-2 py-2" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {sorted.map((row) => {
+              const rank = ranked.get(row.candidateId)!;
+              const isOpen = open === row.candidateId;
+              return (
+                // Keyed here rather than on the rows: a fragment is what the
+                // map returns, and two <tr> cannot share one wrapper element
+                // inside a <tbody>.
+                <Fragment key={row.candidateId}>
+                  <tr
+                    onClick={() =>
+                      setOpen((cur) =>
+                        cur === row.candidateId ? null : row.candidateId,
+                      )
+                    }
+                    className={cn(
+                      'cursor-pointer bg-white transition-colors hover:bg-slate-50/80',
+                      isOpen && 'bg-slate-50',
+                    )}
+                  >
+                    <td className="px-3 py-2 text-xs font-semibold tabular-nums text-slate-400">
+                      {rank}
+                    </td>
+                    <td className="max-w-[200px] truncate px-3 py-2 font-medium text-slate-800">
+                      {row.candidateName}
+                    </td>
+                    <td
+                      className={cn(
+                        'whitespace-nowrap px-3 py-2 text-xs capitalize',
+                        STAGE_TONE[row.stage] ?? 'text-slate-500',
+                      )}
+                    >
+                      {row.stage.replace(/_/g, ' ')}
+                    </td>
+                    <ScoreCell value={row.cvScore} />
+                    <TestCell test={row.written} />
+                    <TestCell test={row.computer} />
+                    <TestCell test={row.aiTest} />
+                    <ScoreCell value={row.interviewAvg} />
+                    <td
+                      className={cn(
+                        'px-3 py-2 text-right tabular-nums',
+                        cellTint(row.combined),
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          'text-base font-bold',
+                          valueTone(row.combined),
+                        )}
+                      >
+                        {row.combined === null ? '—' : row.combined.toFixed(1)}
+                      </span>
+                    </td>
+                    <td className="px-2 py-2 text-slate-300">
+                      <ChevronDown
+                        className={cn(
+                          'h-4 w-4 transition-transform',
+                          isOpen && 'rotate-180 text-slate-500',
+                        )}
+                      />
+                    </td>
+                  </tr>
+                  {isOpen && (
+                    <tr className="bg-slate-50/60">
+                      <td colSpan={10} className="px-4 py-3">
+                        <RowDetail row={row} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 
-function ScorecardRow({
-  row,
-  rank,
-  open,
-  onToggle,
-}: {
-  row: ScorecardEntry;
-  rank: number;
-  open: boolean;
-  onToggle: () => void;
-}) {
-  const combinedTone =
-    row.combined === null
-      ? 'text-slate-300'
-      : row.combined >= 75
-        ? 'text-emerald-600'
-        : row.combined >= 50
-          ? 'text-amber-600'
-          : 'text-rose-600';
+function RowDetail({ row }: { row: ScorecardEntry }) {
+  const sheets = [
+    { label: 'Written Test', url: row.written.sheetUrl },
+    { label: 'Computer Literacy', url: row.computer.sheetUrl },
+  ].filter((s) => s.url);
 
   return (
-    <div
-      className={cn(
-        'overflow-hidden rounded-xl border bg-white transition-shadow',
-        rank === 0 ? 'border-emerald-200 shadow-sm' : 'border-slate-200',
-      )}
-    >
-      <div className="flex flex-wrap items-center gap-3 px-3.5 py-3">
-        <span className="relative shrink-0">
-          <Avatar name={row.candidateName} size="sm" />
-          {rank < 3 && (
-            <span
-              className={cn(
-                'absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-[0.5625rem] font-bold ring-2 ring-white',
-                RANK_MEDAL[rank],
-              )}
-            >
-              {rank + 1}
-            </span>
-          )}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-slate-800">
-            {row.candidateName}
+    <div className="grid gap-4 sm:grid-cols-2">
+      <div>
+        <p className="mb-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-400">
+          Panelist marks
+        </p>
+        {row.interviewers.length === 0 ? (
+          <p className="text-xs text-slate-400">
+            No interview marks submitted yet.
           </p>
-          <span
-            className={cn(
-              'mt-0.5 inline-flex rounded-full px-2 py-0.5 text-[0.625rem] font-medium',
-              STAGE_TONE[row.stage] ?? 'bg-slate-100 text-slate-600',
-            )}
-          >
-            {row.stage.replace(/_/g, ' ')}
-          </span>
-        </div>
-        <div className="text-right">
-          <p className="text-[0.625rem] font-medium uppercase tracking-wide text-slate-400">
-            Combined
-          </p>
-          <p className={cn('text-lg font-bold tabular-nums', combinedTone)}>
-            {row.combined === null ? '—' : row.combined.toFixed(1)}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onToggle}
-          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
-          aria-label={open ? 'Hide panelist marks' : 'Show panelist marks'}
-        >
-          <ChevronDown
-            className={cn('h-4 w-4 transition-transform', open && 'rotate-180')}
-          />
-        </button>
-      </div>
-
-      <div className="grid gap-x-5 gap-y-3 border-t border-slate-100 bg-slate-50/40 px-3.5 py-3 sm:grid-cols-3 lg:grid-cols-5">
-        <Metric label="CV match" value={row.cvScore} />
-        <TestMetric label="Written Test" test={row.written} />
-        <TestMetric label="Computer Literacy" test={row.computer} />
-        <TestMetric label="AI Proficiency" test={row.aiTest} />
-        <Metric
-          label="Interview"
-          value={row.interviewAvg}
-          raw={
-            row.interviewers.length
-              ? `${row.interviewers.length} panelist${row.interviewers.length > 1 ? 's' : ''}`
-              : null
-          }
-        />
-      </div>
-
-      {open && (
-        <div className="border-t border-slate-100 px-3.5 py-3">
-          <p className="mb-2 flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-400">
-            <Users className="h-3.5 w-3.5" /> Panelist marks
-          </p>
-          {row.interviewers.length === 0 ? (
-            <p className="text-xs text-slate-400">
-              No interview marks submitted yet.
-            </p>
-          ) : (
-            <ul className="space-y-1.5">
+        ) : (
+          <table className="w-full text-xs">
+            <tbody className="divide-y divide-slate-100">
               {row.interviewers.map((ev) => (
-                <li
-                  key={`${ev.evaluatorName}-${ev.submittedAt}`}
-                  className="flex flex-wrap items-center gap-2 text-xs"
-                >
-                  <span className="min-w-0 flex-1 truncate font-medium text-slate-700">
+                <tr key={`${ev.evaluatorName}-${ev.submittedAt}`}>
+                  <td className="py-1 pr-3 font-medium text-slate-700">
                     {ev.evaluatorName}
-                  </span>
-                  {ev.roundKind && (
-                    <Badge tone="neutral">{ev.roundKind} round</Badge>
-                  )}
-                  <span className="tabular-nums text-slate-500">
+                  </td>
+                  <td className="py-1 pr-3 capitalize text-slate-400">
+                    {ev.roundKind ? `${ev.roundKind} round` : '—'}
+                  </td>
+                  <td className="py-1 pr-3 text-right tabular-nums text-slate-500">
                     {ev.total} / {ev.max}
-                  </span>
-                  <span className="w-20 shrink-0">
-                    <span className="block h-1.5 overflow-hidden rounded-full bg-slate-100">
-                      <span
-                        className={cn('block h-full rounded-full', toneFor(ev.pct))}
-                        style={{ width: `${Math.min(ev.pct, 100)}%` }}
-                      />
-                    </span>
-                  </span>
-                  <span className="w-12 shrink-0 text-right font-semibold tabular-nums text-slate-600">
+                  </td>
+                  <td
+                    className={cn(
+                      'py-1 text-right font-semibold tabular-nums',
+                      valueTone(ev.pct),
+                    )}
+                  >
                     {ev.pct.toFixed(1)}%
-                  </span>
-                </li>
+                  </td>
+                </tr>
               ))}
-            </ul>
-          )}
-        </div>
-      )}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div>
+        <p className="mb-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-400">
+          Exam sheets
+        </p>
+        {sheets.length === 0 ? (
+          <p className="text-xs text-slate-400">None attached.</p>
+        ) : (
+          <ul className="space-y-1">
+            {sheets.map((s) => (
+              <li key={s.label}>
+                <a
+                  href={resolveApiFileUrl(s.url)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" /> {s.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

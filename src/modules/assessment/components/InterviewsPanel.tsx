@@ -5,6 +5,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { toast } from 'sonner';
 import {
   BadgeDollarSign,
   Bell,
@@ -446,6 +447,13 @@ function InterviewWorkspace({
   const evalSummary = useGenerateEvaluationSummary();
   const [summaryText, setSummaryText] = useState<string | null>(null);
   const [salaryOpen, setSalaryOpen] = useState(false);
+  const [selectOpen, setSelectOpen] = useState(false);
+  const updateCandidate = useUpdateCandidate(reqId);
+  // Offered once a second or final round is done — the rounds a hire is
+  // decided at. A completed first interview is a screen, not a decision.
+  const decisionRound = rounds.find(
+    (r) => r.status === 'completed' && (r.kind === 'second' || r.kind === 'final'),
+  );
   const hasEvaluations = rounds.some((r) => r.evaluations.length > 0);
 
   // Form state
@@ -552,6 +560,24 @@ function InterviewWorkspace({
             >
               Salary
             </Button>
+            {/* The decision belongs where the interview was just run — going to
+                the candidate list to change a stage is a detour through another
+                screen to record something that was settled here. */}
+            {candidate.stage === 'selected' ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Selected
+              </span>
+            ) : (
+              decisionRound && (
+                <Button
+                  size="sm"
+                  leftIcon={<CheckCircle2 className="h-4 w-4" />}
+                  onClick={() => setSelectOpen(true)}
+                >
+                  Mark as selected
+                </Button>
+              )
+            )}
           </div>
         </div>
       </div>
@@ -562,6 +588,46 @@ function InterviewWorkspace({
         open={salaryOpen}
         onClose={() => setSalaryOpen(false)}
       />
+
+      {/* Confirmed rather than done on one click: selecting a candidate is what
+          starts onboarding, and the button sits beside routine ones. */}
+      <Modal
+        open={selectOpen}
+        onClose={() => setSelectOpen(false)}
+        size="sm"
+        title="Mark as selected"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setSelectOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              isLoading={updateCandidate.isPending}
+              leftIcon={<CheckCircle2 className="h-4 w-4" />}
+              onClick={() =>
+                updateCandidate.mutate(
+                  { id: candidate.id, input: { stage: 'selected' } },
+                  {
+                    onSuccess: () => {
+                      setSelectOpen(false);
+                      toast.success(`${candidate.name} marked as selected`);
+                    },
+                  },
+                )
+              }
+            >
+              Mark as selected
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-slate-600">
+          Move <span className="font-semibold">{candidate.name}</span> to
+          selected after the{' '}
+          {decisionRound ? KIND_LABEL[decisionRound.kind].toLowerCase() : ''}{' '}
+          interview? This starts their onboarding.
+        </p>
+      </Modal>
 
       {/* ── Body: history (left) + form (right) ─────────────────── */}
       <div className="flex min-h-0 flex-1 overflow-hidden">
