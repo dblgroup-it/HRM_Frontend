@@ -268,7 +268,12 @@ export function CandidatesPanel({
           </span>
         </CardTitle>
         {canManage && drive && (
-          <div className="flex items-center gap-2">
+          // ml-auto + justify-end so the actions stay on the right in BOTH
+          // states. The header wraps once there are this many buttons, and a
+          // wrapped row would otherwise start at the far left — under the
+          // heading text, which begins after its icon, so it read as hanging
+          // out of alignment even though every edge lines up.
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
             <Button
               size="sm"
               variant="outline"
