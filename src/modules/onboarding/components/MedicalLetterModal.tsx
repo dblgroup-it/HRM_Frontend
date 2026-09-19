@@ -46,6 +46,7 @@ export function MedicalLetterModal({
   const [band, setBand] = useState<MedicalAgeBand | null>(null);
   const [examAt, setExamAt] = useState('');
   const [venue, setVenue] = useState('');
+  const [refNo, setRefNo] = useState('');
   const [salutation, setSalutation] = useState('Mr.');
   const [notifyTeam, setNotifyTeam] = useState(true);
   const [notifyCandidate, setNotifyCandidate] = useState(true);
@@ -55,6 +56,7 @@ export function MedicalLetterModal({
     setBand(draft.band ?? draft.suggestedBand);
     setExamAt(toLocalInput(draft.examAt));
     setVenue(draft.venue);
+    setRefNo(draft.refNo ?? '');
   }, [draft]);
 
   const reachable = useMemo(
@@ -72,6 +74,7 @@ export function MedicalLetterModal({
         band: band as MedicalAgeBand,
         examAt: new Date(examAt).toISOString(),
         venue: venue.trim() || undefined,
+        refNo: refNo.trim() || undefined,
         salutation: salutation.trim() || undefined,
         notifyMedicalTeam: notifyTeam,
         notifyCandidate,
@@ -223,6 +226,25 @@ export function MedicalLetterModal({
             <span className="mt-1 block text-xs text-slate-500">
               Printed on the clinic&rsquo;s letter and in the candidate&rsquo;s
               email — one address, so the two cannot disagree.
+            </span>
+          </label>
+
+          {/* DBL's reference register lives partly on paper, so HR must be
+              able to put the number that register already gave this letter on
+              it. Left blank, the next number is issued. */}
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-medium text-slate-600">
+              Reference number
+            </span>
+            <input
+              value={refNo}
+              onChange={(e) => setRefNo(e.target.value)}
+              placeholder="Leave blank to issue the next number"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            />
+            <span className="mt-1 block text-xs text-slate-500">
+              Printed on the letter and carried in both emails — the clinic&rsquo;s
+              and the candidate&rsquo;s, who is asked for it at the desk.
             </span>
           </label>
 

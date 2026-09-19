@@ -158,6 +158,17 @@ export function useHrVerify(candidateId: string) {
   );
 }
 
+export function useSetEmployeeId(candidateId: string) {
+  return useCandidateAction(
+    candidateId,
+    (employeeId: string) => onboardingApi.setEmployeeId(candidateId, employeeId),
+    {
+      success: 'Employee ID saved',
+      fallback: 'Could not save the employee ID',
+    },
+  );
+}
+
 export function useSendCoc(candidateId: string) {
   return useCandidateAction(
     candidateId,

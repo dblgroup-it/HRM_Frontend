@@ -71,6 +71,10 @@ export interface OnboardingView {
   cocSentAt: string | null;
   cocSignedAt: string | null;
   cocUrl: string | null;
+  /** What the candidate told us at acceptance. */
+  offerJoiningTentative: string | null;
+  /** Their hand-signed copy of the offer, when they returned one. */
+  offerSignedUrl: string | null;
   medicalStatus: MedicalStatus;
   medicalNote: string;
   medicalClearedAt: string | null;
@@ -118,6 +122,8 @@ export interface OnboardingCandidate {
   phone: string;
   stage: string;
   source: string;
+  /** The DBL employee ID the recruiter assigned, once they have. */
+  employeeId: string | null;
   matchScore: number | null;
   matchSummary: string;
   requisitionId: string;
@@ -233,6 +239,12 @@ export interface PublicOnboarding {
   offerDeclineReason: string | null;
   cocSentAt: string | null;
   cocSignedAt: string | null;
+  /** What the candidate told us at acceptance. */
+  offerJoiningTentative: string | null;
+  /** They have returned a signed copy of the offer. */
+  offerSignedAt: boolean;
+  /** Their signature is among their documents — the forms sign with it. */
+  signatureOnFile: boolean;
   submitted: { id: string; label: string; status: DocStatus }[];
 }
 

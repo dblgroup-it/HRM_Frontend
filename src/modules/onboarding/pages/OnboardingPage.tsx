@@ -8,6 +8,7 @@ import {
   FileText,
   Loader2,
   Ban,
+  Download,
   FileSignature,
   Lock,
   PartyPopper,
@@ -19,6 +20,7 @@ import {
 import { toast } from 'sonner';
 
 import { Logo } from '@shared/components/ui';
+import { resolveApiFileUrl } from '@shared/api';
 import { cn } from '@shared/lib';
 
 import { SignatureCropper } from '@modules/settings';
@@ -27,7 +29,18 @@ import { onboardingApi } from '../api/onboarding.api';
 import type { DocStatus } from '../types/onboarding.types';
 
 const ACCEPT = '.pdf,application/pdf';
+const IMAGE_ACCEPT = '.png,.jpg,.jpeg,image/png,image/jpeg';
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+
+/**
+ * The one checklist item that is a picture.
+ *
+ * Matched on the label the server sends rather than an index: the list is
+ * DBL's and will be edited, and an index would silently point at the wrong
+ * row the first time somebody reorders it.
+ */
+const isSignatureDoc = (label: string) => /^signature/i.test(label.trim());
 
 const DOC_STATUS_META: Record<DocStatus, { label: string; cls: string; dot: string }> = {
   pending: {
@@ -46,6 +59,22 @@ const DOC_STATUS_META: Record<DocStatus, { label: string; cls: string; dot: stri
     dot: 'bg-rose-400',
   },
 };
+
+/**
+ * The server's own words.
+ *
+ * Every failure here used to read "please check the image and retry", which
+ * was wrong for most of them — the form not sent yet, no signature on file, a
+ * browser that could not start. The message that explains the problem is the
+ * one the server already wrote.
+ */
+function msg(error: unknown, fallback: string): string {
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const m = (error as { message?: unknown }).message;
+    if (typeof m === 'string' && m.trim()) return m;
+  }
+  return fallback;
+}
 
 /** Mirrors the server's minimum, so the button and the API agree. */
 const MIN_DECLINE_REASON = 3;
@@ -74,32 +103,42 @@ export default function OnboardingPage() {
       qc.invalidateQueries({ queryKey: ['public-onboarding', token] });
       toast.success('Document uploaded successfully');
     },
-    onError: () => toast.error('Upload failed — please try again'),
+    onError: (e) => toast.error(msg(e, 'Upload failed — please try again')),
   });
 
   const accept = useMutation({
-    mutationFn: () => onboardingApi.publicAccept(token),
+    mutationFn: (joining?: string) => onboardingApi.publicAccept(token, joining),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['public-onboarding', token] });
       toast.success('Offer accepted! Welcome to DBL Group 🎉');
     },
-    onError: () => toast.error('Could not accept the offer'),
+    onError: (e) => toast.error(msg(e, 'Could not accept the offer')),
   });
 
-  const [cocFile, setCocFile] = useState<File | null>(null);
   const [cocAgreed, setCocAgreed] = useState(false);
-  const cocInputRef = useRef<HTMLInputElement>(null);
+  const [signatureFile, setSignatureFile] = useState<File | null>(null);
+  const [joiningDate, setJoiningDate] = useState('');
+  const signedOfferRef = useRef<HTMLInputElement>(null);
 
   const signCoc = useMutation({
-    mutationFn: (file: File) => onboardingApi.publicSignCoc(token, file),
+    mutationFn: () => onboardingApi.publicSignCoc(token),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['public-onboarding', token] });
-      setCocFile(null);
       setCocAgreed(false);
       toast.success('Thank you — your acknowledgement has been recorded.');
     },
-    onError: () =>
-      toast.error('Could not record that — please check the image and retry'),
+    // The server says what was wrong — no signature on file, the form not
+    // sent yet — and repeating it is far more use than "please retry".
+    onError: (e) => toast.error(msg(e, 'Could not record that — please retry')),
+  });
+
+  const uploadSignedOffer = useMutation({
+    mutationFn: (file: File) => onboardingApi.publicUploadSignedOffer(token, file),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['public-onboarding', token] });
+      toast.success('Signed offer received — thank you.');
+    },
+    onError: (e) => toast.error(msg(e, 'Could not upload that file')),
   });
 
   const decline = useMutation({
@@ -323,8 +362,8 @@ export default function OnboardingPage() {
                         </p>
                         <p className="mt-1 text-xs text-amber-800">
                           Please read the Code of Conduct attached to our email,
-                          then confirm below. You will need a picture of your
-                          signature.
+                          then confirm below. It is signed with the signature
+                          you uploaded with your documents.
                         </p>
                         <label className="mt-3 flex cursor-pointer items-start gap-2 text-xs text-amber-900">
                           <input
@@ -339,34 +378,26 @@ export default function OnboardingPage() {
                             to comply with it.
                           </span>
                         </label>
-                        <input
-                          ref={cocInputRef}
-                          type="file"
-                          accept=".png,.jpg,.jpeg,image/png,image/jpeg"
-                          className="hidden"
-                          onChange={(e) => {
-                            const f = e.target.files?.[0];
-                            e.target.value = '';
-                            if (!f) return;
-                            if (f.size > 2 * 1024 * 1024) {
-                              toast.error('Please keep the image under 2 MB');
-                              return;
-                            }
-                            setCocFile(f);
-                          }}
-                        />
+                        {!data.signatureOnFile && (
+                          <p className="mt-2 rounded-lg bg-white/70 px-3 py-2 text-[0.6875rem] text-amber-800">
+                            Upload your signature in the documents list first —
+                            this form is signed with it.
+                          </p>
+                        )}
                         <button
-                          disabled={!cocAgreed}
-                          onClick={() => cocInputRef.current?.click()}
+                          disabled={
+                            !cocAgreed || !data.signatureOnFile || signCoc.isPending
+                          }
+                          onClick={() => signCoc.mutate()}
                           className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 py-2.5 text-sm font-bold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          <FileSignature className="h-4 w-4" />
+                          {signCoc.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <FileSignature className="h-4 w-4" />
+                          )}
                           Sign with my signature
                         </button>
-                        <p className="mt-2 text-[0.6875rem] text-amber-700">
-                          PNG or JPEG. You will be able to crop it to the right
-                          shape on the next screen.
-                        </p>
                       </div>
                     )}
                   </div>
@@ -390,6 +421,54 @@ export default function OnboardingPage() {
                         <PartyPopper className="mx-auto h-8 w-8 text-emerald-500" />
                         <p className="mt-2 text-sm font-bold text-emerald-700">Offer accepted!</p>
                         <p className="mt-1 text-xs text-emerald-600">Welcome aboard — next steps will follow by email.</p>
+                        {data.offerJoiningTentative && (
+                          <p className="mt-2 text-xs text-emerald-700">
+                            You expect to join on{' '}
+                            <strong>
+                              {new Date(data.offerJoiningTentative).toLocaleDateString('en-GB', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                            </strong>
+                            .
+                          </p>
+                        )}
+                        {/* Returning the signed paper is a separate act — most
+                            people accept online and post the scan later. */}
+                        <div className="mt-3 border-t border-emerald-200 pt-3 text-left">
+                          {data.offerSignedAt ? (
+                            <p className="text-xs text-emerald-700">
+                              Your signed copy has been received.
+                            </p>
+                          ) : (
+                            <>
+                              <p className="text-[0.6875rem] text-emerald-800">
+                                If you were asked to return a signed copy:
+                              </p>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                <a
+                                  href={resolveApiFileUrl(
+                                    onboardingApi.publicOfferLetterPath(token),
+                                  )}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white px-2.5 py-1.5 text-[0.6875rem] font-semibold text-emerald-700 hover:bg-emerald-50"
+                                >
+                                  <Download className="h-3.5 w-3.5" /> Offer letter (PDF)
+                                </a>
+                                <button
+                                  onClick={() => signedOfferRef.current?.click()}
+                                  disabled={uploadSignedOffer.isPending}
+                                  className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[0.6875rem] font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                                >
+                                  <UploadCloud className="h-3.5 w-3.5" />
+                                  {uploadSignedOffer.isPending ? 'Uploading…' : 'Upload signed copy'}
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
                     ) : data.offerDeclinedAt ? (
                       <div className="text-center">
@@ -445,10 +524,29 @@ export default function OnboardingPage() {
                       <div>
                         <p className="text-sm font-bold text-brand-800">🎉 You have an offer!</p>
                         <p className="mt-1 text-xs text-brand-600">DBL Group has extended you an employment offer. Please review and accept.</p>
+                        {/* Asked at acceptance because that is the moment
+                            they know it, and HR plans joining around it. */}
+                        <label className="mt-3 block">
+                          <span className="mb-1 block text-[0.6875rem] font-semibold text-brand-800">
+                            Tentative date of joining
+                          </span>
+                          <input
+                            type="date"
+                            value={joiningDate}
+                            onChange={(e) => setJoiningDate(e.target.value)}
+                            className="w-full rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-brand-400 focus:outline-none"
+                          />
+                        </label>
+                        {!data.signatureOnFile && (
+                          <p className="mt-2 text-[0.6875rem] text-brand-700">
+                            Please also upload your signature in the documents
+                            list — your joining forms are signed with it.
+                          </p>
+                        )}
                         <button
-                          disabled={accept.isPending}
-                          onClick={() => accept.mutate()}
-                          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 py-2.5 text-sm font-bold text-white transition hover:bg-brand-700 disabled:opacity-60"
+                          disabled={accept.isPending || !joiningDate}
+                          onClick={() => accept.mutate(joiningDate)}
+                          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 py-2.5 text-sm font-bold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {accept.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Accept offer'}
                         </button>
@@ -551,44 +649,82 @@ export default function OnboardingPage() {
       {/* Cropping to 3:1 happens here rather than being demanded of the
           candidate: they photograph a signature on paper and we cut it to the
           shape the form needs. */}
-      {cocFile && (
+      {signatureFile && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
           <div className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-xl">
             <p className="mb-3 text-sm font-bold text-slate-800">
               Crop your signature
             </p>
             <SignatureCropper
-              file={cocFile}
-              isUploading={signCoc.isPending}
-              onCancel={() => setCocFile(null)}
-              onCropped={(cropped) => signCoc.mutate(cropped)}
+              file={signatureFile}
+              isUploading={upload.isPending}
+              onCancel={() => setSignatureFile(null)}
+              onCropped={(cropped) => {
+                setSignatureFile(null);
+                if (activeLabel) upload.mutate({ label: activeLabel, file: cropped });
+              }}
             />
           </div>
         </div>
       )}
 
-      {/* Hidden file input */}
+      {/* Hidden file input — PDF for documents, an image for the signature */}
       <input
         ref={fileRef}
+        type="file"
+        accept={activeLabel && isSignatureDoc(activeLabel) ? IMAGE_ACCEPT : ACCEPT}
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = '';
+          if (!file || !activeLabel) return;
+
+          if (isSignatureDoc(activeLabel)) {
+            if (!/^image\/(png|jpe?g)$/.test(file.type)) {
+              toast.error('Your signature must be a PNG or JPEG image.');
+              return;
+            }
+            if (file.size > MAX_IMAGE_BYTES) {
+              toast.error('Please keep the image under 2 MB.');
+              return;
+            }
+            // Cropped here rather than demanded of the candidate: they
+            // photograph a signature on paper and we cut it to 3:1.
+            setSignatureFile(file);
+            return;
+          }
+
+          if (file.type !== 'application/pdf') {
+            toast.error('Only PDF files are accepted.');
+            return;
+          }
+          if (file.size > MAX_PDF_BYTES) {
+            toast.error('File must be under 5 MB.');
+            return;
+          }
+          upload.mutate({ label: activeLabel, file });
+        }}
+      />
+
+      {/* The signed offer, returned as a PDF */}
+      <input
+        ref={signedOfferRef}
         type="file"
         accept={ACCEPT}
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) {
-            if (file.type !== 'application/pdf') {
-              toast.error('Only PDF files are accepted.');
-              e.target.value = '';
-              return;
-            }
-            if (file.size > MAX_PDF_BYTES) {
-              toast.error('File must be under 5 MB.');
-              e.target.value = '';
-              return;
-            }
-            if (activeLabel) upload.mutate({ label: activeLabel, file });
-          }
           e.target.value = '';
+          if (!file) return;
+          if (file.type !== 'application/pdf') {
+            toast.error('Please upload the signed offer as a PDF.');
+            return;
+          }
+          if (file.size > MAX_PDF_BYTES) {
+            toast.error('File must be under 5 MB.');
+            return;
+          }
+          uploadSignedOffer.mutate(file);
         }}
       />
 

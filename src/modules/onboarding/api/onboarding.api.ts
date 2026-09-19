@@ -37,6 +37,8 @@ export const onboardingApi = {
       band: MedicalAgeBand;
       examAt: string;
       venue?: string;
+      /** Blank issues the next number from DBL's register. */
+      refNo?: string;
       salutation?: string;
       notifyMedicalTeam?: boolean;
       notifyCandidate?: boolean;
@@ -337,10 +339,45 @@ export const onboardingApi = {
       .then((r) => r.data);
   },
 
-  publicAccept: (token: string): Promise<{ ok: boolean }> =>
+  publicAccept: (
+    token: string,
+    joiningTentative?: string,
+  ): Promise<{ ok: boolean }> =>
     http
       .post<ApiResponse<{ ok: boolean }>>(
         `/onboarding/public/${token}/accept-offer`,
+        { joiningTentative },
+      )
+      .then((r) => r.data),
+
+  /** The offer letter, to print and sign by hand. */
+  publicOfferLetterPath: (token: string) =>
+    `/api/onboarding/public/${token}/offer-letter.pdf`,
+
+  publicUploadSignedOffer: (
+    token: string,
+    file: File,
+  ): Promise<{ ok: boolean }> => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return http
+      .post<ApiResponse<{ ok: boolean }>>(
+        `/onboarding/public/${token}/offer-signed`,
+        fd,
+        MULTIPART,
+      )
+      .then((r) => r.data);
+  },
+
+  /** Assign the candidate their DBL employee ID. */
+  setEmployeeId: (
+    candidateId: string,
+    employeeId: string,
+  ): Promise<OnboardingResult> =>
+    http
+      .patch<ApiResponse<OnboardingResult>>(
+        `/candidates/${candidateId}/onboarding/employee-id`,
+        { employeeId },
       )
       .then((r) => r.data),
 
@@ -352,21 +389,18 @@ export const onboardingApi = {
       )
       .then((r) => r.data),
 
-  /** The candidate signs it, with a picture of their signature. */
+  /**
+   * The candidate acknowledges the Code of Conduct. No upload — it is signed
+   * with the signature already collected among their documents.
+   */
   publicSignCoc: (
     token: string,
-    file: File,
-  ): Promise<{ ok: boolean; alreadySigned: boolean }> => {
-    const fd = new FormData();
-    fd.append('file', file);
-    return http
+  ): Promise<{ ok: boolean; alreadySigned: boolean }> =>
+    http
       .post<ApiResponse<{ ok: boolean; alreadySigned: boolean }>>(
         `/onboarding/public/${token}/coc`,
-        fd,
-        MULTIPART,
       )
-      .then((r) => r.data);
-  },
+      .then((r) => r.data),
 
   publicDecline: (
     token: string,

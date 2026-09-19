@@ -35,6 +35,7 @@ import {
   Card,
   CardBody,
   FullPageSpinner,
+  Input,
   Modal,
   type BadgeTone,
 } from '@shared/components/ui';
@@ -56,6 +57,7 @@ import { AppointmentLetterModal } from '../components/AppointmentLetterModal';
 import { FacilityProvisioningPanel } from '../components/FacilityProvisioningPanel';
 import { ReferenceChecksPanel } from '../components/ReferenceChecksPanel';
 import { useReferenceChecks } from '../hooks/useReferenceChecks';
+import { useSetEmployeeId } from '../hooks/useOnboarding';
 import { useRequisition } from '@modules/requisition';
 
 import { useFacilityProvisioning } from '../hooks/useFacilityProvisioning';
@@ -1402,7 +1404,24 @@ function Flow({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="text-sm">
                 {ob.offerAcceptedAt ? (
-                  <Badge tone="success">Accepted {fmt(ob.offerAcceptedAt)}</Badge>
+                  <span className="flex flex-wrap items-center gap-2">
+                    <Badge tone="success">Accepted {fmt(ob.offerAcceptedAt)}</Badge>
+                    {ob.offerJoiningTentative && (
+                      <Badge tone="info">
+                        Joining ~ {fmt(ob.offerJoiningTentative)}
+                      </Badge>
+                    )}
+                    {ob.offerSignedUrl && (
+                      <a
+                        href={resolveApiFileUrl(ob.offerSignedUrl)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" /> Signed copy
+                      </a>
+                    )}
+                  </span>
                 ) : ob.offerDeclinedAt ? (
                   <Badge tone="danger">Declined {fmt(ob.offerDeclinedAt)}</Badge>
                 ) : ob.offerSentAt ? (
@@ -1482,6 +1501,20 @@ function Flow({
       lockReason: 'Unlocks once the candidate accepts the offer.',
       content: (
         <div className="space-y-6">
+          {/* The employee ID. Its own section because it is not a document or
+              a decision — it is the number the rest of the file is filed
+              under, and the Code of Conduct prints it. */}
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Employee ID
+            </p>
+            <EmployeeIdField
+              candidateId={candidateId}
+              current={result.candidate.employeeId}
+              canEdit={canEditFacilities}
+            />
+          </div>
+
           {/* The Code of Conduct sits with final verification: it is the last
               thing the candidate signs, and HR wants it in the file before the
               hire is closed. */}
@@ -2366,6 +2399,62 @@ function MedicalStat({ label, value }: { label: string; value: string }) {
     <div className="min-w-0">
       <p className="text-[0.625rem] uppercase tracking-wide text-slate-400">{label}</p>
       <p className="truncate font-medium text-slate-700">{value || '—'}</p>
+    </div>
+  );
+}
+
+/**
+ * Assign the DBL employee ID.
+ *
+ * Saved explicitly rather than on blur: it is an identifier that will be
+ * printed on forms and used to file a personnel record, so a stray keystroke
+ * should not be able to commit one.
+ */
+function EmployeeIdField({
+  candidateId,
+  current,
+  canEdit,
+}: {
+  candidateId: string;
+  current: string | null;
+  canEdit: boolean;
+}) {
+  const save = useSetEmployeeId(candidateId);
+  const [value, setValue] = useState(current ?? '');
+
+  useEffect(() => setValue(current ?? ''), [current]);
+
+  if (!canEdit) {
+    return (
+      <p className="text-sm text-slate-700">
+        {current || <span className="text-slate-400">Not assigned yet</span>}
+      </p>
+    );
+  }
+
+  const dirty = value.trim() !== (current ?? '');
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Input
+        value={value}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+          setValue(e.target.value)
+        }
+        placeholder="e.g. 15107556"
+        className="w-48"
+      />
+      <Button
+        size="sm"
+        disabled={!dirty || !value.trim()}
+        isLoading={save.isPending}
+        onClick={() => save.mutate(value.trim())}
+      >
+        {current ? 'Update' : 'Assign'}
+      </Button>
+      <span className="text-xs text-slate-400">
+        Printed on the Code of Conduct and used across this candidate&rsquo;s file.
+      </span>
     </div>
   );
 }
