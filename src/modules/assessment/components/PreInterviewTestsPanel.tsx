@@ -53,22 +53,58 @@ function bucketFor(...results: ScreeningResult[]): Bucket {
   return 'cleared';
 }
 
-function summaryText(
-  written: ScreeningResult,
-  computer: ScreeningResult,
-  ai: ScreeningResult,
-): string {
-  const part = (label: string, r: ScreeningResult, waitingOn: string) => {
-    if (r.status === 'not_conducted') return null;
-    if (r.status === 'pending') return `${label} — ${waitingOn}`;
-    return `${label} ${r.status === 'pass' ? 'passed' : 'failed'} ${r.pct?.toFixed(0)}%`;
-  };
-  const parts = [
-    part('Written', written, 'marks not entered'),
-    part('Computer', computer, 'marks not entered'),
-    part('AI', ai, 'test in progress'),
-  ].filter(Boolean);
-  return parts.length ? parts.join(' · ') : 'No tests assigned yet';
+/**
+ * The marks themselves, on the collapsed row.
+ *
+ * This used to read "Written passed 72%", which tells you the verdict and
+ * hides the mark. HR reads these rows to compare candidates, and "68 / 100"
+ * is the thing being compared — the percentage is the derived figure.
+ */
+function MarkChip({
+  label,
+  result,
+  obtained,
+  total,
+  waitingOn,
+}: {
+  label: string;
+  result: ScreeningResult;
+  obtained: number | null | undefined;
+  total: number | null | undefined;
+  waitingOn: string;
+}) {
+  if (result.status === 'not_conducted') return null;
+
+  const tone =
+    result.status === 'pass'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      : result.status === 'fail'
+        ? 'border-rose-200 bg-rose-50 text-rose-700'
+        : 'border-slate-200 bg-white text-slate-500';
+
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[0.625rem] font-medium',
+        tone,
+      )}
+    >
+      <span className="uppercase tracking-wide opacity-70">{label}</span>
+      {result.status === 'pending' ? (
+        <span>{waitingOn}</span>
+      ) : (
+        <>
+          <span className="tabular-nums font-semibold">
+            {obtained ?? '—'}
+            <span className="opacity-60">/{total ?? '—'}</span>
+          </span>
+          <span className="tabular-nums opacity-80">
+            {result.pct?.toFixed(0)}%
+          </span>
+        </>
+      )}
+    </span>
+  );
 }
 
 /**
@@ -334,7 +370,36 @@ function CandidateRow({
           <Avatar name={candidate.name} size="sm" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-slate-800">{candidate.name}</p>
-            <p className="truncate text-xs text-slate-400">{summaryText(written, computer, ai)}</p>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <MarkChip
+                label="Written"
+                result={written}
+                obtained={fx?.writtenTestObtained}
+                total={fx?.writtenTestTotal}
+                waitingOn="not marked"
+              />
+              <MarkChip
+                label="Computer"
+                result={computer}
+                obtained={fx?.computerTestObtained}
+                total={fx?.computerTestTotal}
+                waitingOn="not marked"
+              />
+              <MarkChip
+                label="AI"
+                result={ai}
+                obtained={fx?.aiTestObtained}
+                total={fx?.aiTestTotal}
+                waitingOn="in progress"
+              />
+              {written.status === 'not_conducted' &&
+                computer.status === 'not_conducted' &&
+                ai.status === 'not_conducted' && (
+                  <span className="text-xs text-slate-400">
+                    No tests assigned yet
+                  </span>
+                )}
+            </div>
           </div>
           <ChevronDown
             className={cn(

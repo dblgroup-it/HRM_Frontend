@@ -24,6 +24,28 @@ export interface AssessmentSetup {
   deliberationNotes: string | null;
 }
 
+/** One screening test as the scorecard reports it — the mark and its working. */
+export interface ScorecardTest {
+  enabled: boolean;
+  total: number | null;
+  obtained: number | null;
+  pct: number | null;
+  passPct: number;
+  status: 'skipped' | 'pending' | 'pass' | 'fail';
+  /** The marked answer script, when one was attached. */
+  sheetUrl: string | null;
+}
+
+/** What one panelist gave, in which round. */
+export interface ScorecardInterviewer {
+  evaluatorName: string;
+  roundKind: string | null;
+  total: number;
+  max: number;
+  pct: number;
+  submittedAt: string;
+}
+
 export interface ScorecardEntry {
   candidateId: string;
   candidateName: string;
@@ -32,6 +54,10 @@ export interface ScorecardEntry {
   aiProficiencyScore: number | null;
   interviewAvg: number | null;
   combined: number | null;
+  written: ScorecardTest;
+  computer: ScorecardTest;
+  aiTest: ScorecardTest;
+  interviewers: ScorecardInterviewer[];
 }
 
 export interface EvaluationSummaryResult {
@@ -241,11 +267,14 @@ export interface ScreeningTests {
   writtenTestPassPct: number;
   /** The marked answer script, when one was attached. Served by the API. */
   writtenTestSheetUrl: string | null;
+  /** This reader has marked it once already and may not change it. */
+  writtenTestLocked: boolean;
   computerTestEnabled: boolean;
   computerTestTotal: number | null;
   computerTestObtained: number | null;
   computerTestPassPct: number;
   computerTestSheetUrl: string | null;
+  computerTestLocked: boolean;
   aiTestEnabled: boolean;
   aiTestTotal: number | null;
   aiTestObtained: number | null;

@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import {
   BarChart3,
   ClipboardCheck,
-  RefreshCw,
   Search,
   Users,
   X,
@@ -15,7 +14,6 @@ import {
   Card,
   CardBody,
   Input,
-  Spinner,
 } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import { useAnchoredPanel, useDebounce } from '@shared/hooks';
@@ -30,21 +28,9 @@ import {
   useScorecard,
 } from '../hooks/useAssessment';
 import { PreInterviewTestsPanel } from './PreInterviewTestsPanel';
+import { ScorecardBlock } from './ScorecardBlock';
 
-const STAGE_COLORS: Record<string, string> = {
-  ai_shortlisted: 'bg-violet-100 text-violet-700',
-  shortlisted:    'bg-sky-100 text-sky-700',
-  interview:      'bg-amber-100 text-amber-700',
-  final:          'bg-orange-100 text-orange-700',
-  selected:       'bg-emerald-100 text-emerald-700',
-  rejected:       'bg-rose-100 text-rose-500',
-};
 
-const RANK_MEDAL: Record<number, string> = {
-  0: 'bg-amber-400 text-white',
-  1: 'bg-slate-300 text-white',
-  2: 'bg-orange-300 text-white',
-};
 
 export function AssessmentPanel({ requisition }: { requisition: Requisition }) {
   const reqId = requisition.id;
@@ -155,7 +141,7 @@ export function AssessmentPanel({ requisition }: { requisition: Requisition }) {
             step={3}
             icon={BarChart3}
             title="Candidate scorecard"
-            desc="CV match · interview scores, normalised 0–100."
+            desc="Every component of the score — CV, each screening test with its marks, and what each panelist gave."
           />
           <ScorecardBlock reqId={reqId} />
         </CardBody>
@@ -313,120 +299,6 @@ function TabSkeleton() {
           </CardBody>
         </Card>
       ))}
-    </div>
-  );
-}
-
-/* ── Scorecard ─────────────────────────────────────────── */
-function ScoreBar({ value, delay = 0 }: { value: number | null; delay?: number }) {
-  const [ready, setReady] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setReady(true), delay);
-    return () => clearTimeout(t);
-  }, [delay]);
-
-  if (value === null) return <span className="text-xs text-slate-300">—</span>;
-  const color =
-    value >= 75 ? 'bg-emerald-500' : value >= 50 ? 'bg-amber-400' : 'bg-rose-400';
-  return (
-    <div className="flex items-center gap-2">
-      <div className="h-1.5 w-14 overflow-hidden rounded-full bg-slate-100">
-        <div
-          className={cn('h-full rounded-full transition-all duration-700 ease-out', color)}
-          style={{ width: ready ? `${Math.min(value, 100)}%` : '0%' }}
-        />
-      </div>
-      <span className="w-9 shrink-0 text-right text-xs font-semibold tabular-nums text-slate-600">
-        {value.toFixed(1)}
-      </span>
-    </div>
-  );
-}
-
-function ScorecardBlock({ reqId }: { reqId: string }) {
-  const { data: rows, isLoading, refetch, isFetching } = useScorecard(reqId);
-
-  if (isLoading) {
-    return <div className="flex justify-center py-8"><Spinner /></div>;
-  }
-
-  if (!rows || rows.length === 0) {
-    return (
-      <EmptyHint>
-        No evaluated candidates yet — scores appear once candidates have been screened or interviewed.
-      </EmptyHint>
-    );
-  }
-
-  const sorted = [...rows].sort((a, b) => (b.combined ?? -1) - (a.combined ?? -1));
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-end">
-        <button
-          type="button"
-          onClick={() => void refetch()}
-          className="inline-flex items-center gap-1 text-xs text-brand-600 hover:underline"
-        >
-          <RefreshCw className={cn('h-3 w-3', isFetching && 'animate-spin')} />
-          Refresh
-        </button>
-      </div>
-      <div className="overflow-x-auto rounded-xl border border-slate-200">
-        <table className="min-w-full divide-y divide-slate-100 text-sm">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="px-3 py-2.5 text-left text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-400">Candidate</th>
-              <th className="px-3 py-2.5 text-center text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-400">Stage</th>
-              <th className="px-3 py-2.5 text-left text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-400">CV %</th>
-              <th className="px-3 py-2.5 text-left text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-400">AI Test</th>
-              <th className="px-3 py-2.5 text-left text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-400">Interview</th>
-              <th className="px-3 py-2.5 text-left text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-400">Combined</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50 bg-white">
-            {sorted.map((row, idx) => (
-              <tr
-                key={row.candidateId}
-                style={{ animationDelay: `${idx * 35}ms` }}
-                className={cn(
-                  'animate-fade-in opacity-0 transition-colors duration-150 hover:bg-slate-50/70 [animation-fill-mode:forwards]',
-                  idx === 0 && 'bg-emerald-50/30',
-                )}
-              >
-                <td className="px-3 py-2.5">
-                  <div className="flex items-center gap-2.5">
-                    <span className="relative shrink-0">
-                      <Avatar name={row.candidateName} size="sm" />
-                      {idx < 3 && (
-                        <span className={cn(
-                          'absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-[0.5625rem] font-bold ring-2 ring-white',
-                          RANK_MEDAL[idx],
-                        )}>
-                          {idx + 1}
-                        </span>
-                      )}
-                    </span>
-                    <span className="max-w-[140px] truncate font-medium text-slate-800">{row.candidateName}</span>
-                  </div>
-                </td>
-                <td className="px-3 py-2.5 text-center">
-                  <span className={cn(
-                    'inline-flex rounded-full px-2 py-0.5 text-[0.625rem] font-medium',
-                    STAGE_COLORS[row.stage] ?? 'bg-slate-100 text-slate-600',
-                  )}>
-                    {row.stage.replace('_', ' ')}
-                  </span>
-                </td>
-                <td className="px-3 py-2.5"><ScoreBar value={row.cvScore} delay={idx * 35} /></td>
-                <td className="px-3 py-2.5"><ScoreBar value={row.aiProficiencyScore} delay={idx * 35} /></td>
-                <td className="px-3 py-2.5"><ScoreBar value={row.interviewAvg} delay={idx * 35} /></td>
-                <td className="px-3 py-2.5"><ScoreBar value={row.combined} delay={idx * 35} /></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ClipboardCheck, Sparkles } from 'lucide-react';
+import { ClipboardCheck, Lock, Sparkles } from 'lucide-react';
 
 import { Badge, Button, Modal, Spinner } from '@shared/components/ui';
 import { cn } from '@shared/lib';
@@ -62,6 +62,7 @@ export function ScreeningMarksModal({
             candidateId={candidate.id}
             kind="written"
             sheetUrl={data.writtenTestSheetUrl}
+            locked={data.writtenTestLocked}
             passPct={data.writtenTestPassPct}
             enabled={data.writtenTestEnabled}
             total={data.writtenTestTotal}
@@ -80,6 +81,7 @@ export function ScreeningMarksModal({
             candidateId={candidate.id}
             kind="computer"
             sheetUrl={data.computerTestSheetUrl}
+            locked={data.computerTestLocked}
             passPct={data.computerTestPassPct}
             enabled={data.computerTestEnabled}
             total={data.computerTestTotal}
@@ -123,6 +125,7 @@ function ManualTest({
   candidateId,
   kind,
   sheetUrl,
+  locked,
   passPct,
   enabled,
   total,
@@ -135,6 +138,8 @@ function ManualTest({
   candidateId: string;
   kind: 'written' | 'computer';
   sheetUrl: string | null;
+  /** Already marked once from here — see screening-lock.ts on the server. */
+  locked: boolean;
   passPct: number;
   enabled: boolean;
   total: number | null;
@@ -196,7 +201,7 @@ function ManualTest({
               Head of Talent Acquisition. Marks are kept, so switching back restores them. */}
           <button
             type="button"
-            disabled={saving}
+            disabled={saving || locked}
             onClick={() => onToggle(false)}
             className="rounded-lg px-2 py-0.5 text-xs font-medium text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50"
           >
@@ -214,8 +219,9 @@ function ManualTest({
             type="number"
             min={0}
             value={t}
+            disabled={locked}
             onChange={(e) => setT(e.target.value)}
-            className="w-24 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm tabular-nums focus:border-brand-400 focus:outline-none"
+            className="w-24 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm tabular-nums focus:border-brand-400 focus:outline-none disabled:bg-slate-50 disabled:text-slate-500"
           />
         </label>
         <label className="flex flex-col gap-1">
@@ -226,9 +232,10 @@ function ManualTest({
             type="number"
             min={0}
             value={o}
+            disabled={locked}
             onChange={(e) => setO(e.target.value)}
             className={cn(
-              'w-24 rounded-lg border px-2.5 py-1.5 text-sm tabular-nums focus:outline-none',
+              'w-24 rounded-lg border px-2.5 py-1.5 text-sm tabular-nums focus:outline-none disabled:bg-slate-50 disabled:text-slate-500',
               overMax
                 ? 'border-rose-300 focus:border-rose-400'
                 : 'border-slate-200 focus:border-brand-400',
@@ -238,7 +245,7 @@ function ManualTest({
         <Button
           size="sm"
           className="mb-0.5"
-          disabled={!dirty || overMax || saving}
+          disabled={locked || !dirty || overMax || saving}
           isLoading={saving}
           onClick={() => onSave({ total: parsedTotal, obtained: parsedObtained })}
         >
@@ -249,6 +256,14 @@ function ManualTest({
       {overMax && (
         <p className="mt-1.5 text-xs text-rose-600">
           Obtained can't be more than the total.
+        </p>
+      )}
+
+      {locked && (
+        <p className="mt-1.5 flex items-start gap-1.5 text-xs text-slate-500">
+          <Lock className="mt-0.5 h-3 w-3 shrink-0 text-slate-400" />
+          Marks are entered once from here. Ask Corporate HR if a correction is
+          needed.
         </p>
       )}
 
