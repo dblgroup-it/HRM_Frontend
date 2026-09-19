@@ -146,6 +146,8 @@ export interface OnboardingResult {
   aiConfigured: boolean;
   aiProvider: string;
   mailConfigured: boolean;
+  /** A browser is available to render letters as PDFs. */
+  pdfReady: boolean;
   itWebhook: boolean;
   requiredDocs: string[];
   /**

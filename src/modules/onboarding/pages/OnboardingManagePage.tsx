@@ -1453,6 +1453,14 @@ function Flow({
                 </Button>
               </div>
             </div>
+            {!result.pdfReady && !ob.offerSentAt && (
+              <Hint tone="amber">
+                Letters cannot be rendered as PDFs on this server right now, so
+                the offer will be sent in the body of the email instead of
+                attached. It still reaches the candidate — ask IT to install the
+                PDF browser to restore the attachment.
+              </Hint>
+            )}
             {ob.offerDeclinedAt && !ob.offerAcceptedAt && (
               <div className="mt-3 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3">
                 <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-rose-700">
@@ -1561,6 +1569,13 @@ function Flow({
                 </Button>
               )}
             </div>
+            {!result.pdfReady && (
+              <Hint tone="amber">
+                The signed form cannot be produced as a PDF on this server right
+                now. The candidate&rsquo;s acknowledgement is still recorded —
+                the form can be filed once the PDF browser is installed.
+              </Hint>
+            )}
             {ob.cocSentAt && !ob.cocSignedAt && (
               <Hint>
                 The candidate signs it on their own onboarding page by uploading
