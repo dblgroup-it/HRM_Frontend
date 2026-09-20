@@ -74,7 +74,18 @@ export interface OnboardingView {
   /** What the candidate told us at acceptance. */
   offerJoiningTentative: string | null;
   /** Their hand-signed copy of the offer, when they returned one. */
+  /**
+   * The two ways a signed offer comes back, kept apart.
+   *
+   * `offerAcceptedUrl` is the copy this system produced when the candidate
+   * accepted online, carrying their e-signature. `offerSignedUrl` is a scan
+   * they posted back by hand. Either, both or neither can exist.
+   */
   offerSignedUrl: string | null;
+  offerAcceptedUrl: string | null;
+  /** Whose name the letters were issued over. */
+  offerSignatoryName: string | null;
+  appointmentSignatoryName: string | null;
   medicalStatus: MedicalStatus;
   medicalNote: string;
   medicalClearedAt: string | null;
@@ -102,6 +113,9 @@ export interface OnboardingView {
   /** When the medical team was alerted that this candidate is waiting. */
   medicalNotifiedAt: string | null;
   medicalClearedByName: string | null;
+  /** HR signed off this hire's facility entitlements — what unlocks medical. */
+  facilitiesReviewedAt: string | null;
+  facilitiesReviewedByName: string | null;
   hrVerifiedAt: string | null;
   crossCheck: CrossCheckResult | null;
   crossCheckedAt: string | null;
@@ -140,6 +154,26 @@ export interface OnboardingCandidate {
   specialNotes: string[];
   /** The Corporate Recruiter assigned to this requisition, if any. */
   recruiterId: string | null;
+  /** Who the hire reports to, settled with the employee ID. */
+  lineManagerName?: string | null;
+  lineManagerCode?: string | null;
+  lineManagerTitle?: string | null;
+}
+
+/** Somebody HR may issue a letter over — a holder of the CHRO role. */
+export interface LetterSignatory {
+  id: string;
+  name: string;
+  employeeCode: string;
+  designation: string;
+  /** Whether the letter will print their e-signature or an empty rule. */
+  hasSignature: boolean;
+}
+
+export interface LetterSignatories {
+  /** The title printed under the name — the office, not their ZingHR string. */
+  title: string;
+  signatories: LetterSignatory[];
 }
 
 export interface OnboardingResult {
@@ -155,6 +189,8 @@ export interface OnboardingResult {
    * the "all collected" gate count only the required list.
    */
   optionalDocs?: string[];
+  /** The line of guidance shown under each checklist label. */
+  docHints?: Record<string, string>;
   candidate: OnboardingCandidate;
   onboarding: OnboardingView | null;
 }
@@ -235,6 +271,8 @@ export interface PublicOnboarding {
    * the "all collected" gate count only the required list.
    */
   optionalDocs?: string[];
+  /** The line of guidance shown under each checklist label. */
+  docHints?: Record<string, string>;
   offerSentAt: string | null;
   offerAcceptedAt: string | null;
   offerDeclinedAt: string | null;
@@ -253,6 +291,13 @@ export interface PublicOnboarding {
 /** The terms printed on an offer letter. */
 export interface OfferLetterInput {
   format: 'junior' | 'senior';
+  /**
+   * The CHRO the letter is issued over. Required by the server: it used to
+   * pick whichever role assignment came back first, so nothing on screen said
+   * whose name would appear at the bottom of a contract.
+   */
+  signatoryUserId: string;
+  fixedDesignation?: string;
   salutation?: string;
   address?: string;
   reference?: string;
@@ -264,6 +309,9 @@ export interface OfferLetterInput {
 }
 
 export interface AppointmentLetterInput {
+  /** The CHRO the letter is issued over — see OfferLetterInput. */
+  signatoryUserId: string;
+  fixedDesignation?: string;
   reference?: string;
   joiningDate?: string;
   address?: string;

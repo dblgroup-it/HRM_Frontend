@@ -47,6 +47,25 @@ const clock = (iso: string): string =>
 const field = (label: string, value: string): string =>
   `<div class="f"><dt>${label}</dt><dd>${value || '—'}</dd></div>`;
 
+/**
+ * Which signed copies of the offer are on file.
+ *
+ * Two different documents: one this system counter-signed when the candidate
+ * accepted online, one they scanned and posted back. The printed record says
+ * which exist, because "accepted" with nothing behind it is the thing an
+ * auditor asks about.
+ */
+export const signedOfferLine = (ob: {
+  offerAcceptedUrl?: string | null;
+  offerSignedUrl?: string | null;
+}): string => {
+  const held = [
+    ob.offerAcceptedUrl ? 'Signed online' : null,
+    ob.offerSignedUrl ? 'Scan returned' : null,
+  ].filter(Boolean);
+  return held.length ? held.join(' · ') : 'None';
+};
+
 const PHASE_LABEL: Record<TimelineEvent['phase'], string> = {
   requisition: 'Requisition & approval',
   recruitment: 'Sourcing & screening',
@@ -425,6 +444,9 @@ ${part(2, 'Candidate')}
   ${field('Pipeline stage', esc(c.stage.replace(/_/g, ' ')))}
   ${field('CV source', esc(c.source))}
   ${field('AI CV match', c.matchScore != null ? `${c.matchScore}/100` : '—')}
+  ${field('Employee ID', esc(c.employeeId))}
+  ${field('Line manager', esc(c.lineManagerName))}
+  ${field('Line manager ID', esc(c.lineManagerCode))}
 </dl>
 ${c.matchSummary ? `<p class="body muted">${esc(c.matchSummary)}</p>` : ''}
 
@@ -441,8 +463,12 @@ ${part(3, 'Appointment terms')}
         ? `Declined ${dt(ob.offerDeclinedAt)}`
         : 'Awaiting',
   )}
+  ${field('Expected joining', dt(ob.offerJoiningTentative))}
+  ${field('Offer signed by', esc(ob.offerSignatoryName))}
   ${field('Appointment letter', dt(ob.appointmentSentAt))}
+  ${field('Appointment signed by', esc(ob.appointmentSignatoryName))}
   ${field('Code of Conduct', ob.cocSignedAt ? `Signed ${dayOnly(ob.cocSignedAt)}` : ob.cocSentAt ? 'Sent · unsigned' : 'Not sent')}
+  ${field('Signed offer on file', signedOfferLine(ob))}
 </dl>
 ${
   ob.offerDeclinedAt && ob.offerDeclineReason

@@ -13,8 +13,10 @@ import { useMasterData } from '@modules/master-data';
 import {
   useSendOffer,
   useSetOnboardingDesignation,
+  useLetterSignatories,
 } from '../hooks/useOnboarding';
 import type { OnboardingView } from '../types/onboarding.types';
+import { SignatoryPicker } from './SignatoryPicker';
 
 type Format = 'junior' | 'senior';
 
@@ -121,9 +123,23 @@ export function OfferLetterModal({
   const [html, setHtml] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Who the letter goes out over. Pre-selected when the role has exactly one
+  // holder — with no choice to make, asking for one is just a step — and when
+  // this letter was sent before, so a resend keeps the same signature.
+  const { data: signatories } = useLetterSignatories(candidate.id, open);
+  const [signatoryUserId, setSignatoryUserId] = useState('');
+  useEffect(() => {
+    if (!signatories || signatoryUserId) return;
+    const holders = signatories.signatories;
+    const previous = holders.find((h) => h.name === ob?.offerSignatoryName);
+    if (previous) setSignatoryUserId(previous.id);
+    else if (holders.length === 1) setSignatoryUserId(holders[0].id);
+  }, [signatories, signatoryUserId, ob?.offerSignatoryName]);
+
   const payload = useMemo(
     () => ({
       format,
+      signatoryUserId,
       // Omitted on a single-designation requisition, where the primary applies.
       fixedDesignation: multiLevel ? fixedDesignation || undefined : undefined,
       salutation: salutation.trim() || undefined,
@@ -146,12 +162,19 @@ export function OfferLetterModal({
             noticeDays: Number(notice) || 0,
           }),
     }),
-    [format, fixedDesignation, multiLevel, salutation, address, reference, joiningDate, jobLocation, benefits, probation, notice],
+    [format, signatoryUserId, fixedDesignation, multiLevel, salutation, address, reference, joiningDate, jobLocation, benefits, probation, notice],
   );
 
   // Re-render on any change, debounced — the preview is the point of the page.
   useEffect(() => {
     if (!open) return;
+    // The server refuses to render without a signatory, so there is nothing
+    // to preview until one is picked — and a 400 would blank the panel.
+    if (!signatoryUserId) {
+      setHtml('');
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     const t = setTimeout(() => {
@@ -174,7 +197,7 @@ export function OfferLetterModal({
       cancelled = true;
       clearTimeout(t);
     };
-  }, [open, candidate.id, payload]);
+  }, [open, candidate.id, payload, signatoryUserId]);
 
   const field =
     'w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm focus:border-brand-400 focus:outline-none';
@@ -222,11 +245,13 @@ export function OfferLetterModal({
               // Sending a letter that names the wrong level is not correctable
               // once it is in the candidate's inbox, so the choice is required
               // rather than defaulted.
-              disabled={multiLevel && !fixedDesignation}
+              disabled={(multiLevel && !fixedDesignation) || !signatoryUserId}
               title={
                 multiLevel && !fixedDesignation
                   ? 'Choose the confirmed designation first'
-                  : undefined
+                  : !signatoryUserId
+                    ? 'Choose who signs this letter first'
+                    : undefined
               }
               onClick={() =>
                 sendOffer.mutate(payload, { onSuccess: onClose })
@@ -241,6 +266,13 @@ export function OfferLetterModal({
       <div className="grid gap-5 lg:grid-cols-[20rem,1fr]">
         {/* Terms */}
         <div className="space-y-3">
+          <SignatoryPicker
+            data={signatories}
+            value={signatoryUserId}
+            onChange={setSignatoryUserId}
+            labelClass={label}
+          />
+
           {/* Only for a requisition raised at more than one level. The letter
               is signed and sent, so it has to name one. */}
           {multiLevel && (
@@ -451,7 +483,11 @@ export function OfferLetterModal({
               />
             ) : (
               <div className="flex h-64 items-center justify-center text-sm text-slate-400">
-                {loading ? 'Rendering…' : 'Preview unavailable'}
+                {loading
+                  ? 'Rendering…'
+                  : signatoryUserId
+                    ? 'Preview unavailable'
+                    : 'Choose who signs this letter to see the preview.'}
               </div>
             )}
           </div>

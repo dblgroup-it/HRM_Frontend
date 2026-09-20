@@ -8,7 +8,11 @@ import { cn } from '@shared/lib';
 import { printDocument } from '@shared/utils';
 import { toast } from 'sonner';
 
-import { useSendAppointmentLetter } from '../hooks/useOnboarding';
+import {
+  useLetterSignatories,
+  useSendAppointmentLetter,
+} from '../hooks/useOnboarding';
+import { SignatoryPicker } from './SignatoryPicker';
 
 /** Company-wide and not editable — only the serial after it is typed. */
 const APPOINTMENT_REF_PREFIX = 'Corp/HR/AL-';
@@ -50,17 +54,44 @@ export function AppointmentLetterModal({
   const [html, setHtml] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Same rule as the offer: the letter names who signed it, so HR picks.
+  // Defaults to whoever signed the offer, which is almost always the answer.
+  const { data: signatories } = useLetterSignatories(candidate.id, open);
+  const [signatoryUserId, setSignatoryUserId] = useState('');
+  useEffect(() => {
+    if (!signatories || signatoryUserId) return;
+    const holders = signatories.signatories;
+    const previous = holders.find(
+      (h) =>
+        h.name === ob?.appointmentSignatoryName || h.name === ob?.offerSignatoryName,
+    );
+    if (previous) setSignatoryUserId(previous.id);
+    else if (holders.length === 1) setSignatoryUserId(holders[0].id);
+  }, [
+    signatories,
+    signatoryUserId,
+    ob?.appointmentSignatoryName,
+    ob?.offerSignatoryName,
+  ]);
+
   const payload = useMemo(
     () => ({
+      signatoryUserId,
       reference: reference.trim() || undefined,
       address: address.trim() || undefined,
       joiningDate: joiningDate || undefined,
     }),
-    [reference, address, joiningDate],
+    [signatoryUserId, reference, address, joiningDate],
   );
 
   useEffect(() => {
     if (!open) return;
+    // Nothing to render until the signatory is chosen — the server refuses.
+    if (!signatoryUserId) {
+      setHtml('');
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     const t = setTimeout(() => {
@@ -83,7 +114,7 @@ export function AppointmentLetterModal({
       cancelled = true;
       clearTimeout(t);
     };
-  }, [open, candidate.id, payload]);
+  }, [open, candidate.id, payload, signatoryUserId]);
 
   const field =
     'w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm focus:border-brand-400 focus:outline-none';
@@ -128,6 +159,10 @@ export function AppointmentLetterModal({
               size="sm"
               leftIcon={<Mail className="h-3.5 w-3.5" />}
               isLoading={send.isPending}
+              disabled={!signatoryUserId}
+              title={
+                signatoryUserId ? undefined : 'Choose who signs this letter first'
+              }
               onClick={() => send.mutate(payload, { onSuccess: onClose })}
             >
               {ob?.appointmentSentAt ? 'Reissue letter' : 'Issue letter'}
@@ -138,6 +173,12 @@ export function AppointmentLetterModal({
     >
       <div className="grid gap-5 lg:grid-cols-[18rem,1fr]">
         <div className="space-y-3">
+          <SignatoryPicker
+            data={signatories}
+            value={signatoryUserId}
+            onChange={setSignatoryUserId}
+            labelClass={label}
+          />
           <label className="block">
             <span className={label}>Reference</span>
             <div className="flex items-stretch">
@@ -190,7 +231,11 @@ export function AppointmentLetterModal({
               />
             ) : (
               <div className="flex h-64 items-center justify-center text-sm text-slate-400">
-                {loading ? 'Rendering…' : 'Preview unavailable'}
+                {loading
+                  ? 'Rendering…'
+                  : signatoryUserId
+                    ? 'Preview unavailable'
+                    : 'Choose who signs this letter to see the preview.'}
               </div>
             )}
           </div>

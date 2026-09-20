@@ -3,6 +3,8 @@ export { RequisitionTable } from './components/RequisitionTable';
 export { RequisitionStatusBadge } from './components/RequisitionStatusBadge';
 export { WorkflowStepper } from './components/WorkflowStepper';
 export { FacilitiesPanel } from './components/FacilitiesPanel';
+export { EmployeePicker } from './components/EmployeePicker';
+export type { PickedEmployee } from './components/EmployeePicker';
 
 export {
   useRequisitions,

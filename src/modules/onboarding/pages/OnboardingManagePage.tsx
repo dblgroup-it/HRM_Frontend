@@ -6,6 +6,7 @@ import {
   BadgeCheck,
   BellRing,
   Check,
+  CheckCircle2,
   ClipboardPen,
   Copy,
   ExternalLink,
@@ -51,13 +52,14 @@ import {
 import { useMyPermissions } from '@modules/rbac';
 import { useAuthStore } from '@modules/auth';
 import { canAccessRecruitment } from '@modules/candidates';
-import { FacilitiesPanel } from '@modules/requisition';
+import { EmployeePicker, FacilitiesPanel } from '@modules/requisition';
+import type { PickedEmployee } from '@modules/requisition';
 import { OfferLetterModal } from '../components/OfferLetterModal';
 import { AppointmentLetterModal } from '../components/AppointmentLetterModal';
 import { FacilityProvisioningPanel } from '../components/FacilityProvisioningPanel';
 import { ReferenceChecksPanel } from '../components/ReferenceChecksPanel';
 import { useReferenceChecks } from '../hooks/useReferenceChecks';
-import { useSetEmployeeId } from '../hooks/useOnboarding';
+import { useSetPlacement } from '../hooks/useOnboarding';
 import { useRequisition } from '@modules/requisition';
 
 import { useFacilityProvisioning } from '../hooks/useFacilityProvisioning';
@@ -73,6 +75,7 @@ import {
   useCandidateTimeline,
   useMedicalExam,
   useNotifyIt,
+  useReviewFacilities,
   useSetMedical,
   useOnboarding,
   useSendOnboardingLink,
@@ -84,6 +87,7 @@ import {
 } from '../hooks/useOnboarding';
 import type {
   CrossCheckSeverity,
+  OnboardingCandidate,
   CrossCheckVerdict,
   DocStatus,
   OnboardingDoc,
@@ -93,6 +97,7 @@ import type {
 import { printMedicalReport } from '../utils/printMedicalReport';
 import { MedicalLetterModal } from '../components/MedicalLetterModal';
 import { printOnboardingSummary } from '../utils/printSummary';
+import { printShortCandidateSummary } from '../utils/printShortSummary';
 import { resolveApiFileUrl } from '@shared/api';
 
 const DOC_TONE: Record<DocStatus, BadgeTone> = {
@@ -289,12 +294,15 @@ export default function OnboardingManagePage() {
   // to somebody. It cannot gate the step it lives in, so the offer unlocks on
   // board approval alone — otherwise the provisioning panel would be locked
   // behind the very thing it is waiting for.
+  const facilitiesReviewed = Boolean(ob?.facilitiesReviewedAt);
   const doneFlags = ob
     ? [
         docsCollected && allVerified,
-        // Facility requirements are a review step with no completion event of
-        // its own — it settles with the documents it is reviewed alongside.
-        docsCollected && allVerified,
+        // Facility requirements have no completion event of their own, so
+        // somebody says so. They used to settle alongside the documents,
+        // which meant a hire entitled to nothing skipped straight past the
+        // panel into medical — precisely the case worth confirming.
+        facilitiesReviewed,
         ob.medicalStatus === 'cleared',
         isBoardApproved,
         Boolean(ob.offerAcceptedAt) && provisioningDone,
@@ -305,7 +313,7 @@ export default function OnboardingManagePage() {
     ? [
         false,
         false,
-        !(docsCollected && allVerified),
+        !(docsCollected && allVerified) || !facilitiesReviewed,
         ob.medicalStatus !== 'cleared',
         !isBoardApproved,
         !ob.offerAcceptedAt,
@@ -538,7 +546,18 @@ function Sidebar({
               )
             }
           >
-            Print summary
+            Print full record
+          </Button>
+          {/* The one-pager. Separate from the full record rather than a mode
+              of it: the record is the personnel file and runs to pages, while
+              this is the sheet somebody carries into a meeting. */}
+          <Button
+            variant="outline"
+            className="w-full justify-center"
+            leftIcon={<FileText className="h-4 w-4" />}
+            onClick={() => void printShortCandidateSummary(result)}
+          >
+            Print 1-page summary
           </Button>
           <Button
             variant="ghost"
@@ -734,6 +753,7 @@ function Flow({
   const notifyIt = useNotifyIt(candidateId);
   const skipDocs = useSkipDocs(candidateId);
   const skipVerification = useSkipVerification(candidateId);
+  const reviewFacilities = useReviewFacilities(candidateId);
 
   const [itEmail, setItEmail] = useState(ob.itEmail);
   const [offerLetterOpen, setOfferLetterOpen] = useState(false);
@@ -964,6 +984,44 @@ function Flow({
               canEdit={canEditFacilities}
             />
           )}
+
+          {/* The step's own sign-off. Nothing here completes by itself: a
+              hire entitled to no facilities has an empty panel above, and
+              that used to carry them straight into medical with the step
+              never opened — the one case where somebody really should look.
+              Medical stays locked until this is stamped. */}
+          {ob.facilitiesReviewedAt ? (
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+              <p className="text-sm font-medium text-emerald-800">
+                Facility requirements reviewed
+                {ob.facilitiesReviewedByName
+                  ? ` by ${ob.facilitiesReviewedByName}`
+                  : ''}{' '}
+                · {fmt(ob.facilitiesReviewedAt)}
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-amber-300 bg-amber-50/70 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-slate-700">
+                  Confirm you have been through this hire&rsquo;s facilities.
+                </p>
+                <p className="text-xs text-slate-500">
+                  Mark it reviewed even when nothing is required — medical
+                  clearance stays locked until you do.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                isLoading={reviewFacilities.isPending}
+                disabled={!canEditFacilities}
+                onClick={() => reviewFacilities.mutate(undefined)}
+              >
+                Mark as Reviewed
+              </Button>
+            </div>
+          )}
         </div>
       ),
     },
@@ -971,7 +1029,8 @@ function Flow({
       // Step 3 — medical clearance.
       title: 'Medical clearance',
       icon: Stethoscope,
-      lockReason: 'Unlocks once documents are verified.',
+      lockReason:
+        'Unlocks once documents are verified and facility requirements are reviewed.',
       content: (
         <>
           <div className="flex items-center gap-2">
@@ -1411,16 +1470,6 @@ function Flow({
                         Joining ~ {fmt(ob.offerJoiningTentative)}
                       </Badge>
                     )}
-                    {ob.offerSignedUrl && (
-                      <a
-                        href={resolveApiFileUrl(ob.offerSignedUrl)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" /> Signed copy
-                      </a>
-                    )}
                   </span>
                 ) : ob.offerDeclinedAt ? (
                   <Badge tone="danger">Declined {fmt(ob.offerDeclinedAt)}</Badge>
@@ -1460,6 +1509,56 @@ function Flow({
                 attached. It still reaches the candidate — ask IT to install the
                 PDF browser to restore the attachment.
               </Hint>
+            )}
+            {/* The candidate's answer, written out. A decline has always shown
+                its reason here; an acceptance showed only a badge, so the two
+                halves of the same decision read as different kinds of event —
+                and the signed copies sat in the database unreferenced. */}
+            {ob.offerAcceptedAt && (
+              <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-emerald-700">
+                  Candidate accepted this offer
+                </p>
+                <p className="mt-1 text-sm text-emerald-900">
+                  Accepted {fmt(ob.offerAcceptedAt)}
+                  {ob.offerJoiningTentative
+                    ? `, expecting to join on ${fmt(ob.offerJoiningTentative)}.`
+                    : '. No joining date was given.'}
+                </p>
+                {/* Two different documents, so both are offered by name: one
+                    this system counter-signed at the moment they accepted,
+                    one they scanned and posted back. */}
+                <div className="mt-2 flex flex-wrap gap-3">
+                  {ob.offerAcceptedUrl && (
+                    <a
+                      href={resolveApiFileUrl(ob.offerAcceptedUrl)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:underline"
+                    >
+                      <FileSignature className="h-3.5 w-3.5" />
+                      Accepted offer (signed online)
+                    </a>
+                  )}
+                  {ob.offerSignedUrl && (
+                    <a
+                      href={resolveApiFileUrl(ob.offerSignedUrl)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:underline"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Signed copy returned by the candidate
+                    </a>
+                  )}
+                </div>
+                {!ob.offerAcceptedUrl && !ob.offerSignedUrl && (
+                  <p className="mt-1.5 text-[0.6875rem] text-emerald-600">
+                    No signed document on file — they accepted without a
+                    signature, or HR recorded the acceptance by hand.
+                  </p>
+                )}
+              </div>
             )}
             {ob.offerDeclinedAt && !ob.offerAcceptedAt && (
               <div className="mt-3 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3">
@@ -1509,16 +1608,16 @@ function Flow({
       lockReason: 'Unlocks once the candidate accepts the offer.',
       content: (
         <div className="space-y-6">
-          {/* The employee ID. Its own section because it is not a document or
-              a decision — it is the number the rest of the file is filed
-              under, and the Code of Conduct prints it. */}
+          {/* The placement. Its own section because it is not a document or a
+              decision — it is where this person lands: the number the rest of
+              the file is filed under, and who they report to. */}
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Employee ID
+              Placement
             </p>
-            <EmployeeIdField
+            <PlacementPanel
               candidateId={candidateId}
-              current={result.candidate.employeeId}
+              candidate={result.candidate}
               canEdit={canEditFacilities}
             />
           </div>
@@ -1628,7 +1727,14 @@ function Flow({
                     leftIcon={<Printer className="h-4 w-4" />}
                     onClick={() => printOnboardingSummary(result, timeline ?? [])}
                   >
-                    Print summary
+                    Print full record
+                  </Button>
+                  <Button
+                    variant="outline"
+                    leftIcon={<FileText className="h-4 w-4" />}
+                    onClick={() => void printShortCandidateSummary(result)}
+                  >
+                    1-page summary
                   </Button>
                   {!ob.archivedAt && (
                     <Button
@@ -2425,51 +2531,146 @@ function MedicalStat({ label, value }: { label: string; value: string }) {
  * printed on forms and used to file a personnel record, so a stray keystroke
  * should not be able to commit one.
  */
-function EmployeeIdField({
+/**
+ * The placement: the number this hire is filed under, and who they report to.
+ *
+ * One panel with one save, because the two are decided in the same
+ * conversation and a file with an ID and no reporting line is a file somebody
+ * has to come back to. The manager is picked from the synced directory rather
+ * than typed — "Kamal Hosen" spelled three ways across three hires is not a
+ * reporting line anyone can report on — and is stored as a name/code snapshot
+ * so a manager leaving does not rewrite who this person was placed under.
+ */
+function PlacementPanel({
   candidateId,
-  current,
+  candidate,
   canEdit,
 }: {
   candidateId: string;
-  current: string | null;
+  candidate: OnboardingCandidate;
   canEdit: boolean;
 }) {
-  const save = useSetEmployeeId(candidateId);
-  const [value, setValue] = useState(current ?? '');
+  const save = useSetPlacement(candidateId);
+  const [employeeId, setEmployeeId] = useState(candidate.employeeId ?? '');
+  const [manager, setManager] = useState<PickedEmployee | null>(
+    candidate.lineManagerName
+      ? {
+          name: candidate.lineManagerName,
+          employeeCode: candidate.lineManagerCode ?? '',
+          jobTitle: candidate.lineManagerTitle ?? '',
+        }
+      : null,
+  );
 
-  useEffect(() => setValue(current ?? ''), [current]);
+  useEffect(() => {
+    setEmployeeId(candidate.employeeId ?? '');
+    setManager(
+      candidate.lineManagerName
+        ? {
+            name: candidate.lineManagerName,
+            employeeCode: candidate.lineManagerCode ?? '',
+            jobTitle: candidate.lineManagerTitle ?? '',
+          }
+        : null,
+    );
+  }, [candidate.employeeId, candidate.lineManagerName, candidate.lineManagerCode, candidate.lineManagerTitle]);
 
   if (!canEdit) {
     return (
-      <p className="text-sm text-slate-700">
-        {current || <span className="text-slate-400">Not assigned yet</span>}
-      </p>
+      <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+        <PlacementReadRow label="Employee ID" value={candidate.employeeId} />
+        <PlacementReadRow
+          label="Line manager"
+          value={
+            candidate.lineManagerName
+              ? [candidate.lineManagerName, candidate.lineManagerCode]
+                  .filter(Boolean)
+                  .join(' · ')
+              : null
+          }
+        />
+      </dl>
     );
   }
 
-  const dirty = value.trim() !== (current ?? '');
+  const dirty =
+    employeeId.trim() !== (candidate.employeeId ?? '') ||
+    (manager?.name ?? '') !== (candidate.lineManagerName ?? '');
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Input
-        value={value}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-          setValue(e.target.value)
-        }
-        placeholder="e.g. 15107556"
-        className="w-48"
-      />
-      <Button
-        size="sm"
-        disabled={!dirty || !value.trim()}
-        isLoading={save.isPending}
-        onClick={() => save.mutate(value.trim())}
-      >
-        {current ? 'Update' : 'Assign'}
-      </Button>
-      <span className="text-xs text-slate-400">
-        Printed on the Code of Conduct and used across this candidate&rsquo;s file.
-      </span>
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-slate-700">
+            Employee ID
+          </label>
+          <Input
+            value={employeeId}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setEmployeeId(e.target.value)
+            }
+            placeholder="e.g. 15107556"
+          />
+          <p className="mt-1.5 text-xs text-slate-400">
+            Printed on the Code of Conduct and used across this file.
+          </p>
+        </div>
+        <div>
+          <EmployeePicker
+            label="Line manager"
+            value={manager?.name ?? ''}
+            onPick={setManager}
+          />
+          <p className="mt-1.5 text-xs text-slate-400">
+            {manager?.employeeCode || manager?.jobTitle
+              ? [manager.employeeCode, manager.jobTitle]
+                  .filter(Boolean)
+                  .join(' · ')
+              : 'Who this hire reports to. Searched from the employee directory.'}
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
+        <p className="text-xs text-slate-400">
+          Saved together and carried onto the printed hiring record.
+        </p>
+        <Button
+          size="sm"
+          disabled={!dirty || !employeeId.trim()}
+          isLoading={save.isPending}
+          onClick={() =>
+            save.mutate({
+              employeeId: employeeId.trim(),
+              // An empty name clears the snapshot server-side, which is how
+              // a manager picked by mistake is removed.
+              lineManagerName: manager?.name ?? '',
+              lineManagerCode: manager?.employeeCode || undefined,
+              lineManagerTitle: manager?.jobTitle || undefined,
+            })
+          }
+        >
+          {candidate.employeeId ? 'Update placement' : 'Save placement'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function PlacementReadRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | null | undefined;
+}) {
+  return (
+    <div>
+      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+        {label}
+      </dt>
+      <dd className="mt-0.5 text-sm text-slate-700">
+        {value || <span className="text-slate-400">Not set yet</span>}
+      </dd>
     </div>
   );
 }

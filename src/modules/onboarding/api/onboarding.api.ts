@@ -2,6 +2,7 @@ import { http } from '@shared/api';
 import type { ApiResponse } from '@shared/types';
 
 import type {
+  LetterSignatories,
   MedicalExam,
   TimelineEvent,
   MedicalQueueItem,
@@ -229,6 +230,16 @@ export const onboardingApi = {
       )
       .then((r) => r.data),
 
+  /** HR confirms they have been through this hire's facility entitlements. */
+  reviewFacilities: (
+    candidateId: string,
+  ): Promise<{ onboarding: OnboardingView }> =>
+    http
+      .post<ApiResponse<{ onboarding: OnboardingView }>>(
+        `/candidates/${candidateId}/onboarding/facilities/review`,
+      )
+      .then((r) => r.data),
+
   archive: (candidateId: string): Promise<{ onboarding: OnboardingView }> =>
     http
       .post<ApiResponse<{ onboarding: OnboardingView }>>(
@@ -369,15 +380,28 @@ export const onboardingApi = {
       .then((r) => r.data);
   },
 
-  /** Assign the candidate their DBL employee ID. */
+  /** Settle the placement — the employee ID and who the hire reports to. */
   setEmployeeId: (
     candidateId: string,
-    employeeId: string,
+    placement: {
+      employeeId: string;
+      lineManagerName?: string;
+      lineManagerCode?: string;
+      lineManagerTitle?: string;
+    },
   ): Promise<OnboardingResult> =>
     http
       .patch<ApiResponse<OnboardingResult>>(
         `/candidates/${candidateId}/onboarding/employee-id`,
-        { employeeId },
+        placement,
+      )
+      .then((r) => r.data),
+
+  /** Who HR may issue this candidate's letters over (CHRO role holders). */
+  letterSignatories: (candidateId: string): Promise<LetterSignatories> =>
+    http
+      .get<ApiResponse<LetterSignatories>>(
+        `/candidates/${candidateId}/onboarding/signatories`,
       )
       .then((r) => r.data),
 

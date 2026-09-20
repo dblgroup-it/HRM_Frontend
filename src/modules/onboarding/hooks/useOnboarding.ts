@@ -158,13 +158,19 @@ export function useHrVerify(candidateId: string) {
   );
 }
 
-export function useSetEmployeeId(candidateId: string) {
+/** Settle the placement — the employee ID and who the hire reports to. */
+export function useSetPlacement(candidateId: string) {
   return useCandidateAction(
     candidateId,
-    (employeeId: string) => onboardingApi.setEmployeeId(candidateId, employeeId),
+    (placement: {
+      employeeId: string;
+      lineManagerName?: string;
+      lineManagerCode?: string;
+      lineManagerTitle?: string;
+    }) => onboardingApi.setEmployeeId(candidateId, placement),
     {
-      success: 'Employee ID saved',
-      fallback: 'Could not save the employee ID',
+      success: 'Placement saved',
+      fallback: 'Could not save the placement',
     },
   );
 }
@@ -204,6 +210,33 @@ export function useSkipVerification(candidateId: string) {
     candidateId,
     () => onboardingApi.skipVerification(candidateId),
     { success: 'Document verification skipped', fallback: 'Could not skip' },
+  );
+}
+
+/**
+ * Who HR may issue this candidate's letters over.
+ *
+ * Fetched per candidate rather than globally because the endpoint is the
+ * candidate's own — it checks recruitment access on the way through, so the
+ * list cannot be read by someone who has no business with this hire.
+ */
+export function useLetterSignatories(candidateId: string, enabled = true) {
+  return useQuery({
+    queryKey: [...onboardingKeys.candidate(candidateId), 'signatories'],
+    queryFn: () => onboardingApi.letterSignatories(candidateId),
+    enabled: enabled && Boolean(candidateId),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useReviewFacilities(candidateId: string) {
+  return useCandidateAction(
+    candidateId,
+    () => onboardingApi.reviewFacilities(candidateId),
+    {
+      success: 'Facility requirements reviewed',
+      fallback: 'Could not record the review',
+    },
   );
 }
 

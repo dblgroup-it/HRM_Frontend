@@ -28,8 +28,19 @@ import { SignatureCropper } from '@modules/settings';
 import { onboardingApi } from '../api/onboarding.api';
 import type { DocStatus } from '../types/onboarding.types';
 
-const ACCEPT = '.pdf,application/pdf';
+/**
+ * What a joining document may be.
+ *
+ * PDF plus photographs: most of this checklist is paper the candidate is
+ * physically holding, and a phone photo of a certificate is what they
+ * actually have. Insisting on PDF sent them off to find a converter.
+ */
+const ACCEPT = '.pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg';
+/** The signed offer is a document DBL issued — it comes back as it went out. */
+const PDF_ONLY_ACCEPT = '.pdf,application/pdf';
 const IMAGE_ACCEPT = '.png,.jpg,.jpeg,image/png,image/jpeg';
+const isJoiningDocType = (type: string) =>
+  type === 'application/pdf' || /^image\/(png|jpe?g)$/.test(type);
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
@@ -41,6 +52,15 @@ const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
  * row the first time somebody reorders it.
  */
 const isSignatureDoc = (label: string) => /^signature/i.test(label.trim());
+
+/**
+ * The checklist row an inline signature upload files under.
+ *
+ * Deliberately the same row the documents list shows, so a signature added
+ * from the offer box turns up there too — one signature, one place, whichever
+ * screen they happened to be on when they gave it.
+ */
+const SIGNATURE_LABEL = 'Signature';
 
 const DOC_STATUS_META: Record<DocStatus, { label: string; cls: string; dot: string }> = {
   pending: {
@@ -228,6 +248,14 @@ export default function OnboardingPage() {
                         {/* Name + badge */}
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold text-slate-800">{label}</p>
+                          {/* The detail that used to be crammed into the
+                              label itself, where it made every row a
+                              sentence and the list unreadable. */}
+                          {data.docHints?.[label] && (
+                            <p className="mt-0.5 text-xs text-slate-400">
+                              {data.docHints[label]}
+                            </p>
+                          )}
                           {latest && (
                             <span className={cn(
                               'mt-0.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[0.625rem] font-semibold',
@@ -537,12 +565,42 @@ export default function OnboardingPage() {
                             className="w-full rounded-xl border border-brand-200 bg-white px-3 py-2 text-sm text-slate-800 focus:border-brand-400 focus:outline-none"
                           />
                         </label>
-                        {!data.signatureOnFile && (
-                          <p className="mt-2 text-[0.6875rem] text-brand-700">
-                            Please also upload your signature in the documents
-                            list — your joining forms are signed with it.
-                          </p>
-                        )}
+                        {/* Their signature, here, rather than a note telling
+                            them to go and find the documents list. If it is
+                            already on file it is simply used — asking twice
+                            for the same image is how people conclude the form
+                            did not save the first time. */}
+                        <div className="mt-3 rounded-xl border border-brand-200 bg-white/70 px-3 py-2.5">
+                          {data.signatureOnFile ? (
+                            <p className="flex items-start gap-1.5 text-[0.6875rem] text-brand-800">
+                              <FileSignature className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-600" />
+                              Your acceptance will be signed with the signature
+                              you already uploaded. Nothing more to do.
+                            </p>
+                          ) : (
+                            <>
+                              <p className="text-[0.6875rem] font-semibold text-brand-800">
+                                Add your signature
+                              </p>
+                              <p className="mt-0.5 text-[0.6875rem] text-brand-700">
+                                A photo or scan of your signature — JPG or PNG.
+                                You will crop it on the next screen.
+                              </p>
+                              <button
+                                type="button"
+                                disabled={upload.isPending}
+                                onClick={() => {
+                                  setActiveLabel(SIGNATURE_LABEL);
+                                  fileRef.current?.click();
+                                }}
+                                className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-brand-300 bg-white px-2.5 py-1.5 text-[0.6875rem] font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-60"
+                              >
+                                <UploadCloud className="h-3.5 w-3.5" />
+                                {upload.isPending ? 'Uploading…' : 'Upload signature'}
+                              </button>
+                            </>
+                          )}
+                        </div>
                         <button
                           disabled={accept.isPending || !joiningDate}
                           onClick={() => accept.mutate(joiningDate)}
@@ -575,7 +633,7 @@ export default function OnboardingPage() {
                   <h3 className="text-sm font-bold text-slate-800">Upload guidelines</h3>
                   <ul className="mt-3 space-y-2.5">
                     {[
-                      { icon: '📄', text: 'PDF format only' },
+                      { icon: '📄', text: 'PDF, JPG or PNG' },
                       { icon: '⚖️', text: 'Maximum 5 MB per file' },
                       { icon: '✅', text: 'Documents must be clear & legible' },
                       { icon: '🔒', text: 'Shared only with DBL Group HR' },
@@ -631,7 +689,7 @@ export default function OnboardingPage() {
                   <p className="flex items-center gap-1.5 text-[0.6875rem] text-slate-400">
                     <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-slate-300" />
                     Your documents are stored securely and shared only with DBL Group HR.
-                    PDF only · max 5 MB each.
+                    PDF, JPG or PNG · max 5 MB each.
                   </p>
                 </div>
               </div>
@@ -668,7 +726,8 @@ export default function OnboardingPage() {
         </div>
       )}
 
-      {/* Hidden file input — PDF for documents, an image for the signature */}
+      {/* Hidden file input — PDF or a photo for documents; the signature is
+          an image, and is cropped before it is sent. */}
       <input
         ref={fileRef}
         type="file"
@@ -694,8 +753,8 @@ export default function OnboardingPage() {
             return;
           }
 
-          if (file.type !== 'application/pdf') {
-            toast.error('Only PDF files are accepted.');
+          if (!isJoiningDocType(file.type)) {
+            toast.error('Please upload a PDF, JPG or PNG file.');
             return;
           }
           if (file.size > MAX_PDF_BYTES) {
@@ -710,7 +769,7 @@ export default function OnboardingPage() {
       <input
         ref={signedOfferRef}
         type="file"
-        accept={ACCEPT}
+        accept={PDF_ONLY_ACCEPT}
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
