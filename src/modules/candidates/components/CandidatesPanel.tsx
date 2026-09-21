@@ -35,6 +35,10 @@ import {
   CardBody,
   CardHeader,
   CardTitle,
+  GlassToolbar,
+  GlassToolbarButton,
+  GlassToolbarDivider,
+  GlassToolbarPrimary,
   Input,
   Modal,
   Spinner,
@@ -257,10 +261,13 @@ export function CandidatesPanel({
     });
   };
 
+  const hasTalentMatches =
+    showTalentBankTab && (talentMatches?.length ?? 0) > 0;
+
   return (
     <Card>
-      <CardHeader className="flex flex-wrap items-center justify-between gap-3">
-        <CardTitle className="flex items-center gap-2">
+      <CardHeader className="flex-wrap">
+        <CardTitle className="flex shrink-0 items-center gap-2">
           <Users className="h-4 w-4 text-brand-600" />
           Candidate Pipeline
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
@@ -268,52 +275,56 @@ export function CandidatesPanel({
           </span>
         </CardTitle>
         {canManage && drive && (
-          // ml-auto + justify-end so the actions stay on the right in BOTH
-          // states. The header wraps once there are this many buttons, and a
-          // wrapped row would otherwise start at the far left — under the
-          // heading text, which begins after its icon, so it read as hanging
-          // out of alignment even though every edge lines up.
-          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              leftIcon={<ClipboardList className="h-4 w-4 text-slate-600" />}
+          // One glass bar, right-aligned beside the title — its own row on a
+          // phone. Labels drop to icons when they don't all fit (the tooltip
+          // keeps the name), so it never wraps into a ragged second line.
+          <GlassToolbar
+            label="Candidate pipeline actions"
+            className="w-full sm:w-auto sm:flex-1"
+            primary={
+              <GlassToolbarPrimary
+                icon={<Plus />}
+                compactLabel="Add"
+                onClick={() => setAddOpen(true)}
+              >
+                Add candidate
+              </GlassToolbarPrimary>
+            }
+          >
+            <GlassToolbarButton
+              icon={<ClipboardList />}
               onClick={() => setDelegationBoardOpen(true)}
               title="Who this requisition's candidates were sent to for a first interview, and what has happened since"
             >
               First interviews
-            </Button>
-            {showTalentBankTab && (talentMatches?.length ?? 0) > 0 && (
-              <Button
-                size="sm"
+            </GlassToolbarButton>
+            {(hasTalentMatches || aiOn) && <GlassToolbarDivider />}
+            {hasTalentMatches && (
+              <GlassToolbarButton
+                tone="magic"
+                icon={<Sparkles className="animate-spin-slow" />}
                 onClick={() => setTalentBankModalOpen(true)}
                 title="Candidates AI-matched from the Talent Bank for this role"
-                className="animate-gradient-pan bg-[length:200%_200%] bg-gradient-to-r from-brand-600 via-violet-600 to-brand-600 text-white shadow-sm shadow-violet-500/30 hover:brightness-110"
-                leftIcon={<Sparkles className="h-4 w-4 animate-spin-slow" />}
               >
-                Talent Bank ({talentMatches?.length})
-              </Button>
+                {`Talent Bank (${talentMatches?.length ?? 0})`}
+              </GlassToolbarButton>
             )}
             {aiOn && finalistCount >= 2 && (
-              <Button
-                size="sm"
-                variant="outline"
-                leftIcon={<Scale className="h-4 w-4 text-indigo-600" />}
+              <GlassToolbarButton
+                icon={<Scale className="text-indigo-600" />}
                 onClick={() => compare.mutate(undefined, { onSuccess: setComparison })}
                 disabled={compare.isPending}
                 title="AI side-by-side comparison of interview/final/selected candidates"
               >
                 {compare.isPending ? 'Comparing…' : 'AI Compare'}
-              </Button>
+              </GlassToolbarButton>
             )}
             {aiOn && (
-              <Button
-                size="sm"
-                variant="outline"
-                leftIcon={
+              <GlassToolbarButton
+                icon={
                   <Sparkles
                     className={cn(
-                      'h-4 w-4 text-violet-600',
+                      'text-violet-600',
                       (screenAll.isPending || screeningActive) && 'animate-pulse',
                     )}
                   />
@@ -323,60 +334,49 @@ export function CandidatesPanel({
                 title="AI-screen CVs that have no match score yet — including Bdjobs applications, which arrive as data rather than a file"
               >
                 {screeningActive ? 'Screening…' : 'AI Screen'}
-              </Button>
+              </GlassToolbarButton>
             )}
-            {canManage && aiOn && (stats?.unscreened ?? 0) === 0 && (meta?.total ?? 0) > 0 && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-rose-300 text-rose-600 hover:bg-rose-50"
-                leftIcon={<AlertTriangle className="h-4 w-4" />}
+            {aiOn && (stats?.unscreened ?? 0) === 0 && (meta?.total ?? 0) > 0 && (
+              <GlassToolbarButton
+                tone="danger"
+                icon={<AlertTriangle />}
                 onClick={() => setBulkRejectOpen(true)}
                 title="Reject all candidates below an AI match score"
               >
                 Bulk Reject
-              </Button>
+              </GlassToolbarButton>
             )}
-            <Button
-              size="sm"
-              variant="outline"
-              leftIcon={
-                <RefreshCw className={cn('h-4 w-4', sync.isPending && 'animate-spin')} />
-              }
+            <GlassToolbarDivider />
+            <GlassToolbarButton
+              icon={<RefreshCw className={cn(sync.isPending && 'animate-spin')} />}
               onClick={() => sync.mutate()}
               disabled={sync.isPending}
+              title="Pick up CVs added to the Drive folder directly"
             >
               Sync
-            </Button>
+            </GlassToolbarButton>
             {(stats?.total ?? 0) > 0 && (
-              <Button
-                size="sm"
-                variant="outline"
-                leftIcon={<Download className="h-4 w-4" />}
+              <GlassToolbarButton
+                icon={<Download />}
                 onClick={() => exportCsv.mutate(filters)}
                 disabled={exportCsv.isPending}
                 title="Export current view to CSV (opens in Excel)"
               >
                 {exportCsv.isPending ? 'Exporting…' : 'Export'}
-              </Button>
+              </GlassToolbarButton>
             )}
-            <Button
-              size="sm"
-              variant="outline"
+            <GlassToolbarDivider />
+            <GlassToolbarButton
+              tone={bdJobsLive ? 'success' : 'bdjobs'}
               onClick={() => setBdJobsOpen(true)}
-              className={cn(
-                bdJobsLive
-                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                  : 'border-[#e8753c] text-[#e8753c] hover:bg-orange-50',
-              )}
-              leftIcon={
+              icon={
                 bdJobsLive ? (
                   <span className="relative flex h-2 w-2" aria-hidden>
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                     <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
                   </span>
                 ) : (
-                  <Megaphone className="h-4 w-4" />
+                  <Megaphone />
                 )
               }
               title={
@@ -390,15 +390,8 @@ export function CandidatesPanel({
               }
             >
               {bdJobsLive ? 'Live in BDJobs' : 'Post to BDJobs'}
-            </Button>
-            <Button
-              size="sm"
-              leftIcon={<Plus className="h-4 w-4" />}
-              onClick={() => setAddOpen(true)}
-            >
-              Add candidate
-            </Button>
-          </div>
+            </GlassToolbarButton>
+          </GlassToolbar>
         )}
       </CardHeader>
 

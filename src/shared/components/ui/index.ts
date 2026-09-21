@@ -57,3 +57,13 @@ export type { PaginationProps } from './Pagination';
 
 export { Logo } from './Logo';
 export type { LogoProps } from './Logo';
+
+export {
+  GlassToolbar,
+  GlassToolbarButton,
+  GlassToolbarDivider,
+  GlassToolbarPrimary,
+  glassGlow,
+  glassPill,
+  glassSurface,
+} from './GlassToolbar';

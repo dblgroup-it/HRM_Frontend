@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -11,7 +11,6 @@ import {
   Rocket,
   Users,
 } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
 
 import { useMyPermissions } from '@modules/rbac';
 import { useAuthStore } from '@modules/auth';
@@ -53,6 +52,11 @@ import {
   PRIORITY_LABEL,
   PRIORITY_TONE,
 } from '../constants';
+import {
+  LifecycleTabs,
+  type LifecycleTab,
+} from '../components/LifecycleTabs';
+import { defaultRequisitionTab, type RequisitionTabKey } from '../defaultTab';
 
 export default function RequisitionDetailPage() {
   const { id = '' } = useParams();
@@ -77,35 +81,6 @@ export default function RequisitionDetailPage() {
     'idle' | 'working' | 'done' | 'failed'
   >('idle');
   const setupWorkspace = useSetupWorkspace(id);
-
-  // Sliding pill indicator behind the active tab — measured from the DOM via
-  // a data-active flag, so this hook never needs to know which tab that is
-  // (keeps it safe to sit above the loading/error guards below).
-  const tabBarRef = useRef<HTMLDivElement>(null);
-  const [indicator, setIndicator] = useState<{ left: number; width: number }>({
-    left: 0,
-    width: 0,
-  });
-
-  useEffect(() => {
-    const measure = () => {
-      const el =
-        tabBarRef.current?.querySelector<HTMLElement>('[data-active="true"]');
-      if (!el) return;
-      // Guard against redundant updates — this runs with no dependency array
-      // (it needs to re-measure after any render, since the active tab is
-      // read from the DOM rather than passed in), so without this check a
-      // fresh object every render would re-trigger the effect forever.
-      setIndicator((prev) =>
-        prev.left === el.offsetLeft && prev.width === el.offsetWidth
-          ? prev
-          : { left: el.offsetLeft, width: el.offsetWidth },
-      );
-    };
-    measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  });
 
   // Keep tab in sync when URL ?tab= changes (e.g. link from a modal on the same page)
   useEffect(() => {
@@ -344,35 +319,54 @@ export default function RequisitionDetailPage() {
   ];
 
   // Lifecycle-ordered tabs (only the ones that apply to this requisition).
-  const tabs: { key: TabKey; label: string; icon: LucideIcon }[] = [
+  const stats = req.candidateStats;
+  const tabs: LifecycleTab<TabKey>[] = [
     { key: 'details', label: 'Details', icon: ClipboardList },
     { key: 'approvals', label: 'Approvals', icon: GitBranch },
     ...(showProfile
       ? [{ key: 'posting' as const, label: 'Profile & Posting', icon: Rocket }]
       : []),
     ...(showCandidates
-      ? [{ key: 'recruitment' as const, label: 'Recruitment', icon: Users }]
+      ? [
+          {
+            key: 'recruitment' as const,
+            label: 'Recruitment',
+            icon: Users,
+            count: stats?.total,
+          },
+        ]
       : []),
     ...(showCandidates && canCorporateHrContinue
       ? [{ key: 'assessment' as const, label: 'Assessment', icon: ListChecks }]
       : []),
     ...(showCandidates && canCorporateHrContinue
-      ? [{ key: 'interviews' as const, label: 'Interviews', icon: MessageSquare }]
+      ? [
+          {
+            key: 'interviews' as const,
+            label: 'Interviews',
+            icon: MessageSquare,
+            count: (stats?.interview ?? 0) + (stats?.final ?? 0),
+          },
+        ]
       : []),
     ...(showCandidates && canCorporateHrContinue
-      ? [{ key: 'onboarding' as const, label: 'Onboarding', icon: ClipboardCheck }]
+      ? [
+          {
+            key: 'onboarding' as const,
+            label: 'Onboarding',
+            icon: ClipboardCheck,
+            count: stats?.selected,
+          },
+        ]
       : []),
   ];
-  const defaultTab: TabKey =
-    req.status === 'posted'
-      ? showCandidates && req.drive  // wait for Drive to be ready before switching
-        ? 'recruitment'
-        : 'posting'
-      : req.status === 'approved' || req.status === 'profile_generated'
-        ? 'posting'
-        : req.status === 'draft'
-          ? 'details'
-          : 'approvals';
+  // Posted requisitions open where the hiring is — see defaultTab.ts.
+  const defaultTab = defaultRequisitionTab({
+    status: req.status,
+    driveReady: Boolean(req.drive),
+    stats,
+    available: tabs.map((t) => t.key),
+  });
   const activeTab: TabKey =
     tab && tabs.some((t) => t.key === tab) ? tab : defaultTab;
 
@@ -471,38 +465,7 @@ export default function RequisitionDetailPage() {
       </div>
 
       {/* Lifecycle tabs */}
-      <div
-        ref={tabBarRef}
-        className="relative flex flex-wrap gap-1 rounded-2xl border border-slate-200/70 bg-slate-50/70 p-1.5 animate-rise-in"
-        style={{ animationDelay: '110ms', animationFillMode: 'backwards' }}
-      >
-        <span
-          className="absolute inset-y-1.5 z-0 rounded-xl bg-white shadow-sm transition-all duration-300 ease-out"
-          style={{ left: indicator.left, width: indicator.width }}
-          aria-hidden
-        />
-        {tabs.map((t) => {
-          const active = activeTab === t.key;
-          const Icon = t.icon;
-          return (
-            <button
-              key={t.key}
-              type="button"
-              data-active={active}
-              onClick={() => setTab(t.key)}
-              className={cn(
-                'relative z-10 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors duration-200',
-                active
-                  ? 'text-brand-700'
-                  : 'text-slate-500 hover:text-slate-800',
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
+      <LifecycleTabs tabs={tabs} active={activeTab} onChange={setTab} />
 
       {/* Tab content */}
       <div key={activeTab} className="animate-fade-in">
@@ -609,14 +572,7 @@ export default function RequisitionDetailPage() {
   );
 }
 
-type TabKey =
-  | 'details'
-  | 'approvals'
-  | 'posting'
-  | 'recruitment'
-  | 'interviews'
-  | 'assessment'
-  | 'onboarding';
+type TabKey = RequisitionTabKey;
 
 interface Row {
   label: string;
