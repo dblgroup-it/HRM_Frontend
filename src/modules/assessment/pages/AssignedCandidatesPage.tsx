@@ -16,6 +16,7 @@ import {
   Search,
   Trophy,
   Users,
+  UserX,
   Video,
   BadgeDollarSign,
 } from 'lucide-react';
@@ -36,6 +37,7 @@ import { formatDate } from '@shared/utils';
 import {
   useFirstInterviewOutcome,
   useMyDelegatedCandidates,
+  useUpdateInterview,
 } from '../hooks/useAssessment';
 import { BulkInterviewModal } from '../components/BulkInterviewModal';
 import { CandidateInterviewsModal } from '../components/CandidateInterviewsModal';
@@ -135,12 +137,37 @@ const ORDER: Col[] = ['to_schedule', 'scheduled', 'decision_due', 'done'];
 const COLUMN_LIMIT = 12;
 
 
+type Round = DelegatedCandidate['rounds'][number];
+
+/**
+ * The first round that stands, and — when there is none — the no-show that
+ * sent the candidate back for a new date.
+ *
+ * Rounds arrive oldest first, so a session rebooked after an absence is the
+ * last live one. A cancelled or absent round never counts as arranged: the
+ * candidate needs a date again, which is what "To schedule" means.
+ */
+function firstRoundOf(row: DelegatedCandidate): {
+  current: Round | null;
+  noShow: Round | null;
+} {
+  const firsts = row.rounds.filter((r) => r.kind === 'first');
+  const live = firsts.filter(
+    (r) => r.status !== 'cancelled' && r.status !== 'absent',
+  );
+  const current = live[live.length - 1] ?? null;
+  const noShow = current
+    ? null
+    : ([...firsts].reverse().find((r) => r.status === 'absent') ?? null);
+  return { current, noShow };
+}
+
 function columnOf(row: DelegatedCandidate): Col {
   const s = row.candidate.stage;
   if (s === 'final' || s === 'rejected') return 'done';
-  const first = row.rounds.find((r) => r.kind === 'first');
-  if (!first) return 'to_schedule';
-  return first.status === 'completed' ? 'decision_due' : 'scheduled';
+  const { current } = firstRoundOf(row);
+  if (!current) return 'to_schedule';
+  return current.status === 'completed' ? 'decision_due' : 'scheduled';
 }
 
 /** One vacancy's candidates inside a stage. */
@@ -235,7 +262,7 @@ const urgency = (iso: string | null) => {
 };
 
 /** Where the session happens, in as few words as the card can afford. */
-function venueOf(round: DelegatedCandidate['rounds'][number]) {
+function venueOf(round: Round) {
   if (round.online || round.mode === 'online')
     return { icon: Video, text: round.location || 'Online' };
   return round.location ? { icon: MapPin, text: round.location } : null;
@@ -305,8 +332,8 @@ export default function AssignedCandidatesPage() {
     };
     filtered.forEach((r) => b[columnOf(r)].push(r));
     const byDate = (a: DelegatedCandidate, z: DelegatedCandidate) => {
-      const at = a.rounds.find((r) => r.kind === 'first')?.scheduledAt ?? '';
-      const zt = z.rounds.find((r) => r.kind === 'first')?.scheduledAt ?? '';
+      const at = firstRoundOf(a).current?.scheduledAt ?? '';
+      const zt = firstRoundOf(z).current?.scheduledAt ?? '';
       return at.localeCompare(zt);
     };
     // Oldest assignment first where nothing is booked — that is the backlog.
@@ -631,6 +658,7 @@ export default function AssignedCandidatesPage() {
             presentSalary: packageFor.candidate.presentSalary,
             salaryExpectation: packageFor.candidate.salaryExpectation,
             salaryBenefitsNote: packageFor.candidate.salaryBenefitsNote,
+            salaryBenefits: packageFor.candidate.salaryBenefits,
           }}
           onClose={() => setPackageFor(null)}
         />
@@ -787,10 +815,12 @@ function BoardCard({
   onEnterPackage: () => void;
 }) {
   const outcome = useFirstInterviewOutcome();
+  // Silent: the card says "marked absent" itself, with an undo.
+  const updateRound = useUpdateInterview(row.candidate.id, true);
   const [verdict, setVerdict] = useState<'final' | 'rejected' | null>(null);
   const [note, setNote] = useState('');
 
-  const first = row.rounds.find((r) => r.kind === 'first');
+  const { current: first, noShow } = firstRoundOf(row);
   const soon = urgency(first?.scheduledAt ?? null);
   const age = waiting(row.createdAt);
   const venue = first ? venueOf(first) : null;
@@ -803,7 +833,41 @@ function BoardCard({
   const marksIn = row.tests.length > 0 && unmarked.length === 0;
   const packageIn =
     row.candidate.presentSalary != null ||
-    row.candidate.salaryExpectation != null;
+    row.candidate.salaryExpectation != null ||
+    row.candidate.salaryBenefits.length > 0;
+
+  const firstName = row.candidate.name.split(' ')[0];
+
+  /**
+   * One click, because the interviewer is standing in an empty room — and an
+   * undo on the toast, because the card leaves this tab the moment it lands.
+   */
+  const markAbsent = (round: Round) =>
+    updateRound.mutate(
+      { roundId: round.id, status: 'absent' },
+      {
+        onSuccess: () =>
+          toast.success(`${firstName} marked absent`, {
+            description: 'Back under To schedule — re-arrange or reject from there.',
+            action: {
+              label: 'Undo',
+              onClick: () =>
+                updateRound.mutate({ roundId: round.id, status: 'scheduled' }),
+            },
+          }),
+      },
+    );
+
+  /** Straight to the rejection, with the reason already written. */
+  const rejectNoShow = (round: Round) => {
+    setVerdict('rejected');
+    setNote(
+      `Did not attend the first interview${
+        round.scheduledAt ? ` on ${formatDate(round.scheduledAt)}` : ''
+      }.`,
+    );
+    onOpenDecision();
+  };
 
   return (
     <article
@@ -912,7 +976,19 @@ function BoardCard({
                 <Users className="h-2.5 w-2.5" />+{row.alsoAssignedTo.length}
               </span>
             )}
-            {col === 'to_schedule' && (
+            {col === 'to_schedule' && noShow && (
+              <span
+                className="inline-flex items-center gap-1 rounded bg-rose-50 px-1.5 py-0.5 font-semibold text-rose-700 ring-1 ring-rose-200"
+                title="Did not turn up to the first interview"
+              >
+                <UserX className="h-3 w-3 shrink-0" />
+                <span className="truncate">
+                  Absent
+                  {noShow.scheduledAt && ` · ${formatDate(noShow.scheduledAt)}`}
+                </span>
+              </span>
+            )}
+            {col === 'to_schedule' && !noShow && (
               <span
                 className={cn(
                   'truncate',
@@ -1020,9 +1096,34 @@ function BoardCard({
 
             {/* The step itself. Solid where the board is waiting on you,
                 outlined where the work is already in hand. */}
+            {/* A no-show is either given another date or let go; both are
+                offered, since neither is the obvious default. */}
+            {col === 'to_schedule' && noShow && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 border-rose-200 px-2.5 text-xs text-rose-600 hover:border-rose-300 hover:bg-rose-50"
+                onClick={() => rejectNoShow(noShow)}
+              >
+                <Ban className="mr-1 h-3.5 w-3.5" /> Reject
+              </Button>
+            )}
             {col === 'to_schedule' && (
               <Button size="sm" className="h-7 px-2.5 text-xs" onClick={onSchedule}>
-                <CalendarDays className="mr-1 h-3.5 w-3.5" /> Arrange
+                <CalendarDays className="mr-1 h-3.5 w-3.5" />
+                {noShow ? 'Re-arrange' : 'Arrange'}
+              </Button>
+            )}
+            {col === 'scheduled' && first?.status === 'scheduled' && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 border-rose-200 px-2.5 text-xs text-rose-600 hover:border-rose-300 hover:bg-rose-50"
+                isLoading={updateRound.isPending}
+                onClick={() => markAbsent(first)}
+                title={`${firstName} did not turn up`}
+              >
+                <UserX className="mr-1 h-3.5 w-3.5" /> Absent
               </Button>
             )}
             {col === 'scheduled' && (
@@ -1174,9 +1275,12 @@ function BoardCard({
                   size="sm"
                   variant="ghost"
                   className="h-8 px-2.5 text-xs"
-                  onClick={() => setVerdict(null)}
+                  // A no-show came straight here from Reject; "back" to a
+                  // yes/no about the final stage would offer to advance
+                  // someone nobody interviewed.
+                  onClick={() => (noShow ? onCloseDecision() : setVerdict(null))}
                 >
-                  Back
+                  {noShow ? 'Cancel' : 'Back'}
                 </Button>
                 <Button
                   size="sm"

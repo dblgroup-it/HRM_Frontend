@@ -206,6 +206,7 @@ export const assessmentApi = {
       presentSalary?: number | null;
       salaryExpectation?: number | null;
       salaryBenefitsNote?: string | null;
+      salaryBenefits?: string[];
     },
   ): Promise<{ id: string }> =>
     http

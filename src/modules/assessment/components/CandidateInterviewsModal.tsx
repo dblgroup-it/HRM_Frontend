@@ -20,6 +20,7 @@ import {
   Video,
   X,
   UserPlus,
+  UserX,
 } from 'lucide-react';
 
 import {
@@ -676,7 +677,11 @@ function RoundRow({
       {/* Round header bar */}
       <div className={cn(
         'flex items-center justify-between gap-2 px-3 py-2',
-        round.status === 'completed' ? 'bg-emerald-50/70' : 'bg-slate-50/60',
+        round.status === 'completed'
+          ? 'bg-emerald-50/70'
+          : round.status === 'absent'
+            ? 'bg-rose-50/60'
+            : 'bg-slate-50/60',
       )}>
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-xs font-semibold capitalize text-slate-800">
@@ -687,12 +692,35 @@ function RoundRow({
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
           {round.status === 'scheduled' && (
+            <>
+              <button type="button"
+                onClick={() => update.mutate({ roundId: round.id, status: 'completed' })}
+                disabled={update.isPending}
+                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Mark as complete
+              </button>
+              {/* The candidate did not turn up. Same rule as the HR panel:
+                  gone once anyone has marked them, since a mark means they
+                  were in the room (the server refuses too). */}
+              {round.evaluations.length === 0 && (
+                <button type="button"
+                  onClick={() => update.mutate({ roundId: round.id, status: 'absent' })}
+                  disabled={update.isPending}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-medium text-rose-600 transition hover:bg-rose-50 disabled:opacity-50">
+                  <UserX className="h-3.5 w-3.5" />
+                  Absent
+                </button>
+              )}
+            </>
+          )}
+          {round.status === 'absent' && (
             <button type="button"
-              onClick={() => update.mutate({ roundId: round.id, status: 'completed' })}
+              onClick={() => update.mutate({ roundId: round.id, status: 'scheduled' })}
               disabled={update.isPending}
-              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Mark as complete
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-medium text-slate-500 transition hover:bg-slate-100 disabled:opacity-50">
+              <RotateCcw className="h-3.5 w-3.5" />
+              Undo absent
             </button>
           )}
           <button type="button" title="Remove" onClick={onRemove}
@@ -759,8 +787,9 @@ function RoundRow({
                   )}
                 </span>
 
-                {/* Action buttons — only for pending panelists */}
-                {!p.hasMarked && (
+                {/* Action buttons — only for pending panelists, and not on a
+                    no-show: there is nothing for them to mark. */}
+                {!p.hasMarked && round.status !== 'absent' && (
                   <div className="ml-auto flex items-center gap-1.5">
                     {p.evalLink && (
                       <button
@@ -797,7 +826,7 @@ function RoundRow({
         {/* A third interviewer walking into a session already arranged is
             ordinary. Appends only — the people already on the panel keep
             their link and their marks, and only the newcomer is told. */}
-        {round.status !== 'cancelled' && (
+        {round.status !== 'cancelled' && round.status !== 'absent' && (
           <AddPanelistRow
             roundId={round.id}
             candidateId={candidateId}

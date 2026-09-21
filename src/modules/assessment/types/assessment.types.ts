@@ -221,6 +221,8 @@ export interface DelegatedCandidate {
     presentSalary: number | null;
     salaryExpectation: number | null;
     salaryBenefitsNote: string | null;
+    /** Ticked benefit keys — see components/benefits.ts. */
+    salaryBenefits: string[];
   };
   rounds: {
     id: string;

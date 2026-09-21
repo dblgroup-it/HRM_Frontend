@@ -7,6 +7,7 @@ import { cn } from '@shared/lib';
 import { formatCurrency } from '@shared/utils';
 
 import { useSetCandidatePackage } from '../hooks/useAssessment';
+import { BENEFIT_OPPOSITE, BENEFIT_OPTIONS, type BenefitKey } from './benefits';
 
 /**
  * What the candidate earns now and what they are asking for.
@@ -33,6 +34,7 @@ export function CandidatePackageModal({
     presentSalary?: number | null;
     salaryExpectation?: number | null;
     salaryBenefitsNote?: string | null;
+    salaryBenefits?: string[];
   };
   open: boolean;
   onClose: () => void;
@@ -41,6 +43,11 @@ export function CandidatePackageModal({
   const [present, setPresent] = useState('');
   const [expected, setExpected] = useState('');
   const [benefits, setBenefits] = useState('');
+  const [ticked, setTicked] = useState<string[]>([]);
+
+  // By value: a background refetch hands over a fresh array with the same
+  // keys, and reseeding on that would wipe ticks nobody has saved yet.
+  const savedTicks = (candidate.salaryBenefits ?? []).join(',');
 
   // Reseed each time it opens: the modal is mounted once per candidate row
   // and reused, so stale values from the last person would otherwise show.
@@ -49,12 +56,23 @@ export function CandidatePackageModal({
     setPresent(candidate.presentSalary?.toString() ?? '');
     setExpected(candidate.salaryExpectation?.toString() ?? '');
     setBenefits(candidate.salaryBenefitsNote ?? '');
+    setTicked(savedTicks ? savedTicks.split(',') : []);
   }, [
     open,
     candidate.presentSalary,
     candidate.salaryExpectation,
     candidate.salaryBenefitsNote,
+    savedTicks,
   ]);
+
+  // Lunch is full or partial, pick and drop free or paid — ticking one side
+  // of a pair clears the other rather than letting the save be refused.
+  const toggle = (key: BenefitKey) =>
+    setTicked((prev) => {
+      if (prev.includes(key)) return prev.filter((k) => k !== key);
+      const opposite = BENEFIT_OPPOSITE[key];
+      return [...prev.filter((k) => k !== opposite), key];
+    });
 
   const num = (v: string) => (v.trim() === '' ? null : Number(v));
 
@@ -88,6 +106,7 @@ export function CandidatePackageModal({
                   presentSalary: num(present),
                   salaryExpectation: num(expected),
                   salaryBenefitsNote: benefits.trim() || null,
+                  salaryBenefits: ticked,
                 },
                 { onSuccess: onClose },
               )
@@ -147,23 +166,50 @@ export function CandidatePackageModal({
         </div>
       )}
 
-      <label className="mt-4 block">
-        <span className="mb-1.5 flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-500">
+      <fieldset className="mt-4">
+        <legend className="mb-1.5 flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-500">
           <Gift className="h-3.5 w-3.5" />
           Other benefits they receive now
-        </span>
+        </legend>
+        {/* The common ones as ticks, so Corporate HR reads the same eight
+            words for every candidate instead of eight ways of saying
+            "lunch". Anything else still goes in the note underneath. */}
+        <div className="grid gap-1.5 sm:grid-cols-2">
+          {BENEFIT_OPTIONS.map((o) => {
+            const on = ticked.includes(o.key);
+            return (
+              <label
+                key={o.key}
+                className={cn(
+                  'flex cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-2 text-xs font-medium transition-colors',
+                  on
+                    ? 'border-brand-200 bg-brand-50/60 text-slate-800'
+                    : 'border-slate-200 text-slate-600 hover:bg-slate-50',
+                )}
+              >
+                <input
+                  type="checkbox"
+                  checked={on}
+                  onChange={() => toggle(o.key)}
+                  className="h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                />
+                {o.label}
+              </label>
+            );
+          })}
+        </div>
         <textarea
-          rows={3}
+          rows={2}
           value={benefits}
           onChange={(e) => setBenefits(e.target.value)}
-          placeholder="Transport, accommodation, festival bonuses, mobile bill — whatever they mentioned."
-          className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm transition-colors placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          aria-label="Other benefits — anything not in the list"
+          placeholder="Anything else — festival bonuses, mobile bill, car…"
+          className="mt-2 w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm transition-colors placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
         />
         <span className="mt-1 block text-[0.6875rem] text-slate-400">
-          Free text on purpose — it is what they told you, not a claim we have
-          checked.
+          What they told you, not a claim we have checked.
         </span>
-      </label>
+      </fieldset>
 
       <p className="mt-4 flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-[0.6875rem] leading-relaxed text-slate-500">
         <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />

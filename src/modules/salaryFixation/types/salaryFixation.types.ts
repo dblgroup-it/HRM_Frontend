@@ -67,6 +67,8 @@ export interface SalaryFixation {
   presentSalary: number | null;
   /** Allowances and perks they said their current package includes. */
   salaryBenefitsNote: string | null;
+  /** The same, as ticked keys (lunch, pick and drop, housing, tax). */
+  salaryBenefits: string[];
   /** What the candidate actually asked for — separate from what we're
    * proposing, so both sides of the negotiation are visible together.
    * Optional; updated as it comes up in interviews. */

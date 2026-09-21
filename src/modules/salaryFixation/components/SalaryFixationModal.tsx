@@ -7,6 +7,8 @@ import { Badge, Button, Select } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import { formatCurrency, formatDate } from '@shared/utils';
 import { useUpdateCandidate } from '@modules/candidates';
+// The file, not the barrel: assessment already imports salaryFixation.
+import { benefitLabels } from '@modules/assessment/components/benefits';
 
 import { BANDS, GRADES, JOB_GRADES, bandSalary, evaluateScreeningTest, gradeLabel } from '../constants';
 import {
@@ -336,11 +338,28 @@ export function SalaryFixationModal({
                 <p className="text-[0.6875rem] font-semibold uppercase text-slate-400">
                   Current Benefits
                 </p>
-                <p className="mt-0.5 text-xs leading-relaxed text-slate-600">
-                  {data.salaryBenefitsNote || (
-                    <span className="text-slate-300">Nothing recorded</span>
-                  )}
-                </p>
+                {benefitLabels(data.salaryBenefits).length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {benefitLabels(data.salaryBenefits).map((label) => (
+                      <span
+                        key={label}
+                        className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-[0.6875rem] font-medium text-emerald-700 ring-1 ring-emerald-200"
+                      >
+                        <Check className="h-3 w-3" />
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {data.salaryBenefitsNote ? (
+                  <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                    {data.salaryBenefitsNote}
+                  </p>
+                ) : (
+                  benefitLabels(data.salaryBenefits).length === 0 && (
+                    <p className="mt-0.5 text-xs text-slate-300">Nothing recorded</p>
+                  )
+                )}
               </div>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
