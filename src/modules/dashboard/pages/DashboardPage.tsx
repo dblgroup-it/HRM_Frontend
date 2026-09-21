@@ -15,6 +15,7 @@ import { DepartmentBreakdown } from '../components/DepartmentBreakdown';
 import { RecentHires } from '../components/RecentHires';
 import { OrganogramSnapshot } from '../components/OrganogramSnapshot';
 import { RequisitionQueue } from '../components/RequisitionQueue';
+import { AssignedRequisitions } from '../components/AssignedRequisitions';
 
 export default function DashboardPage() {
   const { data, isLoading, isError } = useDashboard();
@@ -44,6 +45,11 @@ export default function DashboardPage() {
               {/* Medical work first for whoever owns it — the queue they are
                   responsible for, above the general feed. Everything else on
                   the dashboard stays exactly as it is for everyone. */}
+              {/* Whoever has candidates to interview sees them first — it
+                  is the only thing on this page that is theirs to do, and it
+                  was one nav click away behind a page most of them learned
+                  about from an email. Renders nothing when they have none. */}
+              <AssignedRequisitions />
               {examines && <MedicalExamCard />}
               {approves && <MedicalApprovalCard enabled={approves} />}
               <RequisitionQueue requisitions={data.requisitions} />

@@ -10,6 +10,13 @@ export type SalaryFixationStatus = 'draft' | 'screening_failed' | 'fixed';
 export interface CommitteeScore {
   evaluatorId: string;
   evaluatorName: string;
+  /**
+   * Which session this mark came from.
+   *
+   * One evaluator can appear more than once — sitting on both the first and
+   * the final round is normal — so this, not evaluatorId, identifies a row.
+   */
+  roundId: string;
   roundKind: string;
   total: number;
   max: number;
@@ -53,6 +60,13 @@ export interface SalaryFixation {
   proposedSalary: number | null;
   /** HR's manual figure — takes precedence over the auto-computed proposedSalary when set. */
   proposedSalaryOverride: number | null;
+  /**
+   * What the candidate is on today — the floor any offer has to clear.
+   * Taken in the interview room, usually by factory HR on the first round.
+   */
+  presentSalary: number | null;
+  /** Allowances and perks they said their current package includes. */
+  salaryBenefitsNote: string | null;
   /** What the candidate actually asked for — separate from what we're
    * proposing, so both sides of the negotiation are visible together.
    * Optional; updated as it comes up in interviews. */

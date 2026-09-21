@@ -129,7 +129,7 @@ export const NAVIGATION: NavSection[] = [
         icon: ClipboardCheck,
       },
       {
-        label: 'Assigned to Me',
+        label: 'Assigned Candidates',
         to: ROUTES.assignedCandidates,
         icon: UserCheck,
         requiresDelegations: true,

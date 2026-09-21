@@ -19,6 +19,7 @@ import {
   Trash2,
   Video,
   X,
+  UserPlus,
 } from 'lucide-react';
 
 import {
@@ -43,6 +44,7 @@ import {
   useResendEvalToken,
   useScheduleInterview,
   useUpdateInterview,
+  useAddPanelists,
 } from '../hooks/useAssessment';
 import type {
   InterviewKindKey,
@@ -645,6 +647,9 @@ const STATUS_TONE = {
   scheduled: 'warning',
   completed: 'success',
   cancelled: 'neutral',
+  // Red, not grey: a no-show is a fact about the candidate that somebody has
+  // to act on, where a cancellation is just the session not happening.
+  absent: 'danger',
 } as const;
 
 function RoundRow({
@@ -788,6 +793,17 @@ function RoundRow({
             ))}
           </div>
         )}
+
+        {/* A third interviewer walking into a session already arranged is
+            ordinary. Appends only — the people already on the panel keep
+            their link and their marks, and only the newcomer is told. */}
+        {round.status !== 'cancelled' && (
+          <AddPanelistRow
+            roundId={round.id}
+            candidateId={candidateId}
+            existingUserIds={round.panelists.map((p) => p.userId)}
+          />
+        )}
       </div>
 
       {/* Evaluations */}
@@ -816,6 +832,89 @@ function RoundRow({
               {maxTotal > 0 && <span className="text-slate-400"> / {maxTotal}</span>}
             </span>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Add an interviewer to a round that already exists.
+ *
+ * Not the panel editor, which replaces the list wholesale and re-notifies
+ * everyone on it — including people who have already marked.
+ */
+function AddPanelistRow({
+  roundId,
+  candidateId,
+  existingUserIds,
+}: {
+  roundId: string;
+  candidateId: string;
+  existingUserIds: string[];
+}) {
+  const [q, setQ] = useState('');
+  const [open, setOpen] = useState(false);
+  const debounced = useDebounce(q, 300);
+  const { data } = useEmployees({ search: debounced, page: 1, pageSize: 6 });
+  const addPanelists = useAddPanelists(candidateId);
+
+  const results = (data?.items ?? []).filter(
+    (e) => e.userId && !existingUserIds.includes(e.userId),
+  );
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-2 inline-flex items-center gap-1 rounded-full border border-dashed border-slate-300 px-2.5 py-1 text-[0.625rem] font-semibold text-slate-500 transition hover:border-brand-300 hover:text-brand-600"
+      >
+        <UserPlus className="h-3 w-3" /> Add interviewer
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-2">
+      <input
+        autoFocus
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        onBlur={() => {
+          if (!q) setOpen(false);
+        }}
+        placeholder="Search a name to add…"
+        className="w-full rounded-lg border border-brand-200 px-2.5 py-1.5 text-[0.6875rem] text-slate-700 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none"
+      />
+      {debounced.length > 0 && results.length > 0 && (
+        <div className="mt-1 max-h-44 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+          {results.map((e) => (
+            <button
+              key={e.id}
+              type="button"
+              onClick={() => {
+                if (e.userId) {
+                  addPanelists.mutate({
+                    roundId,
+                    panelistUserIds: [e.userId],
+                  });
+                }
+                setQ('');
+                setOpen(false);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-slate-50"
+            >
+              <span className="min-w-0">
+                <span className="block truncate font-medium text-slate-800">
+                  {e.name}
+                </span>
+                <span className="block truncate text-[0.625rem] text-slate-400">
+                  {[e.jobTitle, e.department].filter(Boolean).join(' · ')}
+                </span>
+              </span>
+            </button>
+          ))}
         </div>
       )}
     </div>

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -16,6 +16,10 @@ import {
   Sparkles,
   UploadCloud,
   X,
+  Plus,
+  ChevronDown,
+  Paperclip,
+  ScanFace,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -26,7 +30,11 @@ import { cn } from '@shared/lib';
 import { SignatureCropper } from '@modules/settings';
 
 import { onboardingApi } from '../api/onboarding.api';
-import type { DocStatus } from '../types/onboarding.types';
+import type {
+  DocStatus,
+  JoiningDocSpec,
+  NidParticulars,
+} from '../types/onboarding.types';
 
 /**
  * What a joining document may be.
@@ -51,16 +59,14 @@ const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
  * DBL's and will be edited, and an index would silently point at the wrong
  * row the first time somebody reorders it.
  */
-const isSignatureDoc = (label: string) => /^signature/i.test(label.trim());
-
 /**
- * The checklist row an inline signature upload files under.
+ * The checklist slot an inline signature upload files under.
  *
- * Deliberately the same row the documents list shows, so a signature added
+ * Deliberately the same slot the documents list shows, so a signature added
  * from the offer box turns up there too — one signature, one place, whichever
  * screen they happened to be on when they gave it.
  */
-const SIGNATURE_LABEL = 'Signature';
+const SIGNATURE_KEY = 'signature';
 
 const DOC_STATUS_META: Record<DocStatus, { label: string; cls: string; dot: string }> = {
   pending: {
@@ -104,7 +110,29 @@ export default function OnboardingPage() {
   const [params] = useSearchParams();
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [activeLabel, setActiveLabel] = useState<string | null>(null);
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  /** Names typed into the repeatable slots, before the file is chosen. */
+  const [slotNames, setSlotNames] = useState<Record<string, string>>({});
+  /**
+   * Which repeatable slot has its add-form open.
+   *
+   * The form is not on screen until asked for: a permanently visible empty
+   * name box read as a stray field the candidate had to puzzle out, and it
+   * sat there just as prominently for somebody holding no certificates.
+   */
+  const [adding, setAdding] = useState<string | null>(null);
+  /**
+   * Which section is expanded.
+   *
+   * One at a time. Twenty-four rows laid out flat is a page nobody scrolls
+   * to the bottom of — and a candidate works through this over several
+   * sittings, fetching one folder of papers at a time, so the whole list
+   * open at once is not what they need anyway. Seven bands they can see in
+   * one screen, with the one they are working on open, is.
+   */
+  const [openSection, setOpenSection] = useState<string | null>(null);
+  /** Set once from the data: the first section still missing something. */
+  const openSeeded = useRef(false);
   // The offer mail's second link lands here with the form already open.
   const [declining, setDeclining] = useState(params.get('action') === 'decline');
   const [declineReason, setDeclineReason] = useState('');
@@ -116,14 +144,65 @@ export default function OnboardingPage() {
     retry: false,
   });
 
+  // Seed the NID fields once, from whatever the server already holds. Guarded
+  // so a refetch mid-typing does not overwrite what is being typed.
+  useEffect(() => {
+    if (nidLoaded.current || !data) return;
+    nidLoaded.current = true;
+    setNid(data.nid);
+  }, [data]);
+
+  // Open the first section that still owes something, once. Guarded so an
+  // upload does not slam the section shut and jump them somewhere else.
+  useEffect(() => {
+    if (openSeeded.current || !data) return;
+    openSeeded.current = true;
+    const firstIncomplete = data.docSections.find((sec) =>
+      data.docCatalogue.some(
+        (slot) =>
+          slot.section === sec.key &&
+          slot.required &&
+          !data.submitted.some(
+            (sub) => sub.docKey === slot.key && sub.status !== 'rejected',
+          ),
+      ),
+    );
+    setOpenSection(firstIncomplete?.key ?? data.docSections[0]?.key ?? null);
+  }, [data]);
+
   const upload = useMutation({
-    mutationFn: (vars: { label: string; file: File }) =>
-      onboardingApi.publicUpload(token, vars.label, vars.file),
-    onSuccess: () => {
+    mutationFn: (vars: { docKey: string; file: File; label?: string }) =>
+      onboardingApi.publicUpload(token, vars.docKey, vars.file, vars.label),
+    onSuccess: (_r, vars) => {
       qc.invalidateQueries({ queryKey: ['public-onboarding', token] });
+      // Clear the name so the next certificate starts from an empty field
+      // rather than being added under the previous one's name.
+      setSlotNames((n) => ({ ...n, [vars.docKey]: '' }));
+      setAdding(null);
       toast.success('Document uploaded successfully');
     },
     onError: (e) => toast.error(msg(e, 'Upload failed — please try again')),
+  });
+
+  /**
+   * The NID particulars, held locally and saved on blur.
+   *
+   * Saved per field as they leave it rather than behind a Save button: this
+   * page is filled in over several sittings, often on a phone, and a form
+   * that loses four typed fields to a closed tab is one people do not
+   * finish.
+   */
+  const [nid, setNid] = useState<NidParticulars>({
+    name: '',
+    address: '',
+    dateOfBirth: '',
+    number: '',
+  });
+  const nidLoaded = useRef(false);
+  const saveNid = useMutation({
+    mutationFn: (patch: Partial<NidParticulars>) =>
+      onboardingApi.publicSaveNid(token, patch),
+    onError: (e) => toast.error(msg(e, 'Could not save that — please retry')),
   });
 
   const accept = useMutation({
@@ -207,10 +286,17 @@ export default function OnboardingPage() {
     );
   }
 
-  // Derived
-  const totalDocs = data.requiredDocs.length;
-  const uploadedDocs = data.requiredDocs.filter((label) =>
-    data.submitted.some((s) => s.label === label),
+  /** The slot the file picker is open for, so its rules can be applied. */
+  const activeSpec = data.docCatalogue.find((d) => d.key === activeKey) ?? null;
+
+  // Derived. Counted on the catalogue key, not the label — the label of a
+  // repeatable slot is whatever the candidate typed.
+  const requiredSlots = data.docCatalogue.filter((d) => d.required);
+  const totalDocs = requiredSlots.length;
+  const uploadedDocs = requiredSlots.filter((slot) =>
+    data.submitted.some(
+      (sub) => sub.docKey === slot.key && sub.status !== 'rejected',
+    ),
   ).length;
   const allUploaded = totalDocs > 0 && uploadedDocs === totalDocs;
   const progressPct = totalDocs > 0 ? Math.round((uploadedDocs / totalDocs) * 100) : 0;
@@ -222,76 +308,257 @@ export default function OnboardingPage() {
    * looking like different things — the only difference between them is
    * whether being absent holds anything up.
    */
-  const renderDocRow = (label: string, i: number) => {
-                    const submitted = data.submitted.filter((s) => s.label === label);
-                    const latest = submitted[submitted.length - 1];
-                    const isUploading = upload.isPending && activeLabel === label;
+  /**
+   * One checklist slot.
+   *
+   * Matched on the catalogue key, so a slot keeps its uploads when its
+   * wording changes — and so a repeatable slot can hold several rows, each
+   * named by the candidate ("PMP", "Six Sigma Green Belt").
+   */
+  const renderSlot = (slot: JoiningDocSpec, i: number) => {
+    const filed = data.submitted.filter((sub) => sub.docKey === slot.key);
+    const latest = filed[filed.length - 1];
+    const isUploading = upload.isPending && activeKey === slot.key;
+    const repeatable = Boolean(slot.repeatable);
 
-                    return (
-                      <div
-                        key={label}
-                        className="flex flex-wrap items-center gap-3 px-5 py-4 sm:flex-nowrap animate-fade-in"
-                        style={{ animationDelay: `${i * 50}ms` }}
-                      >
-                        {/* Icon */}
-                        <div className={cn(
-                          'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
-                          latest?.status === 'verified' ? 'bg-emerald-100' : 'bg-slate-100'
-                        )}>
-                          {latest?.status === 'verified' ? (
-                            <FileCheck2 className="h-5 w-5 text-emerald-600" />
-                          ) : (
-                            <FileText className="h-5 w-5 text-slate-400" />
-                          )}
-                        </div>
+    return (
+      <div
+        key={slot.key}
+        className={cn(
+          'group relative px-5 py-4 animate-card-in transition-colors',
+          filed.length ? 'hover:bg-emerald-50/30' : 'hover:bg-slate-50/70',
+        )}
+        style={{ animationDelay: `${i * 40}ms` }}
+      >
+        {/* A thread of colour down the left once the row is satisfied, so
+            progress is legible while scrolling past at speed. */}
+        <span
+          aria-hidden
+          className={cn(
+            'absolute inset-y-0 left-0 w-0.5 origin-top transition-transform duration-300',
+            filed.length ? 'scale-y-100 bg-emerald-400' : 'scale-y-0 bg-transparent',
+          )}
+        />
+        <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
+          <div className={cn(
+            'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all duration-300',
+            filed.length
+              ? 'bg-emerald-100 ring-2 ring-emerald-200/60'
+              : 'bg-slate-100 group-hover:bg-brand-50',
+          )}>
+            {filed.length ? (
+              <FileCheck2 className="h-5 w-5 text-emerald-600 animate-card-in" />
+            ) : (
+              <FileText className="h-5 w-5 text-slate-400 transition-colors group-hover:text-brand-500" />
+            )}
+          </div>
 
-                        {/* Name + badge */}
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-slate-800">{label}</p>
-                          {/* The detail that used to be crammed into the
-                              label itself, where it made every row a
-                              sentence and the list unreadable. */}
-                          {data.docHints?.[label] && (
-                            <p className="mt-0.5 text-xs text-slate-400">
-                              {data.docHints[label]}
-                            </p>
-                          )}
-                          {latest && (
-                            <span className={cn(
-                              'mt-0.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[0.625rem] font-semibold',
-                              DOC_STATUS_META[latest.status].cls
-                            )}>
-                              <span className={cn('h-1.5 w-1.5 rounded-full', DOC_STATUS_META[latest.status].dot)} />
-                              {DOC_STATUS_META[latest.status].label}
-                            </span>
-                          )}
-                        </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-800">
+              {slot.label}
+              {!slot.required && (
+                <span className="ml-1.5 text-[0.625rem] font-medium uppercase tracking-wide text-slate-400">
+                  optional
+                </span>
+              )}
+            </p>
+            <p className="mt-0.5 text-xs text-slate-400">{slot.hint}</p>
 
-                        {/* Upload button */}
-                        <button
-                          type="button"
-                          disabled={isUploading}
-                          onClick={() => {
-                            setActiveLabel(label);
-                            fileRef.current?.click();
-                          }}
-                          className={cn(
-                            'flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition active:scale-95',
-                            latest
-                              ? 'border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600'
-                              : 'border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100',
-                            isUploading && 'opacity-60 cursor-not-allowed'
-                          )}
-                        >
-                          {isUploading ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <UploadCloud className="h-3.5 w-3.5" />
-                          )}
-                          {isUploading ? 'Uploading…' : latest ? 'Replace' : 'Upload'}
-                        </button>
-                      </div>
-                    );
+            {/* Every copy filed against this slot. A fixed slot has one and
+                the newest wins; a repeatable one lists them all, because
+                each is a different certificate. */}
+            {!repeatable && latest && (
+              <div className="mt-1.5">
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[0.625rem] font-semibold',
+                    DOC_STATUS_META[latest.status].cls,
+                  )}
+                >
+                  <span className={cn('h-1.5 w-1.5 rounded-full', DOC_STATUS_META[latest.status].dot)} />
+                  {DOC_STATUS_META[latest.status].label}
+                </span>
+              </div>
+            )}
+
+            {/* The lab prints have to reach HR on paper too — saying so here
+                is the only place the candidate would ever learn it. */}
+            {/* Said up front, not discovered by having an upload bounce. */}
+            {slot.verifyPortrait && filed.length === 0 && (
+              <p className="mt-1.5 inline-flex items-center gap-1 text-[0.6875rem] text-slate-400">
+                <ScanFace className="h-3 w-3 shrink-0" />
+                We check this is a photo of a face before accepting it.
+              </p>
+            )}
+            {slot.hardCopy && (
+              <p className={cn(
+                'mt-1.5 inline-flex items-center gap-1 text-[0.6875rem]',
+                data.photosHardCopyAt ? 'text-emerald-600' : 'text-amber-600',
+              )}>
+                <ShieldCheck className="h-3 w-3 shrink-0" />
+                {data.photosHardCopyAt
+                  ? 'Hard copies received by HR'
+                  : 'Also hand the printed set to HR'}
+              </p>
+            )}
+
+          </div>
+
+          {/* A repeatable slot has no single button — each certificate is its
+              own row underneath, added from the form below them. */}
+          {!repeatable && (
+            <button
+              type="button"
+              disabled={isUploading}
+              onClick={() => {
+                setActiveKey(slot.key);
+                fileRef.current?.click();
+              }}
+              className={cn(
+                'mt-0.5 flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold',
+                'transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm active:scale-95 active:translate-y-0',
+                filed.length
+                  ? 'border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-600'
+                  : 'border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100',
+                'disabled:cursor-not-allowed disabled:opacity-50',
+              )}
+            >
+              {isUploading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <UploadCloud className="h-3.5 w-3.5" />
+              )}
+              {isUploading ? 'Uploading…' : filed.length ? 'Replace' : 'Upload'}
+            </button>
+          )}
+        </div>
+
+        {/* ── A repeatable slot: one row per certificate, then the adder ──
+            The old shape was a permanent empty text box with an "Add" button
+            beside it, which read as a stray field the candidate had to work
+            out, and the ones already sent were squeezed into little chips.
+            Each certificate is a real row now, and adding one is a deliberate
+            two-field step that is not on screen until it is wanted. */}
+        {repeatable && (
+          <div className="mt-3 space-y-2 pl-12">
+            {filed.map((sub) => (
+              <div
+                key={sub.id}
+                className="flex animate-card-in items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2"
+              >
+                <FileCheck2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                <span className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-700">
+                  {sub.label}
+                </span>
+                <span
+                  className={cn(
+                    'shrink-0 rounded-full border px-2 py-0.5 text-[0.625rem] font-semibold',
+                    DOC_STATUS_META[sub.status].cls,
+                  )}
+                >
+                  {DOC_STATUS_META[sub.status].label}
+                </span>
+              </div>
+            ))}
+
+            {adding === slot.key ? (
+              <div className="animate-card-in rounded-xl border border-brand-200 bg-brand-50/50 p-3">
+                <label className="block">
+                  <span className="mb-1 block text-[0.625rem] font-semibold uppercase tracking-wide text-brand-800">
+                    What is it called?
+                  </span>
+                  <input
+                    autoFocus
+                    value={slotNames[slot.key] ?? ''}
+                    onChange={(e) =>
+                      setSlotNames((n) => ({ ...n, [slot.key]: e.target.value }))
+                    }
+                    placeholder="e.g. PMP — Project Management Professional"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none"
+                  />
+                </label>
+                <div className="mt-2.5 flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={isUploading || !(slotNames[slot.key] ?? '').trim()}
+                    onClick={() => {
+                      setActiveKey(slot.key);
+                      fileRef.current?.click();
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-brand-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isUploading ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Paperclip className="h-3.5 w-3.5" />
+                    )}
+                    {isUploading ? 'Uploading…' : 'Attach the file'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAdding(null);
+                      setSlotNames((n) => ({ ...n, [slot.key]: '' }));
+                    }}
+                    className="rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-500 transition-colors hover:text-slate-700"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAdding(slot.key)}
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 py-2.5 text-xs font-semibold text-slate-500 transition-all hover:border-brand-400 hover:bg-brand-50/50 hover:text-brand-600"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {filed.length
+                  ? 'Add another'
+                  : `Add a ${slot.label.toLowerCase().replace(/s$/, '')}`}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* The four particulars, typed. They print on the appointment letter
+            and go onto payroll, so an OCR read of the scan is not enough. */}
+        {slot.particulars === 'nid' && (
+          <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+            <p className="text-[0.6875rem] font-semibold text-slate-600">
+              Type these exactly as printed on your NID
+            </p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <NidField
+                label="Name as per NID"
+                value={nid.name}
+                onChange={(v) => setNid((n) => ({ ...n, name: v }))}
+                onCommit={() => saveNid.mutate({ name: nid.name })}
+              />
+              <NidField
+                label="NID number"
+                value={nid.number}
+                onChange={(v) => setNid((n) => ({ ...n, number: v }))}
+                onCommit={() => saveNid.mutate({ number: nid.number })}
+              />
+              <NidField
+                label="Date of birth"
+                type="date"
+                value={nid.dateOfBirth}
+                onChange={(v) => setNid((n) => ({ ...n, dateOfBirth: v }))}
+                onCommit={() => saveNid.mutate({ dateOfBirth: nid.dateOfBirth })}
+              />
+              <NidField
+                label="Address"
+                value={nid.address}
+                onChange={(v) => setNid((n) => ({ ...n, address: v }))}
+                onCommit={() => saveNid.mutate({ address: nid.address })}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   // ── Main ──
@@ -344,11 +611,25 @@ export default function OnboardingPage() {
                 <span className="font-bold text-white">{uploadedDocs} / {totalDocs}</span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-white/20">
+                {/* Shimmers while there is still something to send, and
+                    settles the moment the list is complete — the bar is the
+                    one thing on this page the candidate watches. */}
                 <div
-                  className="h-full rounded-full bg-accent-400 transition-all duration-700"
+                  className={cn(
+                    'h-full rounded-full bg-accent-400 transition-[width] duration-700 ease-out',
+                    progressPct > 0 &&
+                      progressPct < 100 &&
+                      'bg-[linear-gradient(90deg,#8cc63f_0%,#b6e06a_50%,#8cc63f_100%)] bg-[length:200%_100%] animate-shimmer',
+                  )}
                   style={{ width: `${progressPct}%` }}
                 />
               </div>
+              {progressPct === 100 && (
+                <p className="mt-2 flex animate-card-in items-center gap-1.5 text-xs font-semibold text-accent-300">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Everything required is in — thank you.
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -590,7 +871,7 @@ export default function OnboardingPage() {
                                 type="button"
                                 disabled={upload.isPending}
                                 onClick={() => {
-                                  setActiveLabel(SIGNATURE_LABEL);
+                                  setActiveKey(SIGNATURE_KEY);
                                   fileRef.current?.click();
                                 }}
                                 className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-brand-300 bg-white px-2.5 py-1.5 text-[0.6875rem] font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-60"
@@ -652,37 +933,141 @@ export default function OnboardingPage() {
             <div className="order-1 lg:order-2 lg:col-span-3">
               <div className="rounded-2xl border border-slate-200 bg-white shadow-sm animate-rise-in" style={{ animationDelay: '80ms' }}>
                 <div className="border-b border-slate-100 px-6 py-5">
-                  <h2 className="text-base font-bold text-slate-900">Required documents</h2>
+                  <h2 className="text-base font-bold text-slate-900">Your documents</h2>
                   <p className="mt-0.5 text-xs text-slate-400">
-                    Upload each document below. Click Upload on the right of each item.
+                    Upload each one below. Anything marked optional can be left
+                    out if you do not have it.
                   </p>
                 </div>
 
-                <div className="divide-y divide-slate-100">
-                  {data.requiredDocs.map(renderDocRow)}
-                </div>
-
-                {/* Optional documents.
-                    Kept visually separate and clearly labelled: they are
-                    uploaded and verified exactly like the rest, but a
-                    candidate who has none is not incomplete — a fresh graduate
-                    has no pay slip, and a checklist that can never reach 100%
-                    is one people stop trusting. */}
-                {(data.optionalDocs?.length ?? 0) > 0 && (
-                  <>
-                    <div className="border-t border-slate-100 bg-slate-50/60 px-5 py-2.5">
-                      <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-500">
-                        If available
-                      </p>
-                      <p className="mt-0.5 text-xs text-slate-400">
-                        Not required — upload these only if you have them.
-                      </p>
+                {/* Grouped into sections rather than one long list.
+                    Twenty-odd rows flat is a wall nobody reads, and the
+                    sections are how the candidate actually gathers them —
+                    the academic ones come out of one folder, the employment
+                    ones out of another. */}
+                {data.docSections.map((section, si) => {
+                  const slots = data.docCatalogue.filter(
+                    (d) => d.section === section.key,
+                  );
+                  if (!slots.length) return null;
+                  // Documents, not slots. Counting slots said "1 added" for
+                  // two certificates, because both sit in the one repeatable
+                  // slot — and that count is only ever shown for sections
+                  // whose whole point is holding several.
+                  const filedHere = data.submitted.filter((sub) =>
+                    slots.some((slot) => slot.key === sub.docKey),
+                  ).length;
+                  // Counted on the REQUIRED slots only. Counting optional
+                  // ones as satisfied made an untouched section read "3/3",
+                  // which says finished when nothing has been sent. A
+                  // section with nothing required shows no counter at all —
+                  // there is no number that could be wrong.
+                  const required = slots.filter((d) => d.required);
+                  const done = required.filter((slot) =>
+                    data.submitted.some(
+                      (sub) =>
+                        sub.docKey === slot.key && sub.status !== 'rejected',
+                    ),
+                  ).length;
+                  const complete =
+                    required.length > 0 && done === required.length;
+                  const isOpen = openSection === section.key;
+                  const pct =
+                    required.length > 0
+                      ? Math.round((done / required.length) * 100)
+                      : filedHere > 0
+                        ? 100
+                        : 0;
+                  return (
+                    <div
+                      key={section.key}
+                      className="animate-card-in"
+                      style={{ animationDelay: `${si * 70}ms` }}
+                    >
+                      {/* The band is the control: it says where this section
+                          stands and opens it. One section at a time keeps the
+                          whole checklist inside a screen or two instead of a
+                          page nobody reaches the bottom of. */}
+                      <button
+                        type="button"
+                        aria-expanded={isOpen}
+                        onClick={() =>
+                          setOpenSection(isOpen ? null : section.key)
+                        }
+                        className={cn(
+                          'relative flex w-full items-center justify-between gap-3 border-t px-5 py-3 text-left transition-colors',
+                          complete
+                            ? 'border-emerald-100 bg-emerald-50/50 hover:bg-emerald-50'
+                            : 'border-slate-100 bg-slate-50/70 hover:bg-slate-100/70',
+                        )}
+                      >
+                        <span
+                          aria-hidden
+                          className={cn(
+                            'absolute inset-y-0 left-0 w-1 origin-top animate-rail-draw',
+                            complete ? 'bg-emerald-400' : 'bg-brand-400',
+                          )}
+                        />
+                        <div className="min-w-0">
+                          <p
+                            className={cn(
+                              'flex items-center gap-1.5 text-[0.6875rem] font-bold uppercase tracking-wide',
+                              complete ? 'text-emerald-700' : 'text-slate-600',
+                            )}
+                          >
+                            {complete && (
+                              <CheckCircle2 className="h-3.5 w-3.5 animate-card-in" />
+                            )}
+                            {section.label}
+                          </p>
+                          <p className="mt-0.5 text-xs text-slate-400">
+                            {section.blurb}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2.5">
+                          {required.length > 0 ? (
+                            <>
+                              <span
+                                className={cn(
+                                  'text-[0.625rem] font-bold tabular-nums',
+                                  complete ? 'text-emerald-600' : 'text-slate-400',
+                                )}
+                              >
+                                {done}/{required.length}
+                              </span>
+                              <span className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-200">
+                                <span
+                                  className={cn(
+                                    'block h-full rounded-full transition-[width] duration-500 ease-out',
+                                    complete ? 'bg-emerald-500' : 'bg-brand-500',
+                                  )}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </span>
+                            </>
+                          ) : (
+                            // Nothing required here, so a bar would always read
+                            // as complete. Say what has come in instead.
+                            <span className="text-[0.625rem] font-semibold text-slate-400">
+                              {filedHere > 0 ? `${filedHere} added` : 'optional'}
+                            </span>
+                          )}
+                          <ChevronDown
+                            className={cn(
+                              'h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200',
+                              isOpen && 'rotate-180',
+                            )}
+                          />
+                        </div>
+                      </button>
+                      {isOpen && (
+                        <div className="divide-y divide-slate-100">
+                          {slots.map(renderSlot)}
+                        </div>
+                      )}
                     </div>
-                    <div className="divide-y divide-slate-100">
-                      {data.optionalDocs!.map(renderDocRow)}
-                    </div>
-                  </>
-                )}
+                  );
+                })}
 
                 {/* Privacy notice */}
                 <div className="border-t border-slate-100 px-5 py-4">
@@ -719,7 +1104,7 @@ export default function OnboardingPage() {
               onCancel={() => setSignatureFile(null)}
               onCropped={(cropped) => {
                 setSignatureFile(null);
-                if (activeLabel) upload.mutate({ label: activeLabel, file: cropped });
+                if (activeKey) upload.mutate({ docKey: activeKey, file: cropped });
               }}
             />
           </div>
@@ -731,14 +1116,21 @@ export default function OnboardingPage() {
       <input
         ref={fileRef}
         type="file"
-        accept={activeLabel && isSignatureDoc(activeLabel) ? IMAGE_ACCEPT : ACCEPT}
+        accept={activeSpec?.imageOnly || activeKey === SIGNATURE_KEY ? IMAGE_ACCEPT : ACCEPT}
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
           e.target.value = '';
-          if (!file || !activeLabel) return;
+          if (!file || !activeKey) return;
 
-          if (isSignatureDoc(activeLabel)) {
+          // A slot that asks for a photograph takes only a photograph. The
+          // passport photos become the candidate's picture everywhere, and
+          // a PDF in an <img> is a broken icon.
+          if (activeSpec?.imageOnly && !/^image\/(png|jpe?g)$/.test(file.type)) {
+            toast.error(`${activeSpec.label} must be a JPG or PNG photograph.`);
+            return;
+          }
+          if (activeKey === SIGNATURE_KEY) {
             if (!/^image\/(png|jpe?g)$/.test(file.type)) {
               toast.error('Your signature must be a PNG or JPEG image.');
               return;
@@ -761,7 +1153,11 @@ export default function OnboardingPage() {
             toast.error('File must be under 5 MB.');
             return;
           }
-          upload.mutate({ label: activeLabel, file });
+          upload.mutate({
+            docKey: activeKey,
+            file,
+            label: slotNames[activeKey]?.trim() || undefined,
+          });
         }}
       />
 
@@ -795,5 +1191,41 @@ export default function OnboardingPage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+/**
+ * One NID particular.
+ *
+ * Saves when the field loses focus rather than on every keystroke — the
+ * candidate is often on a phone connection, and a request per character
+ * would both hammer the server and lose races between them.
+ */
+function NidField({
+  label,
+  value,
+  type = 'text',
+  onChange,
+  onCommit,
+}: {
+  label: string;
+  value: string;
+  type?: 'text' | 'date';
+  onChange: (v: string) => void;
+  onCommit: () => void;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[0.625rem] font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </span>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onCommit}
+        className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-brand-300 focus:outline-none"
+      />
+    </label>
   );
 }

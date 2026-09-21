@@ -20,6 +20,7 @@ import {
   UserCheck,
   X,
   Send,
+  AlertTriangle,
 } from 'lucide-react';
 
 import { Avatar, BusyOverlay } from '@shared/components/ui';
@@ -333,14 +334,27 @@ export function CandidateRow({
           pending={update.isPending}
           onChange={(next) => update.mutate({ id: candidate.id, input: { stage: next } })}
         />
-        {candidate.onboardingStatus === 'onboarded' && (
-          <span
-            title="Onboarding complete — hired and handed off to IT"
-            className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-1 text-[0.6875rem] font-semibold text-white shadow-sm shadow-emerald-600/25"
-          >
-            <Check className="h-3 w-3" strokeWidth={3} /> Completed
-          </span>
-        )}
+        {/* A green "Completed" beside a red "Rejected" is a contradiction
+            nobody can act on, and it happened: the onboarding record reached
+            `onboarded` and the stage was later set to rejected. The state is
+            still worth showing — it says a hire was unwound rather than never
+            made — but it is reported as that, not as a tick. */}
+        {candidate.onboardingStatus === 'onboarded' &&
+          (candidate.stage === 'rejected' ? (
+            <span
+              title="Onboarding had completed before this candidate was rejected — the hire was unwound."
+              className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[0.6875rem] font-semibold text-amber-700 ring-1 ring-amber-200"
+            >
+              <AlertTriangle className="h-3 w-3" /> Was onboarded
+            </span>
+          ) : (
+            <span
+              title="Onboarding complete — hired and handed off to IT"
+              className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-1 text-[0.6875rem] font-semibold text-white shadow-sm shadow-emerald-600/25"
+            >
+              <Check className="h-3 w-3" strokeWidth={3} /> Completed
+            </span>
+          ))}
       </div>
       </div>
 

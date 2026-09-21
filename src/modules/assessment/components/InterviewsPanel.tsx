@@ -28,6 +28,7 @@ import {
   Users,
   Video,
   X,
+  UserX,
 } from 'lucide-react';
 
 import {
@@ -60,7 +61,8 @@ import {
   useResendEvalToken,
   useScheduleInterview,
   useUpdateInterview,
-} from '../hooks/useAssessment';
+  useRejectAtInterview,
+  useAddPanelists,} from '../hooks/useAssessment';
 import type {
   InterviewKindKey,
   InterviewModeKey,
@@ -447,6 +449,9 @@ function InterviewWorkspace({
   const evalSummary = useGenerateEvaluationSummary();
   const [summaryText, setSummaryText] = useState<string | null>(null);
   const [salaryOpen, setSalaryOpen] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const rejectCandidate = useRejectAtInterview(candidate.id);
   const [selectOpen, setSelectOpen] = useState(false);
   const updateCandidate = useUpdateCandidate(reqId);
   // Offered once a second or final round is done — the rounds a hire is
@@ -567,16 +572,34 @@ function InterviewWorkspace({
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
                 <CheckCircle2 className="h-3.5 w-3.5" /> Selected
               </span>
+            ) : candidate.stage === 'rejected' ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700">
+                <UserX className="h-3.5 w-3.5" /> Rejected
+              </span>
             ) : (
-              decisionRound && (
+              <>
+                {/* Both halves of the decision sit together. Selecting was
+                    here already; turning somebody down meant leaving for the
+                    candidate list, so it tended to be left undone and the
+                    pipeline filled with people nobody had ruled out. */}
                 <Button
                   size="sm"
-                  leftIcon={<CheckCircle2 className="h-4 w-4" />}
-                  onClick={() => setSelectOpen(true)}
+                  variant="outline"
+                  leftIcon={<UserX className="h-4 w-4" />}
+                  onClick={() => setRejectOpen(true)}
                 >
-                  Mark as selected
+                  Reject
                 </Button>
-              )
+                {decisionRound && (
+                  <Button
+                    size="sm"
+                    leftIcon={<CheckCircle2 className="h-4 w-4" />}
+                    onClick={() => setSelectOpen(true)}
+                  >
+                    Mark as selected
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -588,6 +611,50 @@ function InterviewWorkspace({
         open={salaryOpen}
         onClose={() => setSalaryOpen(false)}
       />
+
+      {/* A reason is asked for, not required. It is the only thing anyone
+          reading this candidate later will have to go on — but a gate on it
+          would just produce "not suitable" over and over. */}
+      <Modal
+        open={rejectOpen}
+        onClose={() => setRejectOpen(false)}
+        size="sm"
+        title={`Reject ${candidate.name}`}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setRejectOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              isLoading={rejectCandidate.isPending}
+              leftIcon={<UserX className="h-4 w-4" />}
+              onClick={() =>
+                rejectCandidate.mutate(rejectReason.trim() || undefined, {
+                  onSuccess: () => {
+                    setRejectOpen(false);
+                    setRejectReason('');
+                  },
+                })
+              }
+            >
+              Reject candidate
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-slate-600">
+          Turn <span className="font-semibold">{candidate.name}</span> down at
+          the interview stage? They come off this requisition&rsquo;s pipeline.
+        </p>
+        <textarea
+          value={rejectReason}
+          onChange={(e) => setRejectReason(e.target.value)}
+          rows={3}
+          placeholder="Why — e.g. not enough hands-on experience with the line equipment."
+          className="mt-3 w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-100"
+        />
+      </Modal>
 
       {/* Confirmed rather than done on one click: selecting a candidate is what
           starts onboarding, and the button sits beside routine ones. */}
@@ -858,6 +925,9 @@ const STATUS_TONE = {
   scheduled: 'warning',
   completed: 'success',
   cancelled: 'neutral',
+  // Red, not grey: a no-show is a fact about the candidate that somebody has
+  // to act on, where a cancellation is just the session not happening.
+  absent: 'danger',
 } as const;
 
 function RoundCard({
@@ -894,11 +964,31 @@ function RoundCard({
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
           {round.status === 'scheduled' && (
+            <>
+              <button type="button"
+                onClick={() => update.mutate({ roundId: round.id, status: 'completed' })}
+                disabled={update.isPending}
+                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Mark done
+              </button>
+              {/* The candidate did not turn up. Recorded against the round
+                  rather than left as "scheduled" forever — the panel's time
+                  was spent, and the next person to look needs to know why
+                  there are no marks. */}
+              <button type="button"
+                onClick={() => update.mutate({ roundId: round.id, status: 'absent' })}
+                disabled={update.isPending}
+                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-medium text-rose-600 transition hover:bg-rose-50 disabled:opacity-50">
+                <UserX className="h-3.5 w-3.5" /> Absent
+              </button>
+            </>
+          )}
+          {round.status === 'absent' && (
             <button type="button"
-              onClick={() => update.mutate({ roundId: round.id, status: 'completed' })}
+              onClick={() => update.mutate({ roundId: round.id, status: 'scheduled' })}
               disabled={update.isPending}
-              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Mark done
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-medium text-slate-500 transition hover:bg-slate-100 disabled:opacity-50">
+              <RotateCcw className="h-3.5 w-3.5" /> Undo absent
             </button>
           )}
           <button type="button" title="Remove" onClick={onRemove}
@@ -984,6 +1074,18 @@ function RoundCard({
             ))}
           </div>
         )}
+
+        {/* Somebody joining a session that is already under way is normal —
+            a third interviewer walks in, or the panel is short. Appends
+            only: the people already listed keep their link and their marks,
+            and only the newcomer is told. */}
+        {round.status !== 'cancelled' && (
+          <AddPanelistInline
+            roundId={round.id}
+            candidateId={candidateId}
+            existingUserIds={round.panelists.map((p) => p.userId)}
+          />
+        )}
       </div>
 
       {/* Evaluations */}
@@ -1008,6 +1110,102 @@ function RoundCard({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Add an interviewer to a round that already exists.
+ *
+ * Deliberately not the panel editor: that one replaces the whole list, which
+ * re-mints everybody's link and re-notifies people who may already have
+ * marked. This appends one person, and the server tells only them.
+ */
+function AddPanelistInline({
+  roundId,
+  candidateId,
+  existingUserIds,
+}: {
+  roundId: string;
+  candidateId: string;
+  existingUserIds: string[];
+}) {
+  const [q, setQ] = useState('');
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  const { triggerRef, panelRef, panelStyle, ready } =
+    useAnchoredPanel<HTMLDivElement>(open, close);
+  const debounced = useDebounce(q, 300);
+  const { data } = useEmployees({ search: debounced, page: 1, pageSize: 6 });
+  const addPanelists = useAddPanelists(candidateId);
+
+  const results = (data?.items ?? []).filter(
+    (e) => e.userId && !existingUserIds.includes(e.userId),
+  );
+
+  return (
+    <div className="relative mt-2" ref={triggerRef}>
+      {open ? (
+        <input
+          autoFocus
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onBlur={() => {
+            if (!q) setOpen(false);
+          }}
+          placeholder="Search a name to add…"
+          className="w-full rounded-lg border border-brand-200 px-2.5 py-1.5 text-[0.6875rem] text-slate-700 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none"
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-300 px-2.5 py-1 text-[0.625rem] font-semibold text-slate-500 transition hover:border-brand-300 hover:text-brand-600"
+        >
+          <UserPlus className="h-3 w-3" /> Add interviewer
+        </button>
+      )}
+      {open &&
+        ready &&
+        debounced.length > 0 &&
+        results.length > 0 &&
+        createPortal(
+          <div
+            ref={panelRef}
+            data-portal-panel="true"
+            style={panelStyle}
+            className="z-50 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg"
+          >
+            {results.map((e) => (
+              <button
+                key={e.id}
+                type="button"
+                onClick={() => {
+                  if (e.userId) {
+                    addPanelists.mutate({
+                      roundId,
+                      panelistUserIds: [e.userId],
+                    });
+                  }
+                  setQ('');
+                  setOpen(false);
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50"
+              >
+                <Avatar name={e.name} size="sm" />
+                <span className="min-w-0">
+                  <span className="block truncate font-medium text-slate-800">
+                    {e.name}
+                  </span>
+                  <span className="block truncate text-xs text-slate-400">
+                    {[e.jobTitle, e.department].filter(Boolean).join(' · ')}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

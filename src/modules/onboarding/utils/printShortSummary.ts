@@ -3,7 +3,7 @@ import {
   FACILITY_META,
   FACILITY_OPTION_LABEL,
 } from '@modules/requisition/constants';
-import { formatCurrency } from '@shared/utils';
+import { formatCurrency, resolveMediaUrl } from '@shared/utils';
 
 import type { OnboardingCandidate, OnboardingResult } from '../types/onboarding.types';
 
@@ -103,10 +103,17 @@ function facilityRow(
   </li>`;
 }
 
-/** The logo, inlined so it is present the instant the print dialog opens. */
-async function logoDataUri(): Promise<string> {
+/**
+ * Any same-origin image, inlined as a data URI.
+ *
+ * Both the logo and the candidate's photograph go through this. A printed
+ * sheet cannot wait on a network fetch — Chrome will open the dialog with an
+ * empty box where the picture should be — and the photo's URL is a
+ * short-lived grant that would expire out of a saved PDF anyway.
+ */
+async function inlineImage(src: string): Promise<string> {
   try {
-    const res = await fetch(logoUrl);
+    const res = await fetch(src);
     const blob = await res.blob();
     return await new Promise<string>((resolve, reject) => {
       const fr = new FileReader();
@@ -115,7 +122,7 @@ async function logoDataUri(): Promise<string> {
       fr.readAsDataURL(blob);
     });
   } catch {
-    // A missing logo must not cost the sheet — it prints without the mark.
+    // A missing image must not cost the sheet — it prints without it.
     return '';
   }
 }
@@ -149,7 +156,11 @@ export async function printShortCandidateSummary(
   const win = window.open('', '_blank', 'width=900,height=1180');
   if (!win) return;
 
-  const logo = await logoDataUri();
+  // Both in parallel — neither is worth holding the dialog open for twice.
+  const [logo, photo] = await Promise.all([
+    inlineImage(logoUrl),
+    c.photoUrl ? inlineImage(resolveMediaUrl(c.photoUrl) ?? '') : Promise.resolve(''),
+  ]);
 
   // The level this person is actually hired at — a requisition raised at two
   // levels settles on one, and that is what belongs on their record.
@@ -218,7 +229,10 @@ export async function printShortCandidateSummary(
   }
   .av { width: 54px; height: 54px; border-radius: 13px; background: #1877c0; color: #fff;
         display: flex; align-items: center; justify-content: center; flex: 0 0 auto;
-        font-size: 20px; font-weight: 700; letter-spacing: .5px; }
+        font-size: 20px; font-weight: 700; letter-spacing: .5px; overflow: hidden; }
+  /* The passport photograph they uploaded, cropped to the same square as the
+     initials it replaces, so the header does not move when one is present. */
+  .av img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .id .nm { flex: 1 1 auto; min-width: 0; }
   .id .nm h1 { margin: 0; font-size: 23px; font-weight: 700; letter-spacing: -.3px; line-height: 1.2; }
   .id .nm p  { margin: 3px 0 0; font-size: 12.5px; color: #52667c; }
@@ -309,7 +323,11 @@ export async function printShortCandidateSummary(
   <div class="rule"></div>
 
   <div class="id">
-    <div class="av">${esc(initials) || '—'}</div>
+    <div class="av">${
+      photo
+        ? `<img src="${photo}" alt="">`
+        : esc(initials) || '&mdash;'
+    }</div>
     <div class="nm">
       <h1>${esc(c.name)}</h1>
       <p>${esc(designation)}${c.department ? ` · ${esc(c.department)}` : ''} · ${esc(c.unit)}</p>

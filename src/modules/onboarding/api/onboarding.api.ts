@@ -3,6 +3,7 @@ import type { ApiResponse } from '@shared/types';
 
 import type {
   LetterSignatories,
+  NidParticulars,
   MedicalExam,
   TimelineEvent,
   MedicalQueueItem,
@@ -333,13 +334,21 @@ export const onboardingApi = {
       .get<ApiResponse<PublicOnboarding>>(`/onboarding/public/${token}`)
       .then((r) => r.data),
 
+  /**
+   * A joining document, filed against its catalogue slot.
+   *
+   * `label` is sent only for the repeatable slots, where it is the name the
+   * candidate typed; a fixed slot always prints the catalogue's wording.
+   */
   publicUpload: (
     token: string,
-    label: string,
+    docKey: string,
     file: File,
+    label?: string,
   ): Promise<{ ok: boolean }> => {
     const fd = new FormData();
-    fd.append('label', label);
+    fd.append('docKey', docKey);
+    if (label) fd.append('label', label);
     fd.append('file', file);
     return http
       .post<ApiResponse<{ ok: boolean }>>(
@@ -364,6 +373,40 @@ export const onboardingApi = {
   /** The offer letter, to print and sign by hand. */
   publicOfferLetterPath: (token: string) =>
     `/api/onboarding/public/${token}/offer-letter.pdf`,
+
+  /** The four NID particulars, typed by the candidate beside the scan. */
+  publicSaveNid: (
+    token: string,
+    input: Partial<NidParticulars>,
+  ): Promise<NidParticulars> =>
+    http
+      .post<ApiResponse<NidParticulars>>(
+        `/onboarding/public/${token}/nid`,
+        input,
+      )
+      .then((r) => r.data),
+
+  /** HR ticks off that the physical photographs arrived. */
+  setPhotosHardCopy: (
+    candidateId: string,
+    received: boolean,
+  ): Promise<{ onboarding: OnboardingView }> =>
+    http
+      .patch<ApiResponse<{ onboarding: OnboardingView }>>(
+        `/candidates/${candidateId}/onboarding/photos-hard-copy`,
+        { received },
+      )
+      .then((r) => r.data),
+
+  /** Email the candidate whatever is still outstanding. */
+  chaseDocs: (
+    candidateId: string,
+  ): Promise<{ ok: boolean; outstanding: string[]; rejected: string[] }> =>
+    http
+      .post<ApiResponse<{ ok: boolean; outstanding: string[]; rejected: string[] }>>(
+        `/candidates/${candidateId}/onboarding/chase-docs`,
+      )
+      .then((r) => r.data),
 
   publicUploadSignedOffer: (
     token: string,

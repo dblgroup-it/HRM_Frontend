@@ -66,6 +66,7 @@ import { useFacilityProvisioning } from '../hooks/useFacilityProvisioning';
 import { onboardingKeys } from '../hooks/useOnboarding';
 import {
   useArchiveOnboarding,
+  useChaseDocs,
   useCrossCheck,
   useManualCrossCheck,
   useHrVerify,
@@ -87,6 +88,8 @@ import {
 } from '../hooks/useOnboarding';
 import type {
   CrossCheckSeverity,
+  DocSectionSpec,
+  JoiningDocSpec,
   OnboardingCandidate,
   CrossCheckVerdict,
   DocStatus,
@@ -381,6 +384,7 @@ export default function OnboardingManagePage() {
               <span className="absolute inset-0 animate-ping rounded-full bg-white/25 [animation-duration:2.5s]" />
               <Avatar
                 name={c.name}
+                src={c.photoUrl}
                 size="lg"
                 className="relative bg-white/20 text-white ring-2 ring-white/40"
               />
@@ -750,6 +754,14 @@ function Flow({
   const hrVerify = useHrVerify(candidateId);
   const sendCoc = useSendCoc(candidateId);
   const archive = useArchiveOnboarding(candidateId);
+  const chaseDocs = useChaseDocs(candidateId);
+  const { data: flowRefChecks } = useReferenceChecks(candidateId);
+  // Both are gates the server enforces at final verification, so the modal
+  // lists them among the reasons it is about to refuse.
+  const refCount = flowRefChecks?.items.length ?? 0;
+  const nidComplete = Boolean(
+    ob.nid.name && ob.nid.address && ob.nid.dateOfBirth && ob.nid.number,
+  );
   const notifyIt = useNotifyIt(candidateId);
   const skipDocs = useSkipDocs(candidateId);
   const skipVerification = useSkipVerification(candidateId);
@@ -947,16 +959,36 @@ function Flow({
                   link above.
                 </p>
               ) : (
-                <div className="space-y-2">
-                  {ob.docs.map((d) => (
-                    <DocRow
-                      key={d.id}
-                      candidateId={candidateId}
-                      doc={d}
-                      aiOn={aiOn}
-                      flag={docFlags.get(d.label)}
-                    />
-                  ))}
+                /* Grouped the way the candidate sent them. A flat list of
+                   twenty-odd rows gives no sense of whether the academic set
+                   is complete or the identity papers are missing — which is
+                   the question HR is actually asking when they open this. */
+                <div className="space-y-4">
+                  {groupDocsBySection(ob.docs, result.docSections, result.docCatalogue).map(
+                    (group) => (
+                      <div key={group.key}>
+                        <div className="mb-1.5 flex items-center justify-between gap-2">
+                          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-400">
+                            {group.label}
+                          </p>
+                          <span className="text-[0.625rem] font-semibold text-slate-400">
+                            {group.docs.length}
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          {group.docs.map((d) => (
+                            <DocRow
+                              key={d.id}
+                              candidateId={candidateId}
+                              doc={d}
+                              aiOn={aiOn}
+                              flag={docFlags.get(d.label)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ),
+                  )}
                 </div>
               )}
               {ob.docs.length > 0 && (
@@ -1940,6 +1972,22 @@ function Flow({
             <Button variant="outline" onClick={() => setVerifyConfirmOpen(false)}>
               Cancel
             </Button>
+            {/* The moment HR finds the file is short is the moment to chase
+                it. Until now that meant leaving for a mail client and
+                writing the list out by hand, so it mostly did not happen
+                and the hire sat still. The list is the server's own. */}
+            {!docsSettled && (
+              <Button
+                variant="outline"
+                isLoading={chaseDocs.isPending}
+                disabled={noEmail}
+                title={noEmail ? emailHint : undefined}
+                leftIcon={<Send className="h-4 w-4" />}
+                onClick={() => chaseDocs.mutate()}
+              >
+                Notify candidate
+              </Button>
+            )}
             <Button
               isLoading={hrVerify.isPending}
               disabled={!docsSettled}
@@ -1976,6 +2024,30 @@ function Flow({
                     : ob.missingDocs.length > 0
                       ? `${ob.missingDocs.length} not collected`
                       : `${ob.pendingDocs.length} not verified`
+              }
+            />
+            {/* The server refuses without one, so it belongs on the list of
+                reasons the button is about to say no. */}
+            <SummaryRow
+              label="Reference checks"
+              ok={refCount > 0 || Boolean(ob.docsSkippedAt)}
+              detail={
+                ob.docsSkippedAt
+                  ? 'Checked manually on hand'
+                  : refCount > 0
+                    ? `${refCount} recorded`
+                    : 'None recorded'
+              }
+            />
+            <SummaryRow
+              label="NID details"
+              ok={nidComplete || Boolean(ob.docsSkippedAt)}
+              detail={
+                ob.docsSkippedAt
+                  ? 'Checked manually on hand'
+                  : nidComplete
+                    ? 'All four supplied'
+                    : 'Incomplete'
               }
             />
             <SummaryRow
@@ -2673,4 +2745,29 @@ function PlacementReadRow({
       </dd>
     </div>
   );
+}
+
+/**
+ * Documents grouped into the checklist sections they belong to.
+ *
+ * Section order follows the catalogue, so HR reads them in the same order
+ * the candidate was asked for them. Anything with no key — filed before the
+ * catalogue existed, or restored from an old backup — lands in "Other" at
+ * the end rather than disappearing.
+ */
+function groupDocsBySection(
+  docs: OnboardingDoc[],
+  sections: DocSectionSpec[],
+  catalogue: JoiningDocSpec[],
+): { key: string; label: string; docs: OnboardingDoc[] }[] {
+  const sectionOf = new Map(catalogue.map((d) => [d.key, d.section]));
+  const out = sections.map((sec) => ({
+    key: sec.key as string,
+    label: sec.label,
+    docs: docs.filter((d) => d.docKey && sectionOf.get(d.docKey) === sec.key),
+  }));
+  const placed = new Set(out.flatMap((g) => g.docs.map((d) => d.id)));
+  const rest = docs.filter((d) => !placed.has(d.id));
+  if (rest.length) out.push({ key: 'other', label: 'Other documents', docs: rest });
+  return out.filter((g) => g.docs.length > 0);
 }

@@ -1,3 +1,53 @@
+
+/** Where a checklist item sits on the page. */
+export type DocSection =
+  | 'photographs'
+  | 'academic'
+  | 'professional'
+  | 'experience'
+  | 'identity'
+  | 'financial'
+  | 'signature';
+
+/**
+ * One slot on DBL's joining-document checklist.
+ *
+ * `key` is what a filed document is matched on and never changes; `label` is
+ * what people read and may be reworded freely. Matching used to be on the
+ * label, so rewording an item orphaned everything already collected.
+ */
+export interface JoiningDocSpec {
+  key: string;
+  label: string;
+  hint: string;
+  section: DocSection;
+  required: boolean;
+  /** The candidate may add as many as they hold, naming each. */
+  repeatable?: boolean;
+  /** A paper copy is expected as well as the upload. */
+  hardCopy?: boolean;
+  /** Structured particulars are typed alongside the scan. */
+  particulars?: 'nid';
+  /** Only a photograph will do — no PDF. */
+  imageOnly?: boolean;
+  /** Checked by the vision model before it is accepted. */
+  verifyPortrait?: boolean;
+}
+
+export interface DocSectionSpec {
+  key: DocSection;
+  label: string;
+  blurb: string;
+}
+
+/** The candidate's particulars exactly as printed on their NID. */
+export interface NidParticulars {
+  name: string;
+  address: string;
+  dateOfBirth: string;
+  number: string;
+}
+
 import type { Facilities } from '@modules/requisition/types/requisition.types';
 
 export type DocStatus = 'pending' | 'verified' | 'rejected';
@@ -5,6 +55,8 @@ export type MedicalStatus = 'pending' | 'submitted' | 'cleared' | 'rejected';
 
 export interface OnboardingDoc {
   id: string;
+  /** Which checklist slot this fills; null for anything filed off-catalogue. */
+  docKey: string | null;
   label: string;
   url: string;
   mimeType: string;
@@ -115,6 +167,10 @@ export interface OnboardingView {
   medicalClearedByName: string | null;
   /** HR signed off this hire's facility entitlements — what unlocks medical. */
   facilitiesReviewedAt: string | null;
+  /** HR ticked off that the physical photographs arrived. */
+  photosHardCopyAt: string | null;
+  /** The candidate's NID particulars, typed beside the scan. */
+  nid: NidParticulars;
   facilitiesReviewedByName: string | null;
   hrVerifiedAt: string | null;
   crossCheck: CrossCheckResult | null;
@@ -136,6 +192,13 @@ export interface OnboardingCandidate {
   phone: string;
   stage: string;
   source: string;
+  /**
+   * The candidate's face, from the passport photographs they uploaded.
+   *
+   * Null until they send one, or when what they sent was a PDF scan rather
+   * than an image. Callers fall back to initials.
+   */
+  photoUrl: string | null;
   /** The DBL employee ID the recruiter assigned, once they have. */
   employeeId: string | null;
   matchScore: number | null;
@@ -183,14 +246,9 @@ export interface OnboardingResult {
   /** A browser is available to render letters as PDFs. */
   pdfReady: boolean;
   itWebhook: boolean;
-  requiredDocs: string[];
-  /**
-   * Uploaded like the rest, but absent never blocks anything — progress and
-   * the "all collected" gate count only the required list.
-   */
-  optionalDocs?: string[];
-  /** The line of guidance shown under each checklist label. */
-  docHints?: Record<string, string>;
+  /** The whole checklist, in order, with its sections. */
+  docCatalogue: JoiningDocSpec[];
+  docSections: DocSectionSpec[];
   candidate: OnboardingCandidate;
   onboarding: OnboardingView | null;
 }
@@ -265,14 +323,8 @@ export interface PublicOnboarding {
   designation: string;
   unit: string;
   status: string;
-  requiredDocs: string[];
-  /**
-   * Uploaded like the rest, but absent never blocks anything — progress and
-   * the "all collected" gate count only the required list.
-   */
-  optionalDocs?: string[];
-  /** The line of guidance shown under each checklist label. */
-  docHints?: Record<string, string>;
+  docCatalogue: JoiningDocSpec[];
+  docSections: DocSectionSpec[];
   offerSentAt: string | null;
   offerAcceptedAt: string | null;
   offerDeclinedAt: string | null;
@@ -285,7 +337,15 @@ export interface PublicOnboarding {
   offerSignedAt: boolean;
   /** Their signature is among their documents — the forms sign with it. */
   signatureOnFile: boolean;
-  submitted: { id: string; label: string; status: DocStatus }[];
+  /** HR has the lab prints in hand — not something the candidate asserts. */
+  photosHardCopyAt: string | null;
+  nid: NidParticulars;
+  submitted: {
+    id: string;
+    docKey: string | null;
+    label: string;
+    status: DocStatus;
+  }[];
 }
 
 /** The terms printed on an offer letter. */

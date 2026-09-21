@@ -176,9 +176,71 @@ export function useUpdateInterview(candidateId: string, silent = false) {
       // The delegate's board reads this too — without it a card stays put
       // after being moved.
       void qc.invalidateQueries({ queryKey: delegationKeys.mine });
-      if (!silent) toast.success('Interview marked as completed');
+      if (!silent) toast.success('Interview updated');
     },
     onError: (error) => toast.error(errMsg(error, 'Could not update interview')),
+  });
+}
+
+/**
+ * Add people to a panel that is already arranged.
+ *
+ * Distinct from editing the interview: this only ever appends, and only the
+ * newcomers are notified. Someone joining a session already in progress is
+ * the case it exists for.
+ */
+export function useAddPanelists(candidateId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { roundId: string; panelistUserIds: string[] }) =>
+      assessmentApi.addPanelists(vars.roundId, vars.panelistUserIds),
+    onSuccess: () => {
+      void qc.invalidateQueries({
+        queryKey: assessmentKeys.interviews(candidateId),
+      });
+      void qc.invalidateQueries({ queryKey: assessmentKeys.myInterviews });
+      void qc.invalidateQueries({ queryKey: delegationKeys.mine });
+      toast.success('Interviewer added — their marking link is on its way');
+    },
+    onError: (error) =>
+      toast.error(errMsg(error, 'Could not add that interviewer')),
+  });
+}
+
+/** What the candidate earns now, wants, and gets on top. */
+export function useSetCandidatePackage(candidateId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      presentSalary?: number | null;
+      salaryExpectation?: number | null;
+      salaryBenefitsNote?: string | null;
+    }) => assessmentApi.setCandidatePackage(candidateId, input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: delegationKeys.mine });
+      void qc.invalidateQueries({ queryKey: assessmentKeys.myInterviews });
+      toast.success('Salary details saved');
+    },
+    onError: (error) =>
+      toast.error(errMsg(error, 'Could not save the salary details')),
+  });
+}
+
+/** Turn the candidate down from the interview screen, at any round. */
+export function useRejectAtInterview(candidateId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (reason?: string) =>
+      assessmentApi.rejectAtInterview(candidateId, reason),
+    onSuccess: (data) => {
+      void qc.invalidateQueries({
+        queryKey: assessmentKeys.interviews(candidateId),
+      });
+      void qc.invalidateQueries({ queryKey: delegationKeys.mine });
+      toast.success(`${data.name} rejected`);
+    },
+    onError: (error) =>
+      toast.error(errMsg(error, 'Could not reject this candidate')),
   });
 }
 

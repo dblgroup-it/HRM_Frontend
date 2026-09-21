@@ -53,7 +53,7 @@ export function Sidebar({
   const canSeeUnitConfig = canAccessUnitConfig(perms);
   const canSeeAiSettings = canAccessAiSettings(perms);
   const canSeeApprovalPaths = canConfigureApprovalPaths(perms);
-  // "Assigned to Me" isn't a permission — it's whether anyone has actually
+  // "Assigned Candidates" isn't a permission — it's whether anyone has actually
   // handed this person candidates to interview, so it comes from the data.
   const { data: delegated } = useMyDelegatedCandidates();
   const hasDelegations = (delegated?.length ?? 0) > 0;

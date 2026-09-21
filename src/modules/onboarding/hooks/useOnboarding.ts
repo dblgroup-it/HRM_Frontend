@@ -44,7 +44,7 @@ function useCandidateAction<TVars>(
     mutationFn: fn,
     onSuccess: (data) => {
       // Full-payload responses carry { onboarding, ...flags }; reuse if present.
-      if (data && typeof data === 'object' && 'requiredDocs' in data) {
+      if (data && typeof data === 'object' && 'docCatalogue' in data) {
         qc.setQueryData(
           onboardingKeys.candidate(candidateId),
           data as OnboardingResult,
@@ -236,6 +236,33 @@ export function useReviewFacilities(candidateId: string) {
     {
       success: 'Facility requirements reviewed',
       fallback: 'Could not record the review',
+    },
+  );
+}
+
+/** Email the candidate whatever documents are still outstanding. */
+export function useChaseDocs(candidateId: string) {
+  return useMutation({
+    mutationFn: () => onboardingApi.chaseDocs(candidateId),
+    onSuccess: (d) => {
+      const n = d.outstanding.length + d.rejected.length;
+      toast.success(
+        `Reminder sent — ${n} document${n === 1 ? '' : 's'} listed`,
+      );
+    },
+    onError: (e) => toast.error(errMsg(e, 'Could not send the reminder')),
+  });
+}
+
+/** HR ticks off that the physical photographs arrived. */
+export function useSetPhotosHardCopy(candidateId: string) {
+  return useCandidateAction(
+    candidateId,
+    (received: boolean) =>
+      onboardingApi.setPhotosHardCopy(candidateId, received),
+    {
+      success: 'Photograph hard copies updated',
+      fallback: 'Could not update that',
     },
   );
 }

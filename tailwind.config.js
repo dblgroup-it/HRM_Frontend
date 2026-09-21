@@ -119,6 +119,11 @@ export default {
           '0%': { transform: 'scaleY(0)' },
           '100%': { transform: 'scaleY(1)' },
         },
+        /** A tab underline drawing itself in from the left. */
+        'underline-in': {
+          '0%': { transform: 'scaleX(0)' },
+          '100%': { transform: 'scaleX(1)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.2s ease-out',
@@ -137,6 +142,7 @@ export default {
         'card-in': 'card-in 0.22s cubic-bezier(0.16,1,0.3,1) both',
         'branch-open': 'branch-open 0.18s ease-out both',
         'rail-draw': 'rail-draw 0.25s ease-out both',
+        'underline-in': 'underline-in 0.2s cubic-bezier(0.16,1,0.3,1) both',
       },
     },
   },

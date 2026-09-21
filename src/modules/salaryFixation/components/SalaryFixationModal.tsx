@@ -5,7 +5,7 @@ import { AlertTriangle, Check, Send, Users, X } from 'lucide-react';
 
 import { Badge, Button, Select } from '@shared/components/ui';
 import { cn } from '@shared/lib';
-import { formatDate } from '@shared/utils';
+import { formatCurrency, formatDate } from '@shared/utils';
 import { useUpdateCandidate } from '@modules/candidates';
 
 import { BANDS, GRADES, JOB_GRADES, bandSalary, evaluateScreeningTest, gradeLabel } from '../constants';
@@ -16,7 +16,9 @@ import {
   useSalaryFixation,
   useUpsertSalaryFixation,
 } from '../hooks/useSalaryFixation';
-import type { JobGrade, SalaryFixation, UpsertSalaryFixationInput } from '../types/salaryFixation.types';
+import type { JobGrade, SalaryFixation, UpsertSalaryFixationInput,
+  CommitteeScore,
+} from '../types/salaryFixation.types';
 
 type FormState = Omit<UpsertSalaryFixationInput, 'jobGrade'> & { jobGrade: JobGrade | undefined };
 
@@ -102,10 +104,23 @@ export function SalaryFixationModal({
     Boolean(form.aiTestEnabled),
     data.aiTestPassPct,
   );
+  // Computer Literacy is marked by hand like the Written Test and gated the
+  // same way server-side, but was the one screening result this modal never
+  // displayed — so a candidate could be blocked from finalizing here with
+  // nothing on screen saying why.
+  const computer = evaluateScreeningTest(
+    data.computerTestTotal,
+    data.computerTestObtained,
+    Boolean(data.computerTestEnabled),
+    data.computerTestPassPct,
+  );
   // Screening tests themselves are administered earlier in the pipeline
   // (Assessment tab → Pre-Interview Screening Tests) — this modal only
   // needs to know whether a failure should block finalizing.
-  const screeningFailed = written.status === 'fail' || ai.status === 'fail';
+  const screeningFailed =
+    written.status === 'fail' ||
+    ai.status === 'fail' ||
+    computer.status === 'fail';
 
   const canFinalize = !screeningFailed && data.proposedSalary !== null;
 
@@ -175,8 +190,9 @@ export function SalaryFixationModal({
           {/* Screening test scores — read only; managed from the requisition's Assessment tab */}
           <div>
             <p className="mb-2 text-sm font-semibold text-slate-700">Screening Test Scores</p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <ScoreChip label="Written Test" result={written} />
+              <ScoreChip label="Computer Literacy" result={computer} />
               <ScoreChip label="AI Proficiency Test" result={ai} />
             </div>
           </div>
@@ -186,15 +202,33 @@ export function SalaryFixationModal({
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               Applicant disqualified at pre-interview screening — did not meet the minimum
               pass mark
-              {written.status === 'fail' ? ` (Written Test, ≥ ${data.writtenTestPassPct}%)` : ''}
-              {written.status === 'fail' && ai.status === 'fail' ? ' and' : ''}
-              {ai.status === 'fail' ? ` (AI Proficiency Test, ≥ ${data.aiTestPassPct}%)` : ''}.
+              {' '}
+              {[
+                written.status === 'fail'
+                  ? `Written Test (≥ ${data.writtenTestPassPct}%)`
+                  : null,
+                computer.status === 'fail'
+                  ? `Computer Literacy (≥ ${data.computerTestPassPct}%)`
+                  : null,
+                ai.status === 'fail'
+                  ? `AI Proficiency Test (≥ ${data.aiTestPassPct}%)`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(', ')}
+              .
               Salary fixation cannot be finalized. Manage screening tests from the
               requisition's Assessment tab.
             </div>
           )}
 
-          {/* Committee scores — read only, interviewers mark this from their own evaluation link */}
+          {/* Every session's marks, grouped by session.
+              This used to show one row per evaluator — their most recent mark
+              only — so a panelist who sat on both the first and second
+              interview had their first-round mark silently dropped, and a
+              whole round could vanish if the same people ran it. The average
+              below is each session averaged, then the sessions averaged, so
+              a three-person first round cannot outvote a one-person final. */}
           <div>
             <p className="mb-2 text-sm font-semibold text-slate-700">Committee Scores</p>
             {data.interviewers.length === 0 ? (
@@ -204,23 +238,43 @@ export function SalaryFixationModal({
                 their own interview evaluation link.
               </div>
             ) : (
-              <div className="divide-y divide-slate-100 rounded-xl border border-slate-200">
-                {data.interviewers.map((iv) => (
+              <div className="space-y-2">
+                {groupByRound(data.interviewers).map((session) => (
                   <div
-                    key={iv.evaluatorId}
-                    className="flex items-center justify-between gap-3 px-4 py-2.5"
+                    key={session.roundId}
+                    className="overflow-hidden rounded-xl border border-slate-200"
                   >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-slate-700">
-                        {iv.evaluatorName}
+                    <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/70 px-4 py-2">
+                      <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-500">
+                        {session.roundKind} interview
                       </p>
-                      <p className="text-[0.6875rem] text-slate-400">
-                        {iv.roundKind} round · {formatDate(iv.submittedAt)}
-                      </p>
+                      <span className="shrink-0 text-[0.6875rem] font-semibold text-slate-500">
+                        {session.marks.length} marked · avg{' '}
+                        <span className="text-brand-700">
+                          {session.average.toFixed(1)}
+                        </span>
+                      </span>
                     </div>
-                    <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-brand-700">
-                      {iv.total.toFixed(1)} / {iv.max}
-                    </span>
+                    <div className="divide-y divide-slate-100">
+                      {session.marks.map((iv) => (
+                        <div
+                          key={`${iv.roundId}:${iv.evaluatorId}`}
+                          className="flex items-center justify-between gap-3 px-4 py-2.5"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-slate-700">
+                              {iv.evaluatorName}
+                            </p>
+                            <p className="text-[0.6875rem] text-slate-400">
+                              {formatDate(iv.submittedAt)}
+                            </p>
+                          </div>
+                          <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-brand-700">
+                            {iv.total.toFixed(1)} / {iv.max}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -259,9 +313,36 @@ export function SalaryFixationModal({
             />
           </div>
 
-          {/* Negotiation — what the candidate asked for vs. what we're offering */}
+          {/* Negotiation — what the candidate asked for vs. what we're offering.
+              Their current package sits alongside, read-only: it is recorded
+              in the interview room by whoever ran the session, and HR was
+              opening the interview notes in another tab to find out what
+              they were bidding against. */}
           <div>
             <p className="mb-2 text-sm font-semibold text-slate-700">Negotiation</p>
+            <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-[0.6875rem] font-semibold uppercase text-slate-400">
+                  Present Salary{' '}
+                  <span className="normal-case text-slate-300">(from the interview)</span>
+                </p>
+                <p className="mt-0.5 text-base font-bold text-slate-800">
+                  {data.presentSalary != null
+                    ? formatCurrency(data.presentSalary)
+                    : <span className="font-medium text-slate-300">Not recorded</span>}
+                </p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-[0.6875rem] font-semibold uppercase text-slate-400">
+                  Current Benefits
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-slate-600">
+                  {data.salaryBenefitsNote || (
+                    <span className="text-slate-300">Nothing recorded</span>
+                  )}
+                </p>
+              </div>
+            </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <p className="text-[0.6875rem] font-semibold uppercase text-slate-400">
@@ -383,4 +464,38 @@ function ResultCard({
       </p>
     </div>
   );
+}
+
+/**
+ * Committee marks, grouped into the sessions they were given in.
+ *
+ * Order is preserved from the server, which returns oldest session first —
+ * so the panel reads first, second, final. Each session carries its own
+ * average, which is the unit the overall average is built from.
+ */
+function groupByRound(marks: CommitteeScore[]): {
+  roundId: string;
+  roundKind: string;
+  marks: CommitteeScore[];
+  average: number;
+}[] {
+  const order: string[] = [];
+  const byRound = new Map<string, CommitteeScore[]>();
+  for (const m of marks) {
+    const list = byRound.get(m.roundId);
+    if (list) list.push(m);
+    else {
+      byRound.set(m.roundId, [m]);
+      order.push(m.roundId);
+    }
+  }
+  return order.map((roundId) => {
+    const group = byRound.get(roundId)!;
+    return {
+      roundId,
+      roundKind: group[0].roundKind,
+      marks: group,
+      average: group.reduce((sum, m) => sum + m.total, 0) / group.length,
+    };
+  });
 }

@@ -187,6 +187,46 @@ export const assessmentApi = {
       .patch<ApiResponse<{ id: string }>>(`/interviews/${roundId}`, data)
       .then((r) => r.data),
 
+  /** Append people to a panel that already exists — including mid-session. */
+  addPanelists: (
+    roundId: string,
+    panelistUserIds: string[],
+  ): Promise<InterviewRoundView> =>
+    http
+      .post<ApiResponse<InterviewRoundView>>(
+        `/interviews/${roundId}/panelists`,
+        { panelistUserIds },
+      )
+      .then((r) => r.data),
+
+  /** What the candidate earns now, wants, and gets on top — taken in the room. */
+  setCandidatePackage: (
+    candidateId: string,
+    input: {
+      presentSalary?: number | null;
+      salaryExpectation?: number | null;
+      salaryBenefitsNote?: string | null;
+    },
+  ): Promise<{ id: string }> =>
+    http
+      .patch<ApiResponse<{ id: string }>>(
+        `/candidates/${candidateId}/package`,
+        input,
+      )
+      .then((r) => r.data),
+
+  /** Turn the candidate down from the interview screen, at any round. */
+  rejectAtInterview: (
+    candidateId: string,
+    reason?: string,
+  ): Promise<{ id: string; name: string; stage: string }> =>
+    http
+      .post<ApiResponse<{ id: string; name: string; stage: string }>>(
+        `/candidates/${candidateId}/interview-reject`,
+        { reason },
+      )
+      .then((r) => r.data),
+
   bulkScheduleInterviews: (input: BulkScheduleInput): Promise<InterviewRoundView[]> =>
     http
       .post<ApiResponse<InterviewRoundView[]>>('/interviews/bulk', input)

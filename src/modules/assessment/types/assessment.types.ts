@@ -68,7 +68,16 @@ export interface EvaluationSummaryResult {
 
 export type InterviewKindKey = 'first' | 'second' | 'final';
 export type InterviewModeKey = 'online' | 'offline' | 'physical';
-export type InterviewStatusKey = 'scheduled' | 'completed' | 'cancelled';
+/**
+ * `absent` is the candidate not turning up — kept apart from `cancelled`,
+ * which is the company calling the session off. The panel's time went either
+ * way, and HR reads the two very differently.
+ */
+export type InterviewStatusKey =
+  | 'scheduled'
+  | 'completed'
+  | 'cancelled'
+  | 'absent';
 
 export interface InterviewPanelistView {
   id: string;
@@ -208,6 +217,10 @@ export interface DelegatedCandidate {
     rejectionStage: string | null;
     rejectionReason: string | null;
     rejectedByName: string | null;
+    /** What they earn now and want — taken in the interview room. */
+    presentSalary: number | null;
+    salaryExpectation: number | null;
+    salaryBenefitsNote: string | null;
   };
   rounds: {
     id: string;

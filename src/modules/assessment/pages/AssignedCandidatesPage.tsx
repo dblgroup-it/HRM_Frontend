@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   Ban,
@@ -16,7 +17,7 @@ import {
   Trophy,
   Users,
   Video,
-  X,
+  BadgeDollarSign,
 } from 'lucide-react';
 
 import {
@@ -35,11 +36,11 @@ import { formatDate } from '@shared/utils';
 import {
   useFirstInterviewOutcome,
   useMyDelegatedCandidates,
-  useUpdateInterview,
 } from '../hooks/useAssessment';
 import { BulkInterviewModal } from '../components/BulkInterviewModal';
 import { CandidateInterviewsModal } from '../components/CandidateInterviewsModal';
 import { ScreeningMarksModal } from '../components/ScreeningMarksModal';
+import { CandidatePackageModal } from '../components/CandidatePackageModal';
 import type {
   DelegatedCandidate,
   DelegatedTest,
@@ -61,30 +62,62 @@ import { resolveApiFileUrl } from '@shared/api';
 
 type Col = 'to_schedule' | 'scheduled' | 'decision_due' | 'done';
 
-const COLUMNS: { key: Col; title: string; empty: string; dot: string }[] = [
+/**
+ * Each stage carries its own colour, used on the tab, the count and the
+ * requisition rail beneath it.
+ *
+ * Not decoration: four tabs in one shade of blue are four identical shapes,
+ * and the whole point of the bar is to say at a glance where the work has
+ * piled up. Amber waits on you, sky is in hand, violet wants a decision,
+ * emerald is finished.
+ */
+const COLUMNS: {
+  key: Col;
+  title: string;
+  empty: string;
+  dot: string;
+  /** Applied to the tab when it is the active one. */
+  active: string;
+  /** The count pill on the active tab. */
+  pill: string;
+  /** The underline and the requisition rail. */
+  bar: string;
+}[] = [
   {
     key: 'to_schedule',
     title: 'To schedule',
     empty: 'Nothing waiting on a date',
     dot: 'bg-amber-400',
+    active: 'bg-amber-50 text-amber-900',
+    pill: 'bg-amber-500 text-white',
+    bar: 'bg-amber-500',
   },
   {
     key: 'scheduled',
     title: 'Scheduled',
     empty: 'No sessions arranged',
     dot: 'bg-sky-400',
+    active: 'bg-sky-50 text-sky-900',
+    pill: 'bg-sky-500 text-white',
+    bar: 'bg-sky-500',
   },
   {
     key: 'decision_due',
     title: 'Decision due',
     empty: 'No verdicts pending',
     dot: 'bg-brand-500',
+    active: 'bg-violet-50 text-violet-900',
+    pill: 'bg-violet-500 text-white',
+    bar: 'bg-violet-500',
   },
   {
     key: 'done',
     title: 'Done',
     empty: 'Nothing decided yet',
     dot: 'bg-emerald-500',
+    active: 'bg-emerald-50 text-emerald-900',
+    pill: 'bg-emerald-500 text-white',
+    bar: 'bg-emerald-500',
   },
 ];
 
@@ -101,13 +134,6 @@ const ORDER: Col[] = ['to_schedule', 'scheduled', 'decision_due', 'done'];
  */
 const COLUMN_LIMIT = 12;
 
-/** Why a card can't jump a column — named by the step that is still missing. */
-const SKIP_MESSAGE: Record<Col, string> = {
-  to_schedule: 'Arrange the interview first.',
-  scheduled: 'Mark the interview as held first.',
-  decision_due: 'Record your decision first.',
-  done: '',
-};
 
 function columnOf(row: DelegatedCandidate): Col {
   const s = row.candidate.stage;
@@ -219,6 +245,8 @@ export default function AssignedCandidatesPage() {
   const { data = [], isLoading, isError, error, refetch, isFetching } =
     useMyDelegatedCandidates();
 
+  /** The card whose salary/benefits form is open, if any. */
+  const [packageFor, setPackageFor] = useState<DelegatedCandidate | null>(null);
   const [interviewTarget, setInterviewTarget] = useState<{
     reqId: string;
     candidate: { id: string; name: string };
@@ -232,36 +260,33 @@ export default function AssignedCandidatesPage() {
     candidates: { id: string; name: string }[];
   } | null>(null);
   const [search, setSearch] = useState('');
-  const [reqFilter, setReqFilter] = useState<string | null>(null);
-  const [dragging, setDragging] = useState<DelegatedCandidate | null>(null);
-  const [hoverCol, setHoverCol] = useState<Col | null>(null);
-  /** Card whose verdict form is open, keyed by delegation id. */
   const [deciding, setDeciding] = useState<string | null>(null);
   /** Stages the user has asked to see in full. */
   const [expanded, setExpanded] = useState<Partial<Record<Col, boolean>>>({});
+  /** Which stage the tabs are showing. Opens on the work that needs doing. */
+  const [activeCol, setActiveCol] = useState<Col>('to_schedule');
 
-  const requisitions = useMemo(() => {
-    const m = new Map<
-      string,
-      { id: string; code: string; designation: string; n: number }
-    >();
-    data.forEach((r) => {
-      const e = m.get(r.requisition.id) ?? {
-        id: r.requisition.id,
-        code: r.requisition.code,
-        designation: r.requisition.designation,
-        n: 0,
-      };
-      e.n += 1;
-      m.set(r.requisition.id, e);
-    });
-    return [...m.values()].sort((a, b) => b.code.localeCompare(a.code));
-  }, [data]);
+  /**
+   * Arriving from somewhere that already knows which stage you want.
+   *
+   * Only the stage. The link used to filter to one requisition as well,
+   * which scoped the tab counts to it — every other tab read 0 and the page
+   * looked like the rest of the work had vanished. The counts are the point
+   * of the bar, so nothing narrows them on arrival.
+   */
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    const stage = params.get('stage');
+    if (!stage) return;
+    if (ORDER.includes(stage as Col)) setActiveCol(stage as Col);
+    // Consumed once, so a later tab click is not undone by a stale URL and
+    // a refresh does not drag them back here.
+    setParams({}, { replace: true });
+  }, [params, setParams]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return data.filter((r) => {
-      if (reqFilter && r.requisition.id !== reqFilter) return false;
       if (!q) return true;
       return (
         r.candidate.name.toLowerCase().includes(q) ||
@@ -269,7 +294,7 @@ export default function AssignedCandidatesPage() {
         r.requisition.designation.toLowerCase().includes(q)
       );
     });
-  }, [data, search, reqFilter]);
+  }, [data, search]);
 
   const board = useMemo(() => {
     const b: Record<Col, DelegatedCandidate[]> = {
@@ -305,68 +330,13 @@ export default function AssignedCandidatesPage() {
     return { groups, counts, hidden };
   }, [filtered, expanded]);
 
-  // Silent: the board raises its own toast, because a one-gesture change
-  // should come with a way back.
-  const markHeld = useUpdateInterview(dragging?.candidate.id ?? '', true);
 
-  /** What dropping a card into a column should actually do. */
-  const handleDrop = (col: Col) => {
-    const row = dragging;
-    setDragging(null);
-    setHoverCol(null);
-    if (!row) return;
-
-    const from = columnOf(row);
-    if (from === col) return;
-    if (ORDER.indexOf(col) < ORDER.indexOf(from)) {
-      toast.error(
-        'A candidate only moves forward here. Open the session to change a date, or ask Head of Talent Acquisition to reopen a decision.',
-      );
-      return;
-    }
-    if (ORDER.indexOf(col) - ORDER.indexOf(from) > 1) {
-      toast.error(SKIP_MESSAGE[from]);
-      return;
-    }
-
-    if (col === 'scheduled') {
-      // Needs a date, a place and a panel, so it opens the scheduler.
-      setInterviewTarget({
-        reqId: row.requisition.id,
-        candidate: { id: row.candidate.id, name: row.candidate.name },
-      });
-      return;
-    }
-    if (col === 'decision_due') {
-      const first = row.rounds.find((r) => r.kind === 'first');
-      if (!first) return;
-      // Nothing to ask: the session simply happened.
-      markHeld.mutate(
-        { roundId: first.id, status: 'completed' },
-        {
-          onSuccess: () =>
-            toast.success(`${row.candidate.name} — interview marked as held`, {
-              action: {
-                label: 'Undo',
-                onClick: () =>
-                  markHeld.mutate({ roundId: first.id, status: 'scheduled' }),
-              },
-            }),
-        },
-      );
-      return;
-    }
-    if (col === 'done') {
-      // Finalist or not is a judgement, so the card asks.
-      setDeciding(row.id);
-    }
-  };
 
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Assigned to me"
-        description="Your first-interview pipeline, stage by stage. Drag a candidate into the next stage, or use the action on the card."
+        title="Assigned Candidates"
+        description="Your first-interview pipeline, one stage at a time. Pick a stage above; each card carries the step it is waiting on."
       />
 
       {isLoading ? (
@@ -398,86 +368,104 @@ export default function AssignedCandidatesPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            {requisitions.length > 1 && (
-              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                {requisitions.map((r) => (
-                  <button
-                    key={r.id}
-                    type="button"
-                    onClick={() => setReqFilter(reqFilter === r.id ? null : r.id)}
-                    title={`${r.code} — ${r.designation}`}
-                    className={cn(
-                      'inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-mono text-[0.6875rem] ring-1 transition-colors',
-                      reqFilter === r.id
-                        ? 'bg-slate-900 text-white ring-slate-900'
-                        : 'bg-white text-slate-600 ring-slate-200 hover:border-slate-300 hover:bg-slate-50',
-                    )}
-                  >
-                    {r.code}
-                    <span
-                      className={cn(
-                        'tabular-nums',
-                        reqFilter === r.id ? 'text-white/60' : 'text-slate-400',
-                      )}
-                    >
-                      {r.n}
-                    </span>
-                  </button>
-                ))}
-                {reqFilter && (
-                  <button
-                    type="button"
-                    onClick={() => setReqFilter(null)}
-                    className="inline-flex items-center gap-1 px-1 text-[0.6875rem] font-medium text-slate-500 hover:text-slate-900"
-                  >
-                    <X className="h-3 w-3" /> Clear
-                  </button>
-                )}
-              </div>
-            )}
           </div>
 
-          {/* The board. One framed surface split by rules — it scrolls sideways
-              rather than reflowing, because a pipeline read out of order is not
-              a pipeline, and snaps so a swipe lands on one column. */}
+          {/* One stage at a time, behind tabs.
+              Four columns side by side gave each card about sixteen rems —
+              enough for a name and a date, so the schedule, the panel and the
+              marks all had to be hidden behind a click, and on anything
+              narrower than a desktop the board scrolled sideways. A stage is
+              what somebody actually works through in one sitting, so it gets
+              the whole width and the cards can say what they need to.
+              Dragging goes with it; every step a drop performed is a button
+              on the card and always was. */}
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-card">
-            <div className="snap-x snap-mandatory overflow-x-auto">
-              <div className="grid grid-cols-[repeat(4,minmax(16.5rem,1fr))] divide-x divide-slate-200">
-                {COLUMNS.map((col) => {
+            <div
+              role="tablist"
+              aria-label="Interview stages"
+              className="flex overflow-x-auto border-b border-slate-200 bg-slate-50/70"
+            >
+              {COLUMNS.map((col, ti) => {
+                const count = board.counts[col.key];
+                const active = activeCol === col.key;
+                const empty = count === 0;
+                return (
+                  <button
+                    key={col.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setActiveCol(col.key)}
+                    style={{ animationDelay: `${ti * 50}ms` }}
+                    className={cn(
+                      'relative flex shrink-0 animate-card-in items-center gap-2 px-5 py-3.5 text-xs font-semibold',
+                      'transition-all duration-200',
+                      active
+                        ? col.active
+                        : empty
+                          ? // A stage with nothing in it recedes rather than
+                            // competing for attention with the ones that
+                            // have work waiting.
+                            'text-slate-400 hover:bg-white/60 hover:text-slate-600'
+                          : 'text-slate-600 hover:bg-white/70 hover:text-slate-800',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'h-2 w-2 rounded-full transition-transform duration-200',
+                        col.dot,
+                        empty && !active && 'opacity-40',
+                        active && 'scale-125',
+                      )}
+                      aria-hidden
+                    />
+                    {col.title}
+                    <span
+                      className={cn(
+                        'min-w-[1.25rem] rounded-full px-1.5 py-0.5 text-center text-[0.625rem] font-bold tabular-nums transition-colors',
+                        active
+                          ? col.pill
+                          : empty
+                            ? 'bg-slate-100 text-slate-400'
+                            : 'bg-slate-200/80 text-slate-600',
+                      )}
+                    >
+                      {count}
+                    </span>
+                    {active && (
+                      <span
+                        className={cn(
+                          'absolute inset-x-0 -bottom-px h-[3px] origin-left animate-underline-in rounded-t',
+                          col.bar,
+                        )}
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <div>
+              {/* Keyed on the stage so switching tabs replays the entrance
+                  rather than swapping content in place — the movement is
+                  what tells you the panel changed. */}
+              <div key={activeCol}>
+                {COLUMNS.filter((c) => c.key === activeCol).map((col) => {
                   const groups = board.groups[col.key];
                   const total = board.counts[col.key];
                   const hidden = board.hidden[col.key];
                   const isOpen = Boolean(expanded[col.key]);
-                  const isTarget = hoverCol === col.key;
                   return (
                     <section
                       key={col.key}
                       data-column={col.key}
-                      onDragOver={(e) => {
-                        if (!dragging) return;
-                        e.preventDefault();
-                        setHoverCol(col.key);
-                      }}
-                      onDragLeave={() =>
-                        setHoverCol((c) => (c === col.key ? null : c))
-                      }
-                      onDrop={() => handleDrop(col.key)}
-                      className={cn(
-                        'flex snap-start flex-col transition-colors',
-                        isTarget ? 'bg-brand-50/70' : 'bg-slate-50/60',
-                      )}
+                      role="tabpanel"
+                      className="flex flex-col bg-slate-50/60"
                     >
-                      <header className="sticky top-0 z-10 flex items-center gap-2 border-b border-slate-200 bg-white px-3 py-2.5">
-                        <span
-                          className={cn('h-1.5 w-1.5 rounded-full', col.dot)}
-                          aria-hidden
-                        />
-                        <h2 className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-slate-500">
-                          {col.title}
-                        </h2>
-                        <span className="rounded bg-slate-100 px-1.5 text-[0.6875rem] font-semibold tabular-nums text-slate-500">
-                          {total}
-                        </span>
+                      {/* No stage title here — the tab above already says
+                          which stage this is, and repeating it directly
+                          underneath just costs a row. This header exists for
+                          the show-all control and the vacancy count. */}
+                      <header className="flex items-center gap-2 border-b border-slate-200 bg-white px-4 py-2">
                         {hidden > 0 || isOpen ? (
                           <button
                             type="button"
@@ -502,21 +490,63 @@ export default function AssignedCandidatesPage() {
                         )}
                       </header>
 
-                      <div className="flex min-h-[20rem] flex-1 flex-col gap-4 p-2.5">
+                      <div className="flex min-h-[20rem] flex-1 flex-col gap-5 p-4">
                         {groups.length === 0 ? (
-                          <p className="px-2 pt-6 text-center text-xs text-slate-400">
-                            {isTarget ? 'Drop to move here' : col.empty}
+                          <p className="px-2 py-12 text-center text-xs text-slate-400">
+                            {col.empty}
                           </p>
                         ) : (
-                          groups.map((group) => (
-                            <div key={group.id}>
-                              <div className="mb-2 border-b border-slate-200 pb-1.5">
-                                <div className="flex items-center gap-2">
-                                  <span className="min-w-0 flex-1 truncate font-mono text-[0.6875rem] font-semibold text-slate-700">
-                                    {group.code}
-                                  </span>
-                                  {col.key === 'to_schedule' &&
-                                  group.rows.length > 1 ? (
+                          groups.map((group, gi) => (
+                            /* One vacancy. The header is the separator between
+                               them, so it is built to read as one — a tinted
+                               band with a rail down the left, the code set as
+                               a chip, and the post underneath. A hairline rule
+                               and two shades of grey did not survive the cards
+                               growing to full width. */
+                            <div
+                              key={group.id}
+                              className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-card animate-card-in"
+                              style={{ animationDelay: `${gi * 60}ms` }}
+                            >
+                              <div className="relative flex flex-wrap items-center gap-3 border-b border-slate-200 bg-gradient-to-r from-brand-50/80 via-brand-50/40 to-white px-4 py-3">
+                                <span
+                                  className={cn(
+                                    'absolute inset-y-0 left-0 w-1 origin-top animate-rail-draw',
+                                    col.bar,
+                                  )}
+                                  aria-hidden
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="rounded-md bg-brand-600 px-2 py-0.5 font-mono text-[0.6875rem] font-bold tracking-tight text-white shadow-sm">
+                                      {group.code}
+                                    </span>
+                                    <span className="rounded-full bg-white/80 px-2 py-0.5 text-[0.625rem] font-semibold text-slate-500 ring-1 ring-slate-200">
+                                      {group.rows.length}{' '}
+                                      {group.rows.length === 1
+                                        ? 'candidate'
+                                        : 'candidates'}
+                                    </span>
+                                  </div>
+                                  <p
+                                    className="mt-1 truncate text-[0.8125rem] font-semibold text-slate-800"
+                                    title={`${group.designation} — ${group.department}, ${group.unit}`}
+                                  >
+                                    {group.designation}
+                                    {group.department && (
+                                      <>
+                                        <span className="mx-1 font-normal text-slate-300">
+                                          ·
+                                        </span>
+                                        <span className="font-normal text-slate-500">
+                                          {group.department}
+                                        </span>
+                                      </>
+                                    )}
+                                  </p>
+                                </div>
+                                {col.key === 'to_schedule' &&
+                                  group.rows.length > 1 && (
                                     <button
                                       type="button"
                                       onClick={() =>
@@ -529,46 +559,22 @@ export default function AssignedCandidatesPage() {
                                           })),
                                         })
                                       }
-                                      className="inline-flex shrink-0 items-center gap-1 rounded-md border border-brand-200 bg-brand-50 px-1.5 py-0.5 text-[0.6875rem] font-semibold text-brand-700 transition-colors hover:border-brand-300 hover:bg-brand-100"
+                                      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-brand-700 hover:shadow-card-hover active:scale-95"
                                       title={`One session for all ${group.rows.length} candidates on ${group.code}`}
                                     >
-                                      <CalendarDays className="h-3 w-3" />
+                                      <CalendarDays className="h-3.5 w-3.5" />
                                       Schedule all {group.rows.length}
                                     </button>
-                                  ) : (
-                                    <span className="shrink-0 rounded bg-slate-100 px-1.5 text-[0.6875rem] font-semibold tabular-nums text-slate-500">
-                                      {group.rows.length}
-                                    </span>
                                   )}
-                                </div>
-                                <p
-                                  className="mt-0.5 truncate text-[0.6875rem] leading-4 text-slate-500"
-                                  title={`${group.designation} — ${group.department}, ${group.unit}`}
-                                >
-                                  {group.designation}
-                                  {group.department && (
-                                    <>
-                                      <span className="text-slate-300"> · </span>
-                                      <span className="text-slate-400">
-                                        {group.department}
-                                      </span>
-                                    </>
-                                  )}
-                                </p>
                               </div>
-                              <div className="space-y-2">
-                                {group.rows.map((row) => (
+                              <div className="space-y-2 p-3">
+                                {group.rows.map((row, ri) => (
                                   <BoardCard
                                     key={row.id}
                                     row={row}
+                                    index={ri}
                                     col={col.key}
-                                    dragging={dragging?.id === row.id}
                                     deciding={deciding === row.id}
-                                    onDragStart={() => setDragging(row)}
-                                    onDragEnd={() => {
-                                      setDragging(null);
-                                      setHoverCol(null);
-                                    }}
                                     onOpenDecision={() => setDeciding(row.id)}
                                     onCloseDecision={() => setDeciding(null)}
                                     onSchedule={() =>
@@ -580,6 +586,7 @@ export default function AssignedCandidatesPage() {
                                         },
                                       })
                                     }
+                                    onEnterPackage={() => setPackageFor(row)}
                                     onEnterMarks={() =>
                                       setMarksTarget({
                                         id: row.candidate.id,
@@ -612,6 +619,23 @@ export default function AssignedCandidatesPage() {
           </div>
         </>
       )}
+      {/* Salary and benefits, as told to the interviewer. Its own form on
+          purpose — factory HR recording what they heard, not Corporate HR
+          setting pay. */}
+      {packageFor && (
+        <CandidatePackageModal
+          open
+          candidate={{
+            id: packageFor.candidate.id,
+            name: packageFor.candidate.name,
+            presentSalary: packageFor.candidate.presentSalary,
+            salaryExpectation: packageFor.candidate.salaryExpectation,
+            salaryBenefitsNote: packageFor.candidate.salaryBenefitsNote,
+          }}
+          onClose={() => setPackageFor(null)}
+        />
+      )}
+
 
       {bulkFor && (
         <BulkInterviewModal
@@ -742,26 +766,25 @@ function TestChip({ test }: { test: DelegatedTest }) {
 
 function BoardCard({
   row,
+  index,
   col,
-  dragging,
   deciding,
-  onDragStart,
-  onDragEnd,
   onOpenDecision,
   onCloseDecision,
   onSchedule,
   onEnterMarks,
+  onEnterPackage,
 }: {
   row: DelegatedCandidate;
+  /** Position in its group — drives the entrance stagger only. */
+  index: number;
   col: Col;
-  dragging: boolean;
   deciding: boolean;
-  onDragStart: () => void;
-  onDragEnd: () => void;
   onOpenDecision: () => void;
   onCloseDecision: () => void;
   onSchedule: () => void;
   onEnterMarks: () => void;
+  onEnterPackage: () => void;
 }) {
   const outcome = useFirstInterviewOutcome();
   const [verdict, setVerdict] = useState<'final' | 'rejected' | null>(null);
@@ -772,30 +795,46 @@ function BoardCard({
   const age = waiting(row.createdAt);
   const venue = first ? venueOf(first) : null;
   const rejected = row.candidate.stage === 'rejected';
-  const draggable = col !== 'done' && !deciding;
+  // Both buttons say whether the thing behind them has been done yet, so the
+  // row can be read without opening anything.
+  const marksIn = row.tests.some((t) => t.obtained != null);
+  const packageIn =
+    row.candidate.presentSalary != null ||
+    row.candidate.salaryExpectation != null;
 
   return (
     <article
       data-card={row.id}
-      draggable={draggable}
-      onDragStart={(e) => {
-        e.dataTransfer.effectAllowed = 'move';
-        onDragStart();
-      }}
-      onDragEnd={onDragEnd}
+      style={{ animationDelay: `${index * 45}ms` }}
       className={cn(
-        'rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition-shadow',
-        draggable && 'cursor-grab active:cursor-grabbing hover:shadow-card-hover',
-        dragging && 'opacity-40',
+        'animate-card-in rounded-lg border border-slate-200 bg-white p-3.5 shadow-sm',
+        // Lifts a hair on hover. Enough to say the row is live without the
+        // list appearing to breathe as the pointer crosses it.
+        'transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-card-hover',
       )}
     >
+      {/* Three zones across the row: who, what we know, and the step.
+          The card was built for a 16rem column and stacked everything
+          vertically; at full width that left two thirds of the row empty
+          with a thin ribbon of text down the left. */}
+      <div className="grid gap-x-6 gap-y-3 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
+      <div>
       {/* Who — the vacancy is named once, on the group header above. */}
       <div className="flex items-center gap-2.5">
-        <Avatar name={row.candidate.name} size="sm" />
+        <Avatar name={row.candidate.name} size="md" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[0.8125rem] font-semibold leading-tight tracking-tight text-slate-900">
+          <p className="truncate text-sm font-semibold leading-tight tracking-tight text-slate-900">
             {row.candidate.name}
           </p>
+          {row.delegatedBy && col !== 'done' && (
+            <p
+              className="mt-0.5 flex items-center gap-1 truncate text-[0.6875rem] text-slate-400"
+              title={`Sent to you by ${row.delegatedBy.name}`}
+            >
+              <CornerDownRight className="h-3 w-3 shrink-0" />
+              from {row.delegatedBy.name}
+            </p>
+          )}
         </div>
       </div>
 
@@ -803,7 +842,7 @@ function BoardCard({
           where a tel: link opens nothing — so the details are shown to be
           read, dialled by hand, or copied in one click. */}
       {col !== 'done' && (row.candidate.phone || row.candidate.email) && (
-        <div className="mt-2 space-y-0.5">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-0.5">
           {row.candidate.phone && (
             <CopyLine
               icon={Phone}
@@ -824,26 +863,17 @@ function BoardCard({
       {/* Who handed this over, and anything they asked for. The note is the
           recruiter writing to this interviewer; dropping it loses the only
           message in the whole handover. */}
-      {col !== 'done' && (row.delegatedBy || row.note) && (
-        <div className="mt-2 space-y-1">
-          {row.delegatedBy && (
-            <p
-              className="flex items-center gap-1 truncate text-[0.6875rem] text-slate-400"
-              title={`Sent to you by ${row.delegatedBy.name}`}
-            >
-              <CornerDownRight className="h-3 w-3 shrink-0" />
-              from {row.delegatedBy.name}
-            </p>
-          )}
-          {row.note && (
-            <p
-              className="line-clamp-2 border-l-2 border-brand-300 pl-2 text-[0.6875rem] leading-4 text-slate-600"
-              title={row.note}
-            >
-              {row.note}
-            </p>
-          )}
-        </div>
+      </div>
+
+      {/* What we know about them, in the room the width gives us. */}
+      <div className="min-w-0 space-y-2">
+      {col !== 'done' && row.note && (
+        <p
+          className="line-clamp-2 rounded-r-md border-l-2 border-brand-300 bg-brand-50/40 py-1 pl-2 pr-2 text-[0.6875rem] leading-4 text-slate-600"
+          title={row.note}
+        >
+          {row.note}
+        </p>
       )}
 
       {/* Screening marks, so the picture is complete before the interview
@@ -864,9 +894,12 @@ function BoardCard({
         </div>
       )}
 
+      </div>
+      </div>
+
       {/* When, and what to do about it */}
       {!deciding && (
-        <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-2">
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-slate-100 pt-3">
           <div className="flex min-w-0 items-center gap-1.5 overflow-hidden text-[0.6875rem]">
             {row.alsoAssignedTo.length > 0 && col !== 'done' && (
               <span
@@ -934,34 +967,53 @@ function BoardCard({
             )}
           </div>
 
-          <div className="ml-auto flex shrink-0 items-center gap-1.5">
-            {/* Reference tools, as one segmented control so they read as
-                buttons rather than as decoration. */}
-            <div className="flex items-center overflow-hidden rounded-md border border-slate-200 bg-white">
-              {row.candidate.cvUrl && (
-                <>
-                  <a
-                    href={resolveApiFileUrl(row.candidate.cvUrl)}
-                    target="_blank"
-                    rel="noreferrer"
-                    draggable={false}
-                    title="Open CV"
-                    className="flex h-7 w-7 items-center justify-center text-slate-500 transition-colors hover:bg-slate-50 hover:text-brand-600"
-                  >
-                    <FileText className="h-3.5 w-3.5" />
-                  </a>
-                  <span className="h-4 w-px bg-slate-200" aria-hidden />
-                </>
-              )}
-              <button
-                type="button"
-                onClick={onEnterMarks}
-                title="Test marks"
-                className="flex h-7 w-7 items-center justify-center text-slate-500 transition-colors hover:bg-slate-50 hover:text-brand-600"
+          <div className="ml-auto flex shrink-0 flex-wrap items-center gap-1.5">
+            {/* Labelled, not three bare glyphs in a box. A document, a
+                checklist and a dollar sign all render at 14px as "some kind
+                of form", and the only way to tell them apart was to hover
+                each one and wait for a tooltip. */}
+            {row.candidate.cvUrl && (
+              <a
+                href={resolveApiFileUrl(row.candidate.cvUrl)}
+                target="_blank"
+                rel="noreferrer"
+                draggable={false}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[0.6875rem] font-semibold text-slate-600 transition-all hover:-translate-y-0.5 hover:border-brand-200 hover:text-brand-600 hover:shadow-sm"
               >
-                <ListChecks className="h-3.5 w-3.5" />
-              </button>
-            </div>
+                <FileText className="h-3.5 w-3.5" />
+                CV
+              </a>
+            )}
+            <button
+              type="button"
+              onClick={onEnterMarks}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[0.6875rem] font-semibold transition-all hover:-translate-y-0.5 hover:shadow-sm',
+                marksIn
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-brand-200 hover:text-brand-600',
+              )}
+            >
+              <ListChecks className="h-3.5 w-3.5" />
+              {marksIn ? 'Marks in' : 'Test marks'}
+            </button>
+            {/* Present salary, expectation and current benefits — asked in
+                the room, and its own small form rather than a corner of
+                Salary Fixation, which is Corporate HR's screen and sets
+                the actual figure. */}
+            <button
+              type="button"
+              onClick={onEnterPackage}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[0.6875rem] font-semibold transition-all hover:-translate-y-0.5 hover:shadow-sm',
+                packageIn
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-brand-200 hover:text-brand-600',
+              )}
+            >
+              <BadgeDollarSign className="h-3.5 w-3.5" />
+              {packageIn ? 'Salary noted' : 'Salary'}
+            </button>
 
             {/* The step itself. Solid where the board is waiting on you,
                 outlined where the work is already in hand. */}
