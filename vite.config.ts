@@ -9,6 +9,11 @@ import path from 'node:path';
 export default defineConfig({
   plugins: [react()],
   assetsInclude: ['**/*.lottie'],
+  build: {
+    // Never inline .lottie files as data: URIs. The player fetch()es its
+    // src, and production's CSP (connect-src 'self') blocks data: fetches.
+    assetsInlineLimit: (file) => (file.endsWith('.lottie') ? false : undefined),
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

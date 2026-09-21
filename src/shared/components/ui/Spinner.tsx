@@ -1,7 +1,13 @@
-import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import { DotLottieReact, setWasmUrl } from '@lottiefiles/dotlottie-react';
+import wasmUrl from '@lottiefiles/dotlottie-web/dotlottie-player.wasm?url';
 
 import { cn } from '@shared/lib';
 import loaderSrc from '@assets/loader.lottie?url';
+
+// Serve the player's WASM runtime from our own origin. By default it is
+// fetched from jsdelivr/unpkg, which production's CSP (connect-src 'self')
+// blocks, so the loader rendered nothing there while working in dev.
+setWasmUrl(wasmUrl);
 
 export interface SpinnerProps {
   className?: string;
