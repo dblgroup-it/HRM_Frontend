@@ -14,7 +14,22 @@ export const employeeKeys = {
   list: (filters: EmployeeFilters) =>
     [...employeeKeys.all, 'list', filters] as const,
   detail: (id: string) => [...employeeKeys.all, 'detail', id] as const,
+  departments: () => [...employeeKeys.all, 'departments'] as const,
 };
+
+/**
+ * The departments the directory filter offers.
+ *
+ * Long-lived: the set of departments changes when somebody joins a new one,
+ * which is not something the filter needs to notice within the hour.
+ */
+export function useEmployeeDepartments() {
+  return useQuery({
+    queryKey: employeeKeys.departments(),
+    queryFn: () => employeeApi.listDepartments(),
+    staleTime: 60 * 60 * 1000,
+  });
+}
 
 /** Paginated, filterable employee list. */
 export function useEmployees(

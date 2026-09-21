@@ -19,8 +19,13 @@ export interface Employee {
   salary: number;
   joinedAt: ISODateString;
   avatarUrl?: string | null;
-  /** The person's e-signature, or null when they have none. */
+  /**
+   * A link to your OWN e-signature. Always null for anybody else's record —
+   * the server only serves the image to the person it belongs to.
+   */
   signatureUrl?: string | null;
+  /** Whether a signature is on file. Everyone may know this much. */
+  hasSignature?: boolean;
   /** True when they uploaded it themselves; HR may not then replace it. */
   signatureSelfUploaded?: boolean;
   manager?: string;

@@ -8,7 +8,13 @@ import type {
   EmployeeFilters,
   EmploymentStatus,
 } from '../types/employee.types';
-import { MOCK_EMPLOYEES } from '../data/employees.mock';
+import { DEPARTMENTS, MOCK_EMPLOYEES } from '../data/employees.mock';
+
+/** A department, with how many employees are in it. */
+export interface EmployeeDepartment {
+  name: string;
+  count: number;
+}
 
 /** Shape returned by the NestJS `/employees` endpoint. */
 interface BackendEmployee {
@@ -34,6 +40,7 @@ interface BackendEmployee {
   lineManagerId: string | null;
   avatarUrl: string | null;
   signatureUrl?: string | null;
+  hasSignature?: boolean;
   signatureSelfUploaded?: boolean;
   source: string;
   status: string;
@@ -58,6 +65,7 @@ function mapEmployee(e: BackendEmployee): Employee {
     joinedAt: e.joiningDate ?? new Date().toISOString(),
     avatarUrl: e.avatarUrl ?? null,
     signatureUrl: e.signatureUrl ?? null,
+    hasSignature: e.hasSignature ?? Boolean(e.signatureUrl),
     signatureSelfUploaded: e.signatureSelfUploaded ?? false,
     manager: e.lineManagerName ?? undefined,
     managerCode: e.lineManagerCode,
@@ -145,6 +153,25 @@ export const employeeApi = {
         items: res.data.items.map(mapEmployee),
         meta: res.data.meta,
       }));
+  },
+
+  /**
+   * The departments to offer in the directory filter.
+   *
+   * Read from the employee records themselves. The list used to be seven
+   * invented names in `employees.mock.ts` — "Production", "IT & Systems" and
+   * so on — none of which is a department ZingHR actually sends, so every
+   * choice filtered the directory down to nothing.
+   */
+  listDepartments(): Promise<EmployeeDepartment[]> {
+    if (ENV.USE_MOCK_API) {
+      return delay(MOCK_LATENCY).then(() =>
+        DEPARTMENTS.map((name) => ({ name, count: 0 })),
+      );
+    }
+    return http
+      .get<ApiResponse<EmployeeDepartment[]>>('/employees/departments')
+      .then((res) => res.data);
   },
 
   getById(id: string): Promise<Employee> {

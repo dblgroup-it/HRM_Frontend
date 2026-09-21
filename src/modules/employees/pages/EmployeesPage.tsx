@@ -16,7 +16,6 @@ import { useDebounce } from '@shared/hooks';
 import { useEmployees } from '../hooks/useEmployees';
 import { EmployeeTable } from '../components/EmployeeTable';
 import { EmployeeFilters } from '../components/EmployeeFilters';
-import type { EmploymentStatus } from '../types/employee.types';
 import { useDashboard } from '@modules/dashboard/hooks/useDashboard';
 
 const PAGE_SIZE = 50;
@@ -26,7 +25,6 @@ export default function EmployeesPage() {
   const urlQuery = params.get('q') ?? '';
   const [search, setSearch] = useState(urlQuery);
   const [department, setDepartment] = useState('all');
-  const [status, setStatus] = useState('all');
   const [page, setPage] = useState(1);
 
   // Drive the search from the top-bar global search (?q=…).
@@ -41,11 +39,10 @@ export default function EmployeesPage() {
     () => ({
       search: debouncedSearch,
       department,
-      status: status as EmploymentStatus | 'all',
       page,
       pageSize: PAGE_SIZE,
     }),
-    [debouncedSearch, department, status, page]
+    [debouncedSearch, department, page]
   );
 
   const { data, isLoading, isFetching } = useEmployees(filters);
@@ -72,17 +69,12 @@ export default function EmployeesPage() {
           <EmployeeFilters
             search={search}
             department={department}
-            status={status}
             onSearchChange={(v) => {
               setSearch(v);
               resetToFirstPage();
             }}
             onDepartmentChange={(v) => {
               setDepartment(v);
-              resetToFirstPage();
-            }}
-            onStatusChange={(v) => {
-              setStatus(v);
               resetToFirstPage();
             }}
           />

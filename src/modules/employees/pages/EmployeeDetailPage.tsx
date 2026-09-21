@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Mail, MapPin, Pencil, Phone, User, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  Mail,
+  MapPin,
+  Pencil,
+  Phone,
+  ShieldCheck,
+  User,
+  X,
+} from 'lucide-react';
 
 import {
   Avatar,
@@ -47,7 +56,22 @@ export default function EmployeeDetailPage() {
   /** Is this my own record? Your own signature is always yours to manage. */
   const isOwnProfile =
     Boolean(signedInUser?.id) && signedInUser?.id === employee?.userId;
-  const canSeeSignature = canAdminister || isOwnProfile;
+  /**
+   * Seeing the signature and managing it are two different rights.
+   *
+   * The image is confidential to the person it belongs to — it is the mark
+   * that signs their offer letters and joining forms, and a picture of it is
+   * most of what is needed to forge one. So nobody, including HR and super
+   * users, is shown a colleague's. The server enforces this and simply does
+   * not send the URL for anybody else's record; these flags keep the page
+   * from rendering an empty frame where an image used to be.
+   *
+   * Managing one is an ordinary HR act and is unchanged: administrators can
+   * still upload, replace and clear, told only whether one is on file.
+   */
+  const canViewSignature = isOwnProfile;
+  const canManageSignature = canAdminister || isOwnProfile;
+  const hasSignature = Boolean(employee?.hasSignature);
   const [form, setForm] = useState<EditForm>({ name: '', email: '', phone: '', gender: '', dateOfBirth: '' });
 
   /**
@@ -291,16 +315,30 @@ export default function EmployeeDetailPage() {
               ) : (
                 <div className="flex flex-wrap items-start gap-4">
                   <div className="flex aspect-[3/1] w-56 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white">
+                    {/* A staged image is one the administrator just chose
+                        themselves, so it is theirs to look at. The one on
+                        file is not — for anybody but its owner the frame
+                        says that a signature exists without showing it. */}
                     {pendingPreview ? (
                       <img src={pendingPreview} alt="New signature" className="h-full w-full object-contain" />
-                    ) : !clearSignature && employee.signatureUrl ? (
+                    ) : clearSignature || !hasSignature ? (
+                      <span className="text-xs text-slate-400">No signature</span>
+                    ) : canViewSignature && employee.signatureUrl ? (
                       <img
                         src={resolveApiFileUrl(employee.signatureUrl)}
-                        alt={`${employee.name} signature`}
+                        alt="Your signature"
                         className="h-full w-full object-contain"
                       />
                     ) : (
-                      <span className="text-xs text-slate-400">No signature</span>
+                      <span className="flex flex-col items-center gap-1 px-3 text-center">
+                        <ShieldCheck className="h-4 w-4 text-slate-300" />
+                        <span className="text-xs font-medium text-slate-500">
+                          Signature on file
+                        </span>
+                        <span className="text-[0.6875rem] leading-tight text-slate-400">
+                          Hidden — only {employee.name.split(' ')[0]} can see it
+                        </span>
+                      </span>
                     )}
                   </div>
 
@@ -319,17 +357,17 @@ export default function EmployeeDetailPage() {
                             size="sm"
                             onClick={() => signatureInputRef.current?.click()}
                           >
-                            {employee.signatureUrl || pendingSignature
+                            {hasSignature || pendingSignature
                               ? 'Choose new image'
                               : 'Choose image'}
                           </Button>
-                          {(employee.signatureUrl || pendingSignature) && (
+                          {(hasSignature || pendingSignature) && (
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => {
                                 setPendingSignature(null);
-                                setClearSignature(Boolean(employee.signatureUrl));
+                                setClearSignature(hasSignature);
                               }}
                             >
                               Remove
@@ -408,15 +446,15 @@ export default function EmployeeDetailPage() {
             ))}
 
             {/*
-              E-signature — shown only to the person themselves and to the four
-              administrative roles.
+              E-signature — the image only on your own profile.
 
-              A colleague has no reason to see whether someone has registered a
-              signature, and "Not provided" on every other profile is noise that
-              reads as something missing. Hidden entirely rather than shown
-              empty.
+              Administrators get the section too, because they may need to add
+              or replace one, but it tells them only whether a signature is on
+              file. Everyone else does not see the section at all: a colleague
+              has no reason to know, and "Not provided" on every other profile
+              is noise that reads as something missing.
             */}
-            {canSeeSignature && (
+            {canManageSignature && (
               <div className="border-t border-slate-100 pt-4">
                 <p className="mb-2 text-xs text-slate-400">E-signature</p>
                 {/* No `userId` on your own profile, so it posts to /users/me
@@ -424,14 +462,19 @@ export default function EmployeeDetailPage() {
                 {/* Read-only here. Administrators change it inside the edit
                     form, where it is applied by Save changes; the owner changes
                     their own from Settings. One place to edit, not two. */}
-                {employee.signatureUrl ? (
+                {canViewSignature && employee.signatureUrl ? (
                   <div className="flex aspect-[3/1] w-full max-w-[16rem] items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white">
                     <img
                       src={resolveApiFileUrl(employee.signatureUrl)}
-                      alt={`${employee.name} signature`}
+                      alt="Your signature"
                       className="h-full w-full object-contain"
                     />
                   </div>
+                ) : hasSignature ? (
+                  <p className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-600">
+                    <ShieldCheck className="h-3.5 w-3.5 text-slate-400" />
+                    On file — visible only to {employee.name.split(' ')[0]}
+                  </p>
                 ) : (
                   <p className="text-sm text-slate-400">
                     {isOwnProfile

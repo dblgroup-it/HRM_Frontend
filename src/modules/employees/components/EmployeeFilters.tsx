@@ -1,58 +1,63 @@
+import { useMemo } from 'react';
 import { Search } from 'lucide-react';
 
-import { Input, Select } from '@shared/components/ui';
+import { Combobox, Input } from '@shared/components/ui';
 import type { SelectOption } from '@shared/types';
 
-import { DEPARTMENTS } from '../data/employees.mock';
+import { useEmployeeDepartments } from '../hooks/useEmployees';
 import type { EmployeeFilters as Filters } from '../types/employee.types';
-
-const STATUS_OPTIONS: SelectOption[] = [
-  { label: 'All statuses', value: 'all' },
-  { label: 'Active', value: 'active' },
-  { label: 'On Leave', value: 'on_leave' },
-  { label: 'Probation', value: 'probation' },
-  { label: 'Inactive', value: 'inactive' },
-];
-
-const DEPARTMENT_OPTIONS: SelectOption[] = [
-  { label: 'All departments', value: 'all' },
-  ...DEPARTMENTS.map((d) => ({ label: d, value: d })),
-];
 
 interface Props {
   search: string;
   department: string;
-  status: string;
   onSearchChange: (value: string) => void;
   onDepartmentChange: (value: string) => void;
-  onStatusChange: (value: string) => void;
 }
 
+/**
+ * Search the directory, and narrow it to one department.
+ *
+ * Two controls, both of which work. There used to be three: the departments
+ * were seven invented names out of the mock fixtures, matching nothing ZingHR
+ * sends, and the status dropdown offered "On Leave" and "Probation" — states
+ * this system does not model — against a backend that has no status parameter
+ * at all, so picking one changed nothing on screen. A filter that silently
+ * does nothing is worse than no filter: it makes people doubt the data.
+ */
 export function EmployeeFilters({
   search,
   department,
-  status,
   onSearchChange,
   onDepartmentChange,
-  onStatusChange,
 }: Props) {
+  const { data: departments } = useEmployeeDepartments();
+
+  // A Combobox rather than a select — there are 100+ real departments, and
+  // the count tells you whether a choice is worth making before you make it.
+  const options: SelectOption[] = useMemo(
+    () => [
+      { label: 'All departments', value: 'all' },
+      ...(departments ?? []).map((d) => ({
+        label: `${d.name} (${d.count})`,
+        value: d.name,
+      })),
+    ],
+    [departments],
+  );
+
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_200px_200px]">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_260px]">
       <Input
         placeholder="Search by name, code, email…"
         leftIcon={<Search className="h-4 w-4" />}
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}
       />
-      <Select
-        options={DEPARTMENT_OPTIONS}
+      <Combobox
+        options={options}
         value={department}
-        onChange={(e) => onDepartmentChange(e.target.value)}
-      />
-      <Select
-        options={STATUS_OPTIONS}
-        value={status}
-        onChange={(e) => onStatusChange(e.target.value)}
+        onChange={onDepartmentChange}
+        placeholder="All departments"
       />
     </div>
   );
