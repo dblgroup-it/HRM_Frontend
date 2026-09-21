@@ -974,13 +974,16 @@ function RoundCard({
               {/* The candidate did not turn up. Recorded against the round
                   rather than left as "scheduled" forever — the panel's time
                   was spent, and the next person to look needs to know why
-                  there are no marks. */}
-              <button type="button"
-                onClick={() => update.mutate({ roundId: round.id, status: 'absent' })}
-                disabled={update.isPending}
-                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-medium text-rose-600 transition hover:bg-rose-50 disabled:opacity-50">
-                <UserX className="h-3.5 w-3.5" /> Absent
-              </button>
+                  there are no marks. Gone once anyone has marked them: a
+                  mark means they were in the room (the server refuses too). */}
+              {round.evaluations.length === 0 && (
+                <button type="button"
+                  onClick={() => update.mutate({ roundId: round.id, status: 'absent' })}
+                  disabled={update.isPending}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-medium text-rose-600 transition hover:bg-rose-50 disabled:opacity-50">
+                  <UserX className="h-3.5 w-3.5" /> Absent
+                </button>
+              )}
             </>
           )}
           {round.status === 'absent' && (

@@ -37,7 +37,6 @@ import {
   CardBody,
   FullPageSpinner,
   Input,
-  Modal,
   type BadgeTone,
 } from '@shared/components/ui';
 import { cn } from '@shared/lib';
@@ -57,6 +56,7 @@ import type { PickedEmployee } from '@modules/requisition';
 import { OfferLetterModal } from '../components/OfferLetterModal';
 import { AppointmentLetterModal } from '../components/AppointmentLetterModal';
 import { FacilityProvisioningPanel } from '../components/FacilityProvisioningPanel';
+import { HrVerifyModal } from '../components/HrVerifyModal';
 import { ReferenceChecksPanel } from '../components/ReferenceChecksPanel';
 import { useReferenceChecks } from '../hooks/useReferenceChecks';
 import { useSetPlacement } from '../hooks/useOnboarding';
@@ -675,35 +675,6 @@ function DateRow({ label, value }: { label: string; value: string | null }) {
         )}
       >
         {value ? fmt(value) : '—'}
-      </span>
-    </div>
-  );
-}
-
-function SummaryRow({
-  label,
-  ok,
-  detail,
-}: {
-  label: string;
-  ok: boolean;
-  detail: string;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-sm">
-      <span className="flex items-center gap-2 text-slate-600">
-        <span
-          className={cn(
-            'flex h-4 w-4 shrink-0 items-center justify-center rounded-full',
-            ok ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400',
-          )}
-        >
-          {ok ? <Check className="h-2.5 w-2.5" strokeWidth={3} /> : <X className="h-2.5 w-2.5" strokeWidth={3} />}
-        </span>
-        {label}
-      </span>
-      <span className={cn('text-xs font-medium', ok ? 'text-slate-700' : 'text-amber-600')}>
-        {detail}
       </span>
     </div>
   );
@@ -1962,166 +1933,99 @@ function Flow({
 
       {/* HR verify — summary + confirmation before the final, hard-to-undo sign-off
           (it also auto-rejects every other applicant still in this requisition's pipeline). */}
-      <Modal
+      <HrVerifyModal
         open={verifyConfirmOpen}
         onClose={() => setVerifyConfirmOpen(false)}
-        title="Confirm final verification"
-        size="sm"
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setVerifyConfirmOpen(false)}>
-              Cancel
-            </Button>
-            {/* The moment HR finds the file is short is the moment to chase
-                it. Until now that meant leaving for a mail client and
-                writing the list out by hand, so it mostly did not happen
-                and the hire sat still. The list is the server's own. */}
-            {!docsSettled && (
-              <Button
-                variant="outline"
-                isLoading={chaseDocs.isPending}
-                disabled={noEmail}
-                title={noEmail ? emailHint : undefined}
-                leftIcon={<Send className="h-4 w-4" />}
-                onClick={() => chaseDocs.mutate()}
-              >
-                Notify candidate
-              </Button>
-            )}
-            <Button
-              isLoading={hrVerify.isPending}
-              disabled={!docsSettled}
-              title={
-                docsSettled
-                  ? undefined
-                  : 'Collect and verify every document first, or record that you checked them by hand.'
-              }
-              leftIcon={<UserCheck className="h-4 w-4" />}
-              onClick={() =>
-                hrVerify.mutate(undefined, {
-                  onSuccess: () => setVerifyConfirmOpen(false),
-                })
-              }
-            >
-              Confirm &amp; verify
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-3">
-          <p className="text-sm text-slate-500">
-            Review before signing off {result.candidate.name}&rsquo;s hire:
-          </p>
-          <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200">
-            <SummaryRow
-              label="Documents"
-              ok={docsSettled}
-              detail={
-                ob.docsSkippedAt || ob.verificationSkippedAt
-                  ? 'Checked manually on hand'
-                  : docsSettled
-                    ? `${ob.docs.length} verified`
-                    : ob.missingDocs.length > 0
-                      ? `${ob.missingDocs.length} not collected`
-                      : `${ob.pendingDocs.length} not verified`
-              }
-            />
-            {/* The server refuses without one, so it belongs on the list of
-                reasons the button is about to say no. */}
-            <SummaryRow
-              label="Reference checks"
-              ok={refCount > 0 || Boolean(ob.docsSkippedAt)}
-              detail={
-                ob.docsSkippedAt
-                  ? 'Checked manually on hand'
-                  : refCount > 0
-                    ? `${refCount} recorded`
-                    : 'None recorded'
-              }
-            />
-            <SummaryRow
-              label="NID details"
-              ok={nidComplete || Boolean(ob.docsSkippedAt)}
-              detail={
-                ob.docsSkippedAt
-                  ? 'Checked manually on hand'
-                  : nidComplete
-                    ? 'All four supplied'
-                    : 'Incomplete'
-              }
-            />
-            <SummaryRow
-              label="Offer"
-              ok={Boolean(ob.offerAcceptedAt)}
-              detail={ob.offerAcceptedAt ? `Accepted ${fmt(ob.offerAcceptedAt)}` : 'Not accepted yet'}
-            />
-            <SummaryRow
-              label="Medical"
-              ok={ob.medicalStatus === 'cleared'}
-              detail={
-                ob.medicalStatus === 'cleared'
-                  ? `Cleared ${fmt(ob.medicalClearedAt)}${ob.medicalManual ? ' · by hand' : ''}`
-                  : 'Not cleared'
-              }
-            />
-            <SummaryRow
-              label="Code of Conduct"
-              ok={Boolean(ob.cocSignedAt)}
-              detail={
-                ob.cocSignedAt
-                  ? `Signed ${fmt(ob.cocSignedAt)}`
-                  : ob.cocSentAt
-                    ? 'Sent · not signed yet'
-                    : 'Not sent'
-              }
-            />
-            <SummaryRow
-              label="Board Approval"
-              ok={isApproved}
-              detail={isApproved ? 'Approved' : 'Not approved'}
-            />
-            <SummaryRow
-              label="Facility Provisioning"
-              ok={!provisioning || provisioning.items.every((i) => i.recipients.length > 0)}
-              detail={
-                !provisioning || provisioning.items.length === 0
-                  ? 'Nothing to arrange'
-                  : `${provisioning.items.filter((i) => Boolean(i.confirmedAt)).length}/${provisioning.items.length} arranged`
-              }
-            />
-          </dl>
-          {!docsSettled && (
-            <div className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3">
-              <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-rose-700">
-                Outstanding documents
-              </p>
-              <ul className="mt-1.5 space-y-1">
-                {ob.missingDocs.map((label) => (
-                  <li key={`m-${label}`} className="flex items-center gap-2 text-xs text-rose-800">
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-rose-400" />
-                    {label} <span className="text-rose-500">— not collected</span>
-                  </li>
-                ))}
-                {ob.pendingDocs.map((label) => (
-                  <li key={`p-${label}`} className="flex items-center gap-2 text-xs text-amber-800">
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
-                    {label} <span className="text-amber-600">— not verified yet</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-2 text-[0.6875rem] text-rose-600">
-                Every document is required. If you have already checked these on
-                paper, record that on the Documents step with &ldquo;Checked by
-                Manual on hand&rdquo; — then this will unlock.
-              </p>
-            </div>
-          )}
-          <p className="text-xs text-amber-600">
-            This finalizes the hire and automatically rejects any other
-            applicants still in this requisition&rsquo;s pipeline.
-          </p>
-        </div>
-      </Modal>
+        candidateName={result.candidate.name}
+        docsSettled={docsSettled}
+        missingDocs={ob.missingDocs}
+        pendingDocs={ob.pendingDocs}
+        notify={{
+          onClick: () => chaseDocs.mutate(),
+          isPending: chaseDocs.isPending,
+          unavailable: noEmail ? emailHint : undefined,
+        }}
+        confirm={{
+          isPending: hrVerify.isPending,
+          onClick: () =>
+            hrVerify.mutate(undefined, {
+              onSuccess: () => setVerifyConfirmOpen(false),
+            }),
+        }}
+        checks={[
+          {
+            label: 'Documents',
+            ok: docsSettled,
+            detail:
+              ob.docsSkippedAt || ob.verificationSkippedAt
+                ? 'Checked manually on hand'
+                : docsSettled
+                  ? `${ob.docs.length} verified`
+                  : ob.missingDocs.length > 0
+                    ? `${ob.missingDocs.length} not collected`
+                    : `${ob.pendingDocs.length} not verified`,
+          },
+          // The server refuses without one, so it belongs on the list of
+          // reasons the button is about to say no.
+          {
+            label: 'Reference checks',
+            ok: refCount > 0 || Boolean(ob.docsSkippedAt),
+            detail: ob.docsSkippedAt
+              ? 'Checked manually on hand'
+              : refCount > 0
+                ? `${refCount} recorded`
+                : 'None recorded',
+          },
+          {
+            label: 'NID details',
+            ok: nidComplete || Boolean(ob.docsSkippedAt),
+            detail: ob.docsSkippedAt
+              ? 'Checked manually on hand'
+              : nidComplete
+                ? 'All four supplied'
+                : 'Incomplete',
+          },
+          {
+            label: 'Offer',
+            ok: Boolean(ob.offerAcceptedAt),
+            detail: ob.offerAcceptedAt
+              ? `Accepted ${fmt(ob.offerAcceptedAt)}`
+              : 'Not accepted yet',
+          },
+          {
+            label: 'Medical',
+            ok: ob.medicalStatus === 'cleared',
+            detail:
+              ob.medicalStatus === 'cleared'
+                ? `Cleared ${fmt(ob.medicalClearedAt)}${ob.medicalManual ? ' · by hand' : ''}`
+                : 'Not cleared',
+          },
+          {
+            label: 'Code of Conduct',
+            ok: Boolean(ob.cocSignedAt),
+            detail: ob.cocSignedAt
+              ? `Signed ${fmt(ob.cocSignedAt)}`
+              : ob.cocSentAt
+                ? 'Sent · not signed yet'
+                : 'Not sent',
+          },
+          {
+            label: 'Board approval',
+            ok: isApproved,
+            detail: isApproved ? 'Approved' : 'Not approved',
+          },
+          {
+            label: 'Facility provisioning',
+            ok:
+              !provisioning ||
+              provisioning.items.every((i) => i.recipients.length > 0),
+            detail:
+              !provisioning || provisioning.items.length === 0
+                ? 'Nothing to arrange'
+                : `${provisioning.items.filter((i) => Boolean(i.confirmedAt)).length}/${provisioning.items.length} arranged`,
+          },
+        ]}
+      />
 
       {/* Detail panel — only the stage selected in the header stepper above ("part
           by part" instead of all 5 stages at once). Keyed by activeStage so

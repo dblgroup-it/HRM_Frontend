@@ -323,6 +323,8 @@ export function useSaveScreeningTests(candidateId: string) {
     onSuccess: (data) => {
       qc.setQueryData(['screening-tests', candidateId], data);
       void qc.invalidateQueries({ queryKey: ['salary-fixation'] });
+      // The worklist card shows these marks and gates the verdict on them.
+      void qc.invalidateQueries({ queryKey: delegationKeys.mine });
       toast.success('Test marks saved');
     },
     onError: (error) => toast.error(errMsg(error, 'Could not save the marks')),

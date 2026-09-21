@@ -158,6 +158,13 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
             queryKey: ['facility-provisioning'],
             refetchType: 'active',
           });
+          // The Assigned Candidates worklist carries each card's test marks,
+          // and the first-interview verdict waits on them — an AI test result
+          // landing must unlock it without a reload.
+          void queryClient.invalidateQueries({
+            queryKey: ['my-delegated-candidates'],
+            refetchType: 'active',
+          });
         }
       }
     };

@@ -20,6 +20,7 @@ import {
   ChevronDown,
   Paperclip,
   ScanFace,
+  Save,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -150,6 +151,7 @@ export default function OnboardingPage() {
     if (nidLoaded.current || !data) return;
     nidLoaded.current = true;
     setNid(data.nid);
+    setSavedNid(data.nid);
   }, [data]);
 
   // Open the first section that still owes something, once. Guarded so an
@@ -185,12 +187,13 @@ export default function OnboardingPage() {
   });
 
   /**
-   * The NID particulars, held locally and saved on blur.
+   * The NID particulars, held locally and saved with an explicit button.
    *
-   * Saved per field as they leave it rather than behind a Save button: this
-   * page is filled in over several sittings, often on a phone, and a form
-   * that loses four typed fields to a closed tab is one people do not
-   * finish.
+   * They used to save silently on blur, which left the candidate with no way
+   * to tell whether anything had been kept. Now the box says plainly whether
+   * it is saved, and leaving the page with unsaved edits asks first — this
+   * page is filled in over several sittings, often on a phone, and four typed
+   * fields lost to a closed tab is a form people do not finish.
    */
   const [nid, setNid] = useState<NidParticulars>({
     name: '',
@@ -198,12 +201,32 @@ export default function OnboardingPage() {
     dateOfBirth: '',
     number: '',
   });
+  /** What the server holds — the yardstick for "unsaved changes". */
+  const [savedNid, setSavedNid] = useState<NidParticulars | null>(null);
   const nidLoaded = useRef(false);
   const saveNid = useMutation({
-    mutationFn: (patch: Partial<NidParticulars>) =>
-      onboardingApi.publicSaveNid(token, patch),
+    mutationFn: (all: NidParticulars) =>
+      onboardingApi.publicSaveNid(token, all),
+    onSuccess: (saved) => {
+      setSavedNid(saved);
+      void qc.invalidateQueries({ queryKey: ['public-onboarding', token] });
+      toast.success('NID details saved');
+    },
     onError: (e) => toast.error(msg(e, 'Could not save that — please retry')),
   });
+  const nidDirty =
+    savedNid != null &&
+    NID_KEYS.some((k) => nid[k].trim() !== savedNid[k]);
+  const nidFilled = savedNid
+    ? NID_KEYS.filter((k) => savedNid[k] !== '').length
+    : 0;
+
+  useEffect(() => {
+    if (!nidDirty) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [nidDirty]);
 
   const accept = useMutation({
     mutationFn: (joining?: string) => onboardingApi.publicAccept(token, joining),
@@ -524,7 +547,16 @@ export default function OnboardingPage() {
         {/* The four particulars, typed. They print on the appointment letter
             and go onto payroll, so an OCR read of the scan is not enough. */}
         {slot.particulars === 'nid' && (
-          <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (nidDirty && !saveNid.isPending) saveNid.mutate(nid);
+            }}
+            className={cn(
+              'mt-3 rounded-xl border bg-slate-50/70 p-3 transition-colors',
+              nidDirty ? 'border-amber-300' : 'border-slate-200',
+            )}
+          >
             <p className="text-[0.6875rem] font-semibold text-slate-600">
               Type these exactly as printed on your NID
             </p>
@@ -533,29 +565,66 @@ export default function OnboardingPage() {
                 label="Name as per NID"
                 value={nid.name}
                 onChange={(v) => setNid((n) => ({ ...n, name: v }))}
-                onCommit={() => saveNid.mutate({ name: nid.name })}
               />
               <NidField
                 label="NID number"
                 value={nid.number}
                 onChange={(v) => setNid((n) => ({ ...n, number: v }))}
-                onCommit={() => saveNid.mutate({ number: nid.number })}
               />
               <NidField
                 label="Date of birth"
                 type="date"
                 value={nid.dateOfBirth}
                 onChange={(v) => setNid((n) => ({ ...n, dateOfBirth: v }))}
-                onCommit={() => saveNid.mutate({ dateOfBirth: nid.dateOfBirth })}
               />
               <NidField
                 label="Address"
                 value={nid.address}
                 onChange={(v) => setNid((n) => ({ ...n, address: v }))}
-                onCommit={() => saveNid.mutate({ address: nid.address })}
               />
             </div>
-          </div>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 pt-2.5">
+              <p
+                role="status"
+                className={cn(
+                  'inline-flex items-center gap-1.5 text-[0.6875rem] font-medium',
+                  nidDirty
+                    ? 'text-amber-700'
+                    : nidFilled === NID_KEYS.length
+                      ? 'text-emerald-700'
+                      : 'text-slate-500',
+                )}
+              >
+                {nidDirty ? (
+                  <>
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                    Unsaved changes — press Save
+                  </>
+                ) : nidFilled === NID_KEYS.length ? (
+                  <>
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Saved
+                  </>
+                ) : nidFilled > 0 ? (
+                  `Saved · ${nidFilled} of ${NID_KEYS.length} filled`
+                ) : (
+                  'Not saved yet'
+                )}
+              </p>
+              <button
+                type="submit"
+                disabled={!nidDirty || saveNid.isPending}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-brand-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {saveNid.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
+                {saveNid.isPending ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </form>
         )}
       </div>
     );
@@ -1201,18 +1270,18 @@ export default function OnboardingPage() {
  * candidate is often on a phone connection, and a request per character
  * would both hammer the server and lose races between them.
  */
+const NID_KEYS = ['name', 'number', 'dateOfBirth', 'address'] as const;
+
 function NidField({
   label,
   value,
   type = 'text',
   onChange,
-  onCommit,
 }: {
   label: string;
   value: string;
   type?: 'text' | 'date';
   onChange: (v: string) => void;
-  onCommit: () => void;
 }) {
   return (
     <label className="block">
@@ -1223,7 +1292,6 @@ function NidField({
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onBlur={onCommit}
         className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:border-brand-300 focus:outline-none"
       />
     </label>

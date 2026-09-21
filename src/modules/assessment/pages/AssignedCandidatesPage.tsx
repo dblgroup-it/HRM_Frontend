@@ -797,7 +797,10 @@ function BoardCard({
   const rejected = row.candidate.stage === 'rejected';
   // Both buttons say whether the thing behind them has been done yet, so the
   // row can be read without opening anything.
-  const marksIn = row.tests.some((t) => t.obtained != null);
+  // Every assigned test, not just one of them — the verdict waits on all.
+  // A skipped test is not in `tests` at all, so it never holds this up.
+  const unmarked = row.tests.filter((t) => t.obtained == null);
+  const marksIn = row.tests.length > 0 && unmarked.length === 0;
   const packageIn =
     row.candidate.presentSalary != null ||
     row.candidate.salaryExpectation != null;
@@ -1085,7 +1088,39 @@ function BoardCard({
       {/* The verdict, asked for on the card itself */}
       {deciding && (
         <div className="mt-3 rounded-md bg-slate-50 p-2.5 ring-1 ring-slate-200">
-          {!verdict ? (
+          {unmarked.length > 0 ? (
+            // Marks first. Whatever was assigned is either marked or skipped
+            // before anyone decides — the server refuses otherwise.
+            <>
+              <p className="flex items-start gap-1.5 text-[0.6875rem] font-medium text-amber-800">
+                <ListChecks className="mt-px h-3.5 w-3.5 shrink-0" />
+                <span>
+                  Enter the {unmarked.map((t) => t.label).join(', ')} mark
+                  {unmarked.length === 1 ? '' : 's'} first — or skip{' '}
+                  {unmarked.length === 1 ? 'that test' : 'those tests'} if{' '}
+                  {row.candidate.name.split(' ')[0]} didn&apos;t sit{' '}
+                  {unmarked.length === 1 ? 'it' : 'them'}.
+                </span>
+              </p>
+              <div className="mt-2 flex gap-1.5">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 px-2.5 text-xs"
+                  onClick={onCloseDecision}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-8 flex-1 px-2.5 text-xs"
+                  onClick={onEnterMarks}
+                >
+                  <ListChecks className="mr-1 h-3.5 w-3.5" /> Enter test marks
+                </Button>
+              </div>
+            </>
+          ) : !verdict ? (
             <>
               <p className="text-[0.6875rem] font-medium text-slate-700">
                 Does {row.candidate.name.split(' ')[0]} go through to the final

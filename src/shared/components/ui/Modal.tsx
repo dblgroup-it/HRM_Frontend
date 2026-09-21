@@ -80,7 +80,7 @@ export function Modal({
           {children}
         </div>
         {footer && (
-          <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-4">
+          <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-slate-100 px-5 py-4">
             {footer}
           </div>
         )}
