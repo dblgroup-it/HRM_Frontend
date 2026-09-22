@@ -66,6 +66,19 @@ export function visibleChain(
     return { chain: requisition.approvalChain, hiddenNames: new Set() };
   }
   const hiddenNames = new Set<string>();
+  /**
+   * The recruiter and whoever is standing in for them.
+   *
+   * They are not on the chain, so filtering the chain alone left their
+   * entries in the history underneath it — and those entries are the most
+   * corporate thing on the page: which recruiter has the file, and that one
+   * of them is on leave until a date. Who is recruiting the vacancy is not
+   * something the person who asked for the headcount needs to track.
+   */
+  for (const person of [requisition.recruiter, requisition.cover]) {
+    const name = person?.name?.trim();
+    if (name) hiddenNames.add(name.toLowerCase());
+  }
   const chain = requisition.approvalChain.filter((step) => {
     if (!step.role || !CORPORATE_STEP_ROLES.has(step.role)) return true;
     // `assignee` on a role-routed step is every holder, comma-joined.

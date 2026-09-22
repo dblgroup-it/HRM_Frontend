@@ -149,10 +149,6 @@ export default function RequisitionDetailPage() {
     );
   }
 
-  const showProfile =
-    req.status === 'approved' ||
-    req.status === 'profile_generated' ||
-    req.status === 'posted';
   const showPosting =
     req.status === 'profile_generated' || req.status === 'posted';
 
@@ -203,15 +199,35 @@ export default function RequisitionDetailPage() {
    * it: asking for the headcount is not the same as advertising the vacancy.
    * A raiser who also holds one of the hiring roles still gets it.
    */
-  const canShareSocial =
-    !!perms?.isSuperUser ||
-    holdsForUnit('corporate_hr') ||
-    holdsForUnit('chro') ||
-    holdsForUnit('factory_hr') ||
-    (perms?.roles ?? []).some((r) => r.key === 'corporate_recruiter') ||
-    (!!myUserId &&
-      (req.recruiter?.id === myUserId || req.cover?.id === myUserId)) ||
-    !(!!myUserId && req.raisedById === myUserId);
+  /**
+   * Somebody whose only business with this requisition is that they raised
+   * it.
+   *
+   * They asked for a headcount. How the vacancy is then written up, where it
+   * is advertised and who is shortlisted is the hiring side's work, and a
+   * requisitioner watching it happen can only wonder whether to chase it.
+   * Anyone who holds a hiring role — including the unit's own Factory HR —
+   * is not this, even when they also raised it.
+   */
+  const raisedItOnly =
+    !perms?.isSuperUser &&
+    !!myUserId &&
+    req.raisedById === myUserId &&
+    !holdsForUnit('corporate_hr') &&
+    !holdsForUnit('chro') &&
+    !holdsForUnit('factory_hr') &&
+    !(perms?.roles ?? []).some((r) => r.key === 'corporate_recruiter') &&
+    req.recruiter?.id !== myUserId &&
+    req.cover?.id !== myUserId;
+
+  /** The role profile and the posting — the hiring side's half of the job. */
+  const showProfile =
+    !raisedItOnly &&
+    (req.status === 'approved' ||
+      req.status === 'profile_generated' ||
+      req.status === 'posted');
+
+  const canShareSocial = !raisedItOnly;
   /** Whoever is holding it right now — their edit is part of the flow. */
   const holdsRequisition =
     (req.status === 'pending_approval' ||

@@ -40,8 +40,17 @@ export function defaultRequisitionTab({
 }): RequisitionTabKey {
   const has = (k: RequisitionTabKey) => available.includes(k);
 
+  /**
+   * Profile & Posting is not everyone's tab any more — the requisitioner
+   * does not get it — so every route to it has to ask whether this viewer
+   * actually has one. Choosing a tab that is not on the bar left the page
+   * with nothing rendered at all.
+   */
+  const posting = (): RequisitionTabKey =>
+    has('posting') ? 'posting' : has('approvals') ? 'approvals' : 'details';
+
   if (status === 'posted') {
-    if (!has('recruitment') || !driveReady) return 'posting';
+    if (!has('recruitment') || !driveReady) return posting();
     if ((stats?.selected ?? 0) > 0 && has('onboarding')) return 'onboarding';
     // The interviews panel lists the interview stage and nothing else, so a
     // requisition whose last candidate has moved past it must not open there
@@ -49,7 +58,7 @@ export function defaultRequisitionTab({
     if ((stats?.interview ?? 0) > 0 && has('interviews')) return 'interviews';
     return 'recruitment';
   }
-  if (status === 'approved' || status === 'profile_generated') return 'posting';
+  if (status === 'approved' || status === 'profile_generated') return posting();
   // A requisition waiting on its job analysis opens on the tab that holds it
   // — that IS the work at this stage, and whoever it is addressed to should
   // not have to find it.

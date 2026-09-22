@@ -65,6 +65,27 @@ describe('defaultRequisitionTab', () => {
     expect(posted({ interview: 2, selected: 1 }, viewer)).toBe('recruitment');
   });
 
+  it('never picks a tab this viewer does not have', () => {
+    // The requisitioner has no Profile & Posting tab. Choosing it anyway
+    // left the page with nothing rendered at all.
+    const raiser: RequisitionTabKey[] = ['details', 'analysis', 'approvals'];
+    expect(
+      defaultRequisitionTab({
+        status: 'approved',
+        driveReady: false,
+        available: raiser,
+      }),
+    ).toBe('approvals');
+    expect(
+      defaultRequisitionTab({
+        status: 'posted',
+        driveReady: true,
+        stats: stats({ applied: 2 }),
+        available: raiser,
+      }),
+    ).toBe('approvals');
+  });
+
   it('waits for the Drive workspace before leaving Posting', () => {
     expect(
       defaultRequisitionTab({
