@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   Ban,
+  Briefcase,
   CalendarDays,
   Check,
   Clock,
@@ -13,6 +14,7 @@ import {
   Mail,
   MapPin,
   Phone,
+  Quote,
   Search,
   Trophy,
   Users,
@@ -27,7 +29,6 @@ import {
   Button,
   EmptyState,
   ErrorCard,
-  Input,
   LifecycleTabs,
   PageHeader,
   Skeleton,
@@ -174,6 +175,17 @@ interface Group {
   department: string;
   unit: string;
   rows: DelegatedCandidate[];
+  /**
+   * The handover note, when every candidate here was sent with the same one.
+   *
+   * A recruiter delegating four people writes the note once and it is copied
+   * onto each delegation — so the board printed "Check everyone" four times,
+   * on four cards, in one column. It is one instruction about one batch, so
+   * it belongs once, above them. Null when the notes differ, and then each
+   * card keeps its own.
+   */
+  sharedNote: string | null;
+  sharedNoteFrom: string | null;
 }
 
 /**
@@ -194,10 +206,23 @@ function groupByRequisition(rows: DelegatedCandidate[]): Group[] {
       department: row.requisition.department,
       unit: row.requisition.unitFactory,
       rows: [],
+      sharedNote: null,
+      sharedNoteFrom: null,
     };
     g.rows.push(row);
     groups.set(row.requisition.id, g);
   });
+
+  for (const g of groups.values()) {
+    const notes = g.rows.map((r) => (r.note ?? '').trim());
+    const [first] = notes;
+    // Only when they genuinely all say the same thing, and there is more than
+    // one of them — a single candidate's note is not "shared", it is theirs.
+    if (first && g.rows.length > 1 && notes.every((n) => n === first)) {
+      g.sharedNote = first;
+      g.sharedNoteFrom = g.rows[0].delegatedBy?.name ?? null;
+    }
+  }
   // Newest requisition first — a post raised today should not sit below one
   // raised last month.
   return [...groups.values()].sort((a, z) => z.code.localeCompare(a.code));
@@ -393,18 +418,6 @@ export default function AssignedCandidatesPage() {
         </div>
       ) : (
         <>
-          {/* Narrow the board down */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <div className="w-full sm:w-72">
-              <Input
-                placeholder="Find a candidate…"
-                leftIcon={<Search className="h-4 w-4" />}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-          </div>
-
           {/* One stage at a time, behind the app's own tab bar.
               Four columns side by side gave each card about sixteen rems —
               enough for a name and a date, so the schedule, the panel and the
@@ -424,6 +437,25 @@ export default function AssignedCandidatesPage() {
             active={activeCol}
             onChange={(key) => setActiveCol(key)}
           />
+
+          {/* Under the tabs and on the same centre line as them.
+              It sat above, left-aligned, where it read as a page control —
+              but it narrows the stage you are looking at, so it belongs
+              below the thing that chooses the stage. Its own rounded card,
+              so it reads as part of the bar above rather than as the first
+              row of the results below. */}
+          <div className="mx-auto w-full max-w-xs">
+            <label className="group/find flex items-center gap-2 rounded-full border border-slate-200/80 bg-white px-3.5 py-2 shadow-sm transition-all duration-200 focus-within:border-brand-300 focus-within:shadow-md focus-within:ring-2 focus-within:ring-brand-500/10">
+              <Search className="h-3.5 w-3.5 shrink-0 text-slate-400 transition-colors group-focus-within/find:text-brand-500" />
+              <input
+                type="search"
+                placeholder="Find a candidate…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="min-w-0 flex-1 bg-transparent text-xs text-slate-700 outline-none placeholder:text-slate-400"
+              />
+            </label>
+          </div>
 
           {/* Keyed on the stage so switching tabs replays the entrance
               rather than swapping content in place — the movement is what
@@ -463,53 +495,91 @@ export default function AssignedCandidatesPage() {
                         className="animate-card-in space-y-2"
                         style={{ animationDelay: `${gi * 60}ms` }}
                       >
-                        <header className="flex flex-wrap items-end gap-x-3 gap-y-1.5 border-b border-slate-200 pb-2">
-                          <div className="min-w-0 flex-1">
-                            <h3
-                              className="truncate text-[0.9375rem] font-semibold tracking-tight text-slate-900"
-                              title={`${group.designation} — ${group.department}, ${group.unit}`}
-                            >
-                              {group.designation}
-                            </h3>
-                            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[0.6875rem] text-slate-400">
-                              <span className="font-mono tracking-tight">
-                                {group.code}
-                              </span>
-                              {group.department && (
-                                <>
-                                  <span className="text-slate-300">·</span>
-                                  <span>{group.department}</span>
-                                </>
+                        <header className="mb-3">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                            {/* The code as a mark, not as a line of text.
+                                It is how everyone refers to a vacancy out
+                                loud, so it is set like a label you could
+                                read across a desk. */}
+                            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 py-1.5 font-mono text-xs font-bold tracking-tight text-brand-700 ring-1 ring-brand-200">
+                              <Briefcase className="h-3.5 w-3.5 text-brand-500" />
+                              {group.code}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <h3
+                                className="truncate text-base font-semibold leading-tight tracking-tight text-slate-900"
+                                title={`${group.designation} — ${group.department}, ${group.unit}`}
+                              >
+                                {group.designation}
+                              </h3>
+                              <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-slate-400">
+                                <span className="truncate">
+                                  {group.department || group.unit}
+                                </span>
+                                <span className="text-slate-300">·</span>
+                                <span className="tabular-nums">
+                                  {group.rows.length}{' '}
+                                  {group.rows.length === 1
+                                    ? 'candidate'
+                                    : 'candidates'}
+                                </span>
+                              </p>
+                            </div>
+                            {col.key === 'to_schedule' &&
+                              group.rows.length > 1 && (
+                                /* One session for the whole shortlist — the
+                                   afternoon's work in a single click, so it
+                                   is given the weight of an offer rather
+                                   than of another outline button. */
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setBulkFor({
+                                      reqId: group.id,
+                                      label: `${group.code} · ${group.designation}`,
+                                      candidates: group.rows.map((r) => ({
+                                        id: r.candidate.id,
+                                        name: r.candidate.name,
+                                      })),
+                                    })
+                                  }
+                                  className="group/all relative inline-flex shrink-0 items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-brand-600 via-brand-500 to-emerald-500 px-3.5 py-2 text-xs font-semibold text-white shadow-md shadow-brand-600/20 transition-all duration-300 hover:-translate-y-0.5 hover:animate-gradient-pan hover:bg-[length:200%_100%] hover:shadow-lg hover:shadow-brand-600/30 active:translate-y-0 active:scale-[0.98]"
+                                  title={`One session for all ${group.rows.length} candidates on ${group.code}`}
+                                >
+                                  <span
+                                    aria-hidden
+                                    className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover/all:translate-x-full"
+                                  />
+                                  <CalendarDays className="relative h-4 w-4" />
+                                  <span className="relative">
+                                    Schedule all {group.rows.length}
+                                  </span>
+                                </button>
                               )}
-                              <span className="text-slate-300">·</span>
-                              <span className="tabular-nums">
-                                {group.rows.length}{' '}
-                                {group.rows.length === 1
-                                  ? 'candidate'
-                                  : 'candidates'}
-                              </span>
-                            </p>
                           </div>
-                          {col.key === 'to_schedule' && group.rows.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setBulkFor({
-                                  reqId: group.id,
-                                  label: `${group.code} · ${group.designation}`,
-                                  candidates: group.rows.map((r) => ({
-                                    id: r.candidate.id,
-                                    name: r.candidate.name,
-                                  })),
-                                })
-                              }
-                              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 transition-all hover:border-brand-300 hover:bg-brand-100 active:scale-95"
-                              title={`One session for all ${group.rows.length} candidates on ${group.code}`}
-                            >
-                              <CalendarDays className="h-3.5 w-3.5" />
-                              Schedule all {group.rows.length}
-                            </button>
+
+                          {/* One instruction about one batch, said once. */}
+                          {group.sharedNote && col.key !== 'done' && (
+                            <figure className="mt-2.5 flex items-start gap-2 rounded-xl bg-brand-50/60 px-3 py-2 ring-1 ring-brand-100/80">
+                              <Quote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-400" />
+                              <div className="min-w-0">
+                                <blockquote className="text-xs italic leading-5 text-slate-700">
+                                  {group.sharedNote}
+                                </blockquote>
+                                {group.sharedNoteFrom && (
+                                  <figcaption className="mt-0.5 text-[0.625rem] text-slate-400">
+                                    — {group.sharedNoteFrom}, to all{' '}
+                                    {group.rows.length}
+                                  </figcaption>
+                                )}
+                              </div>
+                            </figure>
                           )}
+
+                          <span
+                            aria-hidden
+                            className="mt-2.5 block h-px w-full bg-gradient-to-r from-slate-200 via-slate-200 to-transparent"
+                          />
                         </header>
 
                         {/* A grid, not a list. Each candidate is a card you
@@ -526,6 +596,9 @@ export default function AssignedCandidatesPage() {
                               row={row}
                               index={ri}
                               col={col.key}
+                              // Said once in the header above; repeating it
+                              // on each card is what it looked like before.
+                              hideNote={Boolean(group.sharedNote)}
                               deciding={deciding === row.id}
                               onOpenDecision={() => setDeciding(row.id)}
                               onCloseDecision={() => setDeciding(null)}
@@ -739,6 +812,7 @@ function BoardCard({
   row,
   index,
   col,
+  hideNote,
   deciding,
   onOpenDecision,
   onCloseDecision,
@@ -750,6 +824,11 @@ function BoardCard({
   /** Position in its group — drives the entrance stagger only. */
   index: number;
   col: Col;
+  /**
+   * The handover note is already shown above this card, because every
+   * candidate in the group was sent with the same one.
+   */
+  hideNote: boolean;
   deciding: boolean;
   onOpenDecision: () => void;
   onCloseDecision: () => void;
@@ -862,19 +941,25 @@ function BoardCard({
   const StateIcon = state.icon;
 
   /** The stage's colour, used for the accent bar and the avatar ring. */
-  /** The stage's colour, on the accent bar and the avatar ring. */
-  const accent =
+  /**
+   * The stage, as a tint on the card's own border.
+   *
+   * It was a coloured bar across the top, which read as a banner stuck onto
+   * the card rather than as part of it. A border says the same thing without
+   * adding a band: the whole edge carries it, quietly.
+   */
+  const edge =
     col === 'to_schedule'
       ? age.tone === 'late'
-        ? 'from-rose-400 via-rose-500 to-rose-400'
-        : 'from-amber-300 via-amber-500 to-amber-300'
+        ? 'border-rose-200 hover:border-rose-300'
+        : 'border-amber-200 hover:border-amber-300'
       : col === 'scheduled'
-        ? 'from-sky-300 via-sky-500 to-sky-300'
+        ? 'border-sky-200 hover:border-sky-300'
         : col === 'decision_due'
-          ? 'from-violet-300 via-violet-500 to-violet-300'
+          ? 'border-violet-200 hover:border-violet-300'
           : rejected
-            ? 'from-rose-200 via-rose-300 to-rose-200'
-            : 'from-emerald-300 via-emerald-500 to-emerald-300';
+            ? 'border-rose-100 hover:border-rose-200'
+            : 'border-emerald-200 hover:border-emerald-300';
   /** Urgent enough that the pill's icon should move. */
   const pressing =
     (col === 'to_schedule' && age.tone === 'late') || soon === 'overdue';
@@ -884,26 +969,13 @@ function BoardCard({
       data-card={row.id}
       style={{ animationDelay: `${index * 45}ms` }}
       className={cn(
-        'group animate-card-in relative flex flex-col overflow-hidden rounded-2xl bg-white',
-        // Depth from a hairline ring and a soft shadow rather than a border:
-        // a 1px grey box around every card is what made a screenful of them
-        // read as a spreadsheet.
-        'shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.18)] ring-1 ring-slate-200/70',
-        'transition-[transform,box-shadow] duration-300 ease-out hover:-translate-y-1',
+        'group animate-card-in relative flex flex-col overflow-hidden rounded-2xl border bg-white',
+        edge,
+        'shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.18)]',
+        'transition-[transform,box-shadow,border-color] duration-300 ease-out hover:-translate-y-1',
         'hover:shadow-[0_2px_4px_rgba(15,23,42,0.05),0_20px_44px_-20px_rgba(15,23,42,0.3)]',
       )}
     >
-      {/* The stage, as a colour across the top. It thickens and its gradient
-          drifts on hover — the card answering the pointer, rather than the
-          whole surface flashing a tint. */}
-      <span
-        className={cn(
-          'h-1 w-full shrink-0 bg-gradient-to-r bg-[length:200%_100%] transition-[height] duration-300 group-hover:h-1.5 group-hover:animate-gradient-pan',
-          accent,
-        )}
-        aria-hidden
-      />
-
       {/* ── Head: who, and what it is waiting on ── */}
       <div className="relative overflow-hidden bg-gradient-to-b from-slate-50/80 to-white px-4 pb-3 pt-3.5">
         {/* A sheen that crosses the header once on hover. */}
@@ -1026,7 +1098,7 @@ function BoardCard({
       {/* The recruiter writing to this interviewer — set as a quotation,
           which is what it is, rather than as a slab of tinted background
           competing with the candidate's own details. */}
-      {col !== 'done' && row.note && (
+      {col !== 'done' && row.note && !hideNote && (
         <figure className="mx-4 mb-1 mt-1 border-l-2 border-brand-300 pl-2.5">
           <blockquote
             className="line-clamp-2 text-[0.6875rem] italic leading-4 text-slate-600"
