@@ -96,7 +96,7 @@ export function CandidatePackageModal({
       // Two money fields side by side need the room; at sm they were a
       // cramped pair and the title wrapped onto two lines.
       size="md"
-      title={`Salary & benefits — ${candidate.name}`}
+      title={`Facilities & salary — ${candidate.name}`}
       footer={
         <>
           <Button variant="outline" onClick={onClose}>

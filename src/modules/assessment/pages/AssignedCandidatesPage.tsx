@@ -649,18 +649,19 @@ function BoardSkeleton() {
 }
 
 /**
- * A contact detail, as a chip, copied on click.
+ * A contact detail, on its own line, copied on click.
  *
- * Not a mailto:/tel: link — those assume a phone, and this board is worked
- * at a desk. The value itself is the point: it is shown in full to be read
- * or dialled by hand, and one click puts it on the clipboard for whatever
- * the interviewer actually has open.
+ * Not a mailto:/tel: link — those assume a phone, and this board is worked at
+ * a desk. The value itself is the point: it is shown in full to be read or
+ * dialled by hand, and one click puts it on the clipboard for whatever the
+ * interviewer actually has open.
  *
- * A chip rather than a line of text because that is what it is — something
- * you pick up and use, sitting in a row with the tests and the venue, rather
- * than prose stacked down the left of the card.
+ * A row rather than a chip. Chips wrapped at whatever width their contents
+ * happened to need, so two cards side by side broke onto different numbers of
+ * lines and nothing below them lined up — a grid of them read as untidy for a
+ * reason that had nothing to do with the cards themselves.
  */
-function CopyChip({
+function CopyRow({
   icon: Icon,
   value,
   label,
@@ -684,17 +685,22 @@ function CopyChip({
           })
           .catch(() => toast.error(`Could not copy the ${label}`));
       }}
-      className={cn(
-        'group/copy inline-flex max-w-full items-center gap-1.5 rounded-full px-2 py-1 text-[0.6875rem] font-medium ring-1 transition-colors',
-        copied
-          ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-          : 'bg-slate-50 text-slate-600 ring-slate-200 hover:bg-white hover:text-slate-900 hover:ring-brand-200',
-      )}
+      className="group/copy -mx-1 flex w-[calc(100%+0.5rem)] items-center gap-2 rounded-md px-1 py-1 text-left text-[0.6875rem] text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
     >
-      <Icon className="h-3 w-3 shrink-0 text-slate-400" />
-      <span className="truncate tabular-nums">{value}</span>
+      <Icon
+        className={cn(
+          'h-3.5 w-3.5 shrink-0 transition-colors',
+          copied ? 'text-emerald-500' : 'text-slate-400',
+        )}
+      />
+      <span className="min-w-0 flex-1 truncate tabular-nums">{value}</span>
+      {/* The affordance appears on hover and is replaced by its own
+          confirmation — no toast for something this small. */}
       {copied ? (
-        <Check className="h-3 w-3 shrink-0 text-emerald-600" />
+        <span className="inline-flex shrink-0 items-center gap-1 text-[0.625rem] font-semibold text-emerald-600">
+          <Check className="h-3 w-3" />
+          Copied
+        </span>
       ) : (
         <Copy className="h-3 w-3 shrink-0 text-slate-300 opacity-0 transition-opacity group-hover/copy:opacity-100" />
       )}
@@ -856,165 +862,193 @@ function BoardCard({
   const StateIcon = state.icon;
 
   /** The stage's colour, used for the accent bar and the avatar ring. */
+  /** The stage's colour, on the accent bar and the avatar ring. */
   const accent =
     col === 'to_schedule'
       ? age.tone === 'late'
-        ? 'from-rose-400 to-rose-500'
-        : 'from-amber-300 to-amber-500'
+        ? 'from-rose-400 via-rose-500 to-rose-400'
+        : 'from-amber-300 via-amber-500 to-amber-300'
       : col === 'scheduled'
-        ? 'from-sky-300 to-sky-500'
+        ? 'from-sky-300 via-sky-500 to-sky-300'
         : col === 'decision_due'
-          ? 'from-violet-300 to-violet-500'
+          ? 'from-violet-300 via-violet-500 to-violet-300'
           : rejected
-            ? 'from-rose-200 to-rose-300'
-            : 'from-emerald-300 to-emerald-500';
+            ? 'from-rose-200 via-rose-300 to-rose-200'
+            : 'from-emerald-300 via-emerald-500 to-emerald-300';
+  /** Urgent enough that the pill's icon should move. */
+  const pressing =
+    (col === 'to_schedule' && age.tone === 'late') || soon === 'overdue';
 
   return (
     <article
       data-card={row.id}
       style={{ animationDelay: `${index * 45}ms` }}
       className={cn(
-        'group animate-card-in flex flex-col overflow-hidden rounded-2xl bg-white',
+        'group animate-card-in relative flex flex-col overflow-hidden rounded-2xl bg-white',
         // Depth from a hairline ring and a soft shadow rather than a border:
         // a 1px grey box around every card is what made a screenful of them
         // read as a spreadsheet.
         'shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.18)] ring-1 ring-slate-200/70',
-        'transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_2px_4px_rgba(15,23,42,0.05),0_18px_40px_-20px_rgba(15,23,42,0.28)] hover:ring-brand-200',
+        'transition-[transform,box-shadow] duration-300 ease-out hover:-translate-y-1',
+        'hover:shadow-[0_2px_4px_rgba(15,23,42,0.05),0_20px_44px_-20px_rgba(15,23,42,0.3)]',
       )}
     >
-      {/* The stage, as a colour across the top. The tab bar is brand-blue for
-          every stage now, so this is where "which stage is this" lives — and
-          on a card it doubles as the urgency, which a tab cannot show. */}
-      <span className={cn('h-1 w-full bg-gradient-to-r', accent)} aria-hidden />
+      {/* The stage, as a colour across the top. It thickens and its gradient
+          drifts on hover — the card answering the pointer, rather than the
+          whole surface flashing a tint. */}
+      <span
+        className={cn(
+          'h-1 w-full shrink-0 bg-gradient-to-r bg-[length:200%_100%] transition-[height] duration-300 group-hover:h-1.5 group-hover:animate-gradient-pan',
+          accent,
+        )}
+        aria-hidden
+      />
 
-      <div className="flex flex-1 flex-col gap-3 p-4">
-        {/* Who, and what the card is waiting on. */}
-        <div className="flex items-start gap-3">
+      {/* ── Head: who, and what it is waiting on ── */}
+      <div className="relative overflow-hidden bg-gradient-to-b from-slate-50/80 to-white px-4 pb-3 pt-3.5">
+        {/* A sheen that crosses the header once on hover. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/70 to-transparent transition-transform duration-[900ms] ease-out group-hover:translate-x-full"
+        />
+        <div className="relative flex items-start gap-3">
           <span className="relative shrink-0">
             <Avatar name={row.candidate.name} size="lg" />
             <span
-              className={cn(
-                'absolute inset-0 rounded-full ring-2 ring-offset-2 ring-offset-white transition-colors',
-                'ring-slate-100 group-hover:ring-brand-100',
-              )}
               aria-hidden
+              className="absolute -inset-0.5 rounded-full ring-2 ring-slate-200/70 transition-colors duration-300 group-hover:ring-brand-300/70"
             />
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[0.9375rem] font-semibold leading-tight tracking-tight text-slate-900">
               {row.candidate.name}
             </p>
-            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.6875rem] leading-4 text-slate-400">
-              {row.delegatedBy && col !== 'done' && (
-                <span
-                  className="inline-flex min-w-0 items-center gap-1"
-                  title={`Sent to you by ${row.delegatedBy.name}`}
-                >
-                  <CornerDownRight className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{row.delegatedBy.name}</span>
-                </span>
-              )}
+            {row.delegatedBy && col !== 'done' && (
+              <p
+                className="mt-0.5 flex min-w-0 items-center gap-1 text-[0.6875rem] leading-4 text-slate-400"
+                title={`Sent to you by ${row.delegatedBy.name}`}
+              >
+                <CornerDownRight className="h-3 w-3 shrink-0" />
+                <span className="truncate">{row.delegatedBy.name}</span>
+              </p>
+            )}
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span
+                title={state.title}
+                className={cn(
+                  'inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.6875rem] font-semibold ring-1',
+                  state.tone,
+                )}
+              >
+                <StateIcon
+                  className={cn(
+                    'h-3 w-3 shrink-0',
+                    // Only what is actually late moves. A card that always
+                    // pulses is a card nobody looks at twice.
+                    pressing && 'animate-pulse',
+                  )}
+                />
+                <span className="truncate">{state.text}</span>
+              </span>
               {row.alsoAssignedTo.length > 0 && col !== 'done' && (
                 <span
                   title={`Also assigned to ${row.alsoAssignedTo.join(', ')}`}
-                  className="inline-flex shrink-0 items-center gap-1 font-medium text-amber-600"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[0.625rem] font-semibold text-amber-700 ring-1 ring-amber-200"
                 >
                   <Users className="h-3 w-3" />+{row.alsoAssignedTo.length}
                 </span>
               )}
-            </p>
-            {/* The single most important thing on the card, directly under
-                the name rather than appended to whatever came last. */}
-            <span
-              title={state.title}
-              className={cn(
-                'mt-2 inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.6875rem] font-semibold ring-1',
-                state.tone,
-              )}
-            >
-              <StateIcon className="h-3 w-3 shrink-0" />
-              <span className="truncate">{state.text}</span>
-            </span>
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* What is known — reach them, their marks, where the session is.
-            Rendered only when there is something to show: an empty flex row
-            still costs a gap, which on a finished card (no contact, no
-            tests) left a hole between the name and the buttons. */}
-        {col !== 'done' &&
-          (row.candidate.phone ||
-            row.candidate.email ||
-            row.tests.length > 0 ||
-            venue) && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {row.candidate.phone && (
-            <CopyChip
-              icon={Phone}
-              value={row.candidate.phone}
-              label="phone number"
-            />
-          )}
-          {row.candidate.email && (
-            <CopyChip
-              icon={Mail}
-              value={row.candidate.email}
-              label="email address"
-            />
-          )}
-          {row.tests.length > 0 &&
-            (row.tests.some((t) => t.obtained != null) ? (
-              row.tests.map((t) => <TestChip key={t.key} test={t} />)
-            ) : (
-              <span
-                title={`Not marked yet: ${row.tests.map((t) => t.label).join(', ')}`}
-                className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-2 py-1 text-[0.625rem] font-medium text-slate-400 ring-1 ring-slate-200"
+      {/* ── Body: what is known about them ──
+          One fact per line, not a wrapping row of chips. Chips wrapped at
+          whatever width their contents happened to need, so two cards side
+          by side broke onto different numbers of lines and nothing below
+          them lined up — which is most of why a grid of these read as
+          untidy. A list cannot do that. */}
+      {col !== 'done' &&
+        (row.candidate.phone ||
+          row.candidate.email ||
+          row.tests.length > 0 ||
+          venue) && (
+          <div className="flex flex-col gap-px border-t border-slate-100 px-4 py-2.5">
+            {row.candidate.phone && (
+              <CopyRow
+                icon={Phone}
+                value={row.candidate.phone}
+                label="phone number"
+              />
+            )}
+            {row.candidate.email && (
+              <CopyRow
+                icon={Mail}
+                value={row.candidate.email}
+                label="email address"
+              />
+            )}
+            {row.tests.length > 0 &&
+              (row.tests.some((t) => t.obtained != null) ? (
+                <div className="flex flex-wrap items-center gap-1 py-1">
+                  {row.tests.map((t) => (
+                    <TestChip key={t.key} test={t} />
+                  ))}
+                </div>
+              ) : (
+                <p
+                  title={`Not marked yet: ${row.tests.map((t) => t.label).join(', ')}`}
+                  className="flex items-center gap-2 py-1 text-[0.6875rem] font-medium text-amber-600"
+                >
+                  <ListChecks className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+                  {row.tests.length} test
+                  {row.tests.length === 1 ? '' : 's'} still to mark
+                </p>
+              ))}
+            {venue && (col === 'scheduled' || col === 'decision_due') && (
+              <p
+                title={venue.text}
+                className="flex min-w-0 items-center gap-2 py-1 text-[0.6875rem] text-slate-500"
               >
-                <ListChecks className="h-3 w-3" />
-                {row.tests.length} unmarked
-              </span>
-            ))}
-          {venue && (col === 'scheduled' || col === 'decision_due') && (
-            <span
-              title={venue.text}
-              className="inline-flex min-w-0 items-center gap-1 rounded-full bg-slate-50 px-2 py-1 text-[0.625rem] font-medium text-slate-500 ring-1 ring-slate-200"
-            >
-              <venue.icon className="h-3 w-3 shrink-0" />
-              <span className="truncate">{venue.text}</span>
-              {first && first.panelists > 0 && (
-                <span className="shrink-0 text-slate-400">
-                  · {first.panelists} on panel
-                </span>
-              )}
-            </span>
-          )}
-        </div>
-        )}
-
-        {/* The recruiter writing to this interviewer — the only message in
-            the whole handover, so it is labelled rather than left to look
-            like a stray quote. */}
-        {col !== 'done' && row.note && (
-          <div className="rounded-xl bg-brand-50/60 px-3 py-2 ring-1 ring-brand-100/70">
-            <p className="text-[0.625rem] font-semibold uppercase tracking-wide text-brand-700/70">
-              Note{row.delegatedBy ? ` from ${row.delegatedBy.name}` : ''}
-            </p>
-            <p
-              className="line-clamp-2 text-[0.6875rem] leading-4 text-slate-600"
-              title={row.note}
-            >
-              {row.note}
-            </p>
+                <venue.icon className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                <span className="truncate">{venue.text}</span>
+                {first && first.panelists > 0 && (
+                  <span className="shrink-0 text-slate-400">
+                    · {first.panelists} on panel
+                  </span>
+                )}
+              </p>
+            )}
           </div>
         )}
+
+      {/* The recruiter writing to this interviewer — set as a quotation,
+          which is what it is, rather than as a slab of tinted background
+          competing with the candidate's own details. */}
+      {col !== 'done' && row.note && (
+        <figure className="mx-4 mb-1 mt-1 border-l-2 border-brand-300 pl-2.5">
+          <blockquote
+            className="line-clamp-2 text-[0.6875rem] italic leading-4 text-slate-600"
+            title={row.note}
+          >
+            {row.note}
+          </blockquote>
+          {row.delegatedBy && (
+            <figcaption className="mt-0.5 text-[0.625rem] text-slate-400">
+              — {row.delegatedBy.name}
+            </figcaption>
+          )}
+        </figure>
+      )}
 
         {/* The step. Pinned to the foot of the card with `mt-auto`, so the
             buttons sit on the same line across a row of cards however much
             detail is above them — a ragged bottom edge is most of what made
             a grid of cards look thrown together. Secondary actions are
             quiet; the one the stage is waiting for is the only solid one. */}
-        {!deciding && (
-          <div className="mt-auto flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3">
+      {!deciding && (
+        <div className="mt-auto flex flex-wrap items-center gap-1.5 border-t border-slate-100 px-4 py-3">
           {/* Labelled, not three bare glyphs in a box. A document, a
               checklist and a dollar sign all render at 14px as "some kind
               of form", and the only way to tell them apart was to hover
@@ -1044,10 +1078,12 @@ function BoardCard({
             <ListChecks className="h-3.5 w-3.5" />
             {marksIn ? 'Marks in' : 'Test marks'}
           </button>
-          {/* Present salary, expectation and current benefits — asked in
-              the room, and its own small form rather than a corner of
-              Salary Fixation, which is Corporate HR's screen and sets
-              the actual figure. */}
+          {/* What the candidate is on now and what comes with it — the
+              lunch, the pick-and-drop, the accommodation — asked in the
+              room. Called Facilities, not Salary: an interviewer opening
+              "Salary" reasonably expects to set one, and this form
+              deliberately cannot. The figure is Corporate HR's, on the
+              Salary Fixation screen. */}
           <button
             type="button"
             onClick={onEnterPackage}
@@ -1059,7 +1095,7 @@ function BoardCard({
             )}
           >
             <BadgeDollarSign className="h-3.5 w-3.5" />
-            {packageIn ? 'Salary noted' : 'Salary'}
+            {packageIn ? 'Facilities noted' : 'Facilities'}
           </button>
 
           {/* The step itself. Solid where the board is waiting on you,
@@ -1077,8 +1113,12 @@ function BoardCard({
             </Button>
           )}
           {col === 'to_schedule' && (
-            <Button size="sm" className="h-7 px-2.5 text-xs" onClick={onSchedule}>
-              <CalendarDays className="mr-1 h-3.5 w-3.5" />
+            <Button
+              size="sm"
+              className="group/act ml-auto h-7 px-3 text-xs"
+              onClick={onSchedule}
+            >
+              <CalendarDays className="mr-1 h-3.5 w-3.5 transition-transform duration-200 group-hover/act:-translate-y-px" />
               {noShow ? 'Re-arrange' : 'Arrange'}
             </Button>
           )}
@@ -1107,15 +1147,15 @@ function BoardCard({
           {col === 'decision_due' && (
             <Button
               size="sm"
-              className="h-7 px-2.5 text-xs"
+              className="group/act ml-auto h-7 px-3 text-xs"
               onClick={onOpenDecision}
             >
-              <Check className="mr-1 h-3.5 w-3.5" /> Decide
+              <Check className="mr-1 h-3.5 w-3.5 transition-transform duration-200 group-hover/act:scale-110" />
+              Decide
             </Button>
           )}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {rejected && (row.candidate.rejectionReason || row.candidate.rejectedByName) && (
         <div className="mx-4 mb-4 border-l-2 border-rose-200 pl-2">
