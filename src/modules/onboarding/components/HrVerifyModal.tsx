@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   Check,
+  ClipboardCheck,
   Mail,
   Send,
   ShieldCheck,
@@ -36,6 +37,7 @@ export function HrVerifyModal({
   missingDocs,
   pendingDocs,
   notify,
+  skip,
   confirm,
 }: {
   open: boolean;
@@ -52,6 +54,15 @@ export function HrVerifyModal({
     /** Why the reminder cannot be sent — no email, or mail not set up. */
     unavailable?: string;
   };
+  /**
+   * Record that the outstanding documents were checked on paper.
+   *
+   * The same waiver the Documents step offers ("Checked by Manual on hand").
+   * It is offered here too because this is where HR actually discovers the
+   * file is short — being told to go to another step, find the control and
+   * come back is the kind of instruction people work around instead.
+   */
+  skip: { onClick: () => void; isPending: boolean };
   confirm: { onClick: () => void; isPending: boolean };
 }) {
   const done = checks.filter((c) => c.ok).length;
@@ -153,34 +164,45 @@ export function HrVerifyModal({
             {/* The moment HR finds the file is short is the moment to chase
                 it — the list is the server's own, so the email and this card
                 cannot disagree. */}
-            <div className="mt-3 flex flex-col gap-2 border-t border-rose-100 bg-white/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="flex items-start gap-1.5 text-xs leading-5 text-slate-500">
-                <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
-                {notify.unavailable ?? `Email ${firstName} this list as a reminder.`}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full shrink-0 sm:w-auto"
-                isLoading={notify.isPending}
-                disabled={Boolean(notify.unavailable)}
-                leftIcon={<Send className="h-3.5 w-3.5" />}
-                onClick={notify.onClick}
-              >
-                Notify candidate
-              </Button>
+            <div className="mt-3 space-y-2 border-t border-rose-100 bg-white/60 px-4 py-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="flex items-start gap-1.5 text-xs leading-5 text-slate-500">
+                  <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                  {notify.unavailable ?? `Email ${firstName} this list as a reminder.`}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full shrink-0 sm:w-auto"
+                  isLoading={notify.isPending}
+                  disabled={Boolean(notify.unavailable)}
+                  leftIcon={<Send className="h-3.5 w-3.5" />}
+                  onClick={notify.onClick}
+                >
+                  Notify candidate
+                </Button>
+              </div>
+              {/* The other way out: HR has the papers in front of them. The
+                  waiver is recorded against the onboarding, so the file says
+                  these were checked by hand rather than simply passing. */}
+              <div className="flex flex-col gap-2 border-t border-rose-100/70 pt-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="flex items-start gap-1.5 text-xs leading-5 text-slate-500">
+                  <ClipboardCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                  Have them on paper? Record it and this unlocks.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full shrink-0 sm:w-auto"
+                  isLoading={skip.isPending}
+                  leftIcon={<ClipboardCheck className="h-3.5 w-3.5" />}
+                  onClick={skip.onClick}
+                >
+                  Checked on hand
+                </Button>
+              </div>
             </div>
           </section>
-        )}
-
-        {!docsSettled && (
-          <p className="text-xs leading-5 text-slate-500">
-            Already checked these on paper? Record it on the Documents step with{' '}
-            <span className="font-medium text-slate-700">
-              &ldquo;Checked by Manual on hand&rdquo;
-            </span>{' '}
-            and this will unlock.
-          </p>
         )}
 
         <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200">

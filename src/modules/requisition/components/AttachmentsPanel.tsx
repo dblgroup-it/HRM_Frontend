@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { FileText, Loader2, Plus, Trash2, Upload } from 'lucide-react';
+import { FileText, Loader2, Lock, Plus, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@shared/components/ui';
@@ -23,8 +23,16 @@ const MAX_BYTES = 15 * 1024 * 1024;
  */
 export function AttachmentsSection({
   requisition,
+  canEdit,
 }: {
   requisition: Requisition;
+  /**
+   * False once the chain has signed the requisition off — the detailed JD is
+   * part of what was approved, so from then on the files are a record rather
+   * than a working folder. Corporate and the assigned recruiter keep the pen;
+   * the server enforces the same rule.
+   */
+  canEdit: boolean;
 }) {
   const reqId = requisition.id;
   const attachments = requisition.attachments ?? [];
@@ -46,7 +54,11 @@ export function AttachmentsSection({
 
   return (
     <div>
-      {attachments.length === 0 ? (
+      {attachments.length === 0 && !canEdit ? (
+        <p className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-400">
+          No files were attached to this requisition.
+        </p>
+      ) : attachments.length === 0 ? (
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
@@ -87,33 +99,42 @@ export function AttachmentsSection({
                     {(a.size / 1024).toFixed(0)} KB · {formatDate(a.uploadedAt)}
                   </span>
                 </a>
-                <button
-                  type="button"
-                  title="Remove attachment"
-                  onClick={() => remove.mutate(a.fileId)}
-                  className="rounded p-1 text-slate-300 transition hover:bg-rose-50 hover:text-rose-500"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    title="Remove attachment"
+                    onClick={() => remove.mutate(a.fileId)}
+                    className="rounded p-1 text-slate-300 transition hover:bg-rose-50 hover:text-rose-500"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
               </li>
             ))}
           </ul>
-          <Button
-            size="sm"
-            variant="outline"
-            className="mt-3"
-            leftIcon={
-              upload.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4" />
-              )
-            }
-            onClick={() => fileRef.current?.click()}
-            disabled={upload.isPending}
-          >
-            Add file
-          </Button>
+          {canEdit ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-3"
+              leftIcon={
+                upload.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )
+              }
+              onClick={() => fileRef.current?.click()}
+              disabled={upload.isPending}
+            >
+              Add file
+            </Button>
+          ) : (
+            <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-400">
+              <Lock className="h-3.5 w-3.5 shrink-0" />
+              Locked — this requisition has been approved.
+            </p>
+          )}
         </>
       )}
 

@@ -22,6 +22,7 @@ export {
   useSetCandidatePackage,
   delegationKeys,
 } from './hooks/useAssessment';
+export { isFirstInterviewDone } from './components/firstInterviewStage';
 export { assessmentApi } from './api/assessment.api';
 export type {
   AssessmentSetup,

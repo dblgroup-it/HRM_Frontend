@@ -106,6 +106,18 @@ export default {
           '0%':   { opacity: '0', transform: 'translateY(14px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        /**
+         * A routed page arriving.
+         *
+         * Deliberately smaller than `rise-in`: a whole page sliding 18px is
+         * the screen lurching, where a few pixels and a fade read as the
+         * content settling. Short enough (220ms) that clicking through the
+         * sidebar quickly never feels like waiting for an animation.
+         */
+        'page-in': {
+          '0%': { opacity: '0', transform: 'translateY(8px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
         // --- redesign primitives: short, enterprise-grade motion (150-250ms) ---
         'card-in': {
           '0%': { opacity: '0', transform: 'translateY(6px)' },
@@ -140,6 +152,7 @@ export default {
         'text-up-out': 'text-up-out 0.2s ease forwards',
         'text-up-in':  'text-up-in  0.2s ease forwards',
         'card-in': 'card-in 0.22s cubic-bezier(0.16,1,0.3,1) both',
+        'page-in': 'page-in 0.22s cubic-bezier(0.16,1,0.3,1) both',
         'branch-open': 'branch-open 0.18s ease-out both',
         'rail-draw': 'rail-draw 0.25s ease-out both',
         'underline-in': 'underline-in 0.2s cubic-bezier(0.16,1,0.3,1) both',

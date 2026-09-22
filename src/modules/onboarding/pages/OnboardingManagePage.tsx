@@ -1953,6 +1953,16 @@ function Flow({
           isPending: chaseDocs.isPending,
           unavailable: noEmail ? emailHint : undefined,
         }}
+        skip={{
+          isPending: skipDocs.isPending || skipVerification.isPending,
+          // Two waivers, because there are two ways a file can be short:
+          // documents never collected, and documents collected but not
+          // ticked off. Whichever is outstanding is what gets recorded.
+          onClick: () => {
+            if (ob.missingDocs.length > 0) skipDocs.mutate(undefined);
+            if (ob.pendingDocs.length > 0) skipVerification.mutate(undefined);
+          },
+        }}
         confirm={{
           isPending: hrVerify.isPending,
           onClick: () =>

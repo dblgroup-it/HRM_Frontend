@@ -33,6 +33,11 @@ import {
   useApprovalAction,
   useResubmitRequisition,
 } from '../hooks/useRequisitionActions';
+import {
+  hidesCorporateChain,
+  visibleActivity,
+  visibleChain,
+} from '../approvalVisibility';
 
 export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
   const [note, setNote] = useState('');
@@ -53,7 +58,14 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
     return () => clearTimeout(id);
   }, [action.isPending]);
 
-  const chain = requisition.approvalChain;
+  /**
+   * The requisitioner and the unit's Factory HR see the chain as far as their
+   * own unit takes it. Whether Head of Talent Acquisition or the CHRO signs
+   * it, and which of them, is corporate business — see `approvalVisibility`.
+   */
+  const hideCorporate = hidesCorporateChain(perms, myUserId, requisition);
+  const { chain, hiddenNames } = visibleChain(requisition, hideCorporate);
+  const activity = visibleActivity(requisition, hiddenNames);
   const isRejected = requisition.status === 'rejected';
 
   // "Need more info" parks the whole chain with the requisitioner: the asking
@@ -73,9 +85,25 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
     awaitingRaiser || awaitingJobAnalysis
       ? -1
       : chain.findIndex((s) => s.status === 'pending');
+  /**
+   * Still with corporate, from a unit-side viewer's point of view.
+   *
+   * Their chain ends at the last unit step, so with the corporate step hidden
+   * a requisition waiting on it looks finished. Saying "fully approved" when
+   * it has not been signed is the one thing this must never do — so the fact
+   * that it is out of their hands is stated, without saying whose hands.
+   */
+  const withCorporate =
+    hideCorporate &&
+    !isRejected &&
+    requisition.status === 'pending_approval' &&
+    !awaitingRaiser &&
+    !awaitingJobAnalysis &&
+    chain.every((s) => s.status !== 'pending');
   const allDone =
     !awaitingRaiser &&
     !awaitingJobAnalysis &&
+    !withCorporate &&
     nextPendingIndex === -1 &&
     !isRejected;
   const isRaiser =
@@ -281,6 +309,15 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
           </div>
         )}
 
+        {withCorporate && (
+          <p className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+            <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              Signed off by this unit and with corporate for final approval —
+              you will be notified when it is decided.
+            </span>
+          </p>
+        )}
         {allDone && (
           <p className="mt-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
             ✓ {APPROVED_MESSAGE[requisition.status] ?? APPROVED_MESSAGE.approved}
@@ -292,9 +329,7 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
           </p>
         )}
 
-        {requisition.activityLog.length > 0 && (
-          <ActivityLog requisition={requisition} />
-        )}
+        {activity.length > 0 && <ActivityLog entries={activity} />}
       </CardBody>
       <BusyOverlay
         show={overlayVisible}
@@ -328,7 +363,7 @@ const ACTION_LABEL: Record<ApprovalDecision, string> = {
   edited: 'made an edit',
 };
 
-function ActivityLog({ requisition }: { requisition: Requisition }) {
+function ActivityLog({ entries }: { entries: Requisition['activityLog'] }) {
   return (
     <div className="mt-5 border-t border-slate-100 pt-4">
       <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -336,7 +371,7 @@ function ActivityLog({ requisition }: { requisition: Requisition }) {
         Activity
       </p>
       <ul className="space-y-2">
-        {[...requisition.activityLog].reverse().map((entry, i) => (
+        {[...entries].reverse().map((entry, i) => (
           <li key={i} className="text-xs text-slate-500">
             <span className="font-medium text-slate-700">{entry.actor}</span>{' '}
             {ACTION_LABEL[entry.action]}

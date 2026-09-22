@@ -23,7 +23,18 @@ type Tab = 'analysis' | 'attachments';
  * lifecycle, and a second copy of it inside a card would read as another
  * lifecycle. This is a segmented switch that keeps its own row.
  */
-export function JobAnalysisCard({ requisition }: { requisition: Requisition }) {
+export function JobAnalysisCard({
+  requisition,
+  canEditFiles,
+}: {
+  requisition: Requisition;
+  /**
+   * May this viewer add or remove files? The detailed JD is part of what the
+   * chain signed off, so an approved requisition's files are read-only for
+   * everyone but corporate and the recruiter running the hire.
+   */
+  canEditFiles: boolean;
+}) {
   const [tab, setTab] = useState<Tab>('analysis');
   const attachmentCount = requisition.attachments?.length ?? 0;
   /** Amber while nobody has written it — the tab says what is outstanding. */
@@ -97,12 +108,17 @@ export function JobAnalysisCard({ requisition }: { requisition: Requisition }) {
       </div>
 
       <CardBody>
-        <div key={tab} className="animate-fade-in">
-          {tab === 'analysis' ? (
-            <JobAnalysisSection requisition={requisition} />
-          ) : (
-            <AttachmentsSection requisition={requisition} />
-          )}
+        {/* Both tabs stay mounted and the inactive one is hidden.
+            Swapping them out unmounted the job-analysis form, and with it
+            everything typed into it — so drafting section B with AI and then
+            stepping over to attach the detailed JD, which the form itself
+            tells you to do, threw the draft away. Nothing here is expensive
+            enough to be worth unmounting for. */}
+        <div className={tab === 'analysis' ? 'animate-fade-in' : 'hidden'}>
+          <JobAnalysisSection requisition={requisition} />
+        </div>
+        <div className={tab === 'attachments' ? 'animate-fade-in' : 'hidden'}>
+          <AttachmentsSection requisition={requisition} canEdit={canEditFiles} />
         </div>
       </CardBody>
     </Card>

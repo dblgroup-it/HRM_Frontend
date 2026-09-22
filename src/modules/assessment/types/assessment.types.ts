@@ -109,6 +109,8 @@ export interface CandidateBrief {
     institute: string | null;
     year: number | null;
     result: string | null;
+    /** The sheet prints degrees and courses as two separate blocks. */
+    kind: 'degree' | 'certification';
   }[];
   employment: {
     company: string;

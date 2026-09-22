@@ -10,7 +10,7 @@ import {
 } from '@shared/components/ui';
 import { formatRelative } from '@shared/utils';
 import { ROUTES } from '@app/router/paths';
-import { useMyDelegatedCandidates } from '@modules/assessment';
+import { isFirstInterviewDone, useMyDelegatedCandidates } from '@modules/assessment';
 
 /** Most recent first, and only a few — the page below has the rest. */
 const SHOWN = 4;
@@ -54,8 +54,8 @@ export function AssignedRequisitions() {
   for (const row of rows) {
     const req = row.requisition;
     const first = row.rounds.find((r) => r.kind === 'first');
-    const done =
-      row.candidate.stage === 'final' || row.candidate.stage === 'rejected';
+    // Past the interview stage — put through, turned down, or since hired.
+    const done = isFirstInterviewDone(row.candidate.stage);
     const needsDate = !done && !first ? 1 : 0;
     const needsVerdict = !done && first?.status === 'completed' ? 1 : 0;
     const existing = byReq.get(req.id);

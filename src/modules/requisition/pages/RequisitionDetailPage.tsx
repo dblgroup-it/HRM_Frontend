@@ -7,6 +7,7 @@ import {
   FileText,
   GitBranch,
   ListChecks,
+  Megaphone,
   MessageSquare,
   Pencil,
   Rocket,
@@ -47,6 +48,7 @@ import { RecruiterPanel } from '../components/RecruiterPanel';
 import { PostingPanel } from '../components/PostingPanel';
 import { EditRequisitionModal } from '../components/EditRequisitionModal';
 import { JobAnalysisCard } from '../components/JobAnalysisCard';
+import { buildRequisitionSocialPost } from '../socialPost';
 import { FacilitiesPanel } from '../components/FacilitiesPanel';
 import {
   EMPLOYMENT_NATURE_LABEL,
@@ -182,13 +184,34 @@ export default function RequisitionDetailPage() {
    * log, naming them and saying what moved — which is the whole reason it
    * can be allowed. Mirrors `requireEditAccess` on the server.
    */
+  const inChain =
+    req.status === 'pending_job_analysis' || req.status === 'pending_approval';
   const ownsDocument =
     !!perms?.isSuperUser ||
     holdsForUnit('corporate_hr') ||
     holdsForUnit('chro') ||
-    holdsForUnit('factory_hr') ||
     (!!myUserId &&
-      (req.recruiter?.id === myUserId || req.cover?.id === myUserId));
+      (req.recruiter?.id === myUserId || req.cover?.id === myUserId)) ||
+    // The unit's Factory HR holds the pen only while it is still in the
+    // chain: once the last approver has signed, the requisition is the
+    // document that was approved, and correcting it is corporate's to do.
+    (holdsForUnit('factory_hr') && inChain);
+  /**
+   * Who gets the ready-made social post.
+   *
+   * Everyone who can see a posted requisition except the person who raised
+   * it: asking for the headcount is not the same as advertising the vacancy.
+   * A raiser who also holds one of the hiring roles still gets it.
+   */
+  const canShareSocial =
+    !!perms?.isSuperUser ||
+    holdsForUnit('corporate_hr') ||
+    holdsForUnit('chro') ||
+    holdsForUnit('factory_hr') ||
+    (perms?.roles ?? []).some((r) => r.key === 'corporate_recruiter') ||
+    (!!myUserId &&
+      (req.recruiter?.id === myUserId || req.cover?.id === myUserId)) ||
+    !(!!myUserId && req.raisedById === myUserId);
   /** Whoever is holding it right now — their edit is part of the flow. */
   const holdsRequisition =
     (req.status === 'pending_approval' ||
@@ -472,20 +495,47 @@ export default function RequisitionDetailPage() {
                 link sits here, on the requisition, not inside the candidate
                 pipeline they cannot open. */}
             {req.status === 'posted' && (
-              <Button
-                variant="outline"
-                size="sm"
-                leftIcon={<Share2 className="h-4 w-4" />}
-                title="Copy the public application link"
-                onClick={() => {
-                  void navigator.clipboard.writeText(
-                    `${window.location.origin}/apply/${req.id}`,
-                  );
-                  toast.success('Job link copied — share it wherever you like');
-                }}
-              >
-                Share job link
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  leftIcon={<Share2 className="h-4 w-4" />}
+                  title="Copy the public application link"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(
+                      `${window.location.origin}/apply/${req.id}`,
+                    );
+                    toast.success(
+                      'Job link copied — share it wherever you like',
+                    );
+                  }}
+                >
+                  Share job link
+                </Button>
+                {/* The ready-made post to paste into Facebook, LinkedIn or a
+                    WhatsApp group. Beside the link because they are used
+                    together, and withheld from the requisitioner: asking for
+                    the headcount is not the same as advertising it. */}
+                {canShareSocial && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    leftIcon={<Megaphone className="h-4 w-4" />}
+                    title="Copy a ready-made post for Facebook, LinkedIn or WhatsApp"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(
+                        buildRequisitionSocialPost(
+                          req,
+                          `${window.location.origin}/apply/${req.id}`,
+                        ),
+                      );
+                      toast.success('Social post copied — paste and post it');
+                    }}
+                  >
+                    Social post
+                  </Button>
+                )}
+              </>
             )}
             {canEdit && (
               <Button
@@ -558,7 +608,7 @@ export default function RequisitionDetailPage() {
 
       {activeTab === 'analysis' && (
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-          <JobAnalysisCard requisition={req} />
+          <JobAnalysisCard requisition={req} canEditFiles={ownsDocument} />
           {/* The vacancy it is written from, beside it rather than a tab
               away — section B is a reading of section A. */}
           <DetailCard title="A · Vacancy Information" rows={vacancy} />

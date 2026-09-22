@@ -1,4 +1,5 @@
 import {
+  Award,
   Briefcase,
   Building2,
   CalendarRange,
@@ -34,6 +35,11 @@ export function CandidateBriefCard({
   className?: string;
 }) {
   if (!brief || brief.empty) return null;
+
+  const degrees = brief.education.filter((e) => e.kind !== 'certification');
+  const certifications = brief.education.filter(
+    (e) => e.kind === 'certification',
+  );
 
   const contact = [
     brief.phone ? { icon: Phone, text: brief.phone } : null,
@@ -80,24 +86,18 @@ export function CandidateBriefCard({
           </ul>
         )}
 
-        {brief.education.length > 0 && (
-          <Section icon={GraduationCap} title="Educational status">
-            <ul className="space-y-2">
-              {brief.education.map((e, i) => (
-                <li key={`${e.degree}-${i}`} className="text-xs leading-relaxed">
-                  <p className="font-semibold text-slate-800">{e.degree}</p>
-                  <p className="text-slate-500">
-                    {[
-                      e.institute,
-                      e.year ? `(${e.year})` : null,
-                      e.result,
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                  </p>
-                </li>
-              ))}
-            </ul>
+        {degrees.length > 0 && (
+          <Section icon={GraduationCap} title="Education">
+            <QualificationList rows={degrees} />
+          </Section>
+        )}
+
+        {/* Courses and certifications as their own block, the way the
+            shortlisting sheet prints them — what somebody is qualified as
+            and what they have kept up with are read differently. */}
+        {certifications.length > 0 && (
+          <Section icon={Award} title="Professional certifications">
+            <QualificationList rows={certifications} />
           </Section>
         )}
 
@@ -144,6 +144,30 @@ export function CandidateBriefCard({
         )}
       </div>
     </div>
+  );
+}
+
+/** One block of qualifications — award, then where and when. */
+function QualificationList({
+  rows,
+}: {
+  rows: CandidateBrief['education'];
+}) {
+  return (
+    <ul className="space-y-2">
+      {rows.map((e, i) => (
+        <li key={`${e.degree}-${i}`} className="text-xs leading-relaxed">
+          <p className="font-semibold text-slate-800">{e.degree}</p>
+          {(e.institute || e.year || e.result) && (
+            <p className="text-slate-500">
+              {[e.institute, e.year ? `(${e.year})` : null, e.result]
+                .filter(Boolean)
+                .join(' ')}
+            </p>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 
