@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   CalendarClock,
@@ -10,7 +10,7 @@ import {
   UserCog,
 } from 'lucide-react';
 
-import { Avatar, Modal } from '@shared/components/ui';
+import { Avatar, HeaderPopover, Modal } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
 import { useAuth } from '@modules/auth';
@@ -52,9 +52,9 @@ export function Header({ onMenuClick }: HeaderProps) {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [now, setNow] = useState(() => new Date());
   const menuRef = useRef<HTMLDivElement>(null);
+  const dateRef = useRef<HTMLButtonElement>(null);
+  const profileRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLFormElement>(null);
-  const dateAutoHideTimer = useRef<number | null>(null);
-  const profileAutoHideTimer = useRef<number | null>(null);
   const searchTerm = debouncedQuery.trim();
   const canSearch = searchTerm.length >= 2;
   const { data: searchResults, isFetching: isSearching } = useEmployees(
@@ -126,54 +126,6 @@ export function Header({ onMenuClick }: HeaderProps) {
 
   const today = now.getDate();
 
-  const clearDateAutoHide = useCallback(() => {
-    if (dateAutoHideTimer.current) {
-      window.clearTimeout(dateAutoHideTimer.current);
-      dateAutoHideTimer.current = null;
-    }
-  }, []);
-
-  const scheduleDateAutoHide = useCallback(() => {
-    clearDateAutoHide();
-    dateAutoHideTimer.current = window.setTimeout(() => {
-      setDateOpen(false);
-    }, 3000);
-  }, [clearDateAutoHide]);
-
-  const clearProfileAutoHide = useCallback(() => {
-    if (profileAutoHideTimer.current) {
-      window.clearTimeout(profileAutoHideTimer.current);
-      profileAutoHideTimer.current = null;
-    }
-  }, []);
-
-  const scheduleProfileAutoHide = useCallback(() => {
-    clearProfileAutoHide();
-    profileAutoHideTimer.current = window.setTimeout(() => {
-      setMenuOpen(false);
-    }, 3000);
-  }, [clearProfileAutoHide]);
-
-  useEffect(() => {
-    if (!dateOpen) {
-      clearDateAutoHide();
-      return;
-    }
-
-    scheduleDateAutoHide();
-    return clearDateAutoHide;
-  }, [clearDateAutoHide, dateOpen, scheduleDateAutoHide]);
-
-  useEffect(() => {
-    if (!menuOpen) {
-      clearProfileAutoHide();
-      return;
-    }
-
-    scheduleProfileAutoHide();
-    return clearProfileAutoHide;
-  }, [clearProfileAutoHide, menuOpen, scheduleProfileAutoHide]);
-
   const toggleDateWidget = () => {
     setMenuOpen(false);
     setDateOpen((value) => !value);
@@ -209,7 +161,7 @@ export function Header({ onMenuClick }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-20 bg-slate-100/80 px-3 backdrop-blur sm:px-4 lg:px-5">
-      <div className="grid min-h-[64px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
+      <div className="relative grid min-h-[64px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
         <div className="flex min-w-0 items-center">
           <button
             onClick={onMenuClick}
@@ -220,10 +172,15 @@ export function Header({ onMenuClick }: HeaderProps) {
           </button>
         </div>
 
+        {/* Centred on the screen, not in its column: the left cell holds a
+            menu button and the right one holds a clock, a bell and a name,
+            so a search centred between them sat noticeably off-centre. It
+            is taken out of flow and pinned to the row's own middle, with a
+            wide enough gutter that it never reaches either side. */}
         <form
           onSubmit={submitSearch}
           ref={searchRef}
-          className="relative mx-auto hidden w-full min-w-0 max-w-md md:block"
+          className="absolute left-1/2 hidden w-full min-w-0 max-w-md -translate-x-1/2 px-4 md:block"
         >
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
@@ -296,8 +253,9 @@ export function Header({ onMenuClick }: HeaderProps) {
 
         <div className="flex min-w-0 justify-end">
           <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
-            <div className="relative hidden min-[1700px]:block">
+            <div className="hidden min-[1700px]:block">
               <button
+                ref={dateRef}
                 type="button"
                 onClick={toggleDateWidget}
                 className="flex max-w-[15rem] items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-brand-200 hover:bg-brand-50/40 hover:text-slate-800"
@@ -308,18 +266,18 @@ export function Header({ onMenuClick }: HeaderProps) {
                 <span className="truncate">{dateLabel}</span>
               </button>
 
-              {dateOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setDateOpen(false)}
-                    aria-hidden
-                  />
-                  <div
-                    className="absolute right-0 z-20 mt-3 w-80 animate-fade-in overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_24px_70px_-28px_rgba(15,23,42,0.55)]"
-                    onFocus={scheduleDateAutoHide}
-                    onMouseMove={scheduleDateAutoHide}
-                  >
+              {/* Portalled: the header lives inside the layout's
+                  overflow-hidden column, which was clipping the last row of
+                  the month. See HeaderPopover. */}
+              <HeaderPopover
+                open={dateOpen}
+                onClose={() => setDateOpen(false)}
+                triggerRef={dateRef}
+                autoCloseMs={3000}
+                label="Calendar and clock"
+                className="w-80 p-4"
+              >
+                  <div>
                     <div className="rounded-2xl border border-brand-100 bg-brand-50 p-4">
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">
                         Today
@@ -368,14 +326,14 @@ export function Header({ onMenuClick }: HeaderProps) {
                       </div>
                     </div>
                   </div>
-                </>
-              )}
+              </HeaderPopover>
             </div>
 
             <NotificationBell />
 
             <div className="relative" ref={menuRef}>
               <button
+                ref={profileRef}
                 onClick={toggleUserMenu}
                 className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1.5 transition hover:border-slate-300 hover:bg-slate-50"
               >
@@ -412,18 +370,15 @@ export function Header({ onMenuClick }: HeaderProps) {
                 <ChevronDown className="hidden h-4 w-4 text-slate-400 sm:block" />
               </button>
 
-              {menuOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setMenuOpen(false)}
-                    aria-hidden
-                  />
-                  <div
-                    className="absolute right-0 z-20 mt-2 w-60 animate-fade-in overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
-                    onFocus={scheduleProfileAutoHide}
-                    onMouseMove={scheduleProfileAutoHide}
-                  >
+              <HeaderPopover
+                open={menuOpen}
+                onClose={() => setMenuOpen(false)}
+                triggerRef={profileRef}
+                autoCloseMs={3000}
+                label="Account menu"
+                className="w-60"
+              >
+                  <div>
                     <div className="border-b border-slate-100 px-4 py-3">
                       <p className="truncate text-sm font-semibold text-slate-800">
                         {user?.name}
@@ -490,8 +445,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                       </button>
                     </div>
                   </div>
-                </>
-              )}
+              </HeaderPopover>
             </div>
           </div>
         </div>

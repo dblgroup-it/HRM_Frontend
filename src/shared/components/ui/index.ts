@@ -40,6 +40,8 @@ export type { EmptyStateProps } from './EmptyState';
 export { ErrorCard } from './ErrorCard';
 export type { ErrorCardProps } from './ErrorCard';
 
+export { HeaderPopover } from './HeaderPopover';
+
 export { Modal } from './Modal';
 export type { ModalProps } from './Modal';
 

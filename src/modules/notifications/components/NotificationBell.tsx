@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, CheckCheck } from 'lucide-react';
 
+import { HeaderPopover } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import { formatRelative } from '@shared/utils';
 import { ROUTES } from '@app/router/paths';
@@ -17,6 +18,7 @@ import type { AppNotification } from '../types/notification.types';
 export function NotificationBell() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const bellRef = useRef<HTMLButtonElement>(null);
   const { data: notifications } = useNotifications();
   const { data: unread = 0 } = useUnreadCount();
   const markRead = useMarkRead();
@@ -40,6 +42,7 @@ export function NotificationBell() {
   return (
     <div className="relative">
       <button
+        ref={bellRef}
         onClick={() => setOpen((v) => !v)}
         className="relative grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
         aria-label="Notifications"
@@ -52,14 +55,20 @@ export function NotificationBell() {
         )}
       </button>
 
-      {open && (
-        <>
-          <div
-            className="fixed inset-0 z-10"
-            onClick={() => setOpen(false)}
-            aria-hidden
-          />
-          <div className="absolute right-0 z-20 mt-2 w-96 animate-fade-in overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+      {/* Portalled and self-closing — see HeaderPopover. It is read at a
+          glance, so it gets out of the way on its own after five quiet
+          seconds, and on any click elsewhere. The timer restarts while the
+          pointer is in it: a list that vanishes mid-read is worse than one
+          that stays. */}
+      <HeaderPopover
+        open={open}
+        onClose={() => setOpen(false)}
+        triggerRef={bellRef}
+        autoCloseMs={5000}
+        label="Notifications"
+        className="w-96 max-w-[calc(100vw-1rem)]"
+      >
+          <div>
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-4 py-3">
               <div>
                 <p className="text-sm font-medium text-slate-900">
@@ -132,8 +141,7 @@ export function NotificationBell() {
               </button>
             </div>
           </div>
-        </>
-      )}
+      </HeaderPopover>
     </div>
   );
 }
