@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   ClipboardList,
   Clock,
+  FileText,
   Plus,
   Search,
   Send,
@@ -92,6 +93,7 @@ export default function RequisitionsPage() {
     return {
       total: statsData?.total ?? 0,
       byStatus,
+      jobAnalysis: byStatus['pending_job_analysis'] ?? 0,
       pending: byStatus['pending_approval'] ?? 0,
       approved:
         (byStatus['approved'] ?? 0) + (byStatus['profile_generated'] ?? 0),
@@ -122,8 +124,11 @@ export default function RequisitionsPage() {
       />
 
       {/* Stat tiles */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
         <StatTile label="Total Requisitions" value={counts.total} icon={ClipboardList} tone="brand" />
+        {/* Raised, but still with Factory HR — an open requisition nobody is
+            yet being asked to approve. */}
+        <StatTile label="Job Analysis" value={counts.jobAnalysis} icon={FileText} tone="amber" />
         <StatTile label="Pending Approval" value={counts.pending} icon={Clock} tone="amber" />
         <StatTile label="Approved" value={counts.approved} icon={CheckCircle2} tone="sky" />
         <StatTile label="Posted" value={counts.posted} icon={Send} tone="emerald" />

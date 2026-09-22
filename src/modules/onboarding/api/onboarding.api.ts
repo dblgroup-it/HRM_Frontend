@@ -2,6 +2,7 @@ import { http } from '@shared/api';
 import type { ApiResponse } from '@shared/types';
 
 import type {
+  ArchiveFiles,
   LetterSignatories,
   NidParticulars,
   MedicalExam,
@@ -245,6 +246,20 @@ export const onboardingApi = {
     http
       .post<ApiResponse<{ onboarding: OnboardingView }>>(
         `/candidates/${candidateId}/onboarding/archive`,
+      )
+      .then((r) => r.data),
+
+  /**
+   * Everything in the archived file, to read.
+   *
+   * The Drive folder itself is private to the recruitment account — it holds
+   * national IDs, certificates and photographs — so the archive is browsed
+   * through the API instead, one signed, expiring link per document.
+   */
+  archiveFiles: (candidateId: string): Promise<ArchiveFiles> =>
+    http
+      .get<ApiResponse<ArchiveFiles>>(
+        `/candidates/${candidateId}/onboarding/archive-files`,
       )
       .then((r) => r.data),
 

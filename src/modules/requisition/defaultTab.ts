@@ -5,6 +5,7 @@ import type {
 
 export type RequisitionTabKey =
   | 'details'
+  | 'analysis'
   | 'approvals'
   | 'posting'
   | 'recruitment'
@@ -42,12 +43,17 @@ export function defaultRequisitionTab({
   if (status === 'posted') {
     if (!has('recruitment') || !driveReady) return 'posting';
     if ((stats?.selected ?? 0) > 0 && has('onboarding')) return 'onboarding';
-    if ((stats?.interview ?? 0) + (stats?.final ?? 0) > 0 && has('interviews')) {
-      return 'interviews';
-    }
+    // The interviews panel lists the interview stage and nothing else, so a
+    // requisition whose last candidate has moved past it must not open there
+    // — that landed people on an empty page with a "1" on the tab.
+    if ((stats?.interview ?? 0) > 0 && has('interviews')) return 'interviews';
     return 'recruitment';
   }
   if (status === 'approved' || status === 'profile_generated') return 'posting';
-  if (status === 'draft') return 'details';
+  // A requisition waiting on its job analysis opens on the tab that holds it
+  // — that IS the work at this stage, and whoever it is addressed to should
+  // not have to find it.
+  if (status === 'pending_job_analysis' && has('analysis')) return 'analysis';
+  if (status === 'draft' || status === 'pending_job_analysis') return 'details';
   return 'approvals';
 }

@@ -18,6 +18,8 @@ export const requisitionKeys = {
   stats: (filters: RequisitionFilters) =>
     [...requisitionKeys.all, 'stats', filters] as const,
   detail: (id: string) => [...requisitionKeys.all, 'detail', id] as const,
+  jobAnalysisOwner: (id: string) =>
+    [...requisitionKeys.all, 'job-analysis-owner', id] as const,
 };
 
 export function useRequisitions(filters: RequisitionFilters) {
@@ -25,6 +27,20 @@ export function useRequisitions(filters: RequisitionFilters) {
     queryKey: requisitionKeys.list(filters),
     queryFn: () => requisitionApi.list(filters),
     placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * Who owns this requisition's job analysis, and may the viewer write it.
+ *
+ * Only asked while the requisition is actually waiting on one — the answer is
+ * about a stage, not about the requisition for its whole life.
+ */
+export function useJobAnalysisOwnership(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: requisitionKeys.jobAnalysisOwner(id),
+    queryFn: () => requisitionApi.jobAnalysisOwnership(id),
+    enabled,
   });
 }
 

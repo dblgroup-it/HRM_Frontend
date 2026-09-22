@@ -8,6 +8,8 @@ export type ISODateString = string;
 export interface SelectOption<T = string> {
   label: string;
   value: T;
+  /** Shown but not choosable — e.g. a colleague who is themselves on leave. */
+  disabled?: boolean;
 }
 
 /** Standard envelope returned by the (mock) API layer. */

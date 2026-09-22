@@ -67,3 +67,6 @@ export {
   glassPill,
   glassSurface,
 } from './GlassToolbar';
+
+export { LifecycleTabs } from './LifecycleTabs';
+export type { LifecycleTab } from './LifecycleTabs';

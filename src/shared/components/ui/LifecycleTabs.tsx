@@ -8,7 +8,7 @@ import {
 } from 'react';
 import type { LucideIcon } from 'lucide-react';
 
-import { glassGlow, glassPill, glassSurface } from '@shared/components/ui';
+import { glassGlow, glassPill, glassSurface } from './GlassToolbar';
 import { useFitLabels } from '@shared/hooks';
 import { cn } from '@shared/lib';
 
@@ -21,7 +21,9 @@ export interface LifecycleTab<K extends string> {
 }
 
 /**
- * The requisition's lifecycle tabs — a centred glass bar with a sliding pill.
+ * Centred glass tab bar with a sliding pill — the requisition's lifecycle tabs,
+ * and Access Control's. Lives in the UI kit because both use it; it knows
+ * nothing about either.
  *
  * One row, never wrapped: the old bar wrapped to a second line on a phone and
  * the pill, positioned by offsetLeft alone, slid along the wrong row. When the

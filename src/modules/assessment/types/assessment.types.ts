@@ -89,6 +89,42 @@ export interface InterviewPanelistView {
   evalLink: string | null;
 }
 
+/**
+ * The candidate as an interviewer needs to read them in the room — the block
+ * DBL's own shortlisting sheet prints.
+ *
+ * Built server-side from the stored CV profile (`candidate-brief.ts`), so the
+ * evaluation form and the sheet cannot disagree about how long somebody has
+ * worked. Everything is optional because no source fills it all, and `empty`
+ * says so in one flag rather than making every caller check six fields.
+ */
+export interface CandidateBrief {
+  name: string;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  age: number | null;
+  education: {
+    degree: string;
+    institute: string | null;
+    year: number | null;
+    result: string | null;
+  }[];
+  employment: {
+    company: string;
+    designation: string | null;
+    /** "Jan 2025 – Present" */
+    period: string | null;
+    /** "1.7 Yrs." */
+    duration: string | null;
+    current: boolean;
+  }[];
+  /** "22 years", the way the shortlisting sheet prints it. */
+  totalService: string | null;
+  /** True when nothing below the name could be filled in. */
+  empty: boolean;
+}
+
 export interface PublicEvalInterview {
   kind: string;
   mode: string;
@@ -102,7 +138,12 @@ export interface PublicEvalData {
   status: string;
   alreadySubmitted: boolean;
   panelistName: string;
-  candidate: { name: string; cvUrl: string | null };
+  candidate: {
+    name: string;
+    cvUrl: string | null;
+    /** The CV as facts, so a panelist is not scoring a PDF in another tab. */
+    brief: CandidateBrief;
+  };
   interview: PublicEvalInterview;
   criteria: EvaluationCriterionView[];
   submittedEval: {
@@ -164,6 +205,8 @@ export interface MyInterviewRound {
     email: string;
     phone: string;
     cvUrl: string | null;
+    /** The same block the token form shows. */
+    brief: CandidateBrief;
   };
   requisition: { id: string; code: string; designation: string; unit: string };
   criteria: EvaluationCriterionView[];
@@ -223,6 +266,8 @@ export interface DelegatedCandidate {
     salaryBenefitsNote: string | null;
     /** Ticked benefit keys — see components/benefits.ts. */
     salaryBenefits: string[];
+    /** Where the transport run would pick them up, if the post carries one. */
+    transportPickup: string | null;
   };
   rounds: {
     id: string;

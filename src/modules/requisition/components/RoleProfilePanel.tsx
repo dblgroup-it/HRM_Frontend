@@ -39,10 +39,28 @@ export function RoleProfilePanel({
   const editable =
     canContinue && requisition.status !== 'posted';
 
+  /**
+   * An empty profile to type into.
+   *
+   * "Write manually" used to set `editing` and nothing else, which the render
+   * below never looked at while `profile` was null — the button did nothing.
+   * A blank profile is what "from scratch" means, so that is what the form is
+   * handed; the panel saves it exactly as it saves an edited one.
+   */
+  const blank: RoleProfile = {
+    summary: '',
+    jobDescription: '',
+    responsibilities: [],
+    requirements: [],
+    generatedAt: new Date().toISOString(),
+    generatedBy: 'manual',
+  };
+  const writingFromScratch = editing && !profile;
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Role Profile · Step 3</CardTitle>
+        <CardTitle>Role Profile · Step 4</CardTitle>
         {profile && editable && !editing && (
           <div className="flex items-center gap-1">
             <Button
@@ -66,7 +84,13 @@ export function RoleProfilePanel({
         )}
       </CardHeader>
       <CardBody>
-        {!profile ? (
+        {writingFromScratch ? (
+          <RoleProfileForm
+            id={requisition.id}
+            profile={blank}
+            onDone={() => setEditing(false)}
+          />
+        ) : !profile ? (
           <div className="flex flex-col items-center gap-4 py-6 text-center">
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-brand-600">
               <Sparkles className="h-6 w-6" />

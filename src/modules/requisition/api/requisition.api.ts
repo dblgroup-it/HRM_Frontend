@@ -9,7 +9,10 @@ import type {
   CreateRequisitionPayload,
   Facilities,
   FacilityKey,
-  PreferredSource,
+  JobAnalysisDraft,
+  JobAnalysisDraftInput,
+  JobAnalysisInput,
+  JobAnalysisOwnership,
   Requisition,
   RequisitionDraft,
   RequisitionFilters,
@@ -339,6 +342,26 @@ export const requisitionApi = {
       .then((res) => res.data);
   },
 
+  /**
+   * AI-draft section B from section A.
+   *
+   * Returns a draft; nothing is saved. What is already typed goes up with the
+   * request so a redraft builds on the writer's own words rather than
+   * replacing them.
+   */
+  draftJobAnalysis(
+    id: string,
+    input: JobAnalysisDraftInput,
+  ): Promise<JobAnalysisDraft> {
+    return http
+      .post<ApiResponse<JobAnalysisDraft>>(
+        `/requisitions/${id}/job-analysis/draft`,
+        input,
+        { timeout: 90_000 },
+      )
+      .then((res) => res.data);
+  },
+
   /** Status counts for the list page's tiles — counted server-side. */
   stats(
     filters: RequisitionFilters = {},
@@ -380,6 +403,19 @@ export const requisitionApi = {
         const created: Requisition = {
           ...fields,
           grade: null,
+          // Section B is written at the job-analysis stage, not here.
+          jobDescription: '',
+          education: '',
+          experience: '',
+          others: '',
+          preferredSources: [],
+          jobAnalysis: {
+            assignee: null,
+            completedBy: null,
+            completedAt: null,
+            returnedAt: null,
+            returnNote: null,
+          },
           // The mock stands in for the server, which assigns the ids.
           replacements: (replacements ?? []).map((r, i) => ({
             id: `rep_${1000 + SEQUENCE}_${i}`,
@@ -396,7 +432,7 @@ export const requisitionApi = {
           facilities: initialFacilities(facilities),
           id: `req_${1000 + SEQUENCE}`,
           code: `REQ-2026-${String(SEQUENCE).padStart(3, '0')}`,
-          status: 'pending_approval',
+          status: 'pending_job_analysis',
           approvalChain: buildChain(payload.requirementType, signatories),
           activityLog: [],
           roleProfile: null,
@@ -575,25 +611,121 @@ export const requisitionApi = {
       .then((res) => res.data);
   },
 
-  post(
-    id: string,
-    sources: PreferredSource[],
-    closingDate: string
-  ): Promise<Requisition> {
+  post(id: string, closingDate: string): Promise<Requisition> {
     if (ENV.USE_MOCK_API) {
       return delay(MOCK_LATENCY).then(() =>
         updateStore(id, (r) => ({
           ...r,
           status: 'posted',
-          posting: { sources, closingDate, postedAt: new Date().toISOString() },
+          posting: {
+            sources: ['career_page'],
+            closingDate,
+            postedAt: new Date().toISOString(),
+          },
         }))
       );
     }
     return http
       .post<ApiResponse<Requisition>>(`/requisitions/${id}/post`, {
-        sources,
         closingDate,
       })
+      .then((res) => res.data);
+  },
+
+  /**
+   * Section B — the unit's Factory HR writes the job analysis and, unless
+   * `submit: false`, sends the requisition on to its approval chain.
+   */
+  saveJobAnalysis(id: string, input: JobAnalysisInput): Promise<Requisition> {
+    if (ENV.USE_MOCK_API) {
+      return delay(MOCK_LATENCY).then(() =>
+        updateStore(id, (r) => ({
+          ...r,
+          jobDescription: input.jobDescription ?? r.jobDescription,
+          education: input.education ?? r.education,
+          experience: input.experience ?? r.experience,
+          others: input.others ?? r.others,
+          ...(input.submit === false
+            ? {}
+            : { status: 'pending_approval' as const }),
+        }))
+      );
+    }
+    return http
+      .patch<ApiResponse<Requisition>>(
+        `/requisitions/${id}/job-analysis`,
+        input
+      )
+      .then((res) => res.data);
+  },
+
+  /**
+   * Who owns the job analysis on this requisition, and may I write it?
+   *
+   * Asked of the server: whether Corporate HR / a recruiter is covering for a
+   * unit depends on who holds Factory HR there, which the browser can't know.
+   */
+  jobAnalysisOwnership(id: string): Promise<JobAnalysisOwnership> {
+    if (ENV.USE_MOCK_API) {
+      return delay(MOCK_LATENCY).then(() => ({
+        canComplete: true,
+        viaFactoryHr: true,
+        owners: [],
+        assignee: null,
+      }));
+    }
+    return http
+      .get<ApiResponse<JobAnalysisOwnership>>(
+        `/requisitions/${id}/job-analysis`
+      )
+      .then((res) => res.data);
+  },
+
+  /** Factory HR hands it back to the raiser instead, with a reason. */
+  returnForChanges(id: string, note: string): Promise<Requisition> {
+    if (ENV.USE_MOCK_API) {
+      return delay(MOCK_LATENCY).then(() =>
+        updateStore(id, (r) => ({
+          ...r,
+          jobAnalysis: {
+            assignee: null,
+            completedBy: null,
+            completedAt: null,
+            returnedAt: new Date().toISOString(),
+            returnNote: note,
+          },
+        }))
+      );
+    }
+    return http
+      .patch<ApiResponse<Requisition>>(
+        `/requisitions/${id}/job-analysis/return`,
+        { note }
+      )
+      .then((res) => res.data);
+  },
+
+  /** The raiser amends a returned requisition and resends it. */
+  resendForJobAnalysis(id: string): Promise<Requisition> {
+    if (ENV.USE_MOCK_API) {
+      return delay(MOCK_LATENCY).then(() =>
+        updateStore(id, (r) => ({
+          ...r,
+          jobAnalysis: {
+            assignee: null,
+            completedBy: null,
+            completedAt: null,
+            returnedAt: null,
+            returnNote: null,
+          },
+        }))
+      );
+    }
+    return http
+      .patch<ApiResponse<Requisition>>(
+        `/requisitions/${id}/job-analysis/resend`,
+        {}
+      )
       .then((res) => res.data);
   },
 

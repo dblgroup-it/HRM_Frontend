@@ -7,6 +7,9 @@ import type {
   MyPermissions,
   Role,
   RoleAssignment,
+  SetLayeringOrderInput,
+  HrLayering,
+  AssignmentRemoval,
 } from '../types/rbac.types';
 
 export const rbacApi = {
@@ -44,9 +47,27 @@ export const rbacApi = {
       .then((res) => res.data);
   },
 
-  deleteAssignment(id: string): Promise<{ id: string }> {
+  /** Each unit's Factory HR queue and the recruiter pool, with who is away. */
+  hrLayering(): Promise<HrLayering> {
     return http
-      .delete<ApiResponse<{ id: string }>>(`/role-assignments/${id}`)
+      .get<ApiResponse<HrLayering>>('/hr-layering')
+      .then((res) => res.data);
+  },
+
+  /** Reorder a unit's layering (first priority, second priority, …). */
+  setLayeringOrder(input: SetLayeringOrderInput): Promise<{ ok: boolean }> {
+    return http
+      .patch<ApiResponse<{ ok: boolean }>>('/role-assignments/order', input)
+      .then((res) => res.data);
+  },
+
+  /**
+   * Removing a role also clears what it was holding up in Approval Paths —
+   * the result says how much, so the page can tell the person.
+   */
+  deleteAssignment(id: string): Promise<AssignmentRemoval> {
+    return http
+      .delete<ApiResponse<AssignmentRemoval>>(`/role-assignments/${id}`)
       .then((res) => res.data);
   },
 

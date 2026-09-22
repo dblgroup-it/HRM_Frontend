@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  CalendarClock,
   CalendarDays,
   ChevronDown,
   LogOut,
@@ -9,10 +10,13 @@ import {
   UserCog,
 } from 'lucide-react';
 
-import { Avatar } from '@shared/components/ui';
+import { Avatar, Modal } from '@shared/components/ui';
+import { cn } from '@shared/lib';
+import { formatDate } from '@shared/utils';
 import { useAuth } from '@modules/auth';
 import { useEmployees } from '@modules/employees';
 import { NotificationBell } from '@modules/notifications';
+import { AvailabilityPanel, useMyPresence } from '@modules/availability';
 import { ROUTES } from '@app/router/paths';
 
 interface HeaderProps {
@@ -32,6 +36,16 @@ export function Header({ onMenuClick }: HeaderProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [availabilityOpen, setAvailabilityOpen] = useState(false);
+  /**
+   * Whether this person carries cover, and whether they are on duty.
+   *
+   * Null for everybody else — their absence routes nothing, so they get no
+   * dot and no leave control. The dot rides on the avatar rather than on a
+   * control of its own: "am I at work" is a fact about the person, and the
+   * avatar is already what the person is.
+   */
+  const presence = useMyPresence();
   const [dateOpen, setDateOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -365,11 +379,28 @@ export function Header({ onMenuClick }: HeaderProps) {
                 onClick={toggleUserMenu}
                 className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1.5 transition hover:border-slate-300 hover:bg-slate-50"
               >
-                <Avatar
-                  name={user?.name ?? 'User'}
-                  src={user?.avatarUrl}
-                  size="md"
-                />
+                <span className="relative shrink-0">
+                  <Avatar
+                    name={user?.name ?? 'User'}
+                    src={user?.avatarUrl}
+                    size="md"
+                  />
+                  {/* Emerald on duty, amber away — and only for the people
+                      whose absence actually re-routes work. */}
+                  {presence && (
+                    <span
+                      title={
+                        presence.onLeave
+                          ? `On leave${presence.until ? ` until ${formatDate(presence.until)}` : ''}`
+                          : 'On duty'
+                      }
+                      className={cn(
+                        'absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-white',
+                        presence.onLeave ? 'bg-amber-500' : 'bg-emerald-500',
+                      )}
+                    />
+                  )}
+                </span>
                 <span className="hidden max-w-40 text-left sm:block">
                   <span className="block truncate text-sm font-semibold text-slate-800">
                     {user?.name}
@@ -407,6 +438,39 @@ export function Header({ onMenuClick }: HeaderProps) {
                       )}
                     </div>
                     <div className="py-1">
+                      {/* Availability sits with the person, not beside the
+                          bell: the bell is work arriving, this is whether
+                          work should be arriving at all. */}
+                      {presence && (
+                        <button
+                          onClick={() => {
+                            setMenuOpen(false);
+                            setAvailabilityOpen(true);
+                          }}
+                          className="flex w-full items-center gap-2 px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                        >
+                          <CalendarClock className="h-4 w-4" />
+                          <span className="flex-1 text-left">Availability</span>
+                          <span
+                            className={cn(
+                              'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.6875rem] font-medium',
+                              presence.onLeave
+                                ? 'bg-amber-50 text-amber-700'
+                                : 'bg-emerald-50 text-emerald-700',
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                'h-1.5 w-1.5 rounded-full',
+                                presence.onLeave
+                                  ? 'bg-amber-500'
+                                  : 'bg-emerald-500',
+                              )}
+                            />
+                            {presence.onLeave ? 'Away' : 'On duty'}
+                          </span>
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           setMenuOpen(false);
@@ -432,6 +496,17 @@ export function Header({ onMenuClick }: HeaderProps) {
           </div>
         </div>
       </div>
+
+      {/* A modal rather than a flyout inside the menu: the panel asks who
+          covers each requisition, which is a decision, and the profile menu
+          hides itself after three seconds of stillness. */}
+      <Modal
+        open={availabilityOpen}
+        onClose={() => setAvailabilityOpen(false)}
+        title="Availability"
+      >
+        <AvailabilityPanel onDone={() => setAvailabilityOpen(false)} />
+      </Modal>
     </header>
   );
 }

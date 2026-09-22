@@ -4,13 +4,16 @@ import {
   ArrowLeft,
   ClipboardCheck,
   ClipboardList,
+  FileText,
   GitBranch,
   ListChecks,
   MessageSquare,
   Pencil,
   Rocket,
+  Share2,
   Users,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { useMyPermissions } from '@modules/rbac';
 import { useAuthStore } from '@modules/auth';
@@ -43,7 +46,7 @@ import { RoleProfilePanel } from '../components/RoleProfilePanel';
 import { RecruiterPanel } from '../components/RecruiterPanel';
 import { PostingPanel } from '../components/PostingPanel';
 import { EditRequisitionModal } from '../components/EditRequisitionModal';
-import { AttachmentsPanel } from '../components/AttachmentsPanel';
+import { JobAnalysisCard } from '../components/JobAnalysisCard';
 import { FacilitiesPanel } from '../components/FacilitiesPanel';
 import {
   EMPLOYMENT_NATURE_LABEL,
@@ -55,7 +58,7 @@ import {
 import {
   LifecycleTabs,
   type LifecycleTab,
-} from '../components/LifecycleTabs';
+} from '@shared/components/ui';
 import { defaultRequisitionTab, type RequisitionTabKey } from '../defaultTab';
 
 export default function RequisitionDetailPage() {
@@ -156,56 +159,80 @@ export default function RequisitionDetailPage() {
   // Normally it's whoever's step is active. But after "need more info" it goes
   // back to the requisitioner — they wrote it, so they're the one who can
   // answer — and no approver holds it until they resend.
-  const awaitingRaiser = req.approvalChain.some(
-    (s) => s.status === 'info_requested'
-  );
+  const awaitingRaiser =
+    req.approvalChain.some((s) => s.status === 'info_requested') ||
+    // Factory HR handed it back before the chain started — same situation,
+    // one stage earlier: it is the raiser's to amend and resend.
+    Boolean(req.jobAnalysis?.returnedAt);
   const currentStep = req.approvalChain.find((s) => s.status === 'pending');
   const unitLower = req.unitFactory.toLowerCase();
-  const canEdit =
-    req.status === 'pending_approval' &&
-    (awaitingRaiser
-      ? !!perms?.isSuperUser ||
-        (!!myUserId && req.raisedById === myUserId)
-      : !!currentStep &&
-        (!!perms?.isSuperUser ||
-          (currentStep.approverUserId
-            ? currentStep.approverUserId === myUserId
-            : (perms?.roles ?? []).some(
-                (r) =>
-                  r.key === currentStep.role &&
-                  (r.unitId === null ||
-                    (r.unitName ?? '').toLowerCase() === unitLower)
-              ))));
-  // Head of Talent Acquisition keeps access after assigning a recruiter — the recruiter is
-  // added to it, not swapped in.
-  const isAssignedRecruiter = !!myUserId && req.recruiter?.id === myUserId;
-  const canCorporateHrContinue =
-    !!perms?.isSuperUser ||
-    isAssignedRecruiter ||
+  const holdsForUnit = (key: string) =>
     (perms?.roles ?? []).some(
       (r) =>
-        r.key === 'corporate_hr' &&
-        (r.unitId === null || (r.unitName ?? '').toLowerCase() === unitLower)
+        r.key === key &&
+        (r.unitId === null || (r.unitName ?? '').toLowerCase() === unitLower),
     );
+  /**
+   * The HR side owns the requisition as a document, at any stage.
+   *
+   * Head of Talent Acquisition / CHRO for the unit, the assigned recruiter
+   * (or whoever is covering them) and the unit's Factory HR may correct a
+   * wrong grade or a mistyped post count without bouncing the whole chain
+   * back to the raiser. Every change they make is written into the activity
+   * log, naming them and saying what moved — which is the whole reason it
+   * can be allowed. Mirrors `requireEditAccess` on the server.
+   */
+  const ownsDocument =
+    !!perms?.isSuperUser ||
+    holdsForUnit('corporate_hr') ||
+    holdsForUnit('chro') ||
+    holdsForUnit('factory_hr') ||
+    (!!myUserId &&
+      (req.recruiter?.id === myUserId || req.cover?.id === myUserId));
+  /** Whoever is holding it right now — their edit is part of the flow. */
+  const holdsRequisition =
+    (req.status === 'pending_approval' ||
+      // Before the chain starts only a handed-back requisition is editable,
+      // and only by the raiser — `awaitingRaiser` covers exactly that.
+      (req.status === 'pending_job_analysis' &&
+        Boolean(req.jobAnalysis?.returnedAt))) &&
+    (awaitingRaiser
+      ? !!myUserId && req.raisedById === myUserId
+      : !!currentStep &&
+        (currentStep.approverUserId
+          ? currentStep.approverUserId === myUserId
+          : (perms?.roles ?? []).some(
+              (r) =>
+                r.key === currentStep.role &&
+                (r.unitId === null ||
+                  (r.unitName ?? '').toLowerCase() === unitLower)
+            )));
+  const canEdit = ownsDocument || holdsRequisition;
+  // Head of Talent Acquisition keeps access after assigning a recruiter — the recruiter is
+  // added to it, not swapped in. The stand-in covering a recruiter on leave
+  // counts as the recruiter here: the API lets them act on everything, and
+  // without this they could open the requisition and find no lifecycle on it.
+  const isAssignedRecruiter =
+    !!myUserId &&
+    (req.recruiter?.id === myUserId || req.cover?.id === myUserId);
+  const canCorporateHrContinue =
+    !!perms?.isSuperUser || isAssignedRecruiter || holdsForUnit('corporate_hr');
   // Facilities are provisioning commitments, so they are settled by the HR
   // side — Head of Talent Acquisition / CHRO / super and the assigned recruiter — not by
   // whichever approver currently holds the requisition.
   const canDecideFacilities = canAccessRecruitment(perms, req.unitFactory, {
     recruiterId: req.recruiter?.id,
+    coverRecruiterId: req.cover?.id,
     myUserId,
   });
   // Only Head of Talent Acquisition / CHRO / super may nominate the recruiter.
   const canAssignRecruiter =
-    !!perms?.isSuperUser ||
-    (perms?.roles ?? []).some(
-      (r) =>
-        (r.key === 'corporate_hr' || r.key === 'chro') &&
-        (r.unitId === null || (r.unitName ?? '').toLowerCase() === unitLower)
-    );
+    !!perms?.isSuperUser || holdsForUnit('corporate_hr') || holdsForUnit('chro');
   // The candidate pipeline is visible only to Head of Talent Acquisition, CHRO & super users.
   const showCandidates =
     canAccessRecruitment(perms, req.unitFactory, {
       recruiterId: req.recruiter?.id,
+      coverRecruiterId: req.cover?.id,
       myUserId,
     }) &&
     (req.status === 'posted' ||
@@ -312,16 +339,20 @@ export default function RequisitionDetailPage() {
       : []),
   ];
 
-  const jobAnalysis: Row[] = [
-    { label: 'Education & training', value: req.education },
-    { label: 'Experience', value: req.experience },
-    ...(req.others ? [{ label: 'Others', value: req.others }] : []),
-  ];
-
   // Lifecycle-ordered tabs (only the ones that apply to this requisition).
   const stats = req.candidateStats;
   const tabs: LifecycleTab<TabKey>[] = [
     { key: 'details', label: 'Details', icon: ClipboardList },
+    // Section B and the files it refers to, straight after the vacancy they
+    // are written from. Its own tab rather than a card at the foot of
+    // Details: at the job-analysis stage it IS the work, and anything below
+    // the fold reads as optional.
+    {
+      key: 'analysis',
+      label: 'Job Analysis',
+      icon: FileText,
+      count: req.attachments?.length,
+    },
     { key: 'approvals', label: 'Approvals', icon: GitBranch },
     ...(showProfile
       ? [{ key: 'posting' as const, label: 'Profile & Posting', icon: Rocket }]
@@ -345,7 +376,11 @@ export default function RequisitionDetailPage() {
             key: 'interviews' as const,
             label: 'Interviews',
             icon: MessageSquare,
-            count: (stats?.interview ?? 0) + (stats?.final ?? 0),
+            // Exactly what the tab opens on: the panel lists candidates at
+            // the interview stage. It used to add the final-stage ones too,
+            // so a requisition down to its last candidate read "Interviews 1"
+            // and opened on "0 candidates at interview stage".
+            count: stats?.interview ?? 0,
           },
         ]
       : []),
@@ -432,6 +467,26 @@ export default function RequisitionDetailPage() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-3">
+            {/* A posted vacancy has a public link, and the people asked about
+                it are as often the unit's own HR as the recruiters — so the
+                link sits here, on the requisition, not inside the candidate
+                pipeline they cannot open. */}
+            {req.status === 'posted' && (
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<Share2 className="h-4 w-4" />}
+                title="Copy the public application link"
+                onClick={() => {
+                  void navigator.clipboard.writeText(
+                    `${window.location.origin}/apply/${req.id}`,
+                  );
+                  toast.success('Job link copied — share it wherever you like');
+                }}
+              >
+                Share job link
+              </Button>
+            )}
             {canEdit && (
               <Button
                 variant="outline"
@@ -473,51 +528,40 @@ export default function RequisitionDetailPage() {
         <div className="grid items-start gap-6 lg:grid-cols-2">
           <div className="space-y-6">
             <DetailCard title="A · Vacancy Information" rows={vacancy} />
-
-            <Card>
-              <CardHeader>
-                <CardTitle>B · Job Analysis</CardTitle>
-              </CardHeader>
-              <CardBody className="space-y-4">
-                <div>
-                  <p className="text-xs text-slate-400">Job description</p>
-                  <p className="mt-0.5 text-sm text-slate-700">
-                    {req.jobDescription}
-                  </p>
-                </div>
-                {jobAnalysis.map((r) => (
-                  <FieldRow key={r.label} {...r} />
-                ))}
-              </CardBody>
-            </Card>
           </div>
 
           <div className="space-y-6">
             <FacilitiesPanel requisition={req} canEdit={canDecideFacilities} />
 
-            <Card>
-              <CardHeader>
-                <CardTitle>C · Preferred Sources</CardTitle>
-              </CardHeader>
-              <CardBody>
-                <div className="flex flex-wrap gap-1.5">
-                  {req.preferredSources.length > 0 ? (
-                    req.preferredSources.map((s) => (
+            {/* Nobody picks sources any more — a posted requisition goes to
+                the career page — so this is only shown where an older
+                requisition actually recorded some. */}
+            {req.preferredSources.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Preferred sources (as raised)</CardTitle>
+                </CardHeader>
+                <CardBody>
+                  <div className="flex flex-wrap gap-1.5">
+                    {req.preferredSources.map((s) => (
                       <Badge key={s} tone="neutral">
                         {preferredSourceLabel(s)}
                       </Badge>
-                    ))
-                  ) : (
-                    <span className="text-sm text-slate-400">
-                      Not specified
-                    </span>
-                  )}
-                </div>
-              </CardBody>
-            </Card>
-
-            <AttachmentsPanel requisition={req} />
+                    ))}
+                  </div>
+                </CardBody>
+              </Card>
+            )}
           </div>
+        </div>
+      )}
+
+      {activeTab === 'analysis' && (
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <JobAnalysisCard requisition={req} />
+          {/* The vacancy it is written from, beside it rather than a tab
+              away — section B is a reading of section A. */}
+          <DetailCard title="A · Vacancy Information" rows={vacancy} />
         </div>
       )}
 

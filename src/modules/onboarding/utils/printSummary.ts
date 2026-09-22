@@ -307,7 +307,11 @@ export function printOnboardingSummary(
           f.vehicleType
             ? (FACILITY_OPTION_LABEL[f.vehicleType] ?? f.vehicleType)
             : null,
-          f.pickupLocation ? `from ${f.pickupLocation}` : null,
+          // The candidate's own pick-up point, taken in the interview room;
+          // `pickupLocation` is what older requisitions recorded on the form.
+          key === 'transport' && (f.pickupLocation || c.transportPickup)
+            ? `from ${f.pickupLocation || c.transportPickup}`
+            : null,
           f.status === 'pending'
             ? 'awaiting HR'
             : f.status === 'confirmed'

@@ -18,6 +18,7 @@ import { Spinner } from '@shared/components/ui';
 
 import { usePublicEval, useSubmitPublicEval } from '../hooks/useAssessment';
 import { CriteriaScoringSection } from '../components/CriteriaScoringSection';
+import { CandidateBriefCard } from '../components/CandidateBriefCard';
 import { resolveApiFileUrl } from '@shared/api';
 
 // ---------------------------------------------------------------------------
@@ -49,6 +50,16 @@ function pctColors(pct: number) {
 // main page
 // ---------------------------------------------------------------------------
 
+/**
+ * One interviewer's marks, opened from an emailed link (no login).
+ *
+ * Laid out as two columns on a desktop — who the candidate is on the left,
+ * what you think of them on the right — because those are two different
+ * activities and the marker does them together. The left column carries the
+ * CV as facts (`CandidateBriefCard`) as well as the document: a panelist
+ * between two sessions reads a summary, not a PDF. On a phone it stacks, with
+ * the running total and the submit button pinned to the bottom.
+ */
 export default function EvaluateByTokenPage() {
   const { token = '' } = useParams<{ token: string }>();
   const { data, isLoading, isError, error } = usePublicEval(token);
@@ -146,141 +157,146 @@ export default function EvaluateByTokenPage() {
     );
 
   return (
-    <Shell>
-      {/* ── main content ── */}
-      <div className="mx-auto max-w-lg space-y-4 pb-36 sm:pb-10">
+    <Shell wide>
+      <div className="grid items-start gap-4 pb-36 lg:grid-cols-[22rem_minmax(0,1fr)] lg:pb-10">
+        {/* ── Left: who you are marking ── */}
+        <div className="space-y-4 lg:sticky lg:top-20">
+          {/* ① Candidate card */}
+          <div className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-200/60">
+            <div className="h-2 bg-gradient-to-r from-brand-500 to-brand-700" />
 
-        {/* ① Candidate card */}
-        <div className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-200/60">
-          {/* blue accent band */}
-          <div className="h-2 bg-gradient-to-r from-brand-500 to-brand-700" />
-
-          <div className="px-6 pb-6 pt-5">
-            {/* Avatar + name */}
-            <div className="flex items-start gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-600 text-lg font-bold text-white shadow-sm">
-                {initials(data.candidate.name)}
-              </div>
-              <div className="min-w-0 flex-1 pt-0.5">
-                <h2 className="truncate text-xl font-bold text-slate-900">{data.candidate.name}</h2>
-                <p className="mt-0.5 truncate text-sm text-slate-500">{data.interview.designation}</p>
-                {data.interview.unit && (
-                  <p className="truncate text-xs text-slate-400">{data.interview.unit}</p>
-                )}
-              </div>
-              <span className="shrink-0 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
-                {cap(data.interview.kind)}
-              </span>
-            </div>
-
-            {/* The CV, one click away. A panelist on the token path has no
-                login and no candidate page, so without this they are scoring
-                someone whose background they cannot check. */}
-            {data.candidate.cvUrl && (
-              <a
-                href={resolveApiFileUrl(data.candidate.cvUrl)}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-4 flex items-center gap-3 rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-3 transition-colors hover:border-brand-300 hover:bg-brand-50"
-              >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-brand-600 ring-1 ring-brand-100">
-                  <FileText className="h-4 w-4" />
+            <div className="px-5 pb-5 pt-4">
+              <div className="flex items-start gap-3.5">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-600 text-lg font-bold text-white shadow-sm">
+                  {initials(data.candidate.name)}
+                </div>
+                <div className="min-w-0 flex-1 pt-0.5">
+                  <h2 className="truncate text-lg font-bold text-slate-900">{data.candidate.name}</h2>
+                  <p className="mt-0.5 truncate text-sm text-slate-500">{data.interview.designation}</p>
+                  {data.interview.unit && (
+                    <p className="truncate text-xs text-slate-400">{data.interview.unit}</p>
+                  )}
+                </div>
+                <span className="shrink-0 rounded-full bg-brand-50 px-2.5 py-1 text-[0.6875rem] font-semibold text-brand-700">
+                  {cap(data.interview.kind)}
                 </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold text-brand-800">
-                    View CV
-                  </span>
-                  <span className="block text-xs text-brand-600/80">
-                    Opens {data.candidate.name}'s CV in a new tab
-                  </span>
-                </span>
-                <ExternalLink className="h-4 w-4 shrink-0 text-brand-500" />
-              </a>
-            )}
+              </div>
 
-            {/* Meta pills */}
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Pill icon={<CalendarClock className="h-3.5 w-3.5" />}>
-                {fmtDate(data.interview.scheduledAt)}
-              </Pill>
-              {data.interview.mode === 'online' ? (
-                <Pill icon={<Video className="h-3.5 w-3.5 text-emerald-500" />}>
-                  <span className="text-emerald-700">Online interview</span>
+              {/* The CV, one click away. A panelist on the token path has no
+                  login and no candidate page, so without this they are scoring
+                  someone whose background they cannot check. */}
+              {data.candidate.cvUrl && (
+                <a
+                  href={resolveApiFileUrl(data.candidate.cvUrl)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-4 flex items-center gap-3 rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-3 transition-colors hover:border-brand-300 hover:bg-brand-50"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-brand-600 ring-1 ring-brand-100">
+                    <FileText className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-brand-800">
+                      View full CV
+                    </span>
+                    <span className="block text-xs text-brand-600/80">
+                      Opens the document in a new tab
+                    </span>
+                  </span>
+                  <ExternalLink className="h-4 w-4 shrink-0 text-brand-500" />
+                </a>
+              )}
+
+              {/* Meta pills */}
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Pill icon={<CalendarClock className="h-3.5 w-3.5" />}>
+                  {fmtDate(data.interview.scheduledAt)}
                 </Pill>
-              ) : data.interview.location ? (
-                <Pill icon={<MapPin className="h-3.5 w-3.5" />}>{data.interview.location}</Pill>
-              ) : null}
-            </div>
+                {data.interview.mode === 'online' ? (
+                  <Pill icon={<Video className="h-3.5 w-3.5 text-emerald-500" />}>
+                    <span className="text-emerald-700">Online interview</span>
+                  </Pill>
+                ) : data.interview.location ? (
+                  <Pill icon={<MapPin className="h-3.5 w-3.5" />}>{data.interview.location}</Pill>
+                ) : null}
+              </div>
 
-            {/* Evaluator */}
-            <div className="mt-4 flex items-center gap-2 rounded-xl bg-slate-50 px-4 py-2.5">
-              <Clock className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-              <p className="text-xs text-slate-500">
-                Evaluating as{' '}
-                <span className="font-semibold text-slate-700">{data.panelistName}</span>
+              {/* Evaluator */}
+              <div className="mt-4 flex items-center gap-2 rounded-xl bg-slate-50 px-4 py-2.5">
+                <Clock className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                <p className="text-xs text-slate-500">
+                  Evaluating as{' '}
+                  <span className="font-semibold text-slate-700">{data.panelistName}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* ② The CV as facts — age, education, every post, total service. */}
+          <CandidateBriefCard brief={data.candidate.brief} />
+        </div>
+
+        {/* ── Right: what you think of them ── */}
+        <div className="space-y-4">
+          {/* ③ Scoring */}
+          <CriteriaScoringSection
+            criteria={data.criteria}
+            scores={scores}
+            onChange={(key, value) => setScores((prev) => ({ ...prev, [key]: value }))}
+          />
+
+          {/* Total (desktop) */}
+          <div className="rounded-2xl bg-white px-6 py-5 ring-1 ring-slate-200/60 shadow-sm">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-slate-600">Total score</p>
+              <p className={cn('text-2xl font-extrabold tabular-nums', totalColors.text)}>
+                {currentTotal.toFixed(1)}
+                <span className="ml-1 text-base font-semibold text-slate-300">/ {maxTotal}</span>
+                <span className={cn('ml-3 rounded-full px-3 py-0.5 text-sm font-bold', totalColors.badge)}>
+                  {pct.toFixed(1)}%
+                </span>
               </p>
             </div>
-          </div>
-        </div>
-
-        {/* ③ Scoring */}
-        <CriteriaScoringSection
-          criteria={data.criteria}
-          scores={scores}
-          onChange={(key, value) => setScores((prev) => ({ ...prev, [key]: value }))}
-        />
-
-        {/* Total (desktop) */}
-        <div className="rounded-2xl bg-white px-6 py-5 ring-1 ring-slate-200/60 shadow-sm">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-600">Total score</p>
-            <p className={cn('text-2xl font-extrabold tabular-nums', totalColors.text)}>
-              {currentTotal.toFixed(1)}
-              <span className="ml-1 text-base font-semibold text-slate-300">/ {maxTotal}</span>
-              <span className={cn('ml-3 rounded-full px-3 py-0.5 text-sm font-bold', totalColors.badge)}>
-                {pct.toFixed(1)}%
-              </span>
-            </p>
-          </div>
-          <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-slate-100">
-            <div
-              className={cn('h-full rounded-full transition-all duration-300', totalColors.bar)}
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-        </div>
-
-        {/* ④ Comments */}
-        <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200/60 shadow-sm">
-          <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3.5">
-            <MessageSquare className="h-4 w-4 text-slate-400" />
-            <p className="text-sm font-semibold text-slate-700">Comments</p>
-            <span className="ml-auto text-xs text-slate-400">Optional</span>
-          </div>
-          <div className="px-5 py-4">
-            <textarea
-              rows={4}
-              placeholder="Overall impression, strengths, areas of concern, hiring recommendation…"
-              value={comments}
-              onChange={(e) => setComments(e.target.value)}
-              maxLength={2000}
-              className="w-full resize-none bg-transparent text-sm leading-relaxed text-slate-800 placeholder-slate-300 outline-none"
-            />
-            <p className="mt-1 text-right text-[0.625rem] text-slate-300">{comments.length} / 2000</p>
-          </div>
-        </div>
-
-        {/* ⑤ Submit (desktop) */}
-        <div className="hidden sm:block">
-          <SubmitButton canSubmit={canSubmit} pending={submit.isPending} onSubmit={handleSubmit} />
-          {!canSubmit && !submit.isPending && (
-            <p className="mt-2 text-center text-xs text-slate-400">Score all criteria to unlock submission.</p>
-          )}
-          {submit.isError && (
-            <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-700">
-              {(submit.error as { message?: string })?.message ?? 'Submission failed. Please try again.'}
+            <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-slate-100">
+              <div
+                className={cn('h-full rounded-full transition-all duration-300', totalColors.bar)}
+                style={{ width: `${pct}%` }}
+              />
             </div>
-          )}
+          </div>
+
+          {/* ④ Comments */}
+          <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200/60 shadow-sm">
+            <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3.5">
+              <MessageSquare className="h-4 w-4 text-slate-400" />
+              <p className="text-sm font-semibold text-slate-700">Comments</p>
+              <span className="ml-auto text-xs text-slate-400">Optional</span>
+            </div>
+            <div className="px-5 py-4">
+              <textarea
+                rows={4}
+                placeholder="Overall impression, strengths, areas of concern, hiring recommendation…"
+                value={comments}
+                onChange={(e) => setComments(e.target.value)}
+                maxLength={2000}
+                className="w-full resize-none bg-transparent text-sm leading-relaxed text-slate-800 placeholder-slate-300 outline-none"
+              />
+              <p className="mt-1 text-right text-[0.625rem] text-slate-300">{comments.length} / 2000</p>
+            </div>
+          </div>
+
+          {/* ⑤ Submit (desktop) */}
+          <div className="hidden sm:block">
+            <SubmitButton canSubmit={canSubmit} pending={submit.isPending} onSubmit={handleSubmit} />
+            {!canSubmit && !submit.isPending && (
+              <p className="mt-2 text-center text-xs text-slate-400">Score all criteria to unlock submission.</p>
+            )}
+            {submit.isError && (
+              <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-700">
+                {(submit.error as { message?: string })?.message ?? 'Submission failed. Please try again.'}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -351,11 +367,23 @@ function Pill({ icon, children }: { icon: React.ReactNode; children: React.React
   );
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
+/**
+ * The page frame.
+ *
+ * `wide` for the marking view, which is two columns; the loading, expired and
+ * thank-you states stay narrow, because a single short message centred in a
+ * 5xl column reads as a mistake.
+ */
+function Shell({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
   return (
     <div className="min-h-screen bg-slate-100">
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-2xl items-center gap-3 px-5 py-3">
+        <div
+          className={cn(
+            'mx-auto flex items-center gap-3 px-5 py-3',
+            wide ? 'max-w-5xl' : 'max-w-2xl',
+          )}
+        >
           <img
             src="/logo.png"
             alt="DBL"
@@ -366,7 +394,14 @@ function Shell({ children }: { children: React.ReactNode }) {
           <span className="text-xs font-semibold tracking-wide text-slate-500 uppercase">DBL HRM · Interview Evaluation</span>
         </div>
       </header>
-      <main className="mx-auto max-w-2xl px-4 py-5 sm:px-6">{children}</main>
+      <main
+        className={cn(
+          'mx-auto px-4 py-5 sm:px-6',
+          wide ? 'max-w-5xl' : 'max-w-2xl',
+        )}
+      >
+        {children}
+      </main>
     </div>
   );
 }

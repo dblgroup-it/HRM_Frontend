@@ -216,6 +216,7 @@ export function useSetCandidatePackage(candidateId: string) {
       salaryExpectation?: number | null;
       salaryBenefitsNote?: string | null;
       salaryBenefits?: string[];
+      transportPickup?: string | null;
     }) => assessmentApi.setCandidatePackage(candidateId, input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: delegationKeys.mine });

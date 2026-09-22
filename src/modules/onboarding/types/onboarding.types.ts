@@ -213,14 +213,48 @@ export interface OnboardingCandidate {
   salaryJobGrade: string | null;
   /** Laptop/Desktop, Transport, Dormitory, Seating — requested + HR's confirm/skip decision. */
   facilities: Facilities | null;
+  /**
+   * Where the transport run would pick this person up.
+   *
+   * Taken in the interview room — the requisition cannot carry it, because at
+   * requisition time nobody is selected — and settled on the facility
+   * requirements by whoever arranges the run.
+   */
+  transportPickup: string | null;
   /** Fixed appointment terms HR attached on the requisition. */
   specialNotes: string[];
   /** The Corporate Recruiter assigned to this requisition, if any. */
   recruiterId: string | null;
+  /**
+   * Whoever is standing in for that recruiter while they are on leave. The
+   * API reports it only while the cover still applies, so it can be trusted
+   * as "acting today" without checking a date.
+   */
+  coverRecruiterId: string | null;
   /** Who the hire reports to, settled with the employee ID. */
   lineManagerName?: string | null;
   lineManagerCode?: string | null;
   lineManagerTitle?: string | null;
+}
+
+/**
+ * The archived joining file, as something to read.
+ *
+ * The Drive folder stays private to the recruitment account, so nothing here
+ * is a Drive URL: each `url` is a signed, expiring link this API streams the
+ * document through. There is nothing to replace or delete — an archive that
+ * can be edited is not an archive.
+ */
+export interface ArchiveFiles {
+  archived: boolean;
+  /** The Drive folder, for the recruitment account's own use. */
+  folderUrl: string | null;
+  files: {
+    id: string;
+    name: string;
+    mimeType: string;
+    url: string | null;
+  }[];
 }
 
 /** Somebody HR may issue a letter over — a holder of the CHRO role. */

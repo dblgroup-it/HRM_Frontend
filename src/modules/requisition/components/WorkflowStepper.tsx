@@ -19,22 +19,25 @@ function currentStep(
 ): number {
   switch (status) {
     case 'draft':
+    case 'pending_job_analysis':
+      // Raised → the unit's Factory HR writes the job analysis.
+      return 2;
     case 'pending_approval':
     case 'rejected':
-      // Requisition raised → approvals in progress (rejected shows red here).
-      return 2;
+      // Job analysis done → approvals in progress (rejected shows red here).
+      return 3;
     case 'approved':
       // Approvals done → role profile is next.
-      return 3;
+      return 4;
     case 'profile_generated':
       // Role profile done → posting is next.
-      return 4;
+      return 5;
     case 'posted':
       // Posted → advance through the live pipeline.
-      if (pipeline?.onboarded) return 8; // all steps complete (incl. onboarding)
-      if (pipeline?.inOnboarding) return 7; // onboarding in progress
-      if (pipeline?.inAssessment) return 6; // assessment in progress
-      return 5; // collecting candidates
+      if (pipeline?.onboarded) return 9; // all steps complete (incl. onboarding)
+      if (pipeline?.inOnboarding) return 8; // onboarding in progress
+      if (pipeline?.inAssessment) return 7; // assessment in progress
+      return 6; // collecting candidates
     default:
       return 1;
   }

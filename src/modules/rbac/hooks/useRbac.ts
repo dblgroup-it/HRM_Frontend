@@ -4,12 +4,14 @@ import { rbacApi } from '../api/rbac.api';
 import type {
   CreateAssignmentInput,
   CreateRoleInput,
+  SetLayeringOrderInput,
 } from '../types/rbac.types';
 
 export const rbacKeys = {
   permissions: ['rbac', 'permissions'] as const,
   roles: ['rbac', 'roles'] as const,
   assignments: ['rbac', 'assignments'] as const,
+  hrLayering: ['rbac', 'hr-layering'] as const,
 };
 
 /** Current user's effective roles + accessible units (for gating). */
@@ -66,11 +68,41 @@ export function useCreateAssignment() {
   });
 }
 
+/** Every unit's Factory HR layering, for the HR Layering tab. */
+export function useHrLayering() {
+  return useQuery({
+    queryKey: rbacKeys.hrLayering,
+    queryFn: () => rbacApi.hrLayering(),
+  });
+}
+
+/**
+ * Reorder a unit's layering. Requisition routing reads it immediately, so the
+ * requisition views are refreshed alongside the assignment list.
+ */
+export function useSetLayeringOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SetLayeringOrderInput) =>
+      rbacApi.setLayeringOrder(input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: rbacKeys.assignments });
+      void queryClient.invalidateQueries({ queryKey: rbacKeys.hrLayering });
+      void queryClient.invalidateQueries({ queryKey: ['requisitions'] });
+    },
+  });
+}
+
 export function useDeleteAssignment() {
   const invalidate = useRbacInvalidation();
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => rbacApi.deleteAssignment(id),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      // The chain may have changed with it.
+      void queryClient.invalidateQueries({ queryKey: ['approval-paths'] });
+    },
   });
 }
 

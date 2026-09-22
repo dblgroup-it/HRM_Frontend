@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   useFieldArray,
   useForm,
@@ -11,16 +11,13 @@ import {
   ArrowLeft,
   ArrowRight,
   Bus,
-  Building2,
   Check,
   ClipboardList,
   Send,
-  FileText,
   CheckCircle2,
   AlertTriangle,
   Laptop,
   Loader2,
-  Paperclip,
   Warehouse,
   Plus,
   X,
@@ -30,7 +27,6 @@ import type { ReactNode } from 'react';
 
 import {
   Button,
-  Checkbox,
   Combobox,
   Input,
   Select,
@@ -55,21 +51,16 @@ import {
   type RequisitionFormValues,
   type RequisitionFormOutput,
 } from '../schemas/requisition.schema';
-import type {
-  CreateRequisitionPayload,
-  RequisitionDraft,
-} from '../types/requisition.types';
-import { AiQuickFill } from './AiQuickFill';
+import type { CreateRequisitionPayload } from '../types/requisition.types';
 import {
   EMPLOYMENT_NATURE_OPTIONS,
-  PREFERRED_SOURCES,
   PRIORITY_OPTIONS,
   TRANSPORT_OPTIONS,
   VEHICLE_TYPES,
 } from '../constants';
 
 interface Props {
-  onSubmit: (payload: CreateRequisitionPayload, attachments: File[]) => void;
+  onSubmit: (payload: CreateRequisitionPayload) => void;
   isSubmitting?: boolean;
   onCancel?: () => void;
 }
@@ -81,6 +72,14 @@ function sameUnitName(a: string, b: string): boolean {
   return norm(a) === norm(b);
 }
 
+/**
+ * What the requisitioner fills in — and deliberately nothing else.
+ *
+ * The job analysis (job description, education, experience) and the detailed
+ * JD attachment are the unit's Factory HR's, written after this form is
+ * submitted and before the requisition enters its approval chain. Preferred
+ * sources are gone: every posted requisition goes to the DBL career page.
+ */
 const STEPS = [
   {
     key: 'vacancy',
@@ -99,44 +98,18 @@ const STEPS = [
     ],
   },
   {
-    key: 'job',
-    letter: 'B',
-    title: 'Job Analysis',
-    description: 'Job description and specification.',
-    icon: FileText,
-    fields: ['jobDescription', 'education', 'experience', 'others'],
-  },
-  {
     key: 'facilities',
-    letter: 'C',
+    letter: 'B',
     title: 'Facility Requirements',
     description: 'What this hire will need — HR confirms or skips each as the requisition moves through approval.',
     icon: Armchair,
     fields: ['facilities'],
-  },
-  {
-    key: 'attachments',
-    letter: 'D',
-    title: 'Attachments',
-    description: 'Attach a detailed JD or any supporting document (optional).',
-    icon: Paperclip,
-    fields: [] as string[],
-  },
-  {
-    key: 'sources',
-    letter: 'E',
-    title: 'Preferred Source of Candidates',
-    description: 'How should this role be sourced?',
-    icon: Building2,
-    fields: ['preferredSources'],
   },
 ] as const;
 
 export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
   const { user } = useAuth();
   const requestedBy = user?.name ?? '';
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [attachments, setAttachments] = useState<File[]>([]);
   const [step, setStep] = useState(0);
 
   const {
@@ -168,12 +141,10 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
           note: '',
           option: 'shared',
           vehicleType: '',
-          pickupLocation: '',
         },
         dormitory: { requested: false, note: '' },
         seating: { requested: false, option: 'existing', note: '' },
       },
-      preferredSources: [],
     },
   });
 
@@ -347,10 +318,16 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
   const designationOptions: SelectOption[] = (master?.designations ?? []).map(
     (d) => ({ value: d, label: d }),
   );
-  const zoneOptions: SelectOption[] = (master?.zones ?? []).map((z) => ({
-    value: z,
-    label: z,
-  }));
+  /**
+   * Where the hire actually sits, from the same job-location list the offer
+   * and appointment letters print (master_options kind='job_location').
+   *
+   * Previously the zone list, which named a district rather than a site — and
+   * the letter and the requisition then disagreed about the same post.
+   */
+  const jobLocationOptions: SelectOption[] = (master?.jobLocations ?? []).map(
+    (l) => ({ value: l, label: l }),
+  );
   const lineOfBusinessOptions: SelectOption[] = (
     master?.linesOfBusiness ?? []
   ).map((l) => ({ value: l, label: l }));
@@ -387,88 +364,6 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
   }, [lookup.data, setValue]);
 
 
-  // --- AI quick-fill ------------------------------------------------------
-  // The AI returns free text, but department / section / designation / place of
-  // posting are now fixed dropdowns. Each suggested value is snapped onto the
-  // vocabulary and dropped if it has no match, so a select can never hold a
-  // value that isn't a real option. Anything dropped is reported rather than
-  // silently discarded.
-  const [pendingDraft, setPendingDraft] = useState<RequisitionDraft | null>(
-    null,
-  );
-  const [unmatched, setUnmatched] = useState<string[]>([]);
-
-  const applyDraft = (d: RequisitionDraft) => {
-    // Master data may still be loading; the effect below applies it once ready.
-    setPendingDraft(d);
-    setStep(0);
-  };
-
-  useEffect(() => {
-    if (!pendingDraft || !master) return;
-    const d = pendingDraft;
-
-    // "R and D" vs "R & D", "IT  Support" vs "IT Support" — the master list
-    // spells out "and", so normalise before comparing rather than demanding an
-    // exact string match.
-    const norm = (v: string) =>
-      v.toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim();
-    const snap = (value: string | undefined, options: string[]) => {
-      if (!value?.trim()) return '';
-      const target = norm(value);
-      return options.find((o) => norm(o) === target) ?? '';
-    };
-
-    const missed: string[] = [];
-    const pick = (label: string, value: string | undefined, options: string[]) => {
-      const hit = snap(value, options);
-      if (!hit && value?.trim()) missed.push(`${label}: “${value.trim()}”`);
-      return hit;
-    };
-
-    if (d.unitFactory) setValue('unitFactory', d.unitFactory);
-
-    const dept = pick('Department', d.department, master.departments);
-    if (dept) setValue('department', dept);
-
-    const sec = dept
-      ? pick('Section', d.section, master.departmentSections[dept] ?? [])
-      : '';
-    if (sec) setValue('section', sec);
-
-    const sub =
-      dept && sec
-        ? pick(
-            'Sub-section',
-            d.subSection,
-            master.sectionSubSections[sectionKey(dept, sec)] ??
-              master.subSections,
-          )
-        : '';
-    if (sub) setValue('subSection', sub);
-
-    const des = pick('Designation', d.designation, master.designations);
-    if (des) setValue('designation', des);
-
-    const zone = pick('Place of posting', d.placeOfPosting, master.zones);
-    if (zone) setValue('placeOfPosting', zone);
-
-    setValue('requiredPosts', d.requiredPosts);
-    if (d.vacantDate) setValue('vacantDate', d.vacantDate);
-    if (d.neededDate) setValue('neededDate', d.neededDate);
-    setValue('priority', d.priority);
-    setValue('employmentNature', d.employmentNature);
-    setValue('contractualPurpose', d.contractualPurpose);
-    setValue('jobDescription', d.jobDescription);
-    setValue('education', d.education);
-    setValue('experience', d.experience);
-    setValue('others', d.others);
-    setValue('preferredSources', d.preferredSources);
-
-    setUnmatched(missed);
-    setPendingDraft(null);
-  }, [pendingDraft, master, setValue]);
-
   // --- Wizard navigation ---------------------------------------------------
   const total = STEPS.length;
   const isLast = step === total - 1;
@@ -491,10 +386,7 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
   };
 
   const submit = handleSubmit((values) => {
-    onSubmit(
-      toPayload(values as RequisitionFormOutput, requestedBy),
-      attachments,
-    );
+    onSubmit(toPayload(values as RequisitionFormOutput, requestedBy));
   }, onInvalid);
 
   const current = STEPS[step];
@@ -502,9 +394,6 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
 
   return (
     <form onSubmit={submit} noValidate className="space-y-6">
-      {/* AI assistant — drafts the form from a one-line description */}
-      <AiQuickFill onDrafted={applyDraft} />
-
       {/* Progress */}
       <div className="flex items-center justify-center overflow-x-auto py-1">
         {STEPS.map((s, i) => {
@@ -598,19 +487,6 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                   (Requisition Raiser)
                 </p>
               )}
-{/* Fields the AI couldn't map — surfaced before the form, since the
-                  fix is to pick from the dropdowns below. */}
-              {unmatched.length > 0 && (
-                <div className="mb-5 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800 animate-fade-in">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>
-                    The AI suggested {unmatched.join(', ')} — not in the fixed
-                    list, so {unmatched.length > 1 ? 'those fields were' : 'that field was'}{' '}
-                    left blank. Please pick from the dropdown.
-                  </span>
-                </div>
-              )}
-
               <div className="space-y-7">
                 {/* 1 · Where the role sits */}
                 <FormGroup title="Placement" hint="Where in the organisation this post belongs">
@@ -1034,8 +910,8 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                 <FormGroup title="Posting & timing" hint="Location, dates and terms of engagement">
                   <Combobox
                     label="Place of posting"
-                    placeholder="Select zone"
-                    options={zoneOptions}
+                    placeholder="Select the job location"
+                    options={jobLocationOptions}
                     value={placeOfPosting}
                     error={errors.placeOfPosting?.message}
                     onChange={(v) =>
@@ -1084,43 +960,8 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
             </>
           )}
 
-          {/* B · Job Analysis */}
+          {/* B · Facility Requirements */}
           {step === 1 && (
-            <div className="space-y-5">
-              <Textarea
-                label="Job description"
-                rows={3}
-                placeholder="Summary of duties (attach detailed JD separately if needed)"
-                error={errors.jobDescription?.message}
-                {...register('jobDescription')}
-              />
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <Input
-                  label="Education & training"
-                  placeholder="e.g. B.Sc. in Textile Engineering (BUTex / AUST)"
-                  error={errors.education?.message}
-                  {...register('education')}
-                />
-                <Input
-                  label="Experience"
-                  placeholder="e.g. Fresh graduates encouraged to apply"
-                  error={errors.experience?.message}
-                  {...register('experience')}
-                />
-                <div className="sm:col-span-2">
-                  <Input
-                    label="Others"
-                    placeholder="e.g. Ability to work in a shift-based environment"
-                    error={errors.others?.message}
-                    {...register('others')}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* C · Facility Requirements */}
-          {step === 2 && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FacilityField
                 icon={Laptop}
@@ -1164,11 +1005,6 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                         {...register('facilities.transport.vehicleType')}
                       />
                     )}
-                    <Input
-                      label="Pick-up from"
-                      placeholder="e.g. Savar, Hemayetpur bus stand"
-                      {...register('facilities.transport.pickupLocation')}
-                    />
                   </div>
                 }
               />
@@ -1201,76 +1037,6 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
             </div>
           )}
 
-          {/* D · Attachments */}
-          {step === 3 && (
-            <div>
-              <input
-                ref={fileRef}
-                type="file"
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  const files = Array.from(e.target.files ?? []);
-                  setAttachments((prev) => [...prev, ...files]);
-                  e.target.value = '';
-                }}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                leftIcon={<Paperclip className="h-4 w-4" />}
-                onClick={() => fileRef.current?.click()}
-              >
-                Add files
-              </Button>
-              {attachments.length > 0 && (
-                <ul className="mt-3 space-y-2">
-                  {attachments.map((f, i) => (
-                    <li
-                      key={`${f.name}-${i}`}
-                      className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm animate-fade-in"
-                    >
-                      <span className="flex min-w-0 items-center gap-2 text-slate-700">
-                        <Paperclip className="h-4 w-4 shrink-0 text-slate-400" />
-                        <span className="truncate">{f.name}</span>
-                        <span className="shrink-0 text-xs text-slate-400">
-                          {(f.size / 1024).toFixed(0)} KB
-                        </span>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setAttachments((prev) => prev.filter((_, j) => j !== i))
-                        }
-                        className="rounded p-1 text-slate-400 hover:bg-slate-200"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <p className="mt-2 text-xs text-slate-400">
-                Stored in this requisition&rsquo;s Drive folder after it&rsquo;s
-                created. Up to 15 MB each.
-              </p>
-            </div>
-          )}
-
-          {/* E · Preferred Sources */}
-          {step === 4 && (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {PREFERRED_SOURCES.map(({ value, label }) => (
-                <Checkbox
-                  key={value}
-                  label={label}
-                  value={value}
-                  {...register('preferredSources')}
-                />
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Step navigation */}
@@ -1292,7 +1058,7 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
               leftIcon={<Send className="h-4 w-4" />}
               className="ml-auto"
             >
-              Submit to sign-off chain
+              Send for job analysis
             </Button>
           ) : (
             <Button
@@ -1527,10 +1293,6 @@ function toPayload(
     priority: values.priority,
     employmentNature: values.employmentNature,
     contractualPurpose: values.contractualPurpose ?? '',
-    jobDescription: values.jobDescription,
-    education: values.education,
-    experience: values.experience,
-    others: values.others ?? '',
     facilities: {
       ...values.facilities,
       // The backend validates vehicleType against ['sedan','suv'], so an
@@ -1542,12 +1304,10 @@ function toPayload(
           values.facilities.transport.option === 'full_time'
             ? values.facilities.transport.vehicleType || undefined
             : undefined,
-        pickupLocation: values.facilities.transport.pickupLocation || undefined,
       },
     },
-    preferredSources: values.preferredSources,
-    // The requester is the Department Head; Factory HR / others come from
-    // role assignments on the backend.
+    // The requester is the raiser; Factory HR and the approvers come from
+    // role assignments and the configured approval path on the backend.
     signatories: {
       departmentHeadName: requestedBy,
       departmentHeadDesignation: '',

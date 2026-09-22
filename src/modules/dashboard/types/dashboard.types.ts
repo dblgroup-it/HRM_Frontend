@@ -33,6 +33,14 @@ export interface RequisitionSnapshot {
   status: RequisitionStatus;
   requiredPosts: number;
   updatedAt: string;
+  /**
+   * Why this requisition is the viewer's to run, when it is: assigned to
+   * them, or handed to them while its recruiter is on leave.
+   */
+  mine?: 'recruiter' | 'cover' | null;
+  /** Whose work they are covering, and until when. */
+  coveringFor?: string | null;
+  coverUntil?: string | null;
 }
 
 export interface DashboardSummary {
@@ -52,4 +60,6 @@ export interface DashboardData {
   departments: DepartmentHeadcount[];
   recentHires: RecentHire[];
   requisitions: RequisitionSnapshot[];
+  /** What this person is personally running — assigned, or covering. */
+  myRecruitment: RequisitionSnapshot[];
 }

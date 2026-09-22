@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { Gift, Lock, TrendingUp, Wallet } from 'lucide-react';
+import { Bus, Gift, Lock, TrendingUp, Wallet } from 'lucide-react';
 
 import { Button, Modal } from '@shared/components/ui';
 import { cn } from '@shared/lib';
@@ -35,6 +35,7 @@ export function CandidatePackageModal({
     salaryExpectation?: number | null;
     salaryBenefitsNote?: string | null;
     salaryBenefits?: string[];
+    transportPickup?: string | null;
   };
   open: boolean;
   onClose: () => void;
@@ -44,6 +45,7 @@ export function CandidatePackageModal({
   const [expected, setExpected] = useState('');
   const [benefits, setBenefits] = useState('');
   const [ticked, setTicked] = useState<string[]>([]);
+  const [pickup, setPickup] = useState('');
 
   // By value: a background refetch hands over a fresh array with the same
   // keys, and reseeding on that would wipe ticks nobody has saved yet.
@@ -57,11 +59,13 @@ export function CandidatePackageModal({
     setExpected(candidate.salaryExpectation?.toString() ?? '');
     setBenefits(candidate.salaryBenefitsNote ?? '');
     setTicked(savedTicks ? savedTicks.split(',') : []);
+    setPickup(candidate.transportPickup ?? '');
   }, [
     open,
     candidate.presentSalary,
     candidate.salaryExpectation,
     candidate.salaryBenefitsNote,
+    candidate.transportPickup,
     savedTicks,
   ]);
 
@@ -107,6 +111,7 @@ export function CandidatePackageModal({
                   salaryExpectation: num(expected),
                   salaryBenefitsNote: benefits.trim() || null,
                   salaryBenefits: ticked,
+                  transportPickup: pickup.trim() || null,
                 },
                 { onSuccess: onClose },
               )
@@ -210,6 +215,29 @@ export function CandidatePackageModal({
           What they told you, not a claim we have checked.
         </span>
       </fieldset>
+
+      {/* Where they are picked up from.
+          The requisition cannot carry this — at requisition time nobody is
+          selected, so nobody knows where the person lives. The interview is
+          the first moment anybody can ask, and HR reads it back when they go
+          through the hire's facility requirements. */}
+      <label className="mt-4 block">
+        <span className="mb-1.5 flex items-center gap-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-500">
+          <Bus className="h-3.5 w-3.5" />
+          Transport pick-up point
+        </span>
+        <input
+          value={pickup}
+          onChange={(e) => setPickup(e.target.value)}
+          maxLength={200}
+          placeholder="e.g. Signboard, Narayanganj — by the bus stand"
+          className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm transition-colors placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
+        <span className="mt-1 block text-[0.6875rem] text-slate-400">
+          Where the run would have to reach them. Not a promise of a seat —
+          HR settles that on the facility requirements.
+        </span>
+      </label>
 
       <p className="mt-4 flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-[0.6875rem] leading-relaxed text-slate-500">
         <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />

@@ -83,7 +83,12 @@ function buildMockDashboard(): Promise<DashboardData> {
     const filledSeats = units.reduce((sum, unit) => sum + unit.filled, 0);
     const vacantSeats = units.reduce((sum, unit) => sum + unit.vacant, 0);
     const openRequisitions = requisitions.items.filter((req) =>
-      ['pending_approval', 'approved', 'profile_generated'].includes(req.status)
+      [
+        'pending_job_analysis',
+        'pending_approval',
+        'approved',
+        'profile_generated',
+      ].includes(req.status)
     ).length;
 
     const stats: DashboardStat[] = [
@@ -120,6 +125,10 @@ function buildMockDashboard(): Promise<DashboardData> {
         }))
       ),
       requisitions: buildRequisitionSnapshots(requisitions.items),
+      // The mock has no signed-in user to be assigning anything to, so
+      // nobody is running anything: the card renders nothing, as it does for
+      // a real user with no assignments.
+      myRecruitment: [],
     };
   });
 }

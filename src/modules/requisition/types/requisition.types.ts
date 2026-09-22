@@ -3,6 +3,8 @@ import type { ID, ISODateString } from '@shared/types';
 /** Phase-1 workflow state. */
 export type RequisitionStatus =
   | 'draft'
+  /** Raised; the unit's Factory HR still has section B to write. */
+  | 'pending_job_analysis'
   | 'pending_approval'
   | 'approved'
   | 'rejected'
@@ -33,10 +35,16 @@ export type RequirementType = 'existing' | 'new';
 
 export type Priority = 'top' | 'moderate' | 'ordinary';
 export type EmploymentNature = 'permanent' | 'temporary' | 'contractual';
+/**
+ * No longer asked for or chosen anywhere: every posted requisition goes to the
+ * DBL career page. Kept so requisitions and postings saved before that change
+ * still render a readable label.
+ */
 export type PreferredSource =
   | 'job_advertisement'
   | 'headhunting'
-  | 'cv_bank';
+  | 'cv_bank'
+  | 'career_page';
 
 /** One of the 4 fixed facility types the requisitioner can request. */
 export type FacilityKey = 'laptopDesktop' | 'transport' | 'dormitory' | 'seating';
@@ -67,7 +75,6 @@ export interface FacilityRequestInput {
   requested: boolean;
   option?: string;
   vehicleType?: string;
-  pickupLocation?: string;
   note?: string;
 }
 
@@ -109,6 +116,80 @@ export interface ApprovalStep {
   status: StepStatus;
   note: string;
   actedAt: ISODateString | null;
+}
+
+/**
+ * The job-analysis stage (section B), written by the unit's Factory HR after
+ * the requisition is raised and before it enters its approval chain.
+ *
+ * `returnedAt` means Factory HR handed it back to the raiser instead: the
+ * requisition is still at `pending_job_analysis`, but it is the raiser's to
+ * amend and resend.
+ */
+export interface JobAnalysisState {
+  /**
+   * The Factory HR it is addressed to — first in that unit's HR layering who
+   * was available when it was raised. Null on a unit with no order (any of its
+   * Factory HR may write it) or where the corporate fallback is covering.
+   */
+  assignee: { id: string; name: string } | null;
+  completedBy: { id: string; name: string } | null;
+  completedAt: ISODateString | null;
+  returnedAt: ISODateString | null;
+  returnNote: string | null;
+}
+
+/**
+ * The server's answer on who owns a requisition's job analysis.
+ *
+ * `viaFactoryHr` false means the unit has no Factory HR, so Head of Talent
+ * Acquisition and the Corporate Recruiters cover for it.
+ */
+export interface JobAnalysisOwnership {
+  canComplete: boolean;
+  viaFactoryHr: boolean;
+  /** The unit's HR layering in order, with who is away. */
+  owners: {
+    id: string;
+    name: string;
+    employeeCode: string;
+    priority?: number | null;
+    onLeave?: boolean;
+  }[];
+  /** Who it is addressed to, if anyone. */
+  assignee?: { id: string; name: string } | null;
+}
+
+/** What Factory HR sends when writing (or releasing) the job analysis. */
+export interface JobAnalysisInput {
+  jobDescription?: string;
+  education?: string;
+  experience?: string;
+  others?: string;
+  /** Default true — false saves a part-written draft in place. */
+  submit?: boolean;
+}
+
+/**
+ * Ask the AI to draft section B from section A.
+ *
+ * Carries what is already typed, so a redraft improves the writer's own words
+ * rather than replacing them, plus an optional steer in plain language.
+ */
+export interface JobAnalysisDraftInput {
+  jobDescription?: string;
+  education?: string;
+  experience?: string;
+  others?: string;
+  hint?: string;
+}
+
+/** What comes back — a draft to edit, never something already saved. */
+export interface JobAnalysisDraft {
+  jobDescription: string;
+  education: string;
+  experience: string;
+  others: string;
 }
 
 /** The Corporate Recruiter running a requisition after approval. */
@@ -235,8 +316,11 @@ export interface Requisition {
   /** Fixed appointment terms HR attaches — bonus share, salary review, tax. */
   specialNotes?: string[];
 
-  // E · Group HR
+  /** Only ever set on requisitions raised before sources were dropped. */
   preferredSources: PreferredSource[];
+
+  /** Section B's provenance — and, while open, Factory HR's bounce back. */
+  jobAnalysis?: JobAnalysisState;
 
   // Workflow
   status: RequisitionStatus;
@@ -258,6 +342,16 @@ export interface Requisition {
   /** Assigned by Head of Talent Acquisition once approved; owns the downstream lifecycle. */
   recruiter?: RequisitionRecruiter | null;
   recruiterAssignedAt?: ISODateString | null;
+  /**
+   * Stand-in running this while the recruiter is on leave. Only ever present
+   * while the cover actually applies — a lapsed one is not reported.
+   */
+  cover?: {
+    id: string;
+    name: string;
+    employeeCode: string;
+    until: ISODateString | null;
+  } | null;
   createdAt: ISODateString;
   updatedAt: ISODateString;
 }
@@ -288,7 +382,6 @@ export interface RequisitionDraft {
   education: string;
   experience: string;
   others: string;
-  preferredSources: PreferredSource[];
   /** What the AI assumed or couldn't determine — shown to the user. */
   notes: string;
 }
@@ -315,12 +408,7 @@ export interface CreateRequisitionPayload {
   priority: Priority;
   employmentNature: EmploymentNature;
   contractualPurpose: string;
-  jobDescription: string;
-  education: string;
-  experience: string;
-  others: string;
   facilities: FacilitiesRequestInput;
-  preferredSources: PreferredSource[];
   signatories: RequisitionSignatories;
 }
 
@@ -347,5 +435,4 @@ export interface UpdateRequisitionInput {
   education?: string;
   experience?: string;
   others?: string;
-  preferredSources?: PreferredSource[];
 }

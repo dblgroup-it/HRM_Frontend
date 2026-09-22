@@ -207,6 +207,8 @@ export const assessmentApi = {
       salaryExpectation?: number | null;
       salaryBenefitsNote?: string | null;
       salaryBenefits?: string[];
+      /** Where the transport run would pick them up. */
+      transportPickup?: string | null;
     },
   ): Promise<{ id: string }> =>
     http

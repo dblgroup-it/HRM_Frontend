@@ -20,6 +20,7 @@ import {
   Video,
   BadgeDollarSign,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 import {
   Avatar,
@@ -27,10 +28,12 @@ import {
   EmptyState,
   ErrorCard,
   Input,
+  LifecycleTabs,
   PageHeader,
   Skeleton,
   Textarea,
 } from '@shared/components/ui';
+import type { LifecycleTab } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
 
@@ -65,60 +68,50 @@ import { resolveApiFileUrl } from '@shared/api';
 type Col = 'to_schedule' | 'scheduled' | 'decision_due' | 'done';
 
 /**
- * Each stage carries its own colour, used on the tab, the count and the
- * requisition rail beneath it.
+ * Each stage carries its own colour, used on the rail down the left of every
+ * vacancy inside it.
  *
- * Not decoration: four tabs in one shade of blue are four identical shapes,
- * and the whole point of the bar is to say at a glance where the work has
- * piled up. Amber waits on you, sky is in hand, violet wants a decision,
- * emerald is finished.
+ * Not decoration: it is what says at a glance where the work has piled up.
+ * Amber waits on you, sky is in hand, violet wants a decision, emerald is
+ * finished. The tab bar itself is the app's shared one and stays brand-blue
+ * — one tab language across the product beats four colours in this corner
+ * of it.
  */
 const COLUMNS: {
   key: Col;
   title: string;
   empty: string;
-  dot: string;
-  /** Applied to the tab when it is the active one. */
-  active: string;
-  /** The count pill on the active tab. */
-  pill: string;
-  /** The underline and the requisition rail. */
+  /** Shown on the tab bar — see LifecycleTabs. */
+  icon: LucideIcon;
+  /** The rail down the left of each vacancy in this stage. */
   bar: string;
 }[] = [
   {
     key: 'to_schedule',
+    icon: CalendarDays,
     title: 'To schedule',
     empty: 'Nothing waiting on a date',
-    dot: 'bg-amber-400',
-    active: 'bg-amber-50 text-amber-900',
-    pill: 'bg-amber-500 text-white',
     bar: 'bg-amber-500',
   },
   {
     key: 'scheduled',
+    icon: Clock,
     title: 'Scheduled',
     empty: 'No sessions arranged',
-    dot: 'bg-sky-400',
-    active: 'bg-sky-50 text-sky-900',
-    pill: 'bg-sky-500 text-white',
     bar: 'bg-sky-500',
   },
   {
     key: 'decision_due',
+    icon: ListChecks,
     title: 'Decision due',
     empty: 'No verdicts pending',
-    dot: 'bg-brand-500',
-    active: 'bg-violet-50 text-violet-900',
-    pill: 'bg-violet-500 text-white',
     bar: 'bg-violet-500',
   },
   {
     key: 'done',
+    icon: Check,
     title: 'Done',
     empty: 'Nothing decided yet',
-    dot: 'bg-emerald-500',
-    active: 'bg-emerald-50 text-emerald-900',
-    pill: 'bg-emerald-500 text-white',
     bar: 'bg-emerald-500',
   },
 ];
@@ -357,7 +350,19 @@ export default function AssignedCandidatesPage() {
     return { groups, counts, hidden };
   }, [filtered, expanded]);
 
-
+  /**
+   * The stage bar.
+   *
+   * A count of zero is left off rather than shown as "0": `LifecycleTabs`
+   * hides a zero badge, and a stage with nothing in it should recede instead
+   * of competing with the ones that have work waiting.
+   */
+  const stageTabs: LifecycleTab<Col>[] = COLUMNS.map((col) => ({
+    key: col.key,
+    label: col.title,
+    icon: col.icon,
+    count: board.counts[col.key],
+  }));
 
   return (
     <div className="space-y-5">
@@ -397,252 +402,163 @@ export default function AssignedCandidatesPage() {
             </div>
           </div>
 
-          {/* One stage at a time, behind tabs.
+          {/* One stage at a time, behind the app's own tab bar.
               Four columns side by side gave each card about sixteen rems —
               enough for a name and a date, so the schedule, the panel and the
               marks all had to be hidden behind a click, and on anything
               narrower than a desktop the board scrolled sideways. A stage is
               what somebody actually works through in one sitting, so it gets
               the whole width and the cards can say what they need to.
-              Dragging goes with it; every step a drop performed is a button
-              on the card and always was. */}
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-card">
-            <div
-              role="tablist"
-              aria-label="Interview stages"
-              className="flex overflow-x-auto border-b border-slate-200 bg-slate-50/70"
-            >
-              {COLUMNS.map((col, ti) => {
-                const count = board.counts[col.key];
-                const active = activeCol === col.key;
-                const empty = count === 0;
-                return (
-                  <button
-                    key={col.key}
-                    type="button"
-                    role="tab"
-                    aria-selected={active}
-                    onClick={() => setActiveCol(col.key)}
-                    style={{ animationDelay: `${ti * 50}ms` }}
-                    className={cn(
-                      'relative flex shrink-0 animate-card-in items-center gap-2 px-5 py-3.5 text-xs font-semibold',
-                      'transition-all duration-200',
-                      active
-                        ? col.active
-                        : empty
-                          ? // A stage with nothing in it recedes rather than
-                            // competing for attention with the ones that
-                            // have work waiting.
-                            'text-slate-400 hover:bg-white/60 hover:text-slate-600'
-                          : 'text-slate-600 hover:bg-white/70 hover:text-slate-800',
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'h-2 w-2 rounded-full transition-transform duration-200',
-                        col.dot,
-                        empty && !active && 'opacity-40',
-                        active && 'scale-125',
-                      )}
-                      aria-hidden
-                    />
-                    {col.title}
-                    <span
-                      className={cn(
-                        'min-w-[1.25rem] rounded-full px-1.5 py-0.5 text-center text-[0.625rem] font-bold tabular-nums transition-colors',
-                        active
-                          ? col.pill
-                          : empty
-                            ? 'bg-slate-100 text-slate-400'
-                            : 'bg-slate-200/80 text-slate-600',
-                      )}
-                    >
-                      {count}
-                    </span>
-                    {active && (
-                      <span
-                        className={cn(
-                          'absolute inset-x-0 -bottom-px h-[3px] origin-left animate-underline-in rounded-t',
-                          col.bar,
-                        )}
-                      />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            <div>
-              {/* Keyed on the stage so switching tabs replays the entrance
-                  rather than swapping content in place — the movement is
-                  what tells you the panel changed. */}
-              <div key={activeCol}>
-                {COLUMNS.filter((c) => c.key === activeCol).map((col) => {
-                  const groups = board.groups[col.key];
-                  const total = board.counts[col.key];
-                  const hidden = board.hidden[col.key];
-                  const isOpen = Boolean(expanded[col.key]);
-                  return (
-                    <section
-                      key={col.key}
-                      data-column={col.key}
-                      role="tabpanel"
-                      className="flex flex-col bg-slate-50/60"
-                    >
-                      {/* No stage title here — the tab above already says
-                          which stage this is, and repeating it directly
-                          underneath just costs a row. This header exists for
-                          the show-all control and the vacancy count. */}
-                      <header className="flex items-center gap-2 border-b border-slate-200 bg-white px-4 py-2">
-                        {hidden > 0 || isOpen ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setExpanded((e) => ({ ...e, [col.key]: !e[col.key] }))
-                            }
-                            className="ml-auto shrink-0 text-[0.6875rem] font-semibold text-brand-600 hover:text-brand-700 hover:underline"
-                            title={
-                              isOpen
-                                ? `Show only the first ${COLUMN_LIMIT}`
-                                : `${hidden} more not shown`
-                            }
-                          >
-                            {isOpen ? 'Show fewer' : `Show all ${total}`}
-                          </button>
-                        ) : (
-                          groups.length > 1 && (
-                            <span className="ml-auto text-[0.6875rem] tabular-nums text-slate-400">
-                              {groups.length} vacancies
-                            </span>
-                          )
-                        )}
-                      </header>
 
-                      <div className="flex min-h-[20rem] flex-1 flex-col gap-5 p-4">
-                        {groups.length === 0 ? (
-                          <p className="px-2 py-12 text-center text-xs text-slate-400">
-                            {col.empty}
-                          </p>
-                        ) : (
-                          groups.map((group, gi) => (
-                            /* One vacancy. The header is the separator between
-                               them, so it is built to read as one — a tinted
-                               band with a rail down the left, the code set as
-                               a chip, and the post underneath. A hairline rule
-                               and two shades of grey did not survive the cards
-                               growing to full width. */
-                            <div
-                              key={group.id}
-                              className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-card animate-card-in"
-                              style={{ animationDelay: `${gi * 60}ms` }}
+              The bar is `LifecycleTabs`, the same glass bar the requisition
+              lifecycle and Access Control use: a stage here should read as a
+              stage there, not as a fourth kind of control with its own
+              colours. The colour each stage carries lives on its cards and
+              its vacancy rail, where it means "this is the work", rather
+              than on the tab. */}
+          <LifecycleTabs
+            tabs={stageTabs}
+            active={activeCol}
+            onChange={(key) => setActiveCol(key)}
+          />
+
+          {/* Keyed on the stage so switching tabs replays the entrance
+              rather than swapping content in place — the movement is what
+              tells you the panel changed.
+
+              No frame around the panel: the tab bar already says where you
+              are, and a card inside a card inside a card is what made this
+              page read as scaffolding rather than as work. The vacancies are
+              sections on the page, separated by their own headings. */}
+          <div key={activeCol} className="space-y-7">
+            {COLUMNS.filter((c) => c.key === activeCol).map((col) => {
+              const groups = board.groups[col.key];
+              const total = board.counts[col.key];
+              const hidden = board.hidden[col.key];
+              const isOpen = Boolean(expanded[col.key]);
+              return (
+                <section
+                  key={col.key}
+                  data-column={col.key}
+                  role="tabpanel"
+                  className="space-y-7"
+                >
+                  {groups.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 py-16 text-center">
+                      <col.icon className="mx-auto h-6 w-6 text-slate-300" />
+                      <p className="mt-2 text-sm text-slate-400">{col.empty}</p>
+                    </div>
+                  ) : (
+                    groups.map((group, gi) => (
+                      /* One vacancy: a heading and its people, not a box.
+                         The designation is the title — it is what the
+                         interviewer is hiring for — with the code and the
+                         department as quiet meta beside it, and a hairline
+                         to close the heading off. */
+                      <div
+                        key={group.id}
+                        className="animate-card-in space-y-2"
+                        style={{ animationDelay: `${gi * 60}ms` }}
+                      >
+                        <header className="flex flex-wrap items-end gap-x-3 gap-y-1.5 border-b border-slate-200 pb-2">
+                          <div className="min-w-0 flex-1">
+                            <h3
+                              className="truncate text-[0.9375rem] font-semibold tracking-tight text-slate-900"
+                              title={`${group.designation} — ${group.department}, ${group.unit}`}
                             >
-                              <div className="relative flex flex-wrap items-center gap-3 border-b border-slate-200 bg-gradient-to-r from-brand-50/80 via-brand-50/40 to-white px-4 py-3">
-                                <span
-                                  className={cn(
-                                    'absolute inset-y-0 left-0 w-1 origin-top animate-rail-draw',
-                                    col.bar,
-                                  )}
-                                  aria-hidden
-                                />
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <span className="rounded-md bg-brand-600 px-2 py-0.5 font-mono text-[0.6875rem] font-bold tracking-tight text-white shadow-sm">
-                                      {group.code}
-                                    </span>
-                                    <span className="rounded-full bg-white/80 px-2 py-0.5 text-[0.625rem] font-semibold text-slate-500 ring-1 ring-slate-200">
-                                      {group.rows.length}{' '}
-                                      {group.rows.length === 1
-                                        ? 'candidate'
-                                        : 'candidates'}
-                                    </span>
-                                  </div>
-                                  <p
-                                    className="mt-1 truncate text-[0.8125rem] font-semibold text-slate-800"
-                                    title={`${group.designation} — ${group.department}, ${group.unit}`}
-                                  >
-                                    {group.designation}
-                                    {group.department && (
-                                      <>
-                                        <span className="mx-1 font-normal text-slate-300">
-                                          ·
-                                        </span>
-                                        <span className="font-normal text-slate-500">
-                                          {group.department}
-                                        </span>
-                                      </>
-                                    )}
-                                  </p>
-                                </div>
-                                {col.key === 'to_schedule' &&
-                                  group.rows.length > 1 && (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setBulkFor({
-                                          reqId: group.id,
-                                          label: `${group.code} · ${group.designation}`,
-                                          candidates: group.rows.map((r) => ({
-                                            id: r.candidate.id,
-                                            name: r.candidate.name,
-                                          })),
-                                        })
-                                      }
-                                      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-brand-700 hover:shadow-card-hover active:scale-95"
-                                      title={`One session for all ${group.rows.length} candidates on ${group.code}`}
-                                    >
-                                      <CalendarDays className="h-3.5 w-3.5" />
-                                      Schedule all {group.rows.length}
-                                    </button>
-                                  )}
-                              </div>
-                              <div className="space-y-2 p-3">
-                                {group.rows.map((row, ri) => (
-                                  <BoardCard
-                                    key={row.id}
-                                    row={row}
-                                    index={ri}
-                                    col={col.key}
-                                    deciding={deciding === row.id}
-                                    onOpenDecision={() => setDeciding(row.id)}
-                                    onCloseDecision={() => setDeciding(null)}
-                                    onSchedule={() =>
-                                      setInterviewTarget({
-                                        reqId: row.requisition.id,
-                                        candidate: {
-                                          id: row.candidate.id,
-                                          name: row.candidate.name,
-                                        },
-                                      })
-                                    }
-                                    onEnterPackage={() => setPackageFor(row)}
-                                    onEnterMarks={() =>
-                                      setMarksTarget({
-                                        id: row.candidate.id,
-                                        name: row.candidate.name,
-                                      })
-                                    }
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                          ))
-                        )}
-                        {hidden > 0 && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setExpanded((e) => ({ ...e, [col.key]: true }))
-                            }
-                            className="mt-1 rounded-md border border-dashed border-slate-300 py-1.5 text-[0.6875rem] font-medium text-slate-500 transition-colors hover:border-slate-400 hover:bg-white hover:text-slate-700"
-                          >
-                            {hidden} more in this stage
-                          </button>
-                        )}
+                              {group.designation}
+                            </h3>
+                            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[0.6875rem] text-slate-400">
+                              <span className="font-mono tracking-tight">
+                                {group.code}
+                              </span>
+                              {group.department && (
+                                <>
+                                  <span className="text-slate-300">·</span>
+                                  <span>{group.department}</span>
+                                </>
+                              )}
+                              <span className="text-slate-300">·</span>
+                              <span className="tabular-nums">
+                                {group.rows.length}{' '}
+                                {group.rows.length === 1
+                                  ? 'candidate'
+                                  : 'candidates'}
+                              </span>
+                            </p>
+                          </div>
+                          {col.key === 'to_schedule' && group.rows.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setBulkFor({
+                                  reqId: group.id,
+                                  label: `${group.code} · ${group.designation}`,
+                                  candidates: group.rows.map((r) => ({
+                                    id: r.candidate.id,
+                                    name: r.candidate.name,
+                                  })),
+                                })
+                              }
+                              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 transition-all hover:border-brand-300 hover:bg-brand-100 active:scale-95"
+                              title={`One session for all ${group.rows.length} candidates on ${group.code}`}
+                            >
+                              <CalendarDays className="h-3.5 w-3.5" />
+                              Schedule all {group.rows.length}
+                            </button>
+                          )}
+                        </header>
+
+                        <div className="space-y-2">
+                          {group.rows.map((row, ri) => (
+                            <BoardCard
+                              key={row.id}
+                              row={row}
+                              index={ri}
+                              col={col.key}
+                              deciding={deciding === row.id}
+                              onOpenDecision={() => setDeciding(row.id)}
+                              onCloseDecision={() => setDeciding(null)}
+                              onSchedule={() =>
+                                setInterviewTarget({
+                                  reqId: row.requisition.id,
+                                  candidate: {
+                                    id: row.candidate.id,
+                                    name: row.candidate.name,
+                                  },
+                                })
+                              }
+                              onEnterPackage={() => setPackageFor(row)}
+                              onEnterMarks={() =>
+                                setMarksTarget({
+                                  id: row.candidate.id,
+                                  name: row.candidate.name,
+                                })
+                              }
+                            />
+                          ))}
+                        </div>
                       </div>
-                    </section>
-                  );
-                })}
-              </div>
-            </div>
+                    ))
+                  )}
+                  {/* Only a stage's first cards are rendered; the rest are
+                      one click away rather than a page nobody scrolls. */}
+                  {(hidden > 0 || isOpen) && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpanded((e) => ({ ...e, [col.key]: !e[col.key] }))
+                      }
+                      className="w-full rounded-xl border border-dashed border-slate-300 py-2 text-[0.6875rem] font-semibold text-slate-500 transition-colors hover:border-brand-300 hover:bg-white hover:text-brand-600"
+                    >
+                      {isOpen
+                        ? `Show fewer — first ${COLUMN_LIMIT} only`
+                        : `Show all ${total} · ${hidden} more`}
+                    </button>
+                  )}
+                </section>
+              );
+            })}
           </div>
         </>
       )}
@@ -659,6 +575,7 @@ export default function AssignedCandidatesPage() {
             salaryExpectation: packageFor.candidate.salaryExpectation,
             salaryBenefitsNote: packageFor.candidate.salaryBenefitsNote,
             salaryBenefits: packageFor.candidate.salaryBenefits,
+            transportPickup: packageFor.candidate.transportPickup,
           }}
           onClose={() => setPackageFor(null)}
         />
@@ -722,18 +639,23 @@ function BoardSkeleton() {
 }
 
 /**
- * A contact detail, shown in full and copied on click.
+ * A contact detail, as a chip, copied on click.
  *
- * Not a mailto:/tel: link — those assume a phone. Here the value itself is
- * the point, and one click puts it on the clipboard for the dialler or mail
- * client the user actually has open.
+ * Not a mailto:/tel: link — those assume a phone, and this board is worked
+ * at a desk. The value itself is the point: it is shown in full to be read
+ * or dialled by hand, and one click puts it on the clipboard for whatever
+ * the interviewer actually has open.
+ *
+ * A chip rather than a line of text because that is what it is — something
+ * you pick up and use, sitting in a row with the tests and the venue, rather
+ * than prose stacked down the left of the card.
  */
-function CopyLine({
+function CopyChip({
   icon: Icon,
   value,
   label,
 }: {
-  icon: typeof Phone;
+  icon: LucideIcon;
   value: string;
   label: string;
 }) {
@@ -752,14 +674,19 @@ function CopyLine({
           })
           .catch(() => toast.error(`Could not copy the ${label}`));
       }}
-      className="group/copy flex w-full items-start gap-1 text-left text-[0.6875rem] leading-4 text-slate-500 transition-colors hover:text-slate-900"
+      className={cn(
+        'group/copy inline-flex max-w-full items-center gap-1.5 rounded-full px-2 py-1 text-[0.6875rem] font-medium ring-1 transition-colors',
+        copied
+          ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+          : 'bg-slate-50 text-slate-600 ring-slate-200 hover:bg-white hover:text-slate-900 hover:ring-brand-200',
+      )}
     >
-      <Icon className="mt-0.5 h-3 w-3 shrink-0 text-slate-400" />
-      <span className="min-w-0 break-all tabular-nums">{value}</span>
+      <Icon className="h-3 w-3 shrink-0 text-slate-400" />
+      <span className="truncate tabular-nums">{value}</span>
       {copied ? (
-        <Check className="mt-0.5 h-3 w-3 shrink-0 text-emerald-600" />
+        <Check className="h-3 w-3 shrink-0 text-emerald-600" />
       ) : (
-        <Copy className="mt-0.5 h-3 w-3 shrink-0 text-slate-300 opacity-0 transition-opacity group-hover/copy:opacity-100" />
+        <Copy className="h-3 w-3 shrink-0 text-slate-300 opacity-0 transition-opacity group-hover/copy:opacity-100" />
       )}
     </button>
   );
@@ -869,283 +796,297 @@ function BoardCard({
     onOpenDecision();
   };
 
+  /**
+   * The one thing this card is waiting on, as a chip.
+   *
+   * It used to be four separate conditionals strung along the footer, below
+   * the contact details and beside the buttons — so the fact a candidate had
+   * been waiting eleven days for a date, or had not turned up, was the last
+   * thing on the card you read. It is the first thing that matters, so it
+   * now sits at the top right where the eye lands, and the footer is left to
+   * the actions alone.
+   */
+  const state: { tone: string; icon: LucideIcon; text: string; title?: string } =
+    col === 'done'
+      ? rejected
+        ? { tone: 'bg-rose-50 text-rose-700 ring-rose-200', icon: Ban, text: 'Not taken forward' }
+        : { tone: 'bg-emerald-50 text-emerald-700 ring-emerald-200', icon: Trophy, text: 'Finalist' }
+      : col === 'to_schedule' && noShow
+        ? {
+            tone: 'bg-rose-50 text-rose-700 ring-rose-200',
+            icon: UserX,
+            text: `Absent${noShow.scheduledAt ? ` · ${formatDate(noShow.scheduledAt)}` : ''}`,
+            title: 'Did not turn up to the first interview',
+          }
+        : col === 'to_schedule'
+          ? {
+              tone:
+                age.tone === 'late'
+                  ? 'bg-rose-50 text-rose-700 ring-rose-200'
+                  : age.tone === 'ageing'
+                    ? 'bg-amber-50 text-amber-700 ring-amber-200'
+                    : 'bg-slate-50 text-slate-500 ring-slate-200',
+              icon: Clock,
+              text: `Assigned ${age.text}`,
+              title:
+                age.tone === 'fresh' ? undefined : 'Waiting a long time for a date',
+            }
+          : first
+            ? {
+                tone:
+                  soon === 'overdue'
+                    ? 'bg-rose-50 text-rose-700 ring-rose-200'
+                    : soon
+                      ? 'bg-amber-50 text-amber-700 ring-amber-200'
+                      : 'bg-sky-50 text-sky-700 ring-sky-200',
+                icon: Clock,
+                text: `${first.scheduledAt ? formatDate(first.scheduledAt) : 'Time TBD'}${soon ? ` · ${soon}` : ''}`,
+              }
+            : { tone: 'bg-slate-50 text-slate-500 ring-slate-200', icon: Clock, text: 'No date yet' };
+  const StateIcon = state.icon;
+
   return (
     <article
       data-card={row.id}
       style={{ animationDelay: `${index * 45}ms` }}
       className={cn(
-        'animate-card-in rounded-lg border border-slate-200 bg-white p-3.5 shadow-sm',
+        'animate-card-in overflow-hidden rounded-xl border border-slate-200 border-l-4 bg-white shadow-sm',
+        // A rail in the stage's own colour. The tab bar is brand-blue for
+        // every stage now, so this is where "which stage is this" lives —
+        // and on a card it doubles as the urgency, which a tab cannot show.
+        col === 'to_schedule'
+          ? age.tone === 'late'
+            ? 'border-l-rose-400'
+            : 'border-l-amber-400'
+          : col === 'scheduled'
+            ? 'border-l-sky-400'
+            : col === 'decision_due'
+              ? 'border-l-violet-400'
+              : rejected
+                ? 'border-l-rose-300'
+                : 'border-l-emerald-400',
         // Lifts a hair on hover. Enough to say the row is live without the
         // list appearing to breathe as the pointer crosses it.
         'transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-card-hover',
       )}
     >
-      {/* Three zones across the row: who, what we know, and the step.
-          The card was built for a 16rem column and stacked everything
-          vertically; at full width that left two thirds of the row empty
-          with a thin ribbon of text down the left. */}
-      <div className="grid gap-x-6 gap-y-3 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
-      <div>
-      {/* Who — the vacancy is named once, on the group header above. */}
-      <div className="flex items-center gap-2.5">
-        <Avatar name={row.candidate.name} size="md" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold leading-tight tracking-tight text-slate-900">
-            {row.candidate.name}
-          </p>
-          {row.delegatedBy && col !== 'done' && (
-            <p
-              className="mt-0.5 flex items-center gap-1 truncate text-[0.6875rem] text-slate-400"
-              title={`Sent to you by ${row.delegatedBy.name}`}
-            >
-              <CornerDownRight className="h-3 w-3 shrink-0" />
-              from {row.delegatedBy.name}
+      {/* One row, four aligned columns: who, what is known about them, what
+          the card is waiting on, and the step. They line up down the list
+          rather than each card wrapping its own way — an aligned column is
+          what makes a list of people scannable, and it is the difference
+          between a screen that was designed and one that was assembled. It
+          stacks below `lg`, where there is no width to align into. */}
+      <div className="grid items-center gap-x-5 gap-y-3 px-4 py-3 lg:grid-cols-[minmax(11rem,1.1fr)_minmax(0,1.4fr)_auto_auto]">
+        {/* 1 · Who */}
+        <div className="flex min-w-0 items-center gap-3">
+          <Avatar name={row.candidate.name} size="md" />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold leading-tight tracking-tight text-slate-900">
+              {row.candidate.name}
             </p>
-          )}
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[0.6875rem] leading-4 text-slate-400">
+              {row.delegatedBy && col !== 'done' && (
+                <span
+                  className="inline-flex min-w-0 items-center gap-1"
+                  title={`Sent to you by ${row.delegatedBy.name}`}
+                >
+                  <CornerDownRight className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{row.delegatedBy.name}</span>
+                </span>
+              )}
+              {row.alsoAssignedTo.length > 0 && col !== 'done' && (
+                <span
+                  title={`Also assigned to ${row.alsoAssignedTo.join(', ')}`}
+                  className="inline-flex shrink-0 items-center gap-1 font-medium text-amber-600"
+                >
+                  <Users className="h-3 w-3" />
+                  +{row.alsoAssignedTo.length}
+                </span>
+              )}
+            </p>
+          </div>
         </div>
-      </div>
 
-      {/* The number and address themselves. This board is worked at a desk,
-          where a tel: link opens nothing — so the details are shown to be
-          read, dialled by hand, or copied in one click. */}
-      {col !== 'done' && (row.candidate.phone || row.candidate.email) && (
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-0.5">
-          {row.candidate.phone && (
-            <CopyLine
+        {/* 2 · What is known — reach them, their marks, where the session is.
+            Chips, because these are things you pick up and use. */}
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          {col !== 'done' && row.candidate.phone && (
+            <CopyChip
               icon={Phone}
               value={row.candidate.phone}
               label="phone number"
             />
           )}
-          {row.candidate.email && (
-            <CopyLine
+          {col !== 'done' && row.candidate.email && (
+            <CopyChip
               icon={Mail}
               value={row.candidate.email}
               label="email address"
             />
           )}
-        </div>
-      )}
-
-      {/* Who handed this over, and anything they asked for. The note is the
-          recruiter writing to this interviewer; dropping it loses the only
-          message in the whole handover. */}
-      </div>
-
-      {/* What we know about them, in the room the width gives us. */}
-      <div className="min-w-0 space-y-2">
-      {col !== 'done' && row.note && (
-        <p
-          className="line-clamp-2 rounded-r-md border-l-2 border-brand-300 bg-brand-50/40 py-1 pl-2 pr-2 text-[0.6875rem] leading-4 text-slate-600"
-          title={row.note}
-        >
-          {row.note}
-        </p>
-      )}
-
-      {/* Screening marks, so the picture is complete before the interview
-          rather than one dialog at a time. */}
-      {col !== 'done' && row.tests.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
-          {row.tests.some((t) => t.obtained != null) ? (
-            row.tests.map((t) => <TestChip key={t.key} test={t} />)
-          ) : (
+          {col !== 'done' &&
+            row.tests.length > 0 &&
+            (row.tests.some((t) => t.obtained != null) ? (
+              row.tests.map((t) => <TestChip key={t.key} test={t} />)
+            ) : (
+              <span
+                title={`Not marked yet: ${row.tests.map((t) => t.label).join(', ')}`}
+                className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-2 py-1 text-[0.625rem] font-medium text-slate-400 ring-1 ring-slate-200"
+              >
+                <ListChecks className="h-3 w-3" />
+                {row.tests.length} unmarked
+              </span>
+            ))}
+          {venue && (col === 'scheduled' || col === 'decision_due') && (
             <span
-              title={`Not marked yet: ${row.tests.map((t) => t.label).join(', ')}`}
-              className="inline-flex items-center gap-1 rounded bg-slate-50 px-1.5 py-0.5 text-[0.625rem] font-medium text-slate-400 ring-1 ring-slate-200"
+              title={venue.text}
+              className="inline-flex min-w-0 items-center gap-1 rounded-full bg-slate-50 px-2 py-1 text-[0.625rem] font-medium text-slate-500 ring-1 ring-slate-200"
             >
-              <ListChecks className="h-2.5 w-2.5" />
-              {row.tests.length} test{row.tests.length === 1 ? '' : 's'} not marked
+              <venue.icon className="h-3 w-3 shrink-0" />
+              <span className="truncate">{venue.text}</span>
+              {first && first.panelists > 0 && (
+                <span className="shrink-0 text-slate-400">
+                  · {first.panelists} on panel
+                </span>
+              )}
             </span>
           )}
         </div>
-      )}
 
-      </div>
-      </div>
+        {/* 3 · What it is waiting on. The single most important thing on the
+            card, so it is given its own column and the same place on every
+            row — not appended to the end of whatever came before it. */}
+        <span
+          title={state.title}
+          className={cn(
+            'inline-flex shrink-0 items-center gap-1.5 justify-self-start rounded-full px-2.5 py-1 text-[0.6875rem] font-semibold ring-1 lg:justify-self-end',
+            state.tone,
+          )}
+        >
+          <StateIcon className="h-3 w-3 shrink-0" />
+          <span className="truncate">{state.text}</span>
+        </span>
 
-      {/* When, and what to do about it */}
-      {!deciding && (
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-slate-100 pt-3">
-          <div className="flex min-w-0 items-center gap-1.5 overflow-hidden text-[0.6875rem]">
-            {row.alsoAssignedTo.length > 0 && col !== 'done' && (
-              <span
-                title={`Also assigned to ${row.alsoAssignedTo.join(', ')}`}
-                className="inline-flex shrink-0 items-center gap-0.5 rounded bg-amber-50 px-1 py-0.5 text-[0.625rem] font-medium tabular-nums text-amber-700"
-              >
-                <Users className="h-2.5 w-2.5" />+{row.alsoAssignedTo.length}
-              </span>
-            )}
-            {col === 'to_schedule' && noShow && (
-              <span
-                className="inline-flex items-center gap-1 rounded bg-rose-50 px-1.5 py-0.5 font-semibold text-rose-700 ring-1 ring-rose-200"
-                title="Did not turn up to the first interview"
-              >
-                <UserX className="h-3 w-3 shrink-0" />
-                <span className="truncate">
-                  Absent
-                  {noShow.scheduledAt && ` · ${formatDate(noShow.scheduledAt)}`}
-                </span>
-              </span>
-            )}
-            {col === 'to_schedule' && !noShow && (
-              <span
-                className={cn(
-                  'truncate',
-                  age.tone === 'late'
-                    ? 'font-semibold text-rose-600'
-                    : age.tone === 'ageing'
-                      ? 'font-medium text-amber-600'
-                      : 'text-slate-400',
-                )}
-                title={
-                  age.tone === 'fresh'
-                    ? undefined
-                    : 'Waiting a long time for a date'
-                }
-              >
-                {age.tone !== 'fresh' && <Clock className="mr-1 inline h-3 w-3" />}
-                assigned {age.text}
-              </span>
-            )}
-            {(col === 'scheduled' || col === 'decision_due') && first && (
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1 font-medium',
-                  soon === 'overdue'
-                    ? 'text-rose-600'
-                    : soon
-                      ? 'text-amber-600'
-                      : 'text-slate-500',
-                )}
-              >
-                <Clock className="h-3 w-3 shrink-0" />
-                <span className="truncate">
-                  {first.scheduledAt ? formatDate(first.scheduledAt) : 'time TBD'}
-                  {soon && ` · ${soon}`}
-                </span>
-              </span>
-            )}
-            {col === 'done' && (
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1 font-semibold',
-                  rejected ? 'text-rose-600' : 'text-emerald-600',
-                )}
-              >
-                {rejected ? (
-                  <>
-                    <Ban className="h-3 w-3" /> Not taken forward
-                  </>
-                ) : (
-                  <>
-                    <Trophy className="h-3 w-3" /> Finalist
-                  </>
-                )}
-              </span>
-            )}
-          </div>
-
-          <div className="ml-auto flex shrink-0 flex-wrap items-center gap-1.5">
-            {/* Labelled, not three bare glyphs in a box. A document, a
-                checklist and a dollar sign all render at 14px as "some kind
-                of form", and the only way to tell them apart was to hover
-                each one and wait for a tooltip. */}
-            {row.candidate.cvUrl && (
-              <a
-                href={resolveApiFileUrl(row.candidate.cvUrl)}
-                target="_blank"
-                rel="noreferrer"
-                draggable={false}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[0.6875rem] font-semibold text-slate-600 transition-all hover:-translate-y-0.5 hover:border-brand-200 hover:text-brand-600 hover:shadow-sm"
-              >
-                <FileText className="h-3.5 w-3.5" />
-                CV
-              </a>
-            )}
-            <button
-              type="button"
-              onClick={onEnterMarks}
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[0.6875rem] font-semibold transition-all hover:-translate-y-0.5 hover:shadow-sm',
-                marksIn
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-brand-200 hover:text-brand-600',
-              )}
+        {/* 4 · The step. Secondary actions are quiet; the one the stage is
+            waiting for is the only solid button on the row. */}
+        {!deciding && (
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5 lg:justify-self-end">
+          {/* Labelled, not three bare glyphs in a box. A document, a
+              checklist and a dollar sign all render at 14px as "some kind
+              of form", and the only way to tell them apart was to hover
+              each one and wait for a tooltip. */}
+          {row.candidate.cvUrl && (
+            <a
+              href={resolveApiFileUrl(row.candidate.cvUrl)}
+              target="_blank"
+              rel="noreferrer"
+              draggable={false}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[0.6875rem] font-semibold text-slate-600 transition-all hover:-translate-y-0.5 hover:border-brand-200 hover:text-brand-600 hover:shadow-sm"
             >
-              <ListChecks className="h-3.5 w-3.5" />
-              {marksIn ? 'Marks in' : 'Test marks'}
-            </button>
-            {/* Present salary, expectation and current benefits — asked in
-                the room, and its own small form rather than a corner of
-                Salary Fixation, which is Corporate HR's screen and sets
-                the actual figure. */}
-            <button
-              type="button"
-              onClick={onEnterPackage}
-              className={cn(
-                'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[0.6875rem] font-semibold transition-all hover:-translate-y-0.5 hover:shadow-sm',
-                packageIn
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-brand-200 hover:text-brand-600',
-              )}
-            >
-              <BadgeDollarSign className="h-3.5 w-3.5" />
-              {packageIn ? 'Salary noted' : 'Salary'}
-            </button>
+              <FileText className="h-3.5 w-3.5" />
+              CV
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={onEnterMarks}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[0.6875rem] font-semibold transition-all hover:-translate-y-0.5 hover:shadow-sm',
+              marksIn
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300'
+                : 'border-slate-200 bg-white text-slate-600 hover:border-brand-200 hover:text-brand-600',
+            )}
+          >
+            <ListChecks className="h-3.5 w-3.5" />
+            {marksIn ? 'Marks in' : 'Test marks'}
+          </button>
+          {/* Present salary, expectation and current benefits — asked in
+              the room, and its own small form rather than a corner of
+              Salary Fixation, which is Corporate HR's screen and sets
+              the actual figure. */}
+          <button
+            type="button"
+            onClick={onEnterPackage}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[0.6875rem] font-semibold transition-all hover:-translate-y-0.5 hover:shadow-sm',
+              packageIn
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300'
+                : 'border-slate-200 bg-white text-slate-600 hover:border-brand-200 hover:text-brand-600',
+            )}
+          >
+            <BadgeDollarSign className="h-3.5 w-3.5" />
+            {packageIn ? 'Salary noted' : 'Salary'}
+          </button>
 
-            {/* The step itself. Solid where the board is waiting on you,
-                outlined where the work is already in hand. */}
-            {/* A no-show is either given another date or let go; both are
-                offered, since neither is the obvious default. */}
-            {col === 'to_schedule' && noShow && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 border-rose-200 px-2.5 text-xs text-rose-600 hover:border-rose-300 hover:bg-rose-50"
-                onClick={() => rejectNoShow(noShow)}
-              >
-                <Ban className="mr-1 h-3.5 w-3.5" /> Reject
-              </Button>
-            )}
-            {col === 'to_schedule' && (
-              <Button size="sm" className="h-7 px-2.5 text-xs" onClick={onSchedule}>
-                <CalendarDays className="mr-1 h-3.5 w-3.5" />
-                {noShow ? 'Re-arrange' : 'Arrange'}
-              </Button>
-            )}
-            {col === 'scheduled' && first?.status === 'scheduled' && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 border-rose-200 px-2.5 text-xs text-rose-600 hover:border-rose-300 hover:bg-rose-50"
-                isLoading={updateRound.isPending}
-                onClick={() => markAbsent(first)}
-                title={`${firstName} did not turn up`}
-              >
-                <UserX className="mr-1 h-3.5 w-3.5" /> Absent
-              </Button>
-            )}
-            {col === 'scheduled' && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 px-2.5 text-xs"
-                onClick={onSchedule}
-              >
-                <Clock className="mr-1 h-3.5 w-3.5" /> Manage
-              </Button>
-            )}
-            {col === 'decision_due' && (
-              <Button
-                size="sm"
-                className="h-7 px-2.5 text-xs"
-                onClick={onOpenDecision}
-              >
-                <Check className="mr-1 h-3.5 w-3.5" /> Decide
-              </Button>
-            )}
+          {/* The step itself. Solid where the board is waiting on you,
+              outlined where the work is already in hand. */}
+          {/* A no-show is either given another date or let go; both are
+              offered, since neither is the obvious default. */}
+          {col === 'to_schedule' && noShow && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 border-rose-200 px-2.5 text-xs text-rose-600 hover:border-rose-300 hover:bg-rose-50"
+              onClick={() => rejectNoShow(noShow)}
+            >
+              <Ban className="mr-1 h-3.5 w-3.5" /> Reject
+            </Button>
+          )}
+          {col === 'to_schedule' && (
+            <Button size="sm" className="h-7 px-2.5 text-xs" onClick={onSchedule}>
+              <CalendarDays className="mr-1 h-3.5 w-3.5" />
+              {noShow ? 'Re-arrange' : 'Arrange'}
+            </Button>
+          )}
+          {col === 'scheduled' && first?.status === 'scheduled' && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 border-rose-200 px-2.5 text-xs text-rose-600 hover:border-rose-300 hover:bg-rose-50"
+              isLoading={updateRound.isPending}
+              onClick={() => markAbsent(first)}
+              title={`${firstName} did not turn up`}
+            >
+              <UserX className="mr-1 h-3.5 w-3.5" /> Absent
+            </Button>
+          )}
+          {col === 'scheduled' && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2.5 text-xs"
+              onClick={onSchedule}
+            >
+              <Clock className="mr-1 h-3.5 w-3.5" /> Manage
+            </Button>
+          )}
+          {col === 'decision_due' && (
+            <Button
+              size="sm"
+              className="h-7 px-2.5 text-xs"
+              onClick={onOpenDecision}
+            >
+              <Check className="mr-1 h-3.5 w-3.5" /> Decide
+            </Button>
+          )}
           </div>
+        )}
+      </div>
+
+      {/* The recruiter writing to this interviewer — the only message in the
+          whole handover, so it is labelled rather than left to look like a
+          stray quote. Below the row, where a second line belongs. */}
+      {col !== 'done' && row.note && (
+        <div className="mb-3 ml-4 mr-4 max-w-2xl rounded-lg border-l-2 border-brand-300 bg-brand-50/50 py-1.5 pl-2.5 pr-3 lg:ml-[4.25rem]">
+          <p className="text-[0.625rem] font-semibold uppercase tracking-wide text-brand-700/70">
+            Note{row.delegatedBy ? ` from ${row.delegatedBy.name}` : ''}
+          </p>
+          <p
+            className="line-clamp-2 text-[0.6875rem] leading-4 text-slate-600"
+            title={row.note}
+          >
+            {row.note}
+          </p>
         </div>
       )}
 

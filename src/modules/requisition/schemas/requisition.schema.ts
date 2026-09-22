@@ -8,12 +8,14 @@ const facilityItemSchema = z.object({
 
 /**
  * Transport carries more than a yes/no: a shared run and a dedicated car are
- * different commitments, a dedicated car is a choice of vehicle, and none of
- * it can be arranged without knowing where the person is picked up from.
+ * different commitments, and a dedicated car is a choice of vehicle.
+ *
+ * Where the person is picked up from is deliberately NOT asked here — nobody
+ * has been selected yet, so nobody knows where they live. It is settled during
+ * onboarding, with the facility provisioning.
  */
 const transportFacilitySchema = facilityItemSchema.extend({
   vehicleType: z.string().optional(),
-  pickupLocation: z.string().optional(),
 });
 
 const facilitiesSchema = z.object({
@@ -23,6 +25,14 @@ const facilitiesSchema = z.object({
   seating: facilityItemSchema,
 });
 
+/**
+ * What the requisitioner fills in, and only that: the vacancy and the
+ * facilities the hire will need.
+ *
+ * The job analysis (job description, education, experience) is written
+ * afterwards by the unit's Factory HR — see JobAnalysisPanel — and preferred
+ * sources are gone entirely: every posted requisition goes to the career page.
+ */
 export const requisitionSchema = z
   .object({
     // A · Vacancy Information
@@ -78,20 +88,8 @@ export const requisitionSchema = z
     employmentNature: z.enum(['permanent', 'temporary', 'contractual']),
     contractualPurpose: z.string().optional(),
 
-    // B · Job Analysis
-    jobDescription: z.string().min(5, 'Provide a job description'),
-    education: z.string().min(2, 'Education & training is required'),
-    experience: z.string().min(2, 'Experience requirement is required'),
-    others: z.string().optional(),
-
-    // C · Logistics Requirement
+    // B · Facility Requirements
     facilities: facilitiesSchema,
-
-    // E · Group HR
-    preferredSources: z
-      .array(z.enum(['job_advertisement', 'headhunting', 'cv_bank']))
-      .optional()
-      .default([]),
   })
   .refine(
     (data) =>

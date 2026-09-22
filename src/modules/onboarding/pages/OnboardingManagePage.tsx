@@ -13,6 +13,7 @@ import {
   FileText,
   FileSignature,
   FolderArchive,
+  Loader2,
   Sofa,
   Stamp,
   Lock,
@@ -43,6 +44,7 @@ import { cn } from '@shared/lib';
 import { formatCurrency } from '@shared/utils';
 import { ROUTES } from '@app/router/paths';
 import { useUpdateCandidate } from '@modules/candidates';
+import { useSetCandidatePackage } from '@modules/assessment';
 import {
   SendApprovalModal,
   useBoardApprovalStatus,
@@ -65,6 +67,7 @@ import { useRequisition } from '@modules/requisition';
 import { useFacilityProvisioning } from '../hooks/useFacilityProvisioning';
 import { onboardingKeys } from '../hooks/useOnboarding';
 import {
+  useArchiveFiles,
   useArchiveOnboarding,
   useChaseDocs,
   useCrossCheck,
@@ -360,6 +363,7 @@ export default function OnboardingManagePage() {
   // "Not notified" with nobody able to send them.
   const canEditFacilities = canAccessRecruitment(perms, c.unit, {
     recruiterId: c.recruiterId,
+    coverRecruiterId: c.coverRecruiterId,
     myUserId,
   });
 
@@ -571,16 +575,10 @@ function Sidebar({
           >
             Copy submission link
           </Button>
-          {ob.archiveFolderUrl && (
-            <a
-              href={ob.archiveFolderUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-brand-600 hover:bg-brand-50"
-            >
-              <ExternalLink className="h-4 w-4" /> Open archive folder
-            </a>
-          )}
+          {/* No link to the Drive folder: it is private to the recruitment
+              account, so for everyone else it opens a request-access page.
+              The archived documents are read in the final-verification step,
+              through signed links this API serves. */}
         </CardBody>
       </Card>
 
@@ -737,6 +735,10 @@ function Flow({
   const skipDocs = useSkipDocs(candidateId);
   const skipVerification = useSkipVerification(candidateId);
   const reviewFacilities = useReviewFacilities(candidateId);
+  // The candidate's own package — reused here for one field only: the
+  // transport pick-up point, which factory HR takes in the interview and
+  // whoever arranges the run corrects on the facility requirements.
+  const setPackage = useSetCandidatePackage(candidateId);
 
   const [itEmail, setItEmail] = useState(ob.itEmail);
   const [offerLetterOpen, setOfferLetterOpen] = useState(false);
@@ -985,6 +987,14 @@ function Flow({
                 specialNotes: result.candidate.specialNotes,
               }}
               canEdit={canEditFacilities}
+              // Where this person is picked up from — taken in the interview
+              // room, settled here by whoever has to arrange the run.
+              pickup={{
+                value: result.candidate.transportPickup ?? null,
+                saving: setPackage.isPending,
+                onSave: (transportPickup) =>
+                  setPackage.mutate({ transportPickup }),
+              }}
             />
           )}
 
@@ -1713,17 +1723,15 @@ function Flow({
                   {ob.archivedAt && (
                     <Badge tone="info">Archived {fmt(ob.archivedAt)}</Badge>
                   )}
-                  {ob.archiveFolderUrl && (
-                    <a
-                      href={ob.archiveFolderUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" /> Open archive folder
-                    </a>
-                  )}
                 </div>
+
+                {/* The archived file, to read.
+                    The Drive folder is private to the recruitment account —
+                    it holds national IDs, certificates and photographs, and
+                    publishing it would give every one of them a permanent
+                    unauthenticated URL. So HR reads the file here instead:
+                    every document, view only, nothing to replace or delete. */}
+                {ob.archivedAt && <ArchivedFileList candidateId={candidateId} />}
                 <div className="flex flex-wrap gap-2">
                   <Button
                     variant="outline"
@@ -2674,4 +2682,69 @@ function groupDocsBySection(
   const rest = docs.filter((d) => !placed.has(d.id));
   if (rest.length) out.push({ key: 'other', label: 'Other documents', docs: rest });
   return out.filter((g) => g.docs.length > 0);
+}
+
+/**
+ * The archived joining file, to read.
+ *
+ * Archiving moves the candidate's folder into "00 Archive" on Drive, and that
+ * folder is private to the recruitment Google account — it holds national
+ * IDs, certificates and photographs, and sharing it "anyone with the link"
+ * would give each of those a permanent unauthenticated URL. So the file is
+ * read here: everything in it, no restriction on who among the people the API
+ * already lets through may look, and nothing to replace or delete. An archive
+ * that can be edited is not an archive.
+ */
+function ArchivedFileList({ candidateId }: { candidateId: string }) {
+  const { data, isLoading } = useArchiveFiles(candidateId, true);
+
+  if (isLoading) {
+    return (
+      <p className="flex items-center gap-2 text-xs text-slate-400">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Opening the archived
+        file…
+      </p>
+    );
+  }
+  if (!data?.archived) return null;
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="flex items-center gap-2 text-sm font-medium text-slate-800">
+          <FolderArchive className="h-4 w-4 shrink-0 text-slate-400" />
+          Archived documents
+        </p>
+        <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[0.625rem] font-semibold uppercase tracking-wide text-slate-500 ring-1 ring-slate-200">
+          <Lock className="h-3 w-3" />
+          View only
+        </span>
+      </div>
+
+      {data.files.length === 0 ? (
+        <p className="mt-2 text-xs text-slate-500">
+          Nothing was filed on Drive — this hire was archived as a record only.
+        </p>
+      ) : (
+        <ul className="mt-2.5 grid gap-1.5 sm:grid-cols-2">
+          {data.files.map((f) => (
+            <li key={f.id}>
+              <a
+                href={f.url ? resolveApiFileUrl(f.url) : undefined}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 transition hover:border-brand-300 hover:text-brand-700"
+              >
+                <FileText className="h-3.5 w-3.5 shrink-0 text-brand-500" />
+                <span className="min-w-0 flex-1 truncate font-medium">
+                  {f.name}
+                </span>
+                <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }

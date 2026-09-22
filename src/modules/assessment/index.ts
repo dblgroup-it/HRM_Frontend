@@ -19,6 +19,7 @@ export {
   useDelegateInterviews,
   useRevokeDelegation,
   useFirstInterviewOutcome,
+  useSetCandidatePackage,
   delegationKeys,
 } from './hooks/useAssessment';
 export { assessmentApi } from './api/assessment.api';

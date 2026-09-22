@@ -16,3 +16,4 @@ export type {
   MyPermissions,
   EffectiveRole,
 } from './types/rbac.types';
+export { priorityLabel, priorityShortLabel } from './layering';

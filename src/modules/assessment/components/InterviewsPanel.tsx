@@ -1078,11 +1078,17 @@ function RoundCard({
           </div>
         )}
 
-        {/* Somebody joining a session that is already under way is normal —
-            a third interviewer walks in, or the panel is short. Appends
-            only: the people already listed keep their link and their marks,
-            and only the newcomer is told. */}
-        {round.status !== 'cancelled' && (
+        {/* Somebody joining a session that is still to run is normal — a
+            third interviewer walks in, or the panel is short. Appends only:
+            the people already listed keep their link and their marks, and
+            only the newcomer is told.
+
+            Gone once the round is marked done (or the candidate did not turn
+            up, or it was cancelled). The panel is the record of who was in
+            that room, and adding to it afterwards mints an evaluation link
+            for an interview the person never sat in — the server refuses it
+            too, so the control would only ever produce an error. */}
+        {round.status === 'scheduled' && (
           <AddPanelistInline
             roundId={round.id}
             candidateId={candidateId}

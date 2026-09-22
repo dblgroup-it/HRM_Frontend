@@ -1,14 +1,8 @@
 import { useRef } from 'react';
-import { FileText, Loader2, Paperclip, Plus, Trash2 } from 'lucide-react';
+import { FileText, Loader2, Plus, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
-import {
-  Button,
-  Card,
-  CardBody,
-  CardHeader,
-  CardTitle,
-} from '@shared/components/ui';
+import { Button } from '@shared/components/ui';
 import { formatDate } from '@shared/utils';
 
 import type { Requisition } from '../types/requisition.types';
@@ -20,7 +14,14 @@ import { resolveApiFileUrl } from '@shared/api';
 
 const MAX_BYTES = 15 * 1024 * 1024;
 
-export function AttachmentsPanel({
+/**
+ * The requisition's files — the detailed JD above all.
+ *
+ * The body only: it is tabbed against the job analysis inside
+ * `JobAnalysisCard`, because filing the detailed JD and writing section B are
+ * the same piece of work.
+ */
+export function AttachmentsSection({
   requisition,
 }: {
   requisition: Requisition;
@@ -44,37 +45,35 @@ export function AttachmentsPanel({
   };
 
   return (
-    <Card>
-      <CardHeader className="flex items-center justify-between">
-        <CardTitle className="flex items-center gap-2">
-          <Paperclip className="h-4 w-4 text-brand-600" />
-          Attachments
-        </CardTitle>
-        <Button
-          size="sm"
-          variant="outline"
-          leftIcon={
-            upload.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Plus className="h-4 w-4" />
-            )
-          }
+    <div>
+      {attachments.length === 0 ? (
+        <button
+          type="button"
           onClick={() => fileRef.current?.click()}
           disabled={upload.isPending}
+          className="flex w-full flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 px-4 py-8 text-center transition hover:border-brand-300 hover:bg-brand-50/40 disabled:opacity-60"
         >
-          Add file
-        </Button>
-      </CardHeader>
-      <CardBody>
-        {attachments.length === 0 ? (
-          <p className="text-sm text-slate-400">No attachments yet.</p>
-        ) : (
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+            {upload.isPending ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Upload className="h-5 w-5" />
+            )}
+          </span>
+          <span className="text-sm font-medium text-slate-700">
+            Attach the detailed JD
+          </span>
+          <span className="text-xs text-slate-400">
+            PDF, Word or an image · up to 15 MB
+          </span>
+        </button>
+      ) : (
+        <>
           <ul className="space-y-2">
             {attachments.map((a) => (
               <li
                 key={a.fileId}
-                className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2"
+                className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 transition hover:border-brand-200 hover:bg-brand-50/30"
               >
                 <a
                   href={resolveApiFileUrl(a.url)}
@@ -92,15 +91,31 @@ export function AttachmentsPanel({
                   type="button"
                   title="Remove attachment"
                   onClick={() => remove.mutate(a.fileId)}
-                  className="rounded p-1 text-slate-300 hover:bg-rose-50 hover:text-rose-500"
+                  className="rounded p-1 text-slate-300 transition hover:bg-rose-50 hover:text-rose-500"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
               </li>
             ))}
           </ul>
-        )}
-      </CardBody>
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-3"
+            leftIcon={
+              upload.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )
+            }
+            onClick={() => fileRef.current?.click()}
+            disabled={upload.isPending}
+          >
+            Add file
+          </Button>
+        </>
+      )}
 
       <input
         ref={fileRef}
@@ -111,6 +126,6 @@ export function AttachmentsPanel({
           e.target.value = '';
         }}
       />
-    </Card>
+    </div>
   );
 }

@@ -62,10 +62,22 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
   const infoStep = chain.find((s) => s.status === 'info_requested') ?? null;
   const awaitingRaiser = !!infoStep && !isRejected;
 
-  const nextPendingIndex = awaitingRaiser
-    ? -1
-    : chain.findIndex((s) => s.status === 'pending');
-  const allDone = !awaitingRaiser && nextPendingIndex === -1 && !isRejected;
+  /**
+   * The chain is snapshotted when the requisition is raised, but it does not
+   * start until the job analysis is done — so its first step is on the page
+   * with nobody entitled to act on it yet.
+   */
+  const awaitingJobAnalysis = requisition.status === 'pending_job_analysis';
+
+  const nextPendingIndex =
+    awaitingRaiser || awaitingJobAnalysis
+      ? -1
+      : chain.findIndex((s) => s.status === 'pending');
+  const allDone =
+    !awaitingRaiser &&
+    !awaitingJobAnalysis &&
+    nextPendingIndex === -1 &&
+    !isRejected;
   const isRaiser =
     !!myUserId && !!requisition.raisedById && requisition.raisedById === myUserId;
   const canResend = awaitingRaiser && (isRaiser || !!perms?.isSuperUser);
@@ -97,13 +109,22 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Sign-off Chain · Step 2</CardTitle>
+        <CardTitle>Sign-off Chain · Step 3</CardTitle>
         <span className="text-xs text-slate-400">
           {chain.filter((s) => s.status === 'approved').length}/{chain.length}{' '}
           approved
         </span>
       </CardHeader>
       <CardBody>
+        {awaitingJobAnalysis && (
+          <p className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+            <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              This chain starts once the job analysis is complete — nobody here
+              has anything to sign yet.
+            </span>
+          </p>
+        )}
         <ol className="space-y-1">
           {/* Who raised it. Not a sign-off step — the raiser's own approval is
               implicit in submitting — but the chain is unreadable without it:

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { UserCog, UserPlus } from 'lucide-react';
+import { UserCheck, UserCog, UserPlus } from 'lucide-react';
 
 import {
   Button,
@@ -37,6 +37,9 @@ export function RecruiterPanel({
   });
 
   const current = requisition.recruiter;
+  // Only ever present while the cover actually applies — the API drops a
+  // lapsed one rather than reporting it as current.
+  const cover = requisition.cover ?? null;
 
   // Nothing to show a non-assigner when nobody is assigned yet.
   if (!canAssign && !current) return null;
@@ -72,6 +75,18 @@ export function RecruiterPanel({
             No recruiter assigned yet — Head of Talent Acquisition still runs this
             requisition.
           </p>
+        )}
+
+        {cover && (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+            <UserCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <p className="text-xs text-amber-800">
+              <span className="font-medium">{cover.name}</span> is covering
+              while {current?.name ?? 'the recruiter'} is on leave
+              {cover.until ? ` (until ${formatDate(cover.until)})` : ''}. Both
+              can act on it; it reverts on their return.
+            </p>
+          </div>
         )}
 
         {canAssign && (

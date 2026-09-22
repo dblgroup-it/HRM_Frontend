@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, MapPin, Sofa, StickyNote, X } from 'lucide-react';
+import { Bus, Check, MapPin, Pencil, Sofa, StickyNote, X } from 'lucide-react';
 
 import { Badge, Button, Card, CardBody, CardHeader, CardTitle } from '@shared/components/ui';
 import { cn } from '@shared/lib';
@@ -31,6 +31,7 @@ const STATUS_TONE = {
 export function FacilitiesPanel({
   requisition,
   canEdit,
+  pickup,
 }: {
   requisition: {
     id: string;
@@ -38,11 +39,26 @@ export function FacilitiesPanel({
     specialNotes?: string[];
   };
   canEdit: boolean;
+  /**
+   * The hire's own transport pick-up point, where this panel is shown for a
+   * person rather than for a post.
+   *
+   * The requisition cannot answer it — at requisition time nobody is selected
+   * — so it is taken in the interview room and settled here, by whoever
+   * arranges the run. Omitted on the requisition page, which has no candidate
+   * and falls back to displaying whatever an older requisition recorded.
+   */
+  pickup?: {
+    value: string | null;
+    onSave: (value: string | null) => void;
+    saving?: boolean;
+  };
 }) {
   const update = useUpdateFacilities();
   const { data: master } = useMasterData();
   const [noteDraft, setNoteDraft] = useState<Record<string, string>>({});
   const [editingKey, setEditingKey] = useState<FacilityKey | null>(null);
+  const [pickupDraft, setPickupDraft] = useState<string | null>(null);
 
   const chosenNotes = requisition.specialNotes ?? [];
   const toggleNote = (note: string) => {
@@ -159,11 +175,79 @@ export function FacilitiesPanel({
                 )}
               </div>
 
+              {/* Older requisitions recorded a pick-up point on the form
+                  itself; it is still read so those keep displaying it. */}
               {f.requested && f.pickupLocation && (
                 <p className="mt-1.5 flex items-center gap-1 text-xs text-slate-600">
                   <MapPin className="h-3 w-3 shrink-0 text-slate-400" />
                   Pick-up from {f.pickupLocation}
                 </p>
+              )}
+
+              {/* The hire's own pick-up point, on the transport row where it
+                  belongs — taken in the interview, corrected here. */}
+              {key === 'transport' && pickup && (
+                <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 py-2">
+                  {pickupDraft === null ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-slate-600">
+                        <Bus className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                        {pickup.value ? (
+                          <span className="truncate">
+                            Picked up from{' '}
+                            <span className="font-medium text-slate-700">
+                              {pickup.value}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">
+                            No pick-up point recorded yet
+                          </span>
+                        )}
+                      </p>
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => setPickupDraft(pickup.value ?? '')}
+                          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[0.625rem] font-semibold text-slate-500 transition hover:border-brand-300 hover:text-brand-600"
+                        >
+                          <Pencil className="h-3 w-3" />
+                          {pickup.value ? 'Change' : 'Add'}
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <input
+                        autoFocus
+                        value={pickupDraft}
+                        maxLength={200}
+                        onChange={(e) => setPickupDraft(e.target.value)}
+                        placeholder="e.g. Signboard, Narayanganj — by the bus stand"
+                        className="w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                      />
+                      <div className="flex justify-end gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setPickupDraft(null)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          isLoading={pickup.saving}
+                          onClick={() => {
+                            pickup.onSave(pickupDraft.trim() || null);
+                            setPickupDraft(null);
+                          }}
+                        >
+                          Save pick-up point
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
 
               {f.requested && f.note && (

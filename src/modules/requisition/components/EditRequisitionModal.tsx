@@ -148,13 +148,18 @@ export function EditRequisitionModal({
           />
           <Select
             label="Place of posting"
-            placeholder="Select zone"
-            // Requisitions raised before zones were fixed hold free text. Keep
-            // the existing value as an option so editing something else here
-            // can't silently blank it.
+            placeholder="Select the job location"
+            // The offer letter's job-location list, so the requisition and the
+            // letter name the same site. Requisitions raised when this was a
+            // zone (or free text) keep their value as an option, so editing
+            // something else here can't silently blank it.
             options={[
-              ...(master?.zones ?? []).map((z) => ({ value: z, label: z })),
-              ...(placeOfPosting && !(master?.zones ?? []).includes(placeOfPosting)
+              ...(master?.jobLocations ?? []).map((l) => ({
+                value: l,
+                label: l,
+              })),
+              ...(placeOfPosting &&
+              !(master?.jobLocations ?? []).includes(placeOfPosting)
                 ? [{ value: placeOfPosting, label: `${placeOfPosting} (legacy)` }]
                 : []),
             ]}

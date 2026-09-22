@@ -15,6 +15,8 @@ export const onboardingKeys = {
   medicalQueue: ['onboarding', 'medical-queue'] as const,
   medicalExam: (onboardingId: string) =>
     ['onboarding', onboardingId, 'medical-exam'] as const,
+  archiveFiles: (candidateId: string) =>
+    ['onboarding', candidateId, 'archive-files'] as const,
 };
 
 function errMsg(error: unknown, fallback: string): string {
@@ -273,6 +275,23 @@ export function useArchiveOnboarding(candidateId: string) {
     () => onboardingApi.archive(candidateId),
     { success: 'Documents archived', fallback: 'Could not archive' },
   );
+}
+
+/**
+ * The archived file, to read.
+ *
+ * Only asked for once a candidate is actually archived — before that there is
+ * no folder to list, and the endpoint would answer an empty one.
+ */
+export function useArchiveFiles(candidateId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: onboardingKeys.archiveFiles(candidateId),
+    queryFn: () => onboardingApi.archiveFiles(candidateId),
+    enabled: Boolean(candidateId) && enabled,
+    // The links are signed and expire, so a long-lived cache would hand back
+    // dead ones; refetching costs a single listing.
+    staleTime: 5 * 60_000,
+  });
 }
 
 export function useNotifyIt(candidateId: string) {

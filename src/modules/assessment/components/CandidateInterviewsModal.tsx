@@ -823,10 +823,14 @@ function RoundRow({
           </div>
         )}
 
-        {/* A third interviewer walking into a session already arranged is
+        {/* A third interviewer walking into a session still to run is
             ordinary. Appends only — the people already on the panel keep
-            their link and their marks, and only the newcomer is told. */}
-        {round.status !== 'cancelled' && round.status !== 'absent' && (
+            their link and their marks, and only the newcomer is told.
+
+            Gone once the round is done: the panel is the record of who was in
+            that room, and adding to it afterwards mints an evaluation link
+            for an interview the person never sat in. */}
+        {round.status === 'scheduled' && (
           <AddPanelistRow
             roundId={round.id}
             candidateId={candidateId}

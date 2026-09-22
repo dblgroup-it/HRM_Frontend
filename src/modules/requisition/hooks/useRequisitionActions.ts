@@ -5,7 +5,8 @@ import { requisitionKeys } from './useRequisitions';
 import type {
   ApprovalDecision,
   FacilityKey,
-  PreferredSource,
+  JobAnalysisDraftInput,
+  JobAnalysisInput,
   Requisition,
   UpdateRequisitionInput,
 } from '../types/requisition.types';
@@ -135,19 +136,58 @@ export function useUpdateRoleProfile() {
   });
 }
 
-/** Step 4 — publish to preferred candidate sources. */
+/** Step 4 — publish to the DBL career page. */
 export function usePostRequisition() {
   const sync = useSyncRequisition();
   return useMutation({
-    mutationFn: ({
-      id,
-      sources,
-      closingDate,
-    }: {
-      id: string;
-      sources: PreferredSource[];
-      closingDate: string;
-    }) => requisitionApi.post(id, sources, closingDate),
+    mutationFn: ({ id, closingDate }: { id: string; closingDate: string }) =>
+      requisitionApi.post(id, closingDate),
+    onSuccess: sync,
+  });
+}
+
+/**
+ * Stage 2 — the unit's Factory HR writes the job analysis. Submitting releases
+ * the requisition to its approval chain; `submit: false` just saves progress.
+ */
+export function useSaveJobAnalysis(id: string) {
+  const sync = useSyncRequisition();
+  return useMutation({
+    mutationFn: (input: JobAnalysisInput) =>
+      requisitionApi.saveJobAnalysis(id, input),
+    onSuccess: sync,
+  });
+}
+
+/**
+ * Ask the AI to draft section B.
+ *
+ * Deliberately NOT a `useSyncRequisition` mutation: it writes nothing, it
+ * hands back a draft for the writer to edit, and a requisition that quietly
+ * changed under them because they pressed "draft" would be the opposite of
+ * what this is for.
+ */
+export function useDraftJobAnalysis(id: string) {
+  return useMutation({
+    mutationFn: (input: JobAnalysisDraftInput) =>
+      requisitionApi.draftJobAnalysis(id, input),
+  });
+}
+
+/** Factory HR hands the requisition back to the raiser, with a reason. */
+export function useReturnForChanges(id: string) {
+  const sync = useSyncRequisition();
+  return useMutation({
+    mutationFn: (note: string) => requisitionApi.returnForChanges(id, note),
+    onSuccess: sync,
+  });
+}
+
+/** The raiser amends a returned requisition and resends it. */
+export function useResendForJobAnalysis(id: string) {
+  const sync = useSyncRequisition();
+  return useMutation({
+    mutationFn: () => requisitionApi.resendForJobAnalysis(id),
     onSuccess: sync,
   });
 }

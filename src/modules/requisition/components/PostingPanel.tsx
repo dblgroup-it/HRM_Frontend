@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { Send, Globe, CheckCircle2 } from 'lucide-react';
+import {
+  Send,
+  Globe,
+  CheckCircle2,
+  ClipboardCopy,
+  ExternalLink,
+  Share2,
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 import {
   Badge,
@@ -11,11 +19,10 @@ import {
   CardTitle,
   Input,
 } from '@shared/components/ui';
-import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
 
-import type { PreferredSource, Requisition } from '../types/requisition.types';
-import { PREFERRED_SOURCES, preferredSourceLabel } from '../constants';
+import type { Requisition } from '../types/requisition.types';
+import { preferredSourceLabel } from '../constants';
 import { usePostRequisition } from '../hooks/useRequisitionActions';
 
 export function PostingPanel({
@@ -27,32 +34,29 @@ export function PostingPanel({
   canContinue: boolean;
   onPosting?: () => void;
 }) {
-  // Drop any source the requisition was raised with that's since been removed
-  // from PREFERRED_SOURCES (e.g. a retired channel) — resubmitting it would
-  // fail the backend's validation, which only accepts current values.
-  const validSources = new Set(PREFERRED_SOURCES.map((s) => s.value));
-  const initialSelected = requisition.preferredSources.filter((s) =>
-    validSources.has(s),
-  );
-  const [selected, setSelected] = useState<PreferredSource[]>(
-    initialSelected.length ? initialSelected : ['job_advertisement']
-  );
   const [closingDate, setClosingDate] = useState('');
   const post = usePostRequisition();
 
-  const toggle = (source: PreferredSource) =>
-    setSelected((prev) =>
-      prev.includes(source)
-        ? prev.filter((s) => s !== source)
-        : [...prev, source]
-    );
-
   if (requisition.posting) {
     const { sources, closingDate: closes, postedAt } = requisition.posting;
+    /**
+     * The link a candidate applies through.
+     *
+     * Shown to everyone who can see the requisition, not only to the
+     * recruitment side: the unit's Factory HR is who people ask about a
+     * vacancy in their factory, and they had no way to get at the link — it
+     * lived inside the candidate pipeline, which is closed to them.
+     */
+    const applyLink = `${window.location.origin}/apply/${requisition.id}`;
+    const copy = async () => {
+      await navigator.clipboard.writeText(applyLink);
+      toast.success('Job link copied — share it wherever you like');
+    };
+
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Job Posting · Step 4</CardTitle>
+          <CardTitle>Job Posting · Step 5</CardTitle>
         </CardHeader>
         <CardBody className="space-y-4">
           <div className="flex items-center gap-2 text-emerald-700">
@@ -76,45 +80,63 @@ export function PostingPanel({
             </span>
             .
           </p>
+
+          <div className="rounded-xl border border-brand-200/70 bg-gradient-to-br from-brand-50/70 to-emerald-50/50 p-3.5">
+            <p className="flex items-center gap-2 text-sm font-medium text-slate-800">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-brand-600 shadow-sm ring-1 ring-brand-100">
+                <Share2 className="h-3.5 w-3.5" />
+              </span>
+              Public job link
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              Anyone can open this and apply — send it to candidates, put it in
+              a group, print it on a notice.
+            </p>
+            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+              <code className="min-w-0 flex-1 truncate rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-xs text-slate-600">
+                {applyLink}
+              </code>
+              <Button
+                size="sm"
+                variant="outline"
+                leftIcon={<ClipboardCopy className="h-4 w-4" />}
+                onClick={copy}
+              >
+                Copy
+              </Button>
+              <a href={applyLink} target="_blank" rel="noreferrer">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  leftIcon={<ExternalLink className="h-4 w-4" />}
+                >
+                  Open
+                </Button>
+              </a>
+            </div>
+          </div>
         </CardBody>
       </Card>
     );
   }
 
-  const canPost = canContinue && selected.length > 0 && closingDate !== '';
+  const canPost = canContinue && closingDate !== '';
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Job Posting · Step 4</CardTitle>
+        <CardTitle>Job Posting · Step 5</CardTitle>
       </CardHeader>
       <CardBody className="space-y-5">
-        <div>
-          <p className="mb-2 text-sm font-medium text-slate-700">
-            Source of candidates
+        {/* There is no channel to choose any more: publishing puts the post
+            on the DBL career page, which is where applications come from. */}
+        <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+          <Globe className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
+          <p className="text-sm text-slate-600">
+            Publishes to the{' '}
+            <span className="font-medium text-slate-700">DBL career page</span>,
+            with a shareable application link for this requisition.
           </p>
-          <div className="flex flex-wrap gap-2">
-            {PREFERRED_SOURCES.map(({ value, label }) => {
-              const active = selected.includes(value);
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  disabled={!canContinue}
-                  onClick={() => toggle(value)}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60',
-                    active
-                      ? 'border-brand-500 bg-brand-50 text-brand-700'
-                      : 'border-slate-300 text-slate-600 hover:bg-slate-50'
-                  )}
-                >
-                  <Globe className="h-3.5 w-3.5" />
-                  {label}
-                </button>
-              );
-            })}
-          </div>
         </div>
 
         <Input
@@ -143,7 +165,7 @@ export function PostingPanel({
           leftIcon={<Send className="h-4 w-4" />}
           onClick={() => {
             onPosting?.();
-            post.mutate({ id: requisition.id, sources: selected, closingDate });
+            post.mutate({ id: requisition.id, closingDate });
           }}
         >
           Publish job posting

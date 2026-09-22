@@ -172,9 +172,18 @@ export async function printShortCandidateSummary(
     .map((w) => w[0]?.toUpperCase() ?? '')
     .join('');
 
-  const facilities = FACILITY_META.map(({ key, label }) =>
-    facilityRow(label, c.facilities ? c.facilities[key] : null),
-  ).join('');
+  // The pick-up point is the candidate's, not the post's — it is taken in
+  // the interview room — so it is folded onto the transport row here rather
+  // than being read off the requisition, which never had it.
+  const facilities = FACILITY_META.map(({ key, label }) => {
+    const f = c.facilities ? c.facilities[key] : null;
+    return facilityRow(
+      label,
+      f && key === 'transport' && c.transportPickup
+        ? { ...f, pickupLocation: f.pickupLocation ?? c.transportPickup }
+        : f,
+    );
+  }).join('');
 
   const benefits = (ob?.offerBenefits ?? []).filter(Boolean);
   const notes = (c.specialNotes ?? []).filter(Boolean);

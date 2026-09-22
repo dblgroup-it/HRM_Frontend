@@ -6,24 +6,36 @@ export interface RecruitmentPerms {
 
 /**
  * Recruitment (the candidate pipeline) is visible to Head of Talent Acquisition, CHRO and
- * super users — plus the Corporate Recruiter assigned to that requisition.
+ * super users — plus the Corporate Recruiter assigned to that requisition,
+ * and whoever is standing in for them while they are on leave.
  *
  * Pass `unitName` to scope the check to a requisition's unit; omit it to ask
  * "can this user see recruitment anywhere?" (for nav gating). Pass
  * `assignment` so an assigned recruiter can reach their own requisition even
  * though they hold neither global role.
+ *
+ * The cover matters as much as the recruiter: the API lets a stand-in act on
+ * everything the recruiter could (`PermissionsService.canRunRecruitment`), so
+ * a page that checks only `recruiterId` hands them a requisition they can
+ * open and no lifecycle to run on it. The server reports the cover only while
+ * it actually applies, so a date check here would be second-guessing it.
  */
 export function canAccessRecruitment(
   perms: RecruitmentPerms | undefined | null,
   unitName?: string,
-  assignment?: { recruiterId?: string | null; myUserId?: string | null },
+  assignment?: {
+    recruiterId?: string | null;
+    /** The stand-in, as the requisition reports them (null once lapsed). */
+    coverRecruiterId?: string | null;
+    myUserId?: string | null;
+  },
 ): boolean {
   if (!perms) return false;
   if (perms.isSuperUser) return true;
   if (
-    assignment?.recruiterId &&
-    assignment.myUserId &&
-    assignment.recruiterId === assignment.myUserId
+    assignment?.myUserId &&
+    (assignment.recruiterId === assignment.myUserId ||
+      assignment.coverRecruiterId === assignment.myUserId)
   ) {
     return true;
   }

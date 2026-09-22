@@ -25,6 +25,7 @@ import { formatDate } from '@shared/utils';
 
 import { useMyInterviews, useSubmitEvaluation } from '../hooks/useAssessment';
 import { CriteriaScoringSection } from '../components/CriteriaScoringSection';
+import { CandidateBriefCard } from '../components/CandidateBriefCard';
 import type { MyInterviewRound } from '../types/assessment.types';
 import { resolveApiFileUrl } from '@shared/api';
 
@@ -311,6 +312,10 @@ function InterviewCard({ round }: { round: MyInterviewRound }) {
           )
         ) : (
           <>
+            {/* Who you are marking, before what you think of them — the same
+                block the emailed form shows, so both paths read alike. */}
+            <CandidateBriefCard brief={round.candidate.brief} />
+
             <CriteriaScoringSection
               criteria={round.criteria}
               scores={scores}

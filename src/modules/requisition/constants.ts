@@ -97,7 +97,12 @@ export const VEHICLE_TYPES = [
   { value: 'suv', label: 'SUV' },
 ] as const;
 
+/**
+ * Nobody picks a source any more — a posted requisition goes to the DBL career
+ * page — so this is a display map for what older records already hold.
+ */
 export const PREFERRED_SOURCE_LABEL: Record<PreferredSource, string> = {
+  career_page: 'DBL career page',
   job_advertisement: 'Job advertisement',
   headhunting: 'Headhunting agencies',
   cv_bank: 'CV Bank',
@@ -124,6 +129,7 @@ export const STATUS_CONFIG: Record<
   { label: string; tone: BadgeTone }
 > = {
   draft: { label: 'Draft', tone: 'neutral' },
+  pending_job_analysis: { label: 'Job Analysis', tone: 'warning' },
   pending_approval: { label: 'Pending Approval', tone: 'warning' },
   approved: { label: 'Approved', tone: 'info' },
   rejected: { label: 'Rejected', tone: 'danger' },
@@ -141,6 +147,8 @@ export const APPROVAL_ROLE_META: Record<
     subtitle: 'Raises and signs the requisition',
   },
   factory_hr: {
+    // Only legacy chains carry this as a step. Factory HR's job now is the
+    // job analysis, before the chain starts — see JobAnalysisPanel.
     title: 'Factory HR',
     subtitle: 'Verifies vacancy & local details',
   },
@@ -177,12 +185,14 @@ export function buildApprovalRoles(
 /** Phase-1 high-level workflow steps used by the stepper. */
 export const WORKFLOW_STEPS = [
   { key: 'requisition', label: 'Requisition', step: 1 },
-  { key: 'approval', label: 'Approvals', step: 2 },
-  { key: 'profile', label: 'Role Profile', step: 3 },
-  { key: 'posting', label: 'Job Posting', step: 4 },
-  { key: 'candidates', label: 'Candidates', step: 5 },
-  { key: 'assessment', label: 'Assessment', step: 6 },
-  { key: 'onboarding', label: 'Onboarding', step: 7 },
+  // Factory HR writes the job description before anyone signs anything.
+  { key: 'job_analysis', label: 'Job Analysis', step: 2 },
+  { key: 'approval', label: 'Approvals', step: 3 },
+  { key: 'profile', label: 'Role Profile', step: 4 },
+  { key: 'posting', label: 'Job Posting', step: 5 },
+  { key: 'candidates', label: 'Candidates', step: 6 },
+  { key: 'assessment', label: 'Assessment', step: 7 },
+  { key: 'onboarding', label: 'Onboarding', step: 8 },
 ] as const;
 
 // --- Select option helpers ---------------------------------------------------
@@ -203,6 +213,4 @@ export const DEPARTMENT_OPTIONS: SelectOption[] = DEPARTMENTS.map((d) => ({
 }));
 export const PRIORITY_OPTIONS = toOptions(PRIORITY_LABEL);
 export const EMPLOYMENT_NATURE_OPTIONS = toOptions(EMPLOYMENT_NATURE_LABEL);
-export const PREFERRED_SOURCES = (
-  Object.keys(PREFERRED_SOURCE_LABEL) as PreferredSource[]
-).map((value) => ({ value, label: PREFERRED_SOURCE_LABEL[value] }));
+
