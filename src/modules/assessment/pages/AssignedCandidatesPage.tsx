@@ -444,15 +444,20 @@ export default function AssignedCandidatesPage() {
               below the thing that chooses the stage. Its own rounded card,
               so it reads as part of the bar above rather than as the first
               row of the results below. */}
-          <div className="mx-auto w-full max-w-xs">
-            <label className="group/find flex items-center gap-2 rounded-full border border-slate-200/80 bg-white px-3.5 py-2 shadow-sm transition-all duration-200 focus-within:border-brand-300 focus-within:shadow-md focus-within:ring-2 focus-within:ring-brand-500/10">
-              <Search className="h-3.5 w-3.5 shrink-0 text-slate-400 transition-colors group-focus-within/find:text-brand-500" />
+          <div className="mx-auto w-full max-w-sm">
+            <label className="group/find flex items-center gap-2.5 rounded-full border border-slate-200/80 bg-white px-4 py-2.5 shadow-sm transition-all duration-200 focus-within:border-brand-300 focus-within:shadow-md focus-within:ring-4 focus-within:ring-brand-500/10">
+              <Search className="h-4 w-4 shrink-0 text-slate-400 transition-colors group-focus-within/find:text-brand-500" />
               <input
                 type="search"
                 placeholder="Find a candidate…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="min-w-0 flex-1 bg-transparent text-xs text-slate-700 outline-none placeholder:text-slate-400"
+                /* The app draws a focus ring on everything focusable
+                   (`*:focus-visible` in index.css). On a bare input inside a
+                   pill that ring is a rectangle sitting inside the round
+                   border — so it is turned off here and the label carries
+                   the focus state instead, in the pill's own shape. */
+                className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-search-cancel-button]:appearance-none"
               />
             </label>
           </div>
@@ -543,17 +548,11 @@ export default function AssignedCandidatesPage() {
                                       })),
                                     })
                                   }
-                                  className="group/all relative inline-flex shrink-0 items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-brand-600 via-brand-500 to-emerald-500 px-3.5 py-2 text-xs font-semibold text-white shadow-md shadow-brand-600/20 transition-all duration-300 hover:-translate-y-0.5 hover:animate-gradient-pan hover:bg-[length:200%_100%] hover:shadow-lg hover:shadow-brand-600/30 active:translate-y-0 active:scale-[0.98]"
+                                  className="group/all inline-flex shrink-0 items-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold tracking-tight text-white shadow-sm shadow-brand-600/25 transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-md hover:shadow-brand-700/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-2 active:translate-y-0 active:scale-[0.98]"
                                   title={`One session for all ${group.rows.length} candidates on ${group.code}`}
                                 >
-                                  <span
-                                    aria-hidden
-                                    className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover/all:translate-x-full"
-                                  />
-                                  <CalendarDays className="relative h-4 w-4" />
-                                  <span className="relative">
-                                    Schedule all {group.rows.length}
-                                  </span>
+                                  <CalendarDays className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover/all:-translate-y-px" />
+                                  Schedule all {group.rows.length}
                                 </button>
                               )}
                           </div>
