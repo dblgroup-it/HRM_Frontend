@@ -141,6 +141,27 @@ export function JobAnalysisSection({
   /** This viewer's own place in the layering — "as second priority". */
   const myRank = owners.find((o) => o.id === myUserId)?.priority ?? null;
 
+  /**
+   * Who sees whose desk it is sitting on.
+   *
+   * The unit's HR layering — the named holder, their employee code, their
+   * place in the queue, who is on leave — is HR's own business. Only the
+   * people in that queue and the corporate side read it; the requisitioner
+   * and the approvers get the state on its own. Somebody in the queue is
+   * recognised by being in `owners`, so a holder waiting behind a colleague
+   * still sees where they stand.
+   */
+  const showsOwners =
+    !!perms?.isSuperUser ||
+    (!!myUserId && owners.some((o) => o.id === myUserId)) ||
+    (perms?.roles ?? []).some(
+      (r) =>
+        r.key === 'corporate_hr' ||
+        r.key === 'chro' ||
+        r.key === 'corporate_recruiter' ||
+        r.key === 'factory_hr',
+    );
+
   return (
     <div className="space-y-4">
       {completedBy && (
@@ -347,8 +368,47 @@ export function JobAnalysisSection({
         </div>
       )}
 
-      {/* 3a · Open, but someone else's. */}
-      {open && !returnedAt && !canWrite && (
+      {/* 3a · Open, but someone else's.
+          Who has it, and where they sit in the unit's HR layering, is HR's
+          own business: the requisitioner asked for a headcount and does not
+          need a named person, their employee code and their place in a
+          queue. They get the state and nothing else — with something moving,
+          so a page that is genuinely waiting looks like it is waiting rather
+          than like it has stalled. */}
+      {open && !returnedAt && !canWrite && !showsOwners && (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-slate-200 bg-gradient-to-b from-slate-50/80 to-white px-4 py-8 text-center">
+          <span className="relative flex h-12 w-12 items-center justify-center">
+            {/* Two rings leaving at different times — one pulse reads as a
+                notification badge, two read as something in progress. */}
+            <span className="absolute inset-0 animate-ping rounded-full bg-brand-200/50" />
+            <span
+              className="absolute inset-1 animate-ping rounded-full bg-brand-300/40"
+              style={{ animationDelay: '600ms' }}
+            />
+            <span className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white text-brand-600 shadow-sm ring-1 ring-brand-100">
+              <Clock className="h-5 w-5" />
+            </span>
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-slate-800">
+              Waiting for job analysis
+            </p>
+            <p className="mx-auto mt-1 max-w-xs text-xs leading-5 text-slate-500">
+              HR is writing the job description and specification. It goes to
+              its approvers as soon as that is done — you will be notified.
+            </p>
+          </div>
+          {/* A track that is always moving: the wait is real and open-ended,
+              so a progress bar would be a lie about how far along it is. */}
+          <span className="h-1 w-40 overflow-hidden rounded-full bg-slate-200">
+            <span className="block h-full w-1/3 animate-shimmer rounded-full bg-[linear-gradient(90deg,transparent,theme(colors.brand.500),transparent)] bg-[length:200%_100%]" />
+          </span>
+        </div>
+      )}
+
+      {/* The same wait, for the HR side — who holds it, and the queue behind
+          them, which is exactly what they need and nobody else does. */}
+      {open && !returnedAt && !canWrite && showsOwners && (
         <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
           <p className="flex items-center gap-2 text-sm font-medium text-slate-700">
             {ownership.isLoading ? (
