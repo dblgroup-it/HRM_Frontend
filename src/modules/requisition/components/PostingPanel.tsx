@@ -120,7 +120,19 @@ export function PostingPanel({
     );
   }
 
-  const canPost = canContinue && closingDate !== '';
+  /**
+   * Nobody is shown a form they cannot submit.
+   *
+   * Once a vacancy is posted this panel is worth reading to anyone — it
+   * carries the public application link, which is why Factory HR has the
+   * tab at all. Before that it is a closing-date field and a dead button,
+   * with a line explaining that somebody else will use them. That is not
+   * information; it is a control that says no. The panel simply is not
+   * there until there is something to see or something to do.
+   */
+  if (!canContinue) return null;
+
+  const canPost = closingDate !== '';
 
   return (
     <Card>
@@ -142,16 +154,9 @@ export function PostingPanel({
         <Input
           label="Application closing date"
           type="date"
-          disabled={!canContinue}
           value={closingDate}
           onChange={(e) => setClosingDate(e.target.value)}
         />
-
-        {!canContinue && (
-          <p className="text-sm text-slate-500">
-            Head of Talent Acquisition continues job posting after the role profile is ready.
-          </p>
-        )}
 
         {post.isError && (
           <p className="text-sm text-red-600">
