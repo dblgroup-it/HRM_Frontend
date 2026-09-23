@@ -141,31 +141,12 @@ export const boardApi = {
       .then((r) => r.data),
 
   /* Approval */
-  listChainApprovers: (
-    candidateId: string,
-  ): Promise<{
-    corporateHr: { id: string; name: string; employeeCode: string }[];
-    chro: { id: string; name: string; employeeCode: string }[];
-    startsAt: 'corporate_hr' | 'chro' | 'board';
-  }> =>
-    http
-      .get<ApiResponse<{
-        corporateHr: { id: string; name: string; employeeCode: string }[];
-        chro: { id: string; name: string; employeeCode: string }[];
-        startsAt: 'corporate_hr' | 'chro' | 'board';
-      }>>(`/candidates/${candidateId}/board-approval/approvers`)
-      .then((r) => r.data),
-
-  sendForApproval: (
-    candidateId: string,
-    memberIds: string[],
-    corporateHrId?: string,
-    chroId?: string,
-  ): Promise<BoardApproval> =>
+  /** Hand the candidate to Head of Talent Acquisition — nobody is chosen here. */
+  sendForApproval: (candidateId: string): Promise<BoardApproval> =>
     http
       .post<ApiResponse<BoardApproval>>(
         `/candidates/${candidateId}/board-approval`,
-        { memberIds, corporateHrId, chroId },
+        {},
       )
       .then((r) => r.data),
 

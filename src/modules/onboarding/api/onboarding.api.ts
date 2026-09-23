@@ -19,6 +19,9 @@ import type {
   CmoDecision,
   MedicalAgeBand,
   MedicalLetterDraft,
+  MedicalRequestRow,
+  MedicalRequestSendItem,
+  MedicalRequestSendResult,
   SendMedicalLetterResult,
 } from '../types/onboarding.types';
 
@@ -52,6 +55,34 @@ export const onboardingApi = {
         `/onboarding/${onboardingId}/medical-letter`,
         body,
       )
+      .then((r) => r.data),
+
+  /** The recruiter asks for a medical test — nothing is emailed yet. */
+  requestMedicalTest: (
+    onboardingId: string,
+    body: { band: MedicalAgeBand; salutation?: string; refNo?: string },
+  ): Promise<MedicalLetterDraft> =>
+    http
+      .post<ApiResponse<MedicalLetterDraft>>(
+        `/onboarding/${onboardingId}/medical-request`,
+        body,
+      )
+      .then((r) => r.data),
+
+  /** Head of Talent Acquisition's inbox of tests to schedule. */
+  medicalRequests: (): Promise<MedicalRequestRow[]> =>
+    http
+      .get<ApiResponse<MedicalRequestRow[]>>('/medical-requests')
+      .then((r) => r.data),
+
+  /** Send the chosen requests — one email per candidate. */
+  sendMedicalRequests: (body: {
+    items: MedicalRequestSendItem[];
+    notifyMedicalTeam: boolean;
+    notifyCandidate: boolean;
+  }): Promise<MedicalRequestSendResult> =>
+    http
+      .post<ApiResponse<MedicalRequestSendResult>>('/medical-requests/send', body)
       .then((r) => r.data),
 
   /** Everything waiting on the Central Medical Officer, oldest first. */

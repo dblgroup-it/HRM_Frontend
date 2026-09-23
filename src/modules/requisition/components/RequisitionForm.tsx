@@ -36,6 +36,7 @@ import {
 } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import type { SelectOption } from '@shared/types';
+import { wholeNumberInput } from '@shared/utils';
 import {
   useSeatLookup,
   useOrganogramUnits,
@@ -882,14 +883,14 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                   <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <Input
                       label="Nos. of required post"
-                      type="number"
+                      {...wholeNumberInput}
                       min={1}
                       error={errors.requiredPosts?.message}
                       {...register('requiredPosts')}
                     />
                     <Input
                       label="Total no. of vacant post"
-                      type="number"
+                      {...wholeNumberInput}
                       readOnly
                       hint="Auto-filled from the organogram (sanctioned − filled)"
                       className="bg-slate-50 text-slate-600"

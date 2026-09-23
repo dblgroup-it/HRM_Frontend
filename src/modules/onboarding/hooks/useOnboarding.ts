@@ -327,6 +327,15 @@ export function useMedicalLetterDraft(onboardingId: string, enabled = true) {
   });
 }
 
+/** Head of Talent Acquisition's medical inbox. */
+export function useMedicalRequests(enabled = true) {
+  return useQuery({
+    queryKey: ['medical-requests'],
+    queryFn: () => onboardingApi.medicalRequests(),
+    enabled,
+  });
+}
+
 export function useMedicalApprovalQueue(enabled = true) {
   return useQuery({
     queryKey: ['medical-approvals'],

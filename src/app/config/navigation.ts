@@ -16,6 +16,7 @@ import {
   Sparkles,
   Star,
   Stethoscope,
+  HeartPulse,
   UserCheck,
   UserSearch,
   Users,
@@ -60,6 +61,8 @@ export interface NavItem {
   requiresApprovalPaths?: boolean;
   /** Gate to the platform administrator or a super user. */
   requiresAccessControl?: boolean;
+  /** Head of Talent Acquisition (corporate_hr) or a super user. */
+  requiresTalentHead?: boolean;
   /** Optional short tag, e.g. phase marker. */
   badge?: string;
   /** Opens in a new browser tab instead of navigating inside the app. */
@@ -117,6 +120,12 @@ export const NAVIGATION: NavSection[] = [
         to: ROUTES.approvalSheets,
         icon: FileSpreadsheet,
         requiresRecruitment: true,
+      },
+      {
+        label: 'Medical Requests',
+        to: ROUTES.medicalRequests,
+        icon: HeartPulse,
+        requiresTalentHead: true,
       },
     ],
   },

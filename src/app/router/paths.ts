@@ -54,6 +54,8 @@ export const ROUTES = {
   boardVote: (token = ':token') => `/board-vote/${token}`,
   /** Head of Talent Acquisition's consolidated board-approval page. */
   approvalSheets: '/approval-sheets',
+  /** Head of Talent Acquisition schedules and sends requested medical tests. */
+  medicalRequests: '/medical-requests',
   /** Public Hiring Approval Sheet (no auth) — CHRO and board members. */
   boardSheet: (token = ':token') => `/board-sheet/${token}`,
   /** Public — Admin/IT recipient's facility-provisioning confirmation link. */

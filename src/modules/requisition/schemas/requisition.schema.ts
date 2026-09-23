@@ -47,12 +47,12 @@ export const requisitionSchema = z
     requirementType: z.enum(['existing', 'new']),
     requiredPosts: z.coerce
       .number({ message: 'Enter a number' })
-      .int()
+      .int('Whole numbers only — no decimals')
       .min(1, 'At least 1'),
     // Auto-filled from the organogram; 0 for a brand-new (unsanctioned) role.
     totalVacantPosts: z.coerce
       .number({ message: 'Enter a number' })
-      .int()
+      .int('Whole numbers only — no decimals')
       .min(0, 'Cannot be negative'),
     unitFactory: z.string().min(1, 'Select a unit / factory'),
     lineOfBusiness: z.string().min(1, 'Select a line of business'),

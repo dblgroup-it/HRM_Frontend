@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { Button, Input, Modal, Select, Textarea } from '@shared/components/ui';
+import { wholeNumberInput } from '@shared/utils';
 import { JOB_GRADES } from '@modules/salaryFixation';
 import { useMasterData } from '@modules/master-data';
 
@@ -85,8 +86,8 @@ export function EditRequisitionModal({
         id: requisition.id,
         input: {
           grade,
-          requiredPosts: Number(requiredPosts) || 1,
-          totalVacantPosts: Number(totalVacantPosts) || 1,
+          requiredPosts: Math.max(1, Math.trunc(Number(requiredPosts)) || 1),
+          totalVacantPosts: Math.max(0, Math.trunc(Number(totalVacantPosts)) || 0),
           placeOfPosting,
           neededDate: neededDate || undefined,
           priority,
@@ -134,15 +135,14 @@ export function EditRequisitionModal({
         <div className="grid grid-cols-2 gap-4">
           <Input
             label="Nos. of required post"
-            type="number"
+            {...wholeNumberInput}
             min={1}
             value={requiredPosts}
             onChange={(e) => setRequiredPosts(e.target.value)}
           />
           <Input
             label="Total vacant post"
-            type="number"
-            min={1}
+            {...wholeNumberInput}
             value={totalVacantPosts}
             onChange={(e) => setTotalVacantPosts(e.target.value)}
           />

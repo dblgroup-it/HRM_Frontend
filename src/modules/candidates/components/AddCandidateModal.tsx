@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
 import { Paperclip, X } from 'lucide-react';
 
-import { Button, Input, Modal, Textarea } from '@shared/components/ui';
+import { Button, Input, Modal, PhoneInput, Textarea } from '@shared/components/ui';
+import { isValidBdMobile, toBdMobile } from '@shared/utils';
 
 import { useCreateCandidate } from '../hooks/useCandidates';
 
@@ -38,14 +39,21 @@ export function AddCandidateModal({
     onClose();
   };
 
+  // Optional, but if started it has to be a whole number.
+  const phoneError =
+    phone && !isValidBdMobile(phone)
+      ? 'Enter the 10 digits after +880, starting with 1 (e.g. 1712345678)'
+      : undefined;
+  const canSubmit = name.trim().length >= 2 && !phoneError;
+
   const submit = () => {
-    if (name.trim().length < 2) return;
+    if (!canSubmit) return;
     create.mutate(
       {
         input: {
           name: name.trim(),
           email: email.trim() || undefined,
-          phone: phone.trim() || undefined,
+          phone: toBdMobile(phone) || undefined,
           notes: notes.trim() || undefined,
         },
         cv: cv ?? undefined,
@@ -67,7 +75,7 @@ export function AddCandidateModal({
           <Button
             onClick={submit}
             isLoading={create.isPending}
-            disabled={name.trim().length < 2}
+            disabled={!canSubmit}
           >
             Add candidate
           </Button>
@@ -89,11 +97,11 @@ export function AddCandidateModal({
             onChange={(e) => setEmail(e.target.value)}
             placeholder="name@example.com"
           />
-          <Input
-            label="Phone"
+          <PhoneInput
+            label="Mobile"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="01XXXXXXXXX"
+            onChange={setPhone}
+            error={phoneError}
           />
         </div>
         <Textarea

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { X, Sparkles, BrainCircuit } from 'lucide-react';
 import type { MatchCriterion } from '../types/candidate.types';
+import { Portal } from '@shared/components/ui';
 
 interface Props {
   open: boolean;
@@ -40,6 +41,7 @@ export function MatchDetailsModal({ open, onClose, candidateName, matchScore, ma
   const offset = C * (1 - matchScore / 100);
 
   return (
+    <Portal>
     <div
       className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4"
       role="dialog"
@@ -197,5 +199,6 @@ export function MatchDetailsModal({ open, onClose, candidateName, matchScore, ma
         </div>
       </div>
     </div>
+    </Portal>
   );
 }

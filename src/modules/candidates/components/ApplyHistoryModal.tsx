@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Briefcase, Calendar, CheckCircle2, Clock, X } from 'lucide-react';
 
-import { Avatar } from '@shared/components/ui';
+import { Avatar, Portal } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
 
@@ -42,6 +42,7 @@ export function ApplyHistoryModal({
   });
 
   return (
+    <Portal>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
@@ -174,5 +175,6 @@ export function ApplyHistoryModal({
         </div>
       </div>
     </div>
+    </Portal>
   );
 }

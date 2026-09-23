@@ -514,7 +514,7 @@ export function CandidateRow({
         </Suspense>
       )}
 
-      {flagModalOpen && (
+      {flagModalOpen && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
           onClick={() => setFlagModalOpen(false)}
@@ -583,7 +583,8 @@ export function CandidateRow({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <MatchPopover

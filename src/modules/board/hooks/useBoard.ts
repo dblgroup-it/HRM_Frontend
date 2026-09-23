@@ -89,33 +89,15 @@ export function useHrBoardApprove(candidateId: string) {
 }
 
 /** Who the first link of the chain may be addressed to. */
-export function useChainApprovers(candidateId: string, enabled = true) {
-  return useQuery({
-    queryKey: [...boardKeys.approval(candidateId), 'approvers'],
-    queryFn: () => boardApi.listChainApprovers(candidateId),
-    enabled,
-  });
-}
-
 export function useSendBoardApproval(candidateId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (vars: {
-      memberIds: string[];
-      corporateHrId?: string;
-      chroId?: string;
-    }) =>
-      boardApi.sendForApproval(
-        candidateId,
-        vars.memberIds,
-        vars.corporateHrId,
-        vars.chroId,
-      ),
+    mutationFn: () => boardApi.sendForApproval(candidateId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: boardKeys.approval(candidateId) });
-      toast.success('Board approval requests sent');
+      toast.success('Sent to Head of Talent Acquisition for board approval');
     },
-    onError: (e) => toast.error(errMsg(e, 'Could not send board approval')),
+    onError: (e) => toast.error(errMsg(e, 'Could not send for board approval')),
   });
 }
 

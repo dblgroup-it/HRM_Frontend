@@ -123,6 +123,13 @@ export interface CandidateBrief {
     duration: string | null;
     current: boolean;
   }[];
+  /** The same posts grouped by company, with years at each (sheet format). */
+  companies?: {
+    company: string;
+    /** "7.1 Yrs." across every post there. */
+    total: string | null;
+    roles: CandidateBrief['employment'];
+  }[];
   /** "22 years", the way the shortlisting sheet prints it. */
   totalService: string | null;
   /** True when nothing below the name could be filled in. */

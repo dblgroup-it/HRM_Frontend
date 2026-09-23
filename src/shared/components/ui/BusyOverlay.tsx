@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { AlertTriangle, Sparkles } from 'lucide-react';
 
+import { Portal } from './Portal';
 import { Spinner } from './Spinner';
 
 const SLIDE_MS = 180;
@@ -96,6 +97,7 @@ export function BusyOverlay({
 }) {
   if (!show) return null;
   return (
+    <Portal>
     <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-white/80 backdrop-blur-sm">
       {variant === 'ai' ? (
         <div className="relative flex h-20 w-20 items-center justify-center">
@@ -136,5 +138,6 @@ export function BusyOverlay({
         </button>
       )}
     </div>
+    </Portal>
   );
 }

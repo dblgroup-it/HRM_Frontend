@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   BadgeCheck,
   BellRing,
+  CalendarClock,
   Check,
   CheckCircle2,
   ClipboardPen,
@@ -46,13 +47,18 @@ import { ROUTES } from '@app/router/paths';
 import { useUpdateCandidate } from '@modules/candidates';
 import { useSetCandidatePackage } from '@modules/assessment';
 import {
-  SendApprovalModal,
+  boardStageState,
+  isOnSheet,
   useBoardApprovalStatus,
   useHrBoardApprove,
+  useSendBoardApproval,
 } from '@modules/board';
 import { useMyPermissions } from '@modules/rbac';
 import { useAuthStore } from '@modules/auth';
-import { canAccessRecruitment } from '@modules/candidates';
+import {
+  canAccessRecruitment,
+  isTalentAcquisitionHead,
+} from '@modules/candidates';
 import { EmployeePicker, FacilitiesPanel } from '@modules/requisition';
 import type { PickedEmployee } from '@modules/requisition';
 import { OfferLetterModal } from '../components/OfferLetterModal';
@@ -102,6 +108,7 @@ import type {
 } from '../types/onboarding.types';
 import { printMedicalReport } from '../utils/printMedicalReport';
 import { MedicalLetterModal } from '../components/MedicalLetterModal';
+import { MedicalRequestModal } from '../components/MedicalRequestModal';
 import { printOnboardingSummary } from '../utils/printSummary';
 import { printShortCandidateSummary } from '../utils/printShortSummary';
 import { resolveApiFileUrl } from '@shared/api';
@@ -748,9 +755,18 @@ function Flow({
   // ── Board Approval (moved in here from the sidebar — now step 4) ──
   const { data: boardApproval } = useBoardApprovalStatus(candidateId, true);
   const hrApprove = useHrBoardApprove(candidateId);
-  const [showBoardModal, setShowBoardModal] = useState(false);
+  // No picker: Head of Talent Acquisition chooses the CHRO and the board on
+  // the Hiring Approval Sheet, so the recruiter only hands the candidate over.
+  const sendBoard = useSendBoardApproval(candidateId);
+  const boardOnSheet = isOnSheet(boardApproval);
   /** The medical test letter dialog — HR raises it from the Medical step. */
   const [medicalLetterOpen, setMedicalLetterOpen] = useState(false);
+  /** The recruiter's request — HoTA schedules and sends. */
+  const [medicalRequestOpen, setMedicalRequestOpen] = useState(false);
+  // Only Head of Talent Acquisition sends the letter itself; the recruiter
+  // asks for it and the request waits in HoTA's Medical Requests inbox.
+  const { data: flowPerms } = useMyPermissions();
+  const isTalentHead = isTalentAcquisitionHead(flowPerms);
   const [showHrForm, setShowHrForm] = useState(false);
   const [hrNote, setHrNote] = useState('');
   const [hrFile, setHrFile] = useState<File | null>(null);
@@ -1146,9 +1162,11 @@ function Flow({
           <div
             className={cn(
               'mt-4 rounded-xl border px-4 py-3.5',
-              ob.medicalLetterSentAt
-                ? 'border-slate-200 bg-white'
-                : 'border-amber-300 bg-amber-50',
+              ob.medicalRequestPending
+                ? 'border-sky-200 bg-sky-50/70'
+                : ob.medicalLetterSentAt
+                  ? 'border-slate-200 bg-white'
+                  : 'border-amber-300 bg-amber-50',
             )}
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1156,7 +1174,14 @@ function Flow({
                 <p className="text-sm font-semibold text-slate-800">
                   Pre-employment medical test letter
                 </p>
-                {ob.medicalLetterSentAt ? (
+                {ob.medicalRequestPending ? (
+                  <p className="mt-0.5 text-xs font-medium text-sky-800">
+                    Requested
+                    {ob.medicalRequestedAt ? ` ${fmt(ob.medicalRequestedAt)}` : ''}.
+                    Waiting on Head of Talent Acquisition to set the date and
+                    venue and send it.
+                  </p>
+                ) : ob.medicalLetterSentAt ? (
                   <p className="mt-0.5 text-xs text-slate-500">
                     {ob.medicalRefNo ? `${ob.medicalRefNo} · ` : ''}
                     {ob.medicalExamAt
@@ -1165,8 +1190,8 @@ function Flow({
                   </p>
                 ) : (
                   <p className="mt-0.5 text-xs font-medium text-amber-800">
-                    Not sent yet — the candidate has no appointment and the
-                    medical team is not expecting them.
+                    Not requested yet. The candidate has no appointment and
+                    the medical team is not expecting them.
                   </p>
                 )}
 
@@ -1184,17 +1209,45 @@ function Flow({
                 </div>
               </div>
 
-              <Button
-                size="sm"
-                variant={ob.medicalLetterSentAt ? 'outline' : 'primary'}
-                className="shrink-0"
-                leftIcon={<Send className="h-3.5 w-3.5" />}
-                onClick={() => setMedicalLetterOpen(true)}
-              >
-                {ob.medicalLetterSentAt ? 'Re-send' : 'Send letter'}
-              </Button>
+              <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                <Button
+                  size="sm"
+                  variant={
+                    ob.medicalLetterSentAt || ob.medicalRequestPending
+                      ? 'outline'
+                      : 'primary'
+                  }
+                  leftIcon={<Send className="h-3.5 w-3.5" />}
+                  onClick={() => setMedicalRequestOpen(true)}
+                >
+                  {ob.medicalRequestPending
+                    ? 'Edit request'
+                    : ob.medicalLetterSentAt
+                      ? 'Request again'
+                      : 'Request medical test'}
+                </Button>
+                {/* HoTA may still send one from here; everybody else asks. */}
+                {isTalentHead && (
+                  <Button
+                    size="sm"
+                    variant={ob.medicalRequestPending ? 'primary' : 'outline'}
+                    leftIcon={<CalendarClock className="h-3.5 w-3.5" />}
+                    onClick={() => setMedicalLetterOpen(true)}
+                  >
+                    Schedule &amp; send
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
+
+          {medicalRequestOpen && (
+            <MedicalRequestModal
+              onboardingId={ob.id}
+              open={medicalRequestOpen}
+              onClose={() => setMedicalRequestOpen(false)}
+            />
+          )}
 
           {medicalLetterOpen && (
             <MedicalLetterModal
@@ -1277,13 +1330,6 @@ function Flow({
                     </p>
                   </div>
                 )}
-                <button
-                  type="button"
-                  onClick={() => setShowBoardModal(true)}
-                  className="flex items-center gap-1.5 rounded-lg px-1 py-1 text-[0.6875rem] font-medium text-slate-400 hover:text-slate-600"
-                >
-                  <Send className="h-3 w-3" /> Resend to members
-                </button>
               </div>
             ) : showHrForm ? (
               <div className="mx-auto max-w-md space-y-2 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
@@ -1343,13 +1389,7 @@ function Flow({
                         const votes = boardApproval.votes.filter(
                           (v) => v.stage === stage,
                         );
-                        const state = votes.some((v) => v.status === 'rejected')
-                          ? 'rejected'
-                          : votes.some((v) => v.status === 'approved')
-                            ? 'approved'
-                            : votes.length
-                              ? 'waiting'
-                              : 'upcoming';
+                        const state = boardStageState(boardApproval, stage);
                         const who =
                           stage === 'corporate_hr'
                             ? (boardApproval.corporateHr?.name ?? 'Head of Talent Acquisition')
@@ -1413,15 +1453,32 @@ function Flow({
                     Board approval is required before final verification.
                   </p>
                 )}
+                {boardOnSheet && (
+                  <p className="rounded-lg border border-sky-100 bg-sky-50 px-2.5 py-1.5 text-left text-[0.6875rem] leading-4 text-sky-700">
+                    On a Hiring Approval Sheet with the{' '}
+                    {boardApproval?.currentStage === 'chro' ? 'CHRO' : 'board'} — Head of
+                    Talent Acquisition follows it up from here.
+                  </p>
+                )}
                 <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowBoardModal(true)}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2 text-[0.75rem] font-semibold text-slate-700 hover:bg-slate-50"
-                  >
-                    <Send className="h-3.5 w-3.5 text-brand-500" />
-                    {boardApproval ? 'Resend' : 'Send to Board'}
-                  </button>
+                  {!boardOnSheet && (
+                    <button
+                      type="button"
+                      onClick={() => sendBoard.mutate()}
+                      disabled={sendBoard.isPending}
+                      title="Goes to Head of Talent Acquisition, who puts it on a Hiring Approval Sheet and chooses the CHRO and board"
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2 text-[0.75rem] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                    >
+                      <Send className="h-3.5 w-3.5 text-brand-500" />
+                      {sendBoard.isPending
+                        ? 'Sending…'
+                        : !boardApproval
+                          ? 'Send for Board Approval'
+                          : boardApproval.status === 'rejected'
+                            ? 'Send again'
+                            : 'Remind HoTA'}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setShowHrForm(true)}
@@ -1932,12 +1989,6 @@ function Flow({
         open={appointmentOpen}
         onClose={() => setAppointmentOpen(false)}
       />
-      {showBoardModal && (
-        <SendApprovalModal
-          candidateId={candidateId}
-          onClose={() => setShowBoardModal(false)}
-        />
-      )}
 
       {/* HR verify — summary + confirmation before the final, hard-to-undo sign-off
           (it also auto-rejects every other applicant still in this requisition's pipeline). */}

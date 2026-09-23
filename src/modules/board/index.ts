@@ -1,4 +1,5 @@
-export { BoardApprovalPanel, SendApprovalModal } from './components/BoardApprovalPanel';
+export { BoardApprovalPanel } from './components/BoardApprovalPanel';
+export { boardStageState, isOnSheet, BOARD_STAGE_ORDER } from './utils/stageState';
 export { default as BoardGroupsPage } from './pages/BoardGroupsPage';
 export { default as BoardVotePage } from './pages/BoardVotePage';
 export { default as BoardSheetPage } from './pages/BoardSheetPage';

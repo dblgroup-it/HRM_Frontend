@@ -8,6 +8,7 @@ import { useAuth } from '@modules/auth';
 import { useMyPermissions } from '@modules/rbac';
 import {
   canAccessRecruitment,
+  isTalentAcquisitionHead,
   canViewCandidatePipeline,
 } from '@modules/candidates';
 import { canAccessMedical,
@@ -53,6 +54,7 @@ export function Sidebar({
   const canSeeUnitConfig = canAccessUnitConfig(perms);
   const canSeeAiSettings = canAccessAiSettings(perms);
   const canSeeApprovalPaths = canConfigureApprovalPaths(perms);
+  const isTalentHead = isTalentAcquisitionHead(perms);
   // "Assigned Candidates" isn't a permission — it's whether anyone has actually
   // handed this person candidates to interview, so it comes from the data.
   const { data: delegated } = useMyDelegatedCandidates();
@@ -149,7 +151,8 @@ export function Sidebar({
                 (!item.requiresUnitConfig || canSeeUnitConfig) &&
                 (!item.requiresAiSettings || canSeeAiSettings) &&
                 (!item.requiresApprovalPaths || canSeeApprovalPaths) &&
-                (!item.requiresAccessControl || canSeeAccessControl)
+                (!item.requiresAccessControl || canSeeAccessControl) &&
+                (!item.requiresTalentHead || isTalentHead)
             );
             if (items.length === 0) return null;
 

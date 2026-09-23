@@ -19,6 +19,7 @@ export {
   canAccessRecruitment,
   canViewCandidatePipeline,
   isCorporateRecruiter,
+  isTalentAcquisitionHead,
 } from './access';
 export type { RecruitmentPerms } from './access';
 export type {

@@ -2,52 +2,24 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   AlertTriangle,
-  Award,
-  Briefcase,
-  CalendarClock,
   CheckCircle2,
-  Clock,
-  ExternalLink,
-  FileText,
-  GraduationCap,
-  Mail,
-  MapPin,
   MessageSquare,
-  Phone,
   Send,
-  Video,
 } from 'lucide-react';
 
 import { cn } from '@shared/lib';
 import { Spinner } from '@shared/components/ui';
 
 import { usePublicEval, useSubmitPublicEval } from '../hooks/useAssessment';
-import type {
-  PublicEvalData,
-  RecommendationKey,
-} from '../types/assessment.types';
+import type { RecommendationKey } from '../types/assessment.types';
 import { CriteriaScoringSection } from '../components/CriteriaScoringSection';
+import { CandidateRail } from '../components/CandidateRail';
 import { RecommendationPicker } from '../components/RecommendationPicker';
 import { recommendationLabel, recommendationTone } from '../components/recommendation';
-import { resolveApiFileUrl } from '@shared/api';
 
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
-
-function cap(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-function fmtDate(iso: string | null) {
-  if (!iso) return 'Time TBD';
-  return new Date(iso).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
-}
-
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/);
-  return (parts.length >= 2 ? parts[0][0] + parts[parts.length - 1][0] : parts[0].slice(0, 2)).toUpperCase();
-}
 
 function pctColors(pct: number) {
   if (pct >= 70) return { bar: 'bg-emerald-500', border: 'border-l-emerald-400', text: 'text-emerald-600', fill: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700' };
@@ -219,8 +191,19 @@ export default function EvaluateByTokenPage() {
         third of the viewport, so the band scrolls away with the page and the
         action bar at the foot keeps the score and the submit within reach.
       */}
-      <div className="pb-32 lg:grid lg:grid-cols-[21rem_minmax(0,1fr)] lg:items-start lg:gap-5">
-        <CandidateBand data={data} />
+      <div className="pb-32 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start lg:gap-5">
+        <CandidateRail
+          name={data.candidate.name}
+          designation={data.interview.designation}
+          unit={data.interview.unit}
+          kind={data.interview.kind}
+          mode={data.interview.mode}
+          scheduledAt={data.interview.scheduledAt}
+          location={data.interview.location}
+          markerName={data.panelistName}
+          cvUrl={data.candidate.cvUrl}
+          brief={data.candidate.brief}
+        />
 
         <div className="mt-4 space-y-4 lg:mt-0">
           <CriteriaScoringSection
@@ -310,335 +293,6 @@ export default function EvaluateByTokenPage() {
 // ---------------------------------------------------------------------------
 // sub-components
 // ---------------------------------------------------------------------------
-
-/** Soft tints for the summary panels — light, distinguishable, not loud. */
-const PANEL_TONES = {
-  sky: 'border-sky-100 bg-sky-50/60',
-  violet: 'border-violet-100 bg-violet-50/60',
-  amber: 'border-amber-100 bg-amber-50/60',
-} as const;
-
-const ICON_TONES = {
-  sky: 'bg-sky-100 text-sky-600',
-  violet: 'bg-violet-100 text-violet-600',
-  amber: 'bg-amber-100 text-amber-600',
-} as const;
-
-/** Each entry sits on its own card so two degrees never read as one. */
-const ENTRY_TONES = {
-  sky: 'border-sky-200/70 bg-white',
-  violet: 'border-violet-200/70 bg-white',
-  amber: 'border-amber-200/70 bg-white',
-} as const;
-
-const FIGURE_TONES = {
-  sky: 'bg-sky-50 text-sky-900 ring-sky-100',
-  violet: 'bg-violet-50 text-violet-900 ring-violet-100',
-  emerald: 'bg-emerald-50 text-emerald-900 ring-emerald-100',
-} as const;
-
-/**
- * Who you are marking, kept on screen while you mark them.
- *
- * Pinned under the page header from `lg` up so the ten criteria scroll
- * beneath it. Everything is on show — age, service, current post, every
- * degree, every job — because a marker scoring "Education" or "Experience" is
- * scoring exactly this, and a summary you have to unfold first is one nobody
- * unfolds. It was briefly a disclosure to keep the pinned band shallow; with
- * the criteria laid out two-up the page has the room, so the band simply
- * shows its contents and caps its own height instead.
- *
- * The colour is doing work rather than decorating: each kind of fact keeps
- * one hue wherever it appears, so the eye can jump to the education block
- * without reading the headings.
- */
-function CandidateBand({ data }: { data: PublicEvalData }) {
-  const brief = data.candidate.brief;
-  const current = brief?.employment?.find((e) => e.current) ?? brief?.employment?.[0];
-  const degrees = brief?.education?.filter((e) => e.kind !== 'certification') ?? [];
-  const certs = brief?.education?.filter((e) => e.kind === 'certification') ?? [];
-  const jobs = brief?.employment ?? [];
-  const hasBrief = Boolean(brief && !brief.empty);
-
-  return (
-    <div className="lg:sticky lg:top-[4.25rem] lg:z-20">
-      {/* Outlined rather than accented. The card carried a coloured strip
-          along its top edge; a narrow border all the way round reads as one
-          object instead of a card wearing a hat, and it is the same treatment
-          every other card on the page now gets. Slate-300, not a true black —
-          ten outlined cards down a page at slate-700 read as a table grid. */}
-      <div className="animate-card-in overflow-hidden rounded-2xl border border-slate-300 bg-white lg:shadow-sm lg:shadow-slate-900/5">
-        {/* The rail scrolls inside itself rather than growing. A real CV — four
-            posts, three degrees — made the full-width band 700px tall on an
-            850px laptop, so the marking sheet got a criterion and a half and
-            the contact line was clipped mid-word. Height is the scarce
-            dimension on a laptop; width is not, which is why the candidate
-            moved back beside the sheet instead of on top of it. */}
-        <div className="lg:max-h-[calc(100vh-13rem)] lg:overflow-y-auto">
-          {/* ── Identity ─────────────────────────────────────────────── */}
-          <div className="flex flex-wrap items-start gap-x-5 gap-y-3 bg-gradient-to-br from-brand-50/70 via-sky-50/30 to-white px-4 py-3.5 sm:px-5">
-            <div className="flex w-full min-w-0 items-start gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-sm font-bold text-white shadow-sm shadow-brand-600/25">
-                {initials(data.candidate.name)}
-              </span>
-              <div className="min-w-0">
-                {/* Wrapping, not truncating. "Kamrul Hasan Cho…" over a
-                    "Deputy Manager — Huma…" is not a name and a job, it is a
-                    layout apologising for its own width. */}
-                <h1 className="text-base font-bold leading-snug text-slate-900 sm:text-lg">
-                  {data.candidate.name}
-                </h1>
-                <p className="text-sm leading-snug text-slate-600">
-                  {data.interview.designation}
-                  {data.interview.unit && (
-                    <span className="text-slate-400"> · {data.interview.unit}</span>
-                  )}
-                </p>
-                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-                  <span className="inline-flex items-center rounded-full bg-brand-100/70 px-2 py-0.5 font-semibold text-brand-700">
-                    {cap(data.interview.kind)} interview
-                  </span>
-                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                    <CalendarClock className="h-3.5 w-3.5 shrink-0 text-brand-400" />
-                    {fmtDate(data.interview.scheduledAt)}
-                  </span>
-                  {data.interview.mode === 'online' ? (
-                    <span className="inline-flex items-center gap-1 whitespace-nowrap text-emerald-700">
-                      <Video className="h-3.5 w-3.5 shrink-0" /> Online
-                    </span>
-                  ) : data.interview.location ? (
-                    <span className="inline-flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5 shrink-0 text-rose-400" />
-                      {data.interview.location}
-                    </span>
-                  ) : null}
-                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                    <Clock className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                    Marking as{' '}
-                    <span className="font-semibold text-slate-700">{data.panelistName}</span>
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* The figures a marker reaches for, and the CV. Two-up on a
-                phone, four across a tablet, inline on a laptop. */}
-            {/* One per row in the rail: at 21rem a two-column split rendered
-                "2 years 8 mont…" and "Transaction Service …". */}
-            <div className="grid w-full grid-cols-2 items-stretch gap-2 sm:grid-cols-4 lg:grid-cols-1">
-              {brief?.age != null && <Figure tone="sky" label="Age" value={`${brief.age} yrs`} />}
-              {brief?.totalService && (
-                <Figure tone="violet" label="Service" value={brief.totalService} />
-              )}
-              {current && (
-                <Figure
-                  tone="emerald"
-                  className="col-span-2 lg:col-span-1"
-                  label="Currently"
-                  value={current.company}
-                  sub={current.designation ?? undefined}
-                />
-              )}
-              {data.candidate.cvUrl && (
-                <a
-                  href={resolveApiFileUrl(data.candidate.cvUrl)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm shadow-brand-600/25 transition-all hover:bg-brand-700 hover:shadow-md active:scale-[0.98] sm:py-2 lg:col-span-1"
-                >
-                  <FileText className="h-4 w-4 shrink-0" />
-                  Full CV
-                  <ExternalLink className="h-3.5 w-3.5 shrink-0 text-white/80" />
-                </a>
-              )}
-            </div>
-          </div>
-
-          {/* ── The CV, on show ──────────────────────────────────────── */}
-          {hasBrief && (
-            <div className="grid gap-3 border-t border-slate-100 px-4 py-3.5 sm:px-5 md:grid-cols-2 lg:grid-cols-1">
-              {degrees.length > 0 && (
-                <Panel tone="sky" icon={GraduationCap} title="Education" count={degrees.length}>
-                  {degrees.map((e, i) => (
-                    <Line
-                      key={i}
-                      tone="sky"
-                      head={e.degree}
-                      tail={[e.institute, e.year ? String(e.year) : null, e.result]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    />
-                  ))}
-                </Panel>
-              )}
-
-              {certs.length > 0 && (
-                <Panel tone="violet" icon={Award} title="Certifications" count={certs.length}>
-                  {certs.map((e, i) => (
-                    <Line
-                      key={i}
-                      tone="violet"
-                      head={e.degree}
-                      tail={[e.institute, e.year ? String(e.year) : null, e.result]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    />
-                  ))}
-                </Panel>
-              )}
-
-              {jobs.length > 0 && (
-                <Panel
-                  tone="amber"
-                  icon={Briefcase}
-                  title="Positions held"
-                  count={jobs.length}
-                  className={cn(certs.length === 0 && 'md:col-span-2 lg:col-span-1')}
-                >
-                  {jobs.map((j, i) => (
-                    <Line
-                      key={i}
-                      tone="amber"
-                      head={j.company}
-                      badge={j.current ? 'Current' : (j.duration ?? undefined)}
-                      tail={[j.designation, j.period].filter(Boolean).join(' · ')}
-                    />
-                  ))}
-                </Panel>
-              )}
-            </div>
-          )}
-
-          {/* ── How to reach them ────────────────────────────────────── */}
-          {brief && (brief.phone || brief.email || brief.address) && (
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-slate-100 bg-slate-50/70 px-4 py-2 text-xs text-slate-500 sm:px-5">
-              {brief.phone && (
-                <span className="inline-flex items-center gap-1.5">
-                  <Phone className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                  {brief.phone}
-                </span>
-              )}
-              {brief.email && (
-                <span className="inline-flex min-w-0 items-center gap-1.5" title={brief.email}>
-                  <Mail className="h-3.5 w-3.5 shrink-0 text-sky-500" />
-                  <span className="truncate">{brief.email}</span>
-                </span>
-              )}
-              {brief.address && (
-                <span className="inline-flex min-w-0 items-center gap-1.5" title={brief.address}>
-                  <MapPin className="h-3.5 w-3.5 shrink-0 text-rose-400" />
-                  <span className="truncate">{brief.address}</span>
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** A tinted block of the CV — one hue per kind of fact. */
-function Panel({
-  tone,
-  icon: Icon,
-  title,
-  count,
-  children,
-  className,
-}: {
-  tone: keyof typeof PANEL_TONES;
-  icon: React.ElementType;
-  title: string;
-  count?: number;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn('flex flex-col rounded-xl border p-2.5', PANEL_TONES[tone], className)}>
-      <p className="mb-2 flex items-center gap-1.5 border-b border-white/80 pb-2 text-[0.625rem] font-bold uppercase tracking-wide text-slate-500">
-        <span className={cn('flex h-5 w-5 items-center justify-center rounded-md', ICON_TONES[tone])}>
-          <Icon className="h-3 w-3" />
-        </span>
-        {title}
-        {count !== undefined && count > 1 && (
-          <span className="ml-auto rounded-full bg-white/80 px-1.5 py-0.5 text-[0.5625rem] font-bold tabular-nums text-slate-500">
-            {count}
-          </span>
-        )}
-      </p>
-      <div className="space-y-1.5">{children}</div>
-    </div>
-  );
-}
-
-/**
- * One entry inside a panel, on its own bordered card.
- *
- * Two degrees stacked with nothing but leading between them read as one
- * four-line paragraph; a border per entry is the difference between "MBA,
- * University of Dhaka" and "MBA / BBA".
- */
-function Line({
-  head,
-  tail,
-  badge,
-  tone,
-}: {
-  head: string;
-  tail?: string;
-  badge?: string;
-  tone: keyof typeof ENTRY_TONES;
-}) {
-  return (
-    <div className={cn('min-w-0 rounded-lg border px-2.5 py-1.5', ENTRY_TONES[tone])}>
-      <p className="flex flex-wrap items-center gap-x-1.5 text-xs font-semibold leading-snug text-slate-800">
-        {head}
-        {badge && (
-          <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[0.5625rem] font-bold uppercase tracking-wide text-slate-500">
-            {badge}
-          </span>
-        )}
-      </p>
-      {tail && <p className="mt-0.5 text-[0.6875rem] leading-snug text-slate-500">{tail}</p>}
-    </div>
-  );
-}
-
-/** One figure in the band — a label over a value, optionally with a sub-line. */
-function Figure({
-  label,
-  value,
-  sub,
-  tone,
-  className,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  tone: keyof typeof FIGURE_TONES;
-  className?: string;
-}) {
-  return (
-    <div
-      className={cn(
-        'min-w-0 rounded-xl px-3 py-2 ring-1 sm:min-w-[5.5rem]',
-        FIGURE_TONES[tone],
-        className,
-      )}
-    >
-      <p className="text-[0.625rem] font-bold uppercase tracking-wide opacity-60">{label}</p>
-      {/* Wrapping, not truncating: these values are two or three words and a
-          clipped "2 years 8 mont…" saves nothing worth having. */}
-      <p className="text-sm font-bold leading-tight">{value}</p>
-      {sub && (
-        <p className="truncate text-[0.6875rem] leading-tight opacity-70" title={sub}>
-          {sub}
-        </p>
-      )}
-    </div>
-  );
-}
 
 function SubmitButton({ canSubmit, pending, onSubmit }: { canSubmit: boolean; pending: boolean; onSubmit: () => void }) {
   return (

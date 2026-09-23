@@ -669,28 +669,46 @@ export function MedicalExamForm({
                     onChange={(v) => set('liverFunctionNormal', v)}
                   />
                 </div>
+                {/* Two columns built the same way — a header line of fixed
+                    height, then a two-row box — so the boxes start and end
+                    level. Item 7's Yes/No sits on its header line. */}
                 <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
-                  <Textarea
-                    rows={2}
-                    label="6. History of past illness"
-                    placeholder="Not remarkable"
-                    value={t(draft.pastIllnessHistory)}
-                    onChange={onInput('pastIllnessHistory')}
-                  />
                   <div>
-                    <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                      <p className="text-sm text-slate-700">
+                    <div className="mb-1.5 flex min-h-[1.75rem] items-center">
+                      <label
+                        htmlFor="med-past-illness"
+                        className="text-sm font-medium text-slate-700"
+                      >
+                        <span className="mr-1.5 text-slate-400">6.</span>
+                        History of past illness
+                      </label>
+                    </div>
+                    <Textarea
+                      id="med-past-illness"
+                      rows={2}
+                      placeholder="Not remarkable"
+                      value={t(draft.pastIllnessHistory)}
+                      onChange={onInput('pastIllnessHistory')}
+                    />
+                  </div>
+                  <div>
+                    <div className="mb-1.5 flex min-h-[1.75rem] flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                      <label
+                        htmlFor="med-family-history"
+                        className="text-sm font-medium text-slate-700"
+                      >
                         <span className="mr-1.5 text-slate-400">7.</span>
                         Family history of DM, HTN — negative
-                      </p>
+                      </label>
                       <YesNo
                         value={draft.familyHistoryDmHtn}
                         onChange={(v) => set('familyHistoryDmHtn', v)}
                       />
                     </div>
-                    <Input
-                      label="Detail (optional)"
-                      className="mt-2"
+                    <Textarea
+                      id="med-family-history"
+                      rows={2}
+                      placeholder="Detail (optional)"
                       value={t(draft.familyHistoryDetail)}
                       onChange={onInput('familyHistoryDetail')}
                     />

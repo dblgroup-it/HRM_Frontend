@@ -159,6 +159,9 @@ export interface OnboardingView {
   /** Tracked per side — either send can fail on its own. */
   medicalLetterTeamSentAt?: string | null;
   medicalLetterCandidateSentAt?: string | null;
+  /** The recruiter asked for a test; waiting on Head of Talent Acquisition. */
+  medicalRequestPending?: boolean;
+  medicalRequestedAt?: string | null;
   medicalApprovedAt?: string | null;
   /** Cleared from a paper check rather than the structured report. */
   medicalManual: boolean;
@@ -464,11 +467,64 @@ export interface MedicalLetterDraft {
   /** Pre-filled: what this candidate's last letter used, else the default. */
   venue: string;
   band: MedicalAgeBand | null;
+  salutation: string | null;
+  /** Asked for by the recruiter, waiting on Head of Talent Acquisition. */
+  requestPending: boolean;
+  requestedAt: string | null;
   sentAt: string | null;
   teamSentAt: string | null;
   candidateSentAt: string | null;
   /** Resolved from the medical roles — shown before sending, not after. */
   recipients: { name: string; email: string | null; hasEmail: boolean }[];
+}
+
+/** One row of Head of Talent Acquisition's medical inbox. */
+export interface MedicalRequestRow {
+  onboardingId: string;
+  candidate: {
+    id: string;
+    name: string;
+    email: string | null;
+    phone: string | null;
+    dateOfBirth: string | null;
+  };
+  requisition: {
+    id: string;
+    code: string;
+    designation: string;
+    department: string;
+    unitFactory: string;
+  };
+  band: MedicalAgeBand | null;
+  salutation: string | null;
+  refNo: string | null;
+  requestedBy: { id: string; name: string } | null;
+  requestedAt: string | null;
+  /** A previous appointment, when this is a re-request. */
+  examAt: string | null;
+  venue: string;
+  lastSentAt: string | null;
+}
+
+export interface MedicalRequestSendItem {
+  onboardingId: string;
+  examAt: string;
+  venue?: string;
+  band?: MedicalAgeBand;
+  salutation?: string;
+  refNo?: string;
+}
+
+export interface MedicalRequestSendResult {
+  results: {
+    onboardingId: string;
+    candidateName: string;
+    ok: boolean;
+    refNo?: string;
+    sent?: string[];
+    failed?: { to: string; reason: string }[];
+    error?: string;
+  }[];
 }
 
 export interface SendMedicalLetterResult {

@@ -16,7 +16,8 @@ import {
   X,
 } from 'lucide-react';
 
-import { Logo } from '@shared/components/ui';
+import { Logo, PhoneInput } from '@shared/components/ui';
+import { isValidBdMobile, toBdMobile } from '@shared/utils';
 import { ROUTES } from '@app/router/paths';
 import { candidatesApi } from '../api/candidates.api';
 
@@ -91,7 +92,7 @@ export default function ApplyPage() {
     mutationFn: () =>
       candidatesApi.apply(
         reqId,
-        { name, email, phone, salaryExpectation: salaryExpectation.trim() || undefined },
+        { name, email, phone: toBdMobile(phone), salaryExpectation: salaryExpectation.trim() || undefined },
         cv as File,
       ),
     onError: (e) => setError(errMsg(e, 'Something went wrong. Please try again.')),
@@ -117,6 +118,8 @@ export default function ApplyPage() {
     if (name.trim().length < 2) return setError('Please enter your full name.');
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
       return setError('Please enter a valid email address.');
+    if (phone && !isValidBdMobile(phone))
+      return setError('Please enter a valid mobile number — the 10 digits after +880.');
     if (!cv) return setError('Please attach your CV.');
     apply.mutate();
   };
@@ -343,16 +346,17 @@ export default function ApplyPage() {
                         autoComplete="email"
                       />
                     </Field>
-                    <Field label="Phone number">
-                      <input
-                        className={INPUT}
-                        type="tel"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="01XXXXXXXXX"
-                        autoComplete="tel"
-                      />
-                    </Field>
+                    <PhoneInput
+                      label="Mobile number"
+                      size="lg"
+                      value={phone}
+                      onChange={setPhone}
+                      error={
+                        phone && phone.length === 10 && !isValidBdMobile(phone)
+                          ? 'Should start with 1 — e.g. 1712345678'
+                          : undefined
+                      }
+                    />
                   </div>
 
                   {/* Salary */}

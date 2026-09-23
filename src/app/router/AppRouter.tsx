@@ -26,6 +26,9 @@ const BoardGroupsPage = lazy(() => import('@modules/board/pages/BoardGroupsPage'
 const BoardVotePage   = lazy(() => import('@modules/board/pages/BoardVotePage'));
 const ActivityLogPage = lazy(() => import('@modules/audit/pages/ActivityLogPage'));
 const BoardSheetPage  = lazy(() => import('@modules/board/pages/BoardSheetPage'));
+const MedicalRequestsPage = lazy(
+  () => import('@modules/onboarding/pages/MedicalRequestsPage'),
+);
 const ApprovalSheetsPage = lazy(
   () => import('@modules/board/pages/ApprovalSheetsPage'),
 );
@@ -164,6 +167,10 @@ export function AppRouter() {
             <Route
               path={ROUTES.approvalSheets}
               element={<ApprovalSheetsPage />}
+            />
+            <Route
+              path={ROUTES.medicalRequests}
+              element={<MedicalRequestsPage />}
             />
             <Route
               path={ROUTES.myInterviews}

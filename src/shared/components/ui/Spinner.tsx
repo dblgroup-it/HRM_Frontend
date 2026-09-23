@@ -2,6 +2,7 @@ import { DotLottieReact, setWasmUrl } from '@lottiefiles/dotlottie-react';
 import wasmUrl from '@lottiefiles/dotlottie-web/dotlottie-player.wasm?url';
 
 import { cn } from '@shared/lib';
+import { Portal } from './Portal';
 import loaderSrc from '@assets/loader.lottie?url';
 
 // Serve the player's WASM runtime from our own origin. By default it is
@@ -40,11 +41,23 @@ export function Spinner({ className, size = 72, label }: SpinnerProps) {
   );
 }
 
+/**
+ * A page-level loader, centred on the viewport — not on the page's own
+ * container, which on a long page put it below the fold. The placeholder
+ * holds the page's height so nothing jumps when the content arrives.
+ */
 export function FullPageSpinner({ label = 'Loading…' }: { label?: string }) {
   return (
-    <div className="flex h-full min-h-[60vh] w-full flex-col items-center justify-center gap-2">
-      <Spinner size={110} />
-      <p className="text-sm font-medium text-slate-400">{label}</p>
+    <div className="min-h-[60vh] w-full" aria-busy="true">
+      <Portal>
+        <div
+          role="status"
+          className="pointer-events-none fixed inset-0 z-[90] flex flex-col items-center justify-center gap-2"
+        >
+          <Spinner size={110} />
+          <p className="text-sm font-medium text-slate-400">{label}</p>
+        </div>
+      </Portal>
     </div>
   );
 }

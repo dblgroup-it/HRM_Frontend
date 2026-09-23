@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { Logo } from '@shared/components/ui';
+import { Logo, Portal } from '@shared/components/ui';
 import { resolveApiFileUrl } from '@shared/api';
 import { cn } from '@shared/lib';
 
@@ -1162,6 +1162,7 @@ export default function OnboardingPage() {
           candidate: they photograph a signature on paper and we cut it to the
           shape the form needs. */}
       {signatureFile && (
+        <Portal>
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
           <div className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-xl">
             <p className="mb-3 text-sm font-bold text-slate-800">
@@ -1178,6 +1179,7 @@ export default function OnboardingPage() {
             />
           </div>
         </div>
+        </Portal>
       )}
 
       {/* Hidden file input — PDF or a photo for documents; the signature is

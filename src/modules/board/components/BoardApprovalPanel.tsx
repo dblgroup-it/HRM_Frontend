@@ -1,239 +1,23 @@
-import { useState } from 'react';
 import {
   BadgeCheck,
-  ChevronDown,
-  ChevronUp,
   Clock,
-  Mail,
+  Loader2,
   MessageSquare,
   Send,
-  Users,
   XCircle,
 } from 'lucide-react';
 
-import {
-  Avatar,
-  Badge,
-  Button,
-  Card,
-  CardBody,
-  Combobox,
-  Modal,
-} from '@shared/components/ui';
+import { Avatar, Badge, Card, CardBody } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
 
 import type { BoardApprovalStage } from '../types/board.types';
-import {
-  useBoardApprovalStatus,
-  useBoardGroups,
-  useChainApprovers,
-  useSendBoardApproval,
-} from '../hooks/useBoard';
+import { useBoardApprovalStatus, useSendBoardApproval } from '../hooks/useBoard';
+import { BOARD_STAGE_ORDER, boardStageState, isOnSheet } from '../utils/stageState';
 
-/* ─── Send-for-approval modal (also exported for use in OnboardingManagePage) ─── */
-export function SendApprovalModal({
-  candidateId,
-  onClose,
-}: {
-  candidateId: string;
-  onClose: () => void;
-}) {
-  const { data: groups = [] } = useBoardGroups();
-  const send = useSendBoardApproval(candidateId);
-  const { data: approvers } = useChainApprovers(candidateId);
-  // Head of Talent Acquisition is held by several people — the requester names the one who
-  // should sign, rather than every holder being emailed.
-  const needsCorporateHr = approvers?.startsAt === 'corporate_hr';
-  // The CHRO link is reached from either start, so it is named in both cases.
-  const needsChro = approvers?.startsAt !== 'board';
-  const [corporateHrId, setCorporateHrId] = useState('');
-  const [chroId, setChroId] = useState('');
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [expandedGroup, setExpandedGroup] = useState<string | null>(groups[0]?.id ?? null);
-
-  const toggle = (userId: string) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(userId)) next.delete(userId);
-      else next.add(userId);
-      return next;
-    });
-
-  const selectAll = (groupId: string) => {
-    const g = groups.find((g) => g.id === groupId);
-    if (!g) return;
-    setSelected((prev) => {
-      const next = new Set(prev);
-      g.members.forEach((m) => next.add(m.userId));
-      return next;
-    });
-  };
-
-  return (
-    <Modal open onClose={onClose} title="Send for Board Approval" size="md">
-      <div className="space-y-4">
-        <p className="text-sm text-slate-500">
-          This request travels in order — Head of Talent Acquisition, then the CHRO, then the
-          board. Each person gets their own one-click approve link, and the
-          board is only emailed once the CHRO has signed off.
-        </p>
-
-        {needsCorporateHr && (
-          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
-            <p className="mb-2 text-[0.75rem] font-semibold uppercase tracking-wider text-slate-500">
-              1 · Send to Head of Talent Acquisition
-            </p>
-            <Combobox
-              placeholder="Choose who should approve first"
-              options={(approvers?.corporateHr ?? []).map((h) => ({
-                value: h.id,
-                label: `${h.name} · ${h.employeeCode}`,
-              }))}
-              value={corporateHrId}
-              onChange={setCorporateHrId}
-            />
-            <p className="mt-2 text-[0.6875rem] leading-5 text-slate-500">
-              They approve first, then it goes to the CHRO, and only then to the
-              board members chosen below.
-            </p>
-          </div>
-        )}
-
-        {needsChro && (
-          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
-            <p className="mb-2 text-[0.75rem] font-semibold uppercase tracking-wider text-slate-500">
-              2 · Then to CHRO
-            </p>
-            <Combobox
-              placeholder="Choose the CHRO who should approve"
-              options={(approvers?.chro ?? []).map((h) => ({
-                value: h.id,
-                label: `${h.name} · ${h.employeeCode}`,
-              }))}
-              value={chroId}
-              onChange={setChroId}
-            />
-          </div>
-        )}
-
-        <p className="text-[0.75rem] font-semibold uppercase tracking-wider text-slate-500">
-          3 · Then to the board
-        </p>
-        {groups.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-200 py-8 text-center">
-            <Users className="mx-auto mb-2 h-6 w-6 text-slate-300" />
-            <p className="text-sm text-slate-400">No board groups configured yet.</p>
-            <p className="text-xs text-slate-400">Set up groups under Configuration → Board Groups.</p>
-          </div>
-        ) : (
-          <div className="max-h-72 space-y-2 overflow-y-auto pr-0.5">
-            {groups.map((g) => (
-              <div key={g.id} className="overflow-hidden rounded-xl border border-slate-200">
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"
-                  onClick={() => setExpandedGroup(expandedGroup === g.id ? null : g.id)}
-                >
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-50">
-                    <Users className="h-3.5 w-3.5 text-brand-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-[0.8125rem] font-semibold text-slate-800">{g.name}</p>
-                    <p className="text-[0.6875rem] text-slate-400">
-                      {g.members.length} member{g.members.length !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); selectAll(g.id); }}
-                    className="rounded-lg border border-slate-200 px-2 py-1 text-[0.625rem] font-medium text-slate-500 hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700"
-                  >
-                    Select all
-                  </button>
-                  {expandedGroup === g.id
-                    ? <ChevronUp className="h-4 w-4 text-slate-400" />
-                    : <ChevronDown className="h-4 w-4 text-slate-400" />}
-                </button>
-
-                {expandedGroup === g.id && (
-                  <div className="divide-y divide-slate-50 border-t border-slate-100">
-                    {g.members.map((m) => (
-                      <label
-                        key={m.userId}
-                        className={cn(
-                          'flex cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors',
-                          selected.has(m.userId) ? 'bg-brand-50/60' : 'hover:bg-slate-50',
-                        )}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selected.has(m.userId)}
-                          onChange={() => toggle(m.userId)}
-                          className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
-                        />
-                        <Avatar name={m.user.name} size="sm" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[0.75rem] font-medium text-slate-800">{m.user.name}</p>
-                          <p className="text-[0.625rem] text-slate-400">
-                            {[m.user.employee?.designation, m.user.email].filter(Boolean).join(' · ')}
-                          </p>
-                        </div>
-                        {selected.has(m.userId) && (
-                          <Mail className="h-3.5 w-3.5 shrink-0 text-brand-500" />
-                        )}
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {selected.size > 0 && (
-          <p className="rounded-xl bg-brand-50 px-3 py-2 text-[0.75rem] text-brand-700">
-            <strong>{selected.size}</strong> member{selected.size !== 1 ? 's' : ''} selected — they
-            are emailed once the chain reaches the board.
-          </p>
-        )}
-
-        <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
-          <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
-          <Button
-            variant="primary"
-            size="sm"
-            disabled={
-              selected.size === 0 ||
-              send.isPending ||
-              (needsCorporateHr && !corporateHrId) ||
-              (needsChro && !chroId)
-            }
-            isLoading={send.isPending}
-            onClick={() =>
-              send.mutate(
-                {
-                  memberIds: [...selected],
-                  corporateHrId: needsCorporateHr ? corporateHrId : undefined,
-                  chroId: needsChro ? chroId : undefined,
-                },
-                { onSuccess: onClose },
-              )
-            }
-          >
-            <Send className="mr-1.5 h-3.5 w-3.5" />
-            {needsCorporateHr ? 'Send to Head of Talent Acquisition' : 'Send Approval Emails'}
-          </Button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-/* ─── Board Approval Panel — embedded in onboarding sidebar ─── */
 export function BoardApprovalPanel({ candidateId }: { candidateId: string }) {
   const { data: approval, isLoading } = useBoardApprovalStatus(candidateId);
-  const [showModal, setShowModal] = useState(false);
+  const send = useSendBoardApproval(candidateId);
 
   const approvedVotes = approval?.votes.filter((v) => v.status === 'approved') ?? [];
   const pendingVotes  = approval?.votes.filter((v) => v.status === 'pending')  ?? [];
@@ -242,7 +26,7 @@ export function BoardApprovalPanel({ candidateId }: { candidateId: string }) {
 
   // The chain the request travels: who signs, in order, and where it has got
   // to. Without this the panel only ever said "sent to the board".
-  const stageOrder: BoardApprovalStage[] = ['corporate_hr', 'chro', 'board'];
+  const stageOrder = BOARD_STAGE_ORDER;
   const stageNames: Record<BoardApprovalStage, string> = {
     corporate_hr: approval?.corporateHr?.name ?? 'Head of Talent Acquisition',
     chro: approval?.chro?.name ?? 'CHRO',
@@ -253,14 +37,12 @@ export function BoardApprovalPanel({ candidateId }: { candidateId: string }) {
     chro: 'CHRO',
     board: 'Board',
   };
-  /** A stage is done when any of its votes came back approved. */
-  const stageState = (stage: BoardApprovalStage) => {
-    const votes = approval?.votes.filter((v) => v.stage === stage) ?? [];
-    if (votes.some((v) => v.status === 'rejected')) return 'rejected' as const;
-    if (votes.some((v) => v.status === 'approved')) return 'approved' as const;
-    if (votes.length) return 'waiting' as const;
-    return 'upcoming' as const;
-  };
+  const stageState = (stage: BoardApprovalStage) =>
+    approval ? boardStageState(approval, stage) : ('upcoming' as const);
+  // The recruiter hands the candidate to Head of Talent Acquisition and that
+  // is all — they pick the CHRO and board on the sheet. Sending again is only
+  // for a request that is still waiting on them (a nudge) or was rejected.
+  const canSend = !isApproved && !isOnSheet(approval);
 
   if (isLoading) return null;
 
@@ -291,6 +73,8 @@ export function BoardApprovalPanel({ candidateId }: { candidateId: string }) {
           {!approval ? (
             <p className="text-[0.75rem] text-slate-400">
               Send this candidate for board approval before proceeding with the final hire.
+              Head of Talent Acquisition puts it on a Hiring Approval Sheet and
+              chooses the CHRO and board members.
             </p>
           ) : (
             <>
@@ -404,26 +188,40 @@ export function BoardApprovalPanel({ candidateId }: { candidateId: string }) {
             </div>
           )}
 
-          {/* Action button — always at the bottom, full width */}
-          <button
-            type="button"
-            onClick={() => setShowModal(true)}
-            className={cn(
-              'flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-[0.8125rem] font-semibold transition-all active:scale-[0.98]',
-              approval
-                ? 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                : 'bg-brand-600 text-white shadow-sm hover:bg-brand-700',
-            )}
-          >
-            <Send className="h-3.5 w-3.5" />
-            {approval ? 'Resend / Add Members' : 'Send for Board Approval'}
-          </button>
+          {isOnSheet(approval) && (
+            <p className="rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-[0.75rem] leading-5 text-sky-700">
+              On a Hiring Approval Sheet with the {approval?.currentStage === 'chro' ? 'CHRO' : 'board'}.
+              Head of Talent Acquisition follows it up from here.
+            </p>
+          )}
+
+          {canSend && (
+            <button
+              type="button"
+              onClick={() => send.mutate()}
+              disabled={send.isPending}
+              className={cn(
+                'flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-[0.8125rem] font-semibold transition-all active:scale-[0.98] disabled:opacity-60',
+                approval
+                  ? 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  : 'bg-brand-600 text-white shadow-sm hover:bg-brand-700',
+              )}
+            >
+              {send.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Send className="h-3.5 w-3.5" />
+              )}
+              {!approval
+                ? 'Send for Board Approval'
+                : isRejected
+                  ? 'Send again for Board Approval'
+                  : 'Remind Head of Talent Acquisition'}
+            </button>
+          )}
         </CardBody>
       </Card>
 
-      {showModal && (
-        <SendApprovalModal candidateId={candidateId} onClose={() => setShowModal(false)} />
-      )}
     </>
   );
 }

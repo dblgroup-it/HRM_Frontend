@@ -42,6 +42,7 @@ import {
   Input,
   Modal,
   Spinner,
+  Portal
 } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import type { Requisition } from '@modules/requisition/types/requisition.types';
@@ -1114,6 +1115,7 @@ function BulkRejectModal({
   ];
 
   return (
+    <Portal>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative z-10 w-full max-w-md rounded-2xl bg-white shadow-2xl">
@@ -1159,6 +1161,7 @@ function BulkRejectModal({
         </div>
       </div>
     </div>
+    </Portal>
   );
 }
 

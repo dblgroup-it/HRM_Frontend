@@ -20,6 +20,7 @@ import {
   FullPageSpinner,
   Modal,
   PageHeader,
+  Portal
 } from '@shared/components/ui';
 import { useMyPermissions } from '@modules/rbac';
 import { useRequisitions } from '@modules/requisition';
@@ -84,6 +85,7 @@ function AiOverlay({ query, total }: { query: string; total: number }) {
   }, []);
 
   return (
+    <Portal>
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-8"
       style={{ background: 'rgba(248,250,252,0.97)', backdropFilter: 'blur(12px)' }}>
       {/* Ripple rings + icon */}
@@ -129,6 +131,7 @@ function AiOverlay({ query, total }: { query: string; total: number }) {
         <span className="text-[0.8125rem] font-medium text-purple-700">"{query}"</span>
       </div>
     </div>
+    </Portal>
   );
 }
 

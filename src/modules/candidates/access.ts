@@ -71,3 +71,16 @@ export function isCorporateRecruiter(
   if (!perms) return false;
   return (perms.roles ?? []).some((r) => r.key === 'corporate_recruiter');
 }
+
+/**
+ * Head of Talent Acquisition (the `corporate_hr` role) or a super user — who
+ * schedules and sends medical tests. Narrower than `canAccessRecruitment`,
+ * which also admits the CHRO.
+ */
+export function isTalentAcquisitionHead(
+  perms: RecruitmentPerms | undefined | null,
+): boolean {
+  if (!perms) return false;
+  if (perms.isSuperUser) return true;
+  return (perms.roles ?? []).some((r) => r.key === 'corporate_hr');
+}

@@ -29,6 +29,9 @@ export type { AvatarProps } from './Avatar';
 
 export { Spinner, FullPageSpinner } from './Spinner';
 export { BusyOverlay } from './BusyOverlay';
+export { Portal } from './Portal';
+export { PhoneInput } from './PhoneInput';
+export type { PhoneInputProps } from './PhoneInput';
 export { Skeleton } from './Skeleton';
 
 export { DataTable } from './DataTable';
