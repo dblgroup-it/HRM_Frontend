@@ -17,7 +17,7 @@ export const UNITS = [
   'Jinnat Textile Mills Ltd',
   'Jinnat Apparels Ltd',
   'Matin Spinning Mills Ltd',
-  'DBL Group — Head Office',
+  'DBL Group — Corporate Office',
   'Color City Ltd',
   'DBL Ceramics Ltd',
 ] as const;

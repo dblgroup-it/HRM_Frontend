@@ -33,8 +33,8 @@ export const MOCK_SEATS: OrganogramSeat[] = [
   { id: 's_msm_1', unit: 'Matin Spinning Mills Ltd', department: 'Maintenance', designation: 'Electrical Maintenance Engineer', category: 'officer', sanctioned: 4, filled: 4, grade: null },
   { id: 's_msm_2', unit: 'Matin Spinning Mills Ltd', department: 'Spinning', designation: 'Spinning Officer', category: 'officer', sanctioned: 6, filled: 5, grade: null },
 
-  // --- DBL Group — Head Office -------------------------------------------
-  { id: 's_ho_1', unit: 'DBL Group — Head Office', department: 'Human Resources', designation: 'HR Business Partner', category: 'officer', sanctioned: 4, filled: 3, grade: null },
-  { id: 's_ho_2', unit: 'DBL Group — Head Office', department: 'IT & Systems', designation: 'Software Engineer', category: 'officer', sanctioned: 6, filled: 6, grade: null },
-  { id: 's_ho_3', unit: 'DBL Group — Head Office', department: 'Finance & Accounts', designation: 'Financial Analyst', category: 'officer', sanctioned: 3, filled: 2, grade: null },
+  // --- DBL Group — Corporate Office -------------------------------------------
+  { id: 's_ho_1', unit: 'DBL Group — Corporate Office', department: 'Human Resources', designation: 'HR Business Partner', category: 'officer', sanctioned: 4, filled: 3, grade: null },
+  { id: 's_ho_2', unit: 'DBL Group — Corporate Office', department: 'IT & Systems', designation: 'Software Engineer', category: 'officer', sanctioned: 6, filled: 6, grade: null },
+  { id: 's_ho_3', unit: 'DBL Group — Corporate Office', department: 'Finance & Accounts', designation: 'Financial Analyst', category: 'officer', sanctioned: 3, filled: 2, grade: null },
 ];

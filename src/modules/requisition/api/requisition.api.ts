@@ -212,7 +212,7 @@ let STORE: Requisition[] = [
     requirementType: 'existing',
     requiredPosts: 1,
     totalVacantPosts: 1,
-    unitFactory: 'DBL Group — Head Office',
+    unitFactory: 'DBL Group — Corporate Office',
     department: 'Human Resources',
     placeOfPosting: 'DBL Group HQ, Dhaka',
     vacantDate: null,
@@ -235,7 +235,7 @@ let STORE: Requisition[] = [
     activityLog: [],
     roleProfile: {
       summary:
-        'HR Business Partner aligning people strategy with the business at DBL Group Head Office.',
+        'HR Business Partner aligning people strategy with the business at DBL Group Corporate Office.',
       jobDescription:
         'DBL Group is seeking an HR Business Partner to act as a trusted advisor to business leaders.',
       responsibilities: [
