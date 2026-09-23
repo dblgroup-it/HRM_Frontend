@@ -43,13 +43,17 @@ export interface RequisitionSnapshot {
   coverUntil?: string | null;
 }
 
+/**
+ * The figures behind the stat tiles, here and on the Employees page.
+ *
+ * `activeUnits`, `totalUnits`, `sanctionedSeats` and `filledSeats` were here
+ * for the "Workforce Capacity" donut and nothing else; that card is gone and
+ * the API no longer sends them. `vacantSeats` stays — it is a tile of its own
+ * on both pages.
+ */
 export interface DashboardSummary {
   totalEmployees: number;
   activeEmployees: number;
-  activeUnits: number;
-  totalUnits: number;
-  sanctionedSeats: number;
-  filledSeats: number;
   vacantSeats: number;
   openRequisitions: number;
 }

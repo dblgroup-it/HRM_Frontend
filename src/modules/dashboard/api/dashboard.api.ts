@@ -77,10 +77,6 @@ function buildMockDashboard(): Promise<DashboardData> {
       (employee) => employee.status !== 'inactive'
     );
     const totalEmployees = employees.meta.total;
-    const activeUnits = units.filter((unit) => unit.sanctioned > 0).length;
-    const totalUnits = units.length;
-    const sanctionedSeats = units.reduce((sum, unit) => sum + unit.sanctioned, 0);
-    const filledSeats = units.reduce((sum, unit) => sum + unit.filled, 0);
     const vacantSeats = units.reduce((sum, unit) => sum + unit.vacant, 0);
     const openRequisitions = requisitions.items.filter((req) =>
       [
@@ -103,10 +99,6 @@ function buildMockDashboard(): Promise<DashboardData> {
       summary: {
         totalEmployees,
         activeEmployees: activeEmployees.length,
-        activeUnits,
-        totalUnits,
-        sanctionedSeats,
-        filledSeats,
         vacantSeats,
         openRequisitions,
       },

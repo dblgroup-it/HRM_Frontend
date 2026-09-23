@@ -13,7 +13,6 @@ import {
 import { StatsGrid } from '../components/StatsGrid';
 import { DepartmentBreakdown } from '../components/DepartmentBreakdown';
 import { RecentHires } from '../components/RecentHires';
-import { OrganogramSnapshot } from '../components/OrganogramSnapshot';
 import { RequisitionQueue } from '../components/RequisitionQueue';
 import { AssignedRequisitions } from '../components/AssignedRequisitions';
 import { MyRecruitment } from '../components/MyRecruitment';
@@ -41,7 +40,7 @@ export default function DashboardPage() {
         /* Two independent columns so neither side forces an empty gap.
            Left is the hiring pipeline — the requisitions themselves, which
            is what everyone comes here for. Right is the rail: what is
-           personally yours to do today, then the standing figures. */
+           personally yours to do today, then who has just joined. */
         <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.85fr)_minmax(20rem,1fr)]">
           <div className="space-y-6">
             <RequisitionQueue
@@ -60,8 +59,6 @@ export default function DashboardPage() {
             {approves && <MedicalApprovalCard enabled={approves} />}
             <MyRecruitment rows={data.myRecruitment ?? []} />
             <RecentHires hires={data.recentHires} />
-            {/* A standing figure, not something anybody acts on today. */}
-            <OrganogramSnapshot summary={data.summary} />
           </div>
         </div>
       )}
