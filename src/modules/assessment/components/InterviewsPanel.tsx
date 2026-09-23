@@ -8,6 +8,7 @@ import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import {
   BadgeDollarSign,
+  Loader2,
   Bell,
   Building2,
   CalendarCheck,
@@ -51,7 +52,7 @@ import { useEmployees } from '@modules/employees';
 import type { Requisition } from '@modules/requisition/types/requisition.types';
 import { useCandidates, useUpdateCandidate } from '@modules/candidates';
 import type { Candidate } from '@modules/candidates';
-import { SalaryFixationModal } from '@modules/salaryFixation';
+import { SalaryFixationModal, useSalaryFixation } from '@modules/salaryFixation';
 
 import {
   useAddCommitteeMember,
@@ -499,6 +500,12 @@ function InterviewWorkspace({
   const [rejectReason, setRejectReason] = useState('');
   const rejectCandidate = useRejectAtInterview(candidate.id);
   const [selectOpen, setSelectOpen] = useState(false);
+  // Selection leads to board approval, which signs off on a salary — so the
+  // figure is settled first. Read only when the confirmation is open.
+  const salary = useSalaryFixation(candidate.id, selectOpen);
+  const salaryFixed =
+    salary.data?.status === 'fixed' &&
+    (salary.data.proposedSalaryOverride ?? salary.data.proposedSalary) != null;
   const updateCandidate = useUpdateCandidate(reqId);
   // Offered once a second or final round is done — the rounds a hire is
   // decided at. A completed first interview is a screen, not a decision.
@@ -723,6 +730,7 @@ function InterviewWorkspace({
             </Button>
             <Button
               isLoading={updateCandidate.isPending}
+              disabled={!salaryFixed}
               leftIcon={<CheckCircle2 className="h-4 w-4" />}
               onClick={() =>
                 updateCandidate.mutate(
@@ -747,6 +755,41 @@ function InterviewWorkspace({
           {decisionRound ? KIND_LABEL[decisionRound.kind].toLowerCase() : ''}{' '}
           interview? This starts their onboarding.
         </p>
+        {salary.isLoading ? (
+          <p className="mt-3 flex items-center gap-2 text-xs text-slate-400">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking the salary…
+          </p>
+        ) : salaryFixed ? (
+          <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+            Salary finalized at ৳{' '}
+            {(
+              salary.data?.proposedSalaryOverride ??
+              salary.data?.proposedSalary ??
+              0
+            ).toLocaleString()}
+            {salary.data?.jobGrade ? ` · ${salary.data.jobGrade}` : ''} — this
+            is the figure board approval signs off on.
+          </p>
+        ) : (
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+            <p className="text-xs text-amber-800">
+              Finalize the salary first. Board approval signs off on that
+              figure, and a candidate selected without one cannot be sent.
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-2"
+              leftIcon={<BadgeDollarSign className="h-4 w-4" />}
+              onClick={() => {
+                setSelectOpen(false);
+                setSalaryOpen(true);
+              }}
+            >
+              Fix salary
+            </Button>
+          </div>
+        )}
       </Modal>
 
       {/* ── Body: history (left) + form (right) ─────────────────── */}

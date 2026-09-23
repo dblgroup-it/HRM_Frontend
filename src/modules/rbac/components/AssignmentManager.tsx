@@ -27,6 +27,7 @@ import { cn } from '@shared/lib';
 import type { SelectOption } from '@shared/types';
 import { ROUTES } from '@app/router/paths';
 import { useEmployees } from '@modules/employees';
+import { useAuthStore } from '@modules/auth';
 import { useUnitsConfig } from '@modules/units';
 
 import {
@@ -69,6 +70,7 @@ export function AssignmentManager({
   const { data: assignments, isLoading } = useAssignments();
   const { data: perms } = useMyPermissions();
   const isSuper = Boolean(perms?.isSuperUser);
+  const myUserId = useAuthStore((s) => s.user?.id);
   const deleteAssignment = useDeleteAssignment();
   const resetPassword = useResetPassword();
 
@@ -349,7 +351,10 @@ export function AssignmentManager({
                       </td>
                       <td className="px-4 py-2.5">
                         <div className="flex items-center justify-end gap-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
-                          {isSuper && (
+                          {/* Not on your own row: a reset signs the account
+                              out everywhere, which from here reads as being
+                              thrown out while granting access. */}
+                          {isSuper && a.user.id !== myUserId && (
                             <button
                               title="Reset password to default (employee code)"
                               disabled={resetPassword.isPending}

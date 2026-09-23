@@ -4,6 +4,7 @@ import { requisitionApi } from '../api/requisition.api';
 import { requisitionKeys } from './useRequisitions';
 import type {
   ApprovalDecision,
+  CvSource,
   FacilityKey,
   JobAnalysisDraftInput,
   JobAnalysisInput,
@@ -93,6 +94,16 @@ export function useApprovalAction() {
 }
 
 /** Head of Talent Acquisition nominates the recruiter who runs this requisition. */
+/** Head of Talent Acquisition's CV collection sources. */
+export function useSetCvSources() {
+  const sync = useSyncRequisition();
+  return useMutation({
+    mutationFn: ({ id, sources }: { id: string; sources: CvSource[] }) =>
+      requisitionApi.setCvSources(id, sources),
+    onSuccess: sync,
+  });
+}
+
 export function useAssignRecruiter() {
   const sync = useSyncRequisition();
   return useMutation({

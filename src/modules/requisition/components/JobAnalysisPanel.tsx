@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   Clock,
   Loader2,
+  Pencil,
   Save,
   Send,
   Sparkles,
@@ -15,14 +16,11 @@ import { BusyOverlay, Button, Input, Textarea } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
 import { useAuthStore } from '@modules/auth';
-import {
-  priorityLabel,
-  priorityShortLabel,
-  useMyPermissions,
-} from '@modules/rbac';
+import { priorityShortLabel, useMyPermissions } from '@modules/rbac';
 
 import type { Requisition } from '../types/requisition.types';
 import { useJobAnalysisOwnership } from '../hooks/useRequisitions';
+import { EditRequisitionModal } from './EditRequisitionModal';
 import {
   useDraftJobAnalysis,
   useResendForJobAnalysis,
@@ -68,6 +66,7 @@ export function JobAnalysisSection({
   const [others, setOthers] = useState(req.others);
   const [returnNote, setReturnNote] = useState('');
   const [returning, setReturning] = useState(false);
+  const [editingVacancy, setEditingVacancy] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [hint, setHint] = useState('');
 
@@ -138,8 +137,26 @@ export function JobAnalysisSection({
   const completedAt = req.jobAnalysis?.completedAt;
   const owners = ownership.data?.owners ?? [];
   const assignee = ownership.data?.assignee ?? req.jobAnalysis?.assignee ?? null;
-  /** This viewer's own place in the layering — "as second priority". */
-  const myRank = owners.find((o) => o.id === myUserId)?.priority ?? null;
+  /**
+   * Who has worked on it so far. Every Factory HR on duty may pick it up, so
+   * the page says who touched it last — from the activity log, which the
+   * server writes on every save that changes something.
+   */
+  const lastWork = [...(req.activityLog ?? [])]
+    .reverse()
+    .find((a) => a.note.startsWith('Job analysis'));
+  /**
+   * Section A is the raiser's statement, but the person writing the JD is
+   * often the one who knows it is wrong — so Factory HR corrects it here
+   * rather than bouncing it back. The fallback owners (a recruiter covering
+   * a unit with no Factory HR) are not given this: the server would refuse.
+   */
+  const canEditVacancy =
+    !!perms?.isSuperUser ||
+    ownership.data?.viaFactoryHr === true ||
+    (perms?.roles ?? []).some(
+      (r) => r.key === 'corporate_hr' || r.key === 'chro',
+    );
 
   /**
    * Who sees whose desk it is sitting on.
@@ -210,14 +227,40 @@ export function JobAnalysisSection({
             <Clock className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
             <span>
               {ownership.data?.viaFactoryHr
-                ? myRank
-                  ? `Addressed to you as ${priorityLabel(myRank)?.toLowerCase()} for this unit.`
-                  : 'Yours as Factory HR for this unit.'
+                ? 'Shared with every Factory HR on duty for this unit — any of you can continue it, and each save is logged under your name.'
                 : `${req.unitFactory} has no Factory HR available, so this is yours to complete.`}{' '}
               Submitting starts the approval chain. The detailed JD goes in the
               Attachments tab.
+              {lastWork && (
+                <span className="mt-1 block text-xs text-slate-500">
+                  Last worked on by {lastWork.actor} ·{' '}
+                  {formatDate(lastWork.createdAt)}
+                </span>
+              )}
             </span>
           </p>
+
+          {canEditVacancy && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2">
+              <p className="text-xs text-slate-500">
+                Something wrong in section A — designation, department, posts,
+                dates? Correct it here; the change is logged.
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                leftIcon={<Pencil className="h-4 w-4" />}
+                onClick={() => setEditingVacancy(true)}
+              >
+                Edit vacancy information
+              </Button>
+            </div>
+          )}
+          <EditRequisitionModal
+            requisition={req}
+            open={editingVacancy}
+            onClose={() => setEditingVacancy(false)}
+          />
 
           {/* AI assist — here and nowhere else. Section B is written FROM
               section A, so this is the first moment there is anything to
@@ -420,10 +463,11 @@ export function JobAnalysisSection({
           </p>
           <p className="mt-1 text-sm text-slate-500">
             {assignee
-              ? `${assignee.name} has this one. It moves to the next Factory HR in line if they go on leave.`
+              ? `${assignee.name} has this one.`
               : ownership.data?.viaFactoryHr === false
                 ? `${req.unitFactory} has no Factory HR available, so Head of Talent Acquisition or a Corporate Recruiter completes it.`
-                : `Factory HR for ${req.unitFactory} writes the job description before this goes for approval.`}
+                : `Any Factory HR on duty for ${req.unitFactory} can write the job description before this goes for approval.`}
+            {lastWork && ` Last worked on by ${lastWork.actor}.`}
           </p>
           {owners.length > 0 && (
             <ul className="mt-2 space-y-1">

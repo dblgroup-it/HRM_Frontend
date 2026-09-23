@@ -46,6 +46,18 @@ export type PreferredSource =
   | 'cv_bank'
   | 'career_page';
 
+/** CV collection sources — mirrors the backend's requisition/cv-sources.ts. */
+export type CvSource =
+  | 'linkedin'
+  | 'bdjobs'
+  | 'head_hunting'
+  | 'social_media'
+  | 'career_site'
+  | 'campus'
+  | 'internal_posting'
+  | 'cv_bank'
+  | 'talent_pool';
+
 /** One of the 4 fixed facility types the requisitioner can request. */
 export type FacilityKey = 'laptopDesktop' | 'transport' | 'dormitory' | 'seating';
 
@@ -318,6 +330,13 @@ export interface Requisition {
 
   /** Only ever set on requisitions raised before sources were dropped. */
   preferredSources: PreferredSource[];
+  /**
+   * Where Head of Talent Acquisition will collect CVs from — ticked before a
+   * recruiter is assigned. Empty until then.
+   */
+  cvSources?: CvSource[];
+  cvSourcesSetAt?: string | null;
+  cvSourcesSetBy?: string | null;
 
   /** Section B's provenance — and, while open, Factory HR's bounce back. */
   jobAnalysis?: JobAnalysisState;
@@ -422,6 +441,14 @@ export interface RequisitionFilters {
 
 /** Fields editable while a requisition is awaiting approval. */
 export interface UpdateRequisitionInput {
+  // Section A — correctable by Factory HR during the job analysis.
+  designation?: string;
+  department?: string;
+  /** '' clears. */
+  section?: string;
+  subSection?: string;
+  lineOfBusiness?: string;
+  vacantDate?: string;
   /** One of JOB_GRADES (@modules/salaryFixation), or '' to clear. */
   grade?: string;
   requiredPosts?: number;

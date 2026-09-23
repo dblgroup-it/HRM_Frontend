@@ -5,6 +5,7 @@ import type {
   ApprovalRole,
   EmploymentNature,
   FacilityKey,
+  CvSource,
   PreferredSource,
   Priority,
   RequirementType,
@@ -115,6 +116,26 @@ export const VEHICLE_TYPES = [
   { value: 'sedan', label: 'Sedan' },
   { value: 'suv', label: 'SUV' },
 ] as const;
+
+/**
+ * Where Head of Talent Acquisition collects CVs from, in the order they are
+ * offered. Keys match the backend's requisition/cv-sources.ts.
+ */
+export const CV_SOURCES: { value: CvSource; label: string }[] = [
+  { value: 'linkedin', label: 'LinkedIn' },
+  { value: 'bdjobs', label: 'BDJobs' },
+  { value: 'head_hunting', label: 'Head Hunting' },
+  { value: 'social_media', label: 'Social media' },
+  { value: 'career_site', label: 'Career Site' },
+  { value: 'campus', label: 'Campus' },
+  { value: 'internal_posting', label: 'Internal Posting' },
+  { value: 'cv_bank', label: 'CV Bank' },
+  { value: 'talent_pool', label: 'Talent Pool' },
+];
+
+export const CV_SOURCE_LABEL = Object.fromEntries(
+  CV_SOURCES.map((s) => [s.value, s.label]),
+) as Record<CvSource, string>;
 
 /**
  * Nobody picks a source any more — a posted requisition goes to the DBL career

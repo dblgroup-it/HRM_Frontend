@@ -30,6 +30,8 @@ export interface Candidate {
   phone: string;
   source: string;
   stage: CandidateStage;
+  /** Set when an employee referred them; null otherwise. */
+  referral?: CandidateReferral | null;
   cvFileId: string | null;
   cvUrl: string | null;
   /**
@@ -164,6 +166,15 @@ export interface CreateCandidateInput {
   email?: string;
   phone?: string;
   notes?: string;
+  /** Employee referral — the referrer's employee code from the directory. */
+  referredByCode?: string;
+}
+
+/** Who referred a candidate, as they were when the referral was made. */
+export interface CandidateReferral {
+  employeeCode: string;
+  name: string;
+  designation: string | null;
 }
 
 export interface ApplyHistoryEntry {

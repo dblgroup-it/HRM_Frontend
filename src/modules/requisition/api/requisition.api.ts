@@ -9,6 +9,7 @@ import type {
   CreateRequisitionPayload,
   Facilities,
   FacilityKey,
+  CvSource,
   JobAnalysisDraft,
   JobAnalysisDraftInput,
   JobAnalysisInput,
@@ -559,6 +560,14 @@ export const requisitionApi = {
   },
 
   /** Nominate (or clear, with null) the Corporate Recruiter for a requisition. */
+  setCvSources(id: string, sources: CvSource[]): Promise<Requisition> {
+    return http
+      .patch<ApiResponse<Requisition>>(`/requisitions/${id}/cv-sources`, {
+        sources,
+      })
+      .then((res) => res.data);
+  },
+
   assignRecruiter(id: string, recruiterId: string | null): Promise<Requisition> {
     return http
       .patch<ApiResponse<Requisition>>(`/requisitions/${id}/recruiter`, {

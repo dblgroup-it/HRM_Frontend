@@ -30,6 +30,7 @@ function toFormData(input: CreateCandidateInput, cv?: File): FormData {
   if (input.email) fd.append('email', input.email);
   if (input.phone) fd.append('phone', input.phone);
   if (input.notes) fd.append('notes', input.notes);
+  if (input.referredByCode) fd.append('referredByCode', input.referredByCode);
   if (cv) fd.append('cv', cv);
   return fd;
 }

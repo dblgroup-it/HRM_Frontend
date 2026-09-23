@@ -1,8 +1,20 @@
 import { useRef, useState } from 'react';
-import { Paperclip, X } from 'lucide-react';
+import { Paperclip, UserPlus, X } from 'lucide-react';
 
-import { Button, Input, Modal, PhoneInput, Textarea } from '@shared/components/ui';
+import {
+  Button,
+  Checkbox,
+  Input,
+  Modal,
+  PhoneInput,
+  Textarea,
+} from '@shared/components/ui';
 import { isValidBdMobile, toBdMobile } from '@shared/utils';
+// By path, not the barrel: the requisition barrel already imports this module.
+import {
+  EmployeePicker,
+  type PickedEmployee,
+} from '@modules/requisition/components/EmployeePicker';
 
 import { useCreateCandidate } from '../hooks/useCandidates';
 
@@ -25,6 +37,8 @@ export function AddCandidateModal({
   const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
   const [cv, setCv] = useState<File | null>(null);
+  const [referred, setReferred] = useState(false);
+  const [referrer, setReferrer] = useState<PickedEmployee | null>(null);
 
   const reset = () => {
     setName('');
@@ -32,6 +46,8 @@ export function AddCandidateModal({
     setPhone('');
     setNotes('');
     setCv(null);
+    setReferred(false);
+    setReferrer(null);
   };
 
   const close = () => {
@@ -44,7 +60,11 @@ export function AddCandidateModal({
     phone && !isValidBdMobile(phone)
       ? 'Enter the 10 digits after +880, starting with 1 (e.g. 1712345678)'
       : undefined;
-  const canSubmit = name.trim().length >= 2 && !phoneError;
+  // A referral comes with the referrer and the CV together — the API
+  // refuses one without the other, so the button says so first.
+  const referralIncomplete = referred && (!referrer || !cv);
+  const canSubmit =
+    name.trim().length >= 2 && !phoneError && !referralIncomplete;
 
   const submit = () => {
     if (!canSubmit) return;
@@ -55,6 +75,8 @@ export function AddCandidateModal({
           email: email.trim() || undefined,
           phone: toBdMobile(phone) || undefined,
           notes: notes.trim() || undefined,
+          referredByCode:
+            referred && referrer ? referrer.employeeCode : undefined,
         },
         cv: cv ?? undefined,
       },
@@ -104,16 +126,58 @@ export function AddCandidateModal({
             error={phoneError}
           />
         </div>
+        <div className="space-y-3 rounded-xl border border-slate-200 p-3">
+          <Checkbox
+            label="Referred by an employee"
+            description="Employee referral — pick who put them forward from the employee directory."
+            className="border-0 p-0 hover:bg-transparent"
+            checked={referred}
+            onChange={(e) => {
+              setReferred(e.target.checked);
+              if (!e.target.checked) setReferrer(null);
+            }}
+          />
+          {referred &&
+            (referrer ? (
+              <div className="flex items-start gap-2.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2">
+                <UserPlus className="mt-0.5 h-4 w-4 shrink-0 text-violet-600" />
+                <div className="min-w-0 flex-1 text-sm">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
+                    Employee referral
+                  </p>
+                  <p className="truncate text-slate-800">
+                    <span className="font-mono">{referrer.employeeCode}</span>
+                    {' – '}
+                    <span className="font-medium">{referrer.name}</span>
+                    {referrer.jobTitle ? ` – ${referrer.jobTitle}` : ''}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Change referrer"
+                  onClick={() => setReferrer(null)}
+                  className="rounded p-1 text-slate-400 hover:bg-white hover:text-slate-700"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <EmployeePicker label="Referred by" value="" onPick={setReferrer} />
+            ))}
+        </div>
+
         <Textarea
           label="Notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Optional — source, referral, first impression…"
+          placeholder="Optional — source, first impression…"
           rows={2}
         />
 
         <div>
-          <p className="mb-1.5 text-sm font-medium text-slate-700">CV (optional)</p>
+          <p className="mb-1.5 text-sm font-medium text-slate-700">
+            CV {referred ? '(required for a referral)' : '(optional)'}
+          </p>
           <input
             ref={fileRef}
             type="file"

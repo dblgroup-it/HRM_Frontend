@@ -1,9 +1,17 @@
 import { useEffect, useState } from 'react';
 
-import { Button, Input, Modal, Select, Textarea } from '@shared/components/ui';
+import {
+  Button,
+  Combobox,
+  Input,
+  Modal,
+  Select,
+  Textarea,
+} from '@shared/components/ui';
+import type { SelectOption } from '@shared/types';
 import { wholeNumberInput } from '@shared/utils';
 import { JOB_GRADES } from '@modules/salaryFixation';
-import { useMasterData } from '@modules/master-data';
+import { sectionKey, useMasterData } from '@modules/master-data';
 
 import type {
   EmploymentNature,
@@ -17,6 +25,15 @@ const PRIORITY_OPTIONS = [
   { value: 'moderate', label: 'Moderate' },
   { value: 'ordinary', label: 'Ordinary' },
 ];
+/** The master list, plus the requisition's own value if the list has since
+ * lost it — so opening the modal to fix something else never blanks it. */
+function withCurrent(list: readonly string[], current: string): SelectOption[] {
+  const opts = list.map((v) => ({ value: v, label: v }));
+  return current && !list.includes(current)
+    ? [...opts, { value: current, label: `${current} (as raised)` }]
+    : opts;
+}
+
 const NATURE_OPTIONS = [
   { value: 'permanent', label: 'Permanent' },
   { value: 'temporary', label: 'Temporary' },
@@ -37,6 +54,16 @@ export function EditRequisitionModal({
 }) {
   const update = useUpdateRequisition();
 
+  const [designation, setDesignation] = useState(requisition.designation);
+  const [department, setDepartment] = useState(requisition.department);
+  const [section, setSection] = useState(requisition.section ?? '');
+  const [subSection, setSubSection] = useState(requisition.subSection ?? '');
+  const [lineOfBusiness, setLineOfBusiness] = useState(
+    requisition.lineOfBusiness ?? '',
+  );
+  const [vacantDate, setVacantDate] = useState(
+    requisition.vacantDate?.slice(0, 10) ?? '',
+  );
   const [grade, setGrade] = useState(requisition.grade ?? '');
   const [requiredPosts, setRequiredPosts] = useState(
     String(requisition.requiredPosts),
@@ -67,6 +94,12 @@ export function EditRequisitionModal({
   // (e.g. a live update from another approver) between opens. Resync on open.
   useEffect(() => {
     if (!open) return;
+    setDesignation(requisition.designation);
+    setDepartment(requisition.department);
+    setSection(requisition.section ?? '');
+    setSubSection(requisition.subSection ?? '');
+    setLineOfBusiness(requisition.lineOfBusiness ?? '');
+    setVacantDate(requisition.vacantDate?.slice(0, 10) ?? '');
     setGrade(requisition.grade ?? '');
     setRequiredPosts(String(requisition.requiredPosts));
     setTotalVacantPosts(String(requisition.totalVacantPosts));
@@ -85,6 +118,12 @@ export function EditRequisitionModal({
       {
         id: requisition.id,
         input: {
+          designation,
+          department,
+          section,
+          subSection,
+          lineOfBusiness,
+          vacantDate: vacantDate || undefined,
           grade,
           requiredPosts: Math.max(1, Math.trunc(Number(requiredPosts)) || 1),
           totalVacantPosts: Math.max(0, Math.trunc(Number(totalVacantPosts)) || 0),
@@ -101,6 +140,18 @@ export function EditRequisitionModal({
       { onSuccess: onClose },
     );
   };
+
+  // The same cascade as the raise form: sections hang off the department,
+  // sub-sections off the department + section pair.
+  const sectionChoices = department
+    ? (master?.departmentSections[department] ?? [])
+    : [];
+  const subSectionChoices =
+    department && section
+      ? (master?.sectionSubSections[sectionKey(department, section)] ??
+        master?.subSections ??
+        [])
+      : [];
 
   return (
     <Modal
@@ -120,6 +171,62 @@ export function EditRequisitionModal({
       }
     >
       <div className="space-y-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          A · Vacancy information
+        </p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Combobox
+            label="Designation"
+            options={withCurrent(master?.designations ?? [], designation)}
+            value={designation}
+            onChange={setDesignation}
+          />
+          <Combobox
+            label="Department"
+            options={withCurrent(master?.departments ?? [], department)}
+            value={department}
+            onChange={(v) => {
+              if (v === department) return;
+              setDepartment(v);
+              // A section belongs to its department.
+              setSection('');
+              setSubSection('');
+            }}
+            hint="The approval chain stays as it was raised."
+          />
+          <Combobox
+            label="Section"
+            placeholder="None"
+            options={withCurrent(sectionChoices, section)}
+            value={section}
+            onChange={(v) => {
+              setSection(v);
+              setSubSection('');
+            }}
+            disabled={!department}
+          />
+          <Combobox
+            label="Sub-section"
+            placeholder="None"
+            options={withCurrent(subSectionChoices, subSection)}
+            value={subSection}
+            onChange={setSubSection}
+            disabled={!section}
+          />
+          <Select
+            label="Line of business"
+            placeholder="Not set"
+            options={withCurrent(master?.linesOfBusiness ?? [], lineOfBusiness)}
+            value={lineOfBusiness}
+            onChange={(e) => setLineOfBusiness(e.target.value)}
+          />
+          <Input
+            label="Vacant date"
+            type="date"
+            value={vacantDate}
+            onChange={(e) => setVacantDate(e.target.value)}
+          />
+        </div>
         <div>
           <Select
             label="Job Grade"

@@ -21,6 +21,7 @@ import {
   X,
   Send,
   AlertTriangle,
+  UserPlus,
 } from 'lucide-react';
 
 import { Avatar, BusyOverlay } from '@shared/components/ui';
@@ -275,6 +276,21 @@ export function CandidateRow({
             )
           )}
         </p>
+        {candidate.referral && (
+          <p
+            className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[0.625rem] font-medium text-violet-800"
+            title="Employee referral"
+          >
+            <UserPlus className="h-2.5 w-2.5 shrink-0" />
+            <span className="truncate">
+              Employee Referral – {candidate.referral.employeeCode} –{' '}
+              {candidate.referral.name}
+              {candidate.referral.designation
+                ? ` – ${candidate.referral.designation}`
+                : ''}
+            </span>
+          </p>
+        )}
         {candidate.isRedFlagged && candidate.redFlagReason && (
           <div className="mt-1.5 max-w-xs rounded-r-lg border-l-4 border-amber-400 bg-amber-50 px-3 py-1.5">
             <p className="text-xs leading-snug text-amber-800">{candidate.redFlagReason}</p>
