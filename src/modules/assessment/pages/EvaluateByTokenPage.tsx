@@ -22,8 +22,13 @@ import { cn } from '@shared/lib';
 import { Spinner } from '@shared/components/ui';
 
 import { usePublicEval, useSubmitPublicEval } from '../hooks/useAssessment';
-import type { PublicEvalData } from '../types/assessment.types';
+import type {
+  PublicEvalData,
+  RecommendationKey,
+} from '../types/assessment.types';
 import { CriteriaScoringSection } from '../components/CriteriaScoringSection';
+import { RecommendationPicker } from '../components/RecommendationPicker';
+import { recommendationLabel, recommendationTone } from '../components/recommendation';
 import { resolveApiFileUrl } from '@shared/api';
 
 // ---------------------------------------------------------------------------
@@ -71,6 +76,7 @@ export default function EvaluateByTokenPage() {
   const submit = useSubmitPublicEval(token);
 
   const [scores, setScores] = useState<Record<string, number>>({});
+  const [recommendation, setRecommendation] = useState<RecommendationKey | null>(null);
   const [comments, setComments] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
@@ -131,6 +137,22 @@ export default function EvaluateByTokenPage() {
             )}
           </div>
 
+          {ev?.recommendation && (
+            <div
+              className={cn(
+                'flex items-center justify-between gap-3 rounded-2xl px-5 py-3.5 ring-1',
+                recommendationTone(ev.recommendation),
+              )}
+            >
+              <span className="text-xs font-semibold uppercase tracking-wide opacity-70">
+                Your recommendation
+              </span>
+              <span className="text-sm font-bold">
+                {recommendationLabel(ev.recommendation)}
+              </span>
+            </div>
+          )}
+
           {ev && (
             <CriteriaScoringSection criteria={data.criteria} scores={ev.scores} readOnly />
           )}
@@ -154,13 +176,17 @@ export default function EvaluateByTokenPage() {
 
   const answeredCount = data.criteria.filter((c) => typeof scores[c.key] === 'number').length;
   const complete = answeredCount === data.criteria.length;
-  const canSubmit = !submit.isPending && complete;
+  // The recommendation is part of the sheet, not an extra: a scorecard that
+  // reaches the recruiter with no verdict is the thing it was added to stop.
+  const canSubmit = !submit.isPending && complete && recommendation !== null;
 
-  const handleSubmit = () =>
+  const handleSubmit = () => {
+    if (!recommendation) return;
     submit.mutate(
-      { scores, comments: comments.trim() || undefined },
+      { scores, comments: comments.trim() || undefined, recommendation },
       { onSuccess: () => setSubmitted(true) },
     );
+  };
 
   return (
     <Shell
@@ -202,6 +228,8 @@ export default function EvaluateByTokenPage() {
             scores={scores}
             onChange={(key, value) => setScores((prev) => ({ ...prev, [key]: value }))}
           />
+
+          <RecommendationPicker value={recommendation} onChange={setRecommendation} />
 
           {/* Comments. The running total used to be repeated here in a card of
               its own, a third copy alongside the progress header and the phone
@@ -262,7 +290,9 @@ export default function EvaluateByTokenPage() {
             <SubmitButton canSubmit={canSubmit} pending={submit.isPending} onSubmit={handleSubmit} />
             {!canSubmit && !submit.isPending && (
               <p className="mt-1.5 text-center text-[0.6875rem] text-slate-400">
-                Score all {data.criteria.length} criteria to submit
+                {!complete
+                  ? `Score all ${data.criteria.length} criteria to submit`
+                  : 'Choose a recommendation to submit'}
               </p>
             )}
             {submit.isError && (

@@ -25,8 +25,16 @@ import { formatDate } from '@shared/utils';
 
 import { useMyInterviews, useSubmitEvaluation } from '../hooks/useAssessment';
 import { CriteriaScoringSection } from '../components/CriteriaScoringSection';
+import { RecommendationPicker } from '../components/RecommendationPicker';
+import {
+  recommendationLabel,
+  recommendationTone,
+} from '../components/recommendation';
 import { CandidateBriefCard } from '../components/CandidateBriefCard';
-import type { MyInterviewRound } from '../types/assessment.types';
+import type {
+  MyInterviewRound,
+  RecommendationKey,
+} from '../types/assessment.types';
 import { resolveApiFileUrl } from '@shared/api';
 
 type Filter = 'all' | 'pending' | 'submitted';
@@ -177,6 +185,9 @@ function InterviewCard({ round }: { round: MyInterviewRound }) {
     round.myEvaluation?.scores ?? {},
   );
   const [comments, setComments] = useState(round.myEvaluation?.comments ?? '');
+  const [recommendation, setRecommendation] = useState<RecommendationKey | null>(
+    round.myEvaluation?.recommendation ?? null,
+  );
   // Once marks are in there is nothing left to do here, so the card folds down
   // to its summary and the remaining pending interviews stay on screen.
   const [showMarks, setShowMarks] = useState(false);
@@ -190,10 +201,14 @@ function InterviewCard({ round }: { round: MyInterviewRound }) {
   const total    = round.criteria.reduce((s, c) => s + (scores[c.key] ?? 0), 0);
   const maxTotal = round.criteria.reduce((s, c) => s + c.max, 0);
   const totalPct = maxTotal > 0 ? Math.round((total / maxTotal) * 1000) / 10 : 0;
-  const complete = round.criteria.every((c) => typeof scores[c.key] === 'number');
+  const scored = round.criteria.every((c) => typeof scores[c.key] === 'number');
+  // The verdict is part of the sheet, not an extra — same gate as the emailed
+  // form, so a panelist meets the same rule whichever way they mark.
+  const complete = scored && recommendation !== null;
 
   const save = () => {
-    submit.mutate({ roundId: round.id, input: { scores, comments } });
+    if (!recommendation) return;
+    submit.mutate({ roundId: round.id, input: { scores, comments, recommendation } });
   };
 
   // Left border accent color
@@ -322,6 +337,11 @@ function InterviewCard({ round }: { round: MyInterviewRound }) {
               onChange={(key, value) => setScores((p) => ({ ...p, [key]: value }))}
             />
 
+            <RecommendationPicker
+              value={recommendation}
+              onChange={setRecommendation}
+            />
+
             {/* Total */}
             <div className={cn(
               'rounded-xl border px-4 py-3',
@@ -370,7 +390,11 @@ function InterviewCard({ round }: { round: MyInterviewRound }) {
           ) : (
             <>
               <p className="text-xs text-slate-400">
-                {complete ? 'Review before submitting — marks are final.' : 'Score all criteria to submit.'}
+                {complete
+                  ? 'Review before submitting — marks are final.'
+                  : !scored
+                    ? 'Score all criteria to submit.'
+                    : 'Choose a recommendation to submit.'}
               </p>
               <Button onClick={save} isLoading={submit.isPending} disabled={!complete}>
                 Submit marks
@@ -390,7 +414,12 @@ function SubmittedSummary({
   evaluation,
 }: {
   criteria: MyInterviewRound['criteria'];
-  evaluation: { scores: Record<string, number>; comments: string; total: number };
+  evaluation: {
+    scores: Record<string, number>;
+    comments: string;
+    total: number;
+    recommendation: RecommendationKey | null;
+  };
 }) {
   const maxTotal = criteria.reduce((s, c) => s + c.max, 0);
   const pct      = maxTotal > 0 ? Math.round((evaluation.total / maxTotal) * 1000) / 10 : 0;
@@ -400,6 +429,21 @@ function SubmittedSummary({
       <p className="bg-emerald-50 border-b border-emerald-100 px-4 py-2 text-[0.625rem] font-bold uppercase tracking-widest text-emerald-600">
         Your submitted marks
       </p>
+      {evaluation.recommendation && (
+        <div
+          className={cn(
+            'flex items-center justify-between gap-3 border-b border-emerald-100 px-4 py-2.5 ring-inset',
+            recommendationTone(evaluation.recommendation),
+          )}
+        >
+          <span className="text-[0.625rem] font-bold uppercase tracking-widest opacity-70">
+            You recommended
+          </span>
+          <span className="text-sm font-bold">
+            {recommendationLabel(evaluation.recommendation)}
+          </span>
+        </div>
+      )}
       <div className="p-3">
         <CriteriaScoringSection criteria={criteria} scores={evaluation.scores} readOnly />
       </div>

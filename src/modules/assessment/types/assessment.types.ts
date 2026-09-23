@@ -43,6 +43,8 @@ export interface ScorecardInterviewer {
   total: number;
   max: number;
   pct: number;
+  /** What this panelist suggested; null if they marked before it was asked. */
+  recommendation: RecommendationKey | null;
   submittedAt: string;
 }
 
@@ -152,8 +154,16 @@ export interface PublicEvalData {
     scores: Record<string, number>;
     comments: string;
     total: number;
+    recommendation: RecommendationKey | null;
   } | null;
 }
+
+/**
+ * What the interviewer suggests happens next — recorded beside their marks.
+ * Null on evaluations submitted before this was asked for: absent, not
+ * neutral, so the UI shows nothing rather than inventing a verdict.
+ */
+export type RecommendationKey = 'select' | 'reject' | 'talent_pool';
 
 export interface EvaluationView {
   evaluatorId: string;
@@ -161,6 +171,7 @@ export interface EvaluationView {
   scores: Record<string, number>;
   total: number;
   comments: string;
+  recommendation: RecommendationKey | null;
 }
 
 export interface BulkScheduleInput {
@@ -216,12 +227,15 @@ export interface MyInterviewRound {
     scores: Record<string, number>;
     comments: string;
     total: number;
+    recommendation: RecommendationKey | null;
   } | null;
 }
 
 export interface SubmitEvaluationInput {
   scores: Record<string, number>;
   comments?: string;
+  /** Required: a scorecard with no verdict is what this exists to prevent. */
+  recommendation: RecommendationKey;
 }
 
 export interface ScheduleInterviewInput {

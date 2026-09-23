@@ -71,6 +71,10 @@ import type {
 } from '../types/assessment.types';
 import { BulkInterviewModal } from './BulkInterviewModal';
 import { heldByLabel } from './heldByLabel';
+import {
+  recommendationLabel,
+  recommendationTone,
+} from './recommendation';
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -1238,7 +1242,21 @@ function RoundCard({
           <div className="space-y-1">
             {round.evaluations.map((ev) => (
               <div key={ev.evaluatorId} className="flex items-center justify-between">
-                <span className="truncate font-medium text-slate-600">{ev.evaluatorName}</span>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <span className="truncate font-medium text-slate-600">{ev.evaluatorName}</span>
+                  {/* The verdict beside the number. A total says how they did;
+                      this says what the person in the room wants done. */}
+                  {ev.recommendation && (
+                    <span
+                      className={cn(
+                        'shrink-0 rounded-full px-1.5 py-0.5 text-[0.5625rem] font-bold uppercase tracking-wide ring-1',
+                        recommendationTone(ev.recommendation),
+                      )}
+                    >
+                      {recommendationLabel(ev.recommendation)}
+                    </span>
+                  )}
+                </span>
                 <span className="ml-2 shrink-0 font-semibold text-slate-700">
                   {ev.total.toFixed(1)}{maxTotal > 0 && <span className="text-slate-400"> / {maxTotal}</span>}
                 </span>

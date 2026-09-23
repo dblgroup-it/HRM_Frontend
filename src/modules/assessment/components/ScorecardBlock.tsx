@@ -11,6 +11,10 @@ import { resolveApiFileUrl } from '@shared/api';
 import { cn } from '@shared/lib';
 
 import { useScorecard } from '../hooks/useAssessment';
+import {
+  recommendationLabel,
+  recommendationTone,
+} from './recommendation';
 import type {
   ScorecardEntry,
   ScorecardTest,
@@ -357,6 +361,20 @@ function RowDetail({ row }: { row: ScorecardEntry }) {
                   </td>
                   <td className="py-1 pr-3 capitalize text-slate-400">
                     {ev.roundKind ? `${ev.roundKind} round` : '—'}
+                  </td>
+                  {/* The verdict beside the number — an average hides a panel
+                      that disagreed, and so does a score with no opinion. */}
+                  <td className="py-1 pr-3">
+                    {ev.recommendation && (
+                      <span
+                        className={cn(
+                          'rounded-full px-1.5 py-0.5 text-[0.5625rem] font-bold uppercase tracking-wide ring-1',
+                          recommendationTone(ev.recommendation),
+                        )}
+                      >
+                        {recommendationLabel(ev.recommendation)}
+                      </span>
+                    )}
                   </td>
                   <td className="py-1 pr-3 text-right tabular-nums text-slate-500">
                     {ev.total} / {ev.max}
