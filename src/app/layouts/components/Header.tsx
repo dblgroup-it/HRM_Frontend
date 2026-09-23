@@ -21,6 +21,7 @@ import { ROUTES } from '@app/router/paths';
 
 interface HeaderProps {
   onMenuClick: () => void;
+  sidebarCollapsed: boolean;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -32,7 +33,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export function Header({ onMenuClick }: HeaderProps) {
+export function Header({ onMenuClick, sidebarCollapsed }: HeaderProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -91,6 +92,15 @@ export function Header({ onMenuClick }: HeaderProps) {
         month: 'long',
         day: 'numeric',
         year: 'numeric',
+      }).format(now),
+    [now]
+  );
+  const headerDateLabel = useMemo(
+    () =>
+      new Intl.DateTimeFormat('en', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric',
       }).format(now),
     [now]
   );
@@ -172,17 +182,22 @@ export function Header({ onMenuClick }: HeaderProps) {
           </button>
         </div>
 
-        {/* Centred on the screen, not in its column: the left cell holds a
-            menu button and the right one holds a clock, a bell and a name,
-            so a search centred between them sat noticeably off-centre. It
-            is taken out of flow and pinned to the row's own middle, with a
-            wide enough gutter that it never reaches either side. */}
+        {/* Viewport-centred, not content-column-centred: the sidebar changes
+            the content pane's midpoint, which made the search drift toward
+            the profile controls on wide screens. The header's backdrop blur
+            also makes it the containing block for this fixed child, so the
+            left offset compensates for the desktop sidebar width directly. */}
         <form
           onSubmit={submitSearch}
           ref={searchRef}
-          className="absolute left-1/2 hidden w-full min-w-0 max-w-md -translate-x-1/2 px-4 md:block"
+          className={cn(
+            'fixed left-1/2 top-2.5 z-30 hidden w-[clamp(20rem,32vw,28rem)] -translate-x-1/2 lg:block',
+            sidebarCollapsed
+              ? 'lg:left-[calc(50vw-5rem)]'
+              : 'lg:left-[calc(50vw-18rem)]',
+          )}
         >
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             type="search"
             value={query}
@@ -252,7 +267,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         </form>
 
         <div className="flex min-w-0 justify-end">
-          <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
+          <div className="relative z-40 flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
             <div className="hidden min-[1700px]:block">
               <button
                 ref={dateRef}
@@ -263,7 +278,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                 aria-expanded={dateOpen}
               >
                 <CalendarDays className="h-4 w-4 shrink-0 text-brand-600" />
-                <span className="truncate">{dateLabel}</span>
+                <span className="truncate">{headerDateLabel}</span>
               </button>
 
               {/* Portalled: the header lives inside the layout's
@@ -334,14 +349,16 @@ export function Header({ onMenuClick }: HeaderProps) {
             <div className="relative" ref={menuRef}>
               <button
                 ref={profileRef}
+                type="button"
                 onClick={toggleUserMenu}
-                className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-2 py-1.5 transition hover:border-slate-300 hover:bg-slate-50"
+                className="flex h-14 items-center gap-2.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 transition hover:border-slate-300 hover:bg-slate-50"
               >
-                <span className="relative shrink-0">
+                <span className="relative grid h-11 w-11 shrink-0 place-items-center">
                   <Avatar
                     name={user?.name ?? 'User'}
                     src={user?.avatarUrl}
                     size="md"
+                    className="h-11 w-11"
                   />
                   {/* Emerald on duty, amber away — and only for the people
                       whose absence actually re-routes work. */}

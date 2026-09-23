@@ -34,7 +34,10 @@ export function DashboardLayout() {
       />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <Header onMenuClick={() => setSidebarOpen(true)} />
+        <Header
+          onMenuClick={() => setSidebarOpen(true)}
+          sidebarCollapsed={sidebarCollapsed}
+        />
         {/* Content floats in one big rounded white panel on the grey canvas. */}
         <main className="min-h-0 flex-1 px-2 pb-2 pt-0.5 sm:px-3 sm:pb-3 lg:pl-0">
           <div
