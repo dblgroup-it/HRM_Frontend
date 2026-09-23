@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bus, Check, MapPin, Pencil, Sofa, StickyNote, X } from 'lucide-react';
+import { Bus, Check, Info, MapPin, Pencil, Sofa, StickyNote, X } from 'lucide-react';
 
 import { Badge, Button, Card, CardBody, CardHeader, CardTitle } from '@shared/components/ui';
 import { cn } from '@shared/lib';
@@ -7,7 +7,11 @@ import { formatDate } from '@shared/utils';
 
 import { useMasterData } from '@modules/master-data';
 
-import { FACILITY_META, FACILITY_OPTION_LABEL } from '../constants';
+import {
+  FACILITY_CAVEAT,
+  FACILITY_META,
+  FACILITY_OPTION_LABEL,
+} from '../constants';
 import { useUpdateFacilities } from '../hooks/useRequisitionActions';
 import type { FacilityDecision, FacilityKey, Facilities } from '../types/requisition.types';
 
@@ -174,6 +178,17 @@ export function FacilitiesPanel({
                   </div>
                 )}
               </div>
+
+              {/* What requesting this actually promises. Shown on the
+                  requested ones only — a caveat about a facility nobody asked
+                  for is noise, and HR confirming one needs to see the same
+                  wording the requisitioner agreed to. */}
+              {f.requested && FACILITY_CAVEAT[key] && (
+                <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-amber-50/70 px-2.5 py-2 text-[0.6875rem] leading-relaxed text-amber-800">
+                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+                  {FACILITY_CAVEAT[key]}
+                </p>
+              )}
 
               {/* Older requisitions recorded a pick-up point on the form
                   itself; it is still read so those keep displaying it. */}

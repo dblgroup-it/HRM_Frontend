@@ -74,6 +74,25 @@ export const FACILITY_META: { key: FacilityKey; label: string }[] = [
   { key: 'seating', label: 'Seating Arrangement' },
 ];
 
+/**
+ * What "requested" actually promises — which, for these two, is not much.
+ *
+ * Transport and dormitory are the only facilities DBL cannot simply issue: a
+ * seat on a run depends on the route and the vehicle schedule, a dormitory bed
+ * on allocation and eligibility. Ticking the box has read as a guarantee to
+ * requisitioners and to hires, and the correction has been arriving verbally,
+ * late, from whoever ends up arranging it.
+ *
+ * Shown wherever the requirement is asked for or displayed, so the caveat
+ * travels with the request instead of following it.
+ */
+export const FACILITY_CAVEAT: Partial<Record<FacilityKey, string>> = {
+  transport:
+    'Transportation may be provided subject to seat availability, vehicle availability on the desired route, the planned route, and the vehicle schedule.',
+  dormitory:
+    'Dormitory accommodation may be provided subject to room and seat availability, eligibility, and dormitory allocation/schedule.',
+};
+
 export const FACILITY_OPTION_LABEL: Record<string, string> = {
   desktop: 'Desktop',
   laptop: 'Laptop',

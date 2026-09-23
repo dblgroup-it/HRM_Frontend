@@ -16,6 +16,7 @@ import {
   Send,
   CheckCircle2,
   AlertTriangle,
+  Info,
   Laptop,
   Loader2,
   Warehouse,
@@ -54,6 +55,7 @@ import {
 import type { CreateRequisitionPayload } from '../types/requisition.types';
 import {
   EMPLOYMENT_NATURE_OPTIONS,
+  FACILITY_CAVEAT,
   PRIORITY_OPTIONS,
   TRANSPORT_OPTIONS,
   VEHICLE_TYPES,
@@ -988,6 +990,7 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                 toggleReg={register('facilities.transport.requested')}
                 noteReg={register('facilities.transport.note')}
                 notePlaceholder="e.g. shift timing, or anything unusual about the run"
+                caveat={FACILITY_CAVEAT.transport}
                 optionField={
                   <div className="space-y-3">
                     <Select
@@ -1015,6 +1018,7 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                 toggleReg={register('facilities.dormitory.requested')}
                 noteReg={register('facilities.dormitory.note')}
                 notePlaceholder="e.g. single room, near the factory"
+                caveat={FACILITY_CAVEAT.dormitory}
               />
               <FacilityField
                 icon={Armchair}
@@ -1193,6 +1197,7 @@ function FacilityField({
   noteReg,
   notePlaceholder,
   optionField,
+  caveat,
 }: {
   icon: LucideIcon;
   title: string;
@@ -1201,6 +1206,8 @@ function FacilityField({
   noteReg: UseFormRegisterReturn;
   notePlaceholder: string;
   optionField?: ReactNode;
+  /** What requesting this actually promises — see FACILITY_CAVEAT. */
+  caveat?: string;
 }) {
   return (
     <div
@@ -1228,6 +1235,15 @@ function FacilityField({
           />
         </label>
       </div>
+      {/* Before the box is ticked, not after: this is what "needed" is worth,
+          and a requisitioner who reads it only once they have committed has
+          been told too late. */}
+      {caveat && (
+        <p className="mt-2 flex items-start gap-1.5 rounded-lg bg-amber-50/70 px-2.5 py-2 text-[0.6875rem] leading-relaxed text-amber-800">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+          {caveat}
+        </p>
+      )}
       {requested && (
         <div className="mt-3 space-y-3 animate-fade-in">
           {optionField}
