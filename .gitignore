@@ -34,3 +34,7 @@ dist-ssr
 
 # TypeScript incremental build cache — a build artefact, not source.
 *.tsbuildinfo
+
+# Which web root this particular server publishes to — a property of the
+# machine, not the codebase. Read by deploy.sh.
+.deploy-target
