@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   KeyRound,
   PlugZap,
+  RotateCcw,
   Save,
   Settings2,
   XCircle,
@@ -68,6 +69,32 @@ export function BdJobsSettingsCard() {
       toast.success('BDJobs settings saved');
     },
     onError: () => toast.error('Could not save the settings'),
+  });
+
+  /**
+   * Put the shipped configuration back, in one click.
+   *
+   * For the case it exists to serve: somebody edited the base URL, the
+   * signature template or the level thresholds, posting stopped working, and
+   * nobody remembers what the values were. The server keeps the credentials,
+   * the company ID and the on/off switch — those are the half nobody can
+   * retype — so this cannot turn a recoverable mistake into an unrecoverable
+   * one. It saves immediately and reseeds the form from what came back, since
+   * a "restore" that then needed a separate Save would be two clicks and a
+   * question about whether it had worked.
+   */
+  const restore = useMutation({
+    mutationFn: bdJobsApi.restoreSettings,
+    onSuccess: (fresh) => {
+      qc.setQueryData(SETTINGS_KEY, fresh);
+      qc.invalidateQueries({ queryKey: SETTINGS_KEY });
+      qc.invalidateQueries({ queryKey: ['bdjobs-status'] });
+      setTestResult(null);
+      toast.success('Default configuration restored', {
+        description: 'Your API token, company ID and on/off switch were kept.',
+      });
+    },
+    onError: () => toast.error('Could not restore the defaults'),
   });
 
   // Tests exactly what's on screen — not the saved values.
@@ -289,7 +316,22 @@ export function BdJobsSettingsCard() {
           </div>
         </section>
 
-        <div className="flex justify-end border-t border-slate-100 pt-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+          <div>
+            <Button
+              variant="outline"
+              size="sm"
+              isLoading={restore.isPending}
+              leftIcon={<RotateCcw className="h-4 w-4" />}
+              onClick={() => restore.mutate()}
+            >
+              Restore defaults
+            </Button>
+            <p className="mt-1 text-[0.6875rem] text-slate-400">
+              Resets the URL, signature and posting defaults. Keeps your token,
+              company ID and the on/off switch.
+            </p>
+          </div>
           <Button
             isLoading={save.isPending}
             leftIcon={<Save className="h-4 w-4" />}

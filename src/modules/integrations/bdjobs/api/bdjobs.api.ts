@@ -74,6 +74,17 @@ export const bdJobsApi = {
       )
       .then((r) => r.data),
 
+  /**
+   * Put the shipped configuration back. Credentials, company ID and the on/off
+   * switch are kept server-side — this is a rescue, not a wipe.
+   */
+  restoreSettings: (): Promise<BdJobsSettingsView> =>
+    http
+      .post<ApiResponse<BdJobsSettingsView>>(
+        '/integrations/bdjobs/settings/restore',
+      )
+      .then((r) => r.data),
+
   /** Tests the values currently in the form; blank secrets use the saved ones. */
   testConnection: (
     creds: Partial<
