@@ -17,6 +17,11 @@ export interface MatchCriterion {
   score: number;
 }
 
+/** Whoever a candidate's first interview is currently out with. */
+export interface FirstInterviewHold {
+  delegates: { id: string; name: string }[];
+}
+
 export interface Candidate {
   id: string;
   requisitionId: string;
@@ -57,6 +62,18 @@ export interface Candidate {
   rejectionReason: string | null;
   /** Who turned them down, when the query supplies it. */
   rejectedByName: string | null;
+  /**
+   * Set while this candidate's first interview is out with somebody else.
+   *
+   * Scheduling a first round advances a candidate to the Interview stage, so
+   * a candidate handed to a factory colleague turns up on the recruiter's own
+   * Interviews tab — which used to offer full reschedule / edit / reject
+   * controls over a round the recruiter had deliberately asked somebody else
+   * to run. While this is set the tab shows the candidate but leaves the
+   * round alone; it clears when the delegate records their verdict, or when
+   * the hand-off is withdrawn.
+   */
+  firstInterviewHold: FirstInterviewHold | null;
   createdAt: string;
   updatedAt: string;
 }

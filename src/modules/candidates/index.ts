@@ -24,6 +24,7 @@ export type { RecruitmentPerms } from './access';
 export type {
   Candidate,
   CandidateStage,
+  FirstInterviewHold,
   RecruitmentWorkspace,
   CreateCandidateInput,
   UpdateCandidateInput,

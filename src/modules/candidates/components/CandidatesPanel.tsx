@@ -875,6 +875,10 @@ export function CandidatesPanel({
           candidate={{ id: interviewTarget.id, name: interviewTarget.name }}
           open={Boolean(interviewTarget)}
           onClose={() => setInterviewTarget(null)}
+          // Corporate opening a factory colleague's first interview. Read-only
+          // until they report back — this drawer is the other way in, past the
+          // lock on the Interviews tab.
+          heldBy={interviewTarget.firstInterviewHold}
         />
       )}
       {salaryTarget && (

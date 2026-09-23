@@ -10,6 +10,7 @@ import {
   Circle,
   ClipboardCopy,
   Lightbulb,
+  Lock,
   Mail,
   MapPin,
   RefreshCw,
@@ -52,9 +53,11 @@ import type {
   InterviewModeKey,
   InterviewRoundView,
 } from '../types/assessment.types';
+import { heldByLabel } from './heldByLabel';
 import { VenuePicker } from './VenuePicker';
 import { usesRoomList } from './venue';
 import { useMyPermissions } from '@modules/rbac';
+import type { FirstInterviewHold } from '@modules/candidates';
 
 const KIND_OPTIONS: { value: InterviewKindKey; label: string }[] = [
   { value: 'first', label: 'First' },
@@ -87,6 +90,7 @@ export function CandidateInterviewsModal({
   open,
   onClose,
   firstRoundOnly = false,
+  heldBy = null,
 }: {
   reqId: string;
   candidate: { id: string; name: string };
@@ -98,6 +102,18 @@ export function CandidateInterviewsModal({
    * keeps someone from picking one and hitting a 403.
    */
   firstRoundOnly?: boolean;
+  /**
+   * Set when this candidate's first interview is out with somebody else, which
+   * makes the whole drawer read-only.
+   *
+   * The corporate recruiter opens this from the Recruitment tab and could
+   * mark a factory colleague's session complete, mark the candidate a
+   * no-show, delete the round or re-issue its evaluation links — decisions
+   * about a room they were not in. They still see all of it, the panel
+   * included; they just cannot touch it until the interviewer has reported
+   * back. See `firstInterviewHold`.
+   */
+  heldBy?: FirstInterviewHold | null;
 }) {
   /* ── Animation state machine ─────────────────────────────── */
   // `mounted` keeps the portal in the DOM during exit animation.
@@ -244,7 +260,9 @@ export function CandidateInterviewsModal({
               <h2 className="truncate text-[0.9375rem] font-semibold text-slate-900">
                 {candidate.name}
               </h2>
-              <p className="text-[0.6875rem] text-slate-400">Interview management</p>
+              <p className="text-[0.6875rem] text-slate-400">
+                {heldBy ? 'First interview — view only' : 'Interview management'}
+              </p>
             </div>
           </div>
           <button
@@ -255,6 +273,21 @@ export function CandidateInterviewsModal({
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        {/* Says why everything below is inert, before they reach for it. */}
+        {heldBy && (
+          <div className="flex shrink-0 items-start gap-2.5 border-b border-amber-100 bg-amber-50/70 px-5 py-3">
+            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <p className="text-[0.6875rem] leading-relaxed text-amber-800">
+              <span className="font-semibold">
+                This first interview is with {heldByLabel(heldBy)}.
+              </span>{' '}
+              You can see how it is going — the panel, who has marked, the
+              scores — but recording the outcome is theirs. It comes back to
+              you when they put the candidate through or turn them down.
+            </p>
+          </div>
+        )}
 
         {/* ── Body (responsive: stacked mobile, columns md+) ── */}
         <div className="flex min-h-0 flex-1 flex-col md:flex-row md:divide-x md:divide-slate-100">
@@ -280,7 +313,9 @@ export function CandidateInterviewsModal({
                   <CalendarClock className="mx-auto mb-2 h-7 w-7 text-slate-300" />
                   <p className="text-sm font-medium text-slate-400">No interviews yet</p>
                   <p className="mt-0.5 text-xs text-slate-300">
-                    Schedule the first one on the right →
+                    {heldBy
+                      ? `${heldByLabel(heldBy)} has not arranged it yet.`
+                      : 'Schedule the first one on the right →'}
                   </p>
                 </div>
               ) : (
@@ -290,6 +325,7 @@ export function CandidateInterviewsModal({
                     round={r}
                     candidateId={candidate.id}
                     onRemove={() => remove.mutate(r.id)}
+                    readOnly={Boolean(heldBy)}
                   />
                 ))
               )}
@@ -339,7 +375,30 @@ export function CandidateInterviewsModal({
             </div>
           </div>
 
-          {/* RIGHT — Schedule form ───────────────────────── */}
+          {/* RIGHT — Schedule form, or why there isn't one ─ */}
+          {heldBy ? (
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center border-t border-slate-100 px-6 py-10 md:border-t-0">
+              <div className="max-w-sm text-center">
+                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100">
+                  <Lock className="h-5 w-5 text-slate-400" />
+                </span>
+                <p className="mt-3 text-sm font-semibold text-slate-800">
+                  {heldByLabel(heldBy)} is running this one
+                </p>
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                  Arranging the first interview, marking it complete and
+                  recording a no-show all sit with them. Scheduling a second or
+                  final round opens up once they have reported the outcome.
+                </p>
+                <p className="mt-3 rounded-lg border border-dashed border-slate-200 px-3 py-2.5 text-[0.6875rem] leading-relaxed text-slate-400">
+                  Need it back? Withdraw the hand-off under{' '}
+                  <span className="font-medium text-slate-500">Assignments</span> —
+                  that is a deliberate act with a record, and it returns every
+                  control here.
+                </p>
+              </div>
+            </div>
+          ) : (
           <div className="flex min-h-0 flex-1 flex-col border-t border-slate-100 md:border-t-0">
             {/* Sub-header */}
             <div className="shrink-0 border-b border-slate-100 bg-white/80 px-5 py-3">
@@ -496,6 +555,7 @@ export function CandidateInterviewsModal({
               </div>
             </div>
           </div>
+          )}
         </div>
 
         <BusyOverlay
@@ -653,14 +713,26 @@ const STATUS_TONE = {
   absent: 'danger',
 } as const;
 
+/**
+ * One interview round.
+ *
+ * `readOnly` is the corporate recruiter looking at a first interview they
+ * handed to a factory colleague. They get the whole record — when it is, where
+ * it is, who is on the panel, who has marked — and none of the controls. The
+ * round is the delegate's to run, and "Mark as complete" on somebody else's
+ * session, from a screen in another building, is not a judgement this side can
+ * make. See `firstInterviewHold`.
+ */
 function RoundRow({
   round,
   candidateId,
   onRemove,
+  readOnly = false,
 }: {
   round: InterviewRoundView;
   candidateId: string;
   onRemove: () => void;
+  readOnly?: boolean;
 }) {
   const update = useUpdateInterview(candidateId);
   const resendToken = useResendEvalToken(candidateId);
@@ -671,6 +743,10 @@ function RoundRow({
           (round.evaluations.reduce((s, e) => s + e.total, 0) / round.evaluations.length) * 10,
         ) / 10
       : 0;
+
+  // A mark means somebody was in the room, so "did not attend" stops being
+  // offered — the server refuses it too.
+  const canMarkAbsent = round.evaluations.length === 0;
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white transition-shadow hover:shadow-sm">
@@ -690,44 +766,12 @@ function RoundRow({
           <Badge tone="neutral">{round.mode}</Badge>
           <Badge tone={STATUS_TONE[round.status]}>{round.status}</Badge>
         </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          {round.status === 'scheduled' && (
-            <>
-              <button type="button"
-                onClick={() => update.mutate({ roundId: round.id, status: 'completed' })}
-                disabled={update.isPending}
-                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Mark as complete
-              </button>
-              {/* The candidate did not turn up. Same rule as the HR panel:
-                  gone once anyone has marked them, since a mark means they
-                  were in the room (the server refuses too). */}
-              {round.evaluations.length === 0 && (
-                <button type="button"
-                  onClick={() => update.mutate({ roundId: round.id, status: 'absent' })}
-                  disabled={update.isPending}
-                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-medium text-rose-600 transition hover:bg-rose-50 disabled:opacity-50">
-                  <UserX className="h-3.5 w-3.5" />
-                  Absent
-                </button>
-              )}
-            </>
-          )}
-          {round.status === 'absent' && (
-            <button type="button"
-              onClick={() => update.mutate({ roundId: round.id, status: 'scheduled' })}
-              disabled={update.isPending}
-              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-medium text-slate-500 transition hover:bg-slate-100 disabled:opacity-50">
-              <RotateCcw className="h-3.5 w-3.5" />
-              Undo absent
-            </button>
-          )}
+        {!readOnly && (
           <button type="button" title="Remove" onClick={onRemove}
-            className="rounded p-1 text-slate-300 transition hover:bg-rose-50 hover:text-rose-500">
+            className="shrink-0 rounded p-1 text-slate-300 transition hover:bg-rose-50 hover:text-rose-500">
             <Trash2 className="h-3.5 w-3.5" />
           </button>
-        </div>
+        )}
       </div>
 
       {/* Meta row */}
@@ -789,7 +833,7 @@ function RoundRow({
 
                 {/* Action buttons — only for pending panelists, and not on a
                     no-show: there is nothing for them to mark. */}
-                {!p.hasMarked && round.status !== 'absent' && (
+                {!readOnly && !p.hasMarked && round.status !== 'absent' && (
                   <div className="ml-auto flex items-center gap-1.5">
                     {p.evalLink && (
                       <button
@@ -830,7 +874,7 @@ function RoundRow({
             Gone once the round is done: the panel is the record of who was in
             that room, and adding to it afterwards mints an evaluation link
             for an interview the person never sat in. */}
-        {round.status === 'scheduled' && (
+        {!readOnly && round.status === 'scheduled' && (
           <AddPanelistRow
             roundId={round.id}
             candidateId={candidateId}
@@ -838,6 +882,69 @@ function RoundRow({
           />
         )}
       </div>
+
+      {/* ── Outcome ───────────────────────────────────────────────────────
+          The two things that actually happen to a booked session, asked as a
+          question with two answers. They were a pair of 11px text links wedged
+          between the status badges and the delete bin in the header strip —
+          the most consequential controls on the card, styled as the least, and
+          one mis-aim away from deleting the round instead. */}
+      {!readOnly && round.status === 'scheduled' && (
+        <div className="border-t border-slate-100 bg-white px-3 py-2.5">
+          <p className="mb-2 text-[0.625rem] font-semibold uppercase tracking-widest text-slate-400">
+            Did this interview happen?
+          </p>
+          <div className={cn('grid gap-2', canMarkAbsent ? 'grid-cols-2' : 'grid-cols-1')}>
+            <button
+              type="button"
+              onClick={() => update.mutate({ roundId: round.id, status: 'completed' })}
+              disabled={update.isPending}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 active:scale-[0.98] disabled:opacity-50"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Interviewed
+            </button>
+            {canMarkAbsent && (
+              <button
+                type="button"
+                onClick={() => update.mutate({ roundId: round.id, status: 'absent' })}
+                disabled={update.isPending}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 active:scale-[0.98] disabled:opacity-50"
+              >
+                <UserX className="h-4 w-4" />
+                Did not attend
+              </button>
+            )}
+          </div>
+          {!canMarkAbsent && (
+            <p className="mt-1.5 text-[0.625rem] text-slate-400">
+              A panelist has already marked this candidate, so they were in the
+              room — no-show is no longer offered.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* A no-show says so plainly, and says how to take it back. */}
+      {round.status === 'absent' && (
+        <div className="flex items-center justify-between gap-2 border-t border-rose-100 bg-rose-50/70 px-3 py-2">
+          <span className="inline-flex items-center gap-1.5 text-[0.6875rem] font-semibold text-rose-700">
+            <UserX className="h-3.5 w-3.5" />
+            Candidate did not attend
+          </span>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={() => update.mutate({ roundId: round.id, status: 'scheduled' })}
+              disabled={update.isPending}
+              className="inline-flex shrink-0 items-center gap-1 rounded-md border border-rose-200 bg-white px-2 py-1 text-[0.625rem] font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-50"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Undo
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Evaluations */}
       {round.evaluations.length > 0 && (

@@ -9,10 +9,22 @@ import { RequisitionStatusBadge } from '@modules/requisition';
 
 import type { RequisitionSnapshot } from '../types/dashboard.types';
 
+/**
+ * The requisition feed — everything current that is not already this person's
+ * own job, which `MyRecruitment` lists instead.
+ *
+ * `runningCount` is how many were subtracted, and it exists only for the empty
+ * state: a corporate recruiter running the single open requisition would
+ * otherwise be told "No requisitions available" while looking at it in the
+ * next card. That is not an empty feed, it is a feed whose contents moved, and
+ * saying the first is a confident falsehood.
+ */
 export function RequisitionQueue({
   requisitions,
+  runningCount = 0,
 }: {
   requisitions: RequisitionSnapshot[];
+  runningCount?: number;
 }) {
   return (
     <Card>
@@ -31,7 +43,9 @@ export function RequisitionQueue({
       <CardBody className="space-y-1">
         {requisitions.length === 0 ? (
           <p className="py-8 text-center text-sm text-slate-400">
-            No requisitions available.
+            {runningCount > 0
+              ? `Nothing else right now — the ${runningCount === 1 ? 'one' : runningCount} you are running ${runningCount === 1 ? 'is' : 'are'} listed under “Recruitment you’re running”.`
+              : 'No requisitions available.'}
           </p>
         ) : (
           requisitions.map((req) => (

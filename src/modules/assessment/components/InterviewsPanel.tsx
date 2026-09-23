@@ -17,6 +17,7 @@ import {
   Circle,
   ClipboardCopy,
   Lightbulb,
+  Lock,
   Mail,
   MapPin,
   RefreshCw,
@@ -69,6 +70,7 @@ import type {
   InterviewRoundView,
 } from '../types/assessment.types';
 import { BulkInterviewModal } from './BulkInterviewModal';
+import { heldByLabel } from './heldByLabel';
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -111,6 +113,17 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
   });
 
   const candidates = useMemo(() => page?.items ?? [], [page]);
+  /**
+   * Bulk scheduling must skip anyone whose first interview is out with a
+   * delegate. "Schedule all at once" over the whole list would arrange rounds
+   * on top of the ones the factory is already running — the very collision
+   * the per-candidate lock exists to prevent, done wholesale.
+   */
+  const schedulable = useMemo(
+    () => candidates.filter((c) => !c.firstInterviewHold),
+    [candidates],
+  );
+  const heldCount = candidates.length - schedulable.length;
   const [selected, setSelected] = useState<Candidate | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -152,7 +165,11 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
             <p className="text-sm font-semibold text-slate-800">
               {candidates.length} candidate{candidates.length !== 1 ? 's' : ''} at interview stage
             </p>
-            <p className="text-[0.6875rem] text-slate-400">Select a candidate to manage their interviews</p>
+            <p className="text-[0.6875rem] text-slate-400">
+              Select a candidate to manage their interviews
+              {heldCount > 0 &&
+                ` · ${heldCount} out for a first interview`}
+            </p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -163,7 +180,7 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
           >
             Add candidates
           </Button>
-          {candidates.length > 0 && (
+          {schedulable.length > 0 && (
             <Button
               size="sm"
               variant="outline"
@@ -224,7 +241,7 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
       {/* Bulk modal */}
       <BulkInterviewModal
         reqId={reqId}
-        candidates={candidates}
+        candidates={schedulable}
         open={bulkOpen}
         onClose={() => setBulkOpen(false)}
       />
@@ -356,6 +373,7 @@ function CandidateListCard({
   active: boolean;
   onSelect: () => void;
 }) {
+  const held = candidate.firstInterviewHold;
   // Fetch rounds to show progress dots
   const { data: rounds = [] } = useCandidateInterviews(candidate.id);
   const completedCount = rounds.filter((r) => r.status === 'completed').length;
@@ -400,6 +418,19 @@ function CandidateListCard({
             </span>
           )}
 
+          {/* Out with a delegate: name who has it, so nobody has to open the
+              card to find out whose desk to chase. */}
+          {held && (
+            <p
+              // Two names do not fit the rail, and "Md. Karim and …" hides the
+              // very person the recruiter would go and ask.
+              title={`First interview with ${heldByLabel(held)}`}
+              className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[0.625rem] font-medium text-slate-500"
+            >
+              <Lock className="h-2.5 w-2.5 shrink-0" />
+              <span className="truncate">First interview with {heldByLabel(held)}</span>
+            </p>
+          )}
           {/* Round progress dots */}
           {totalRounds > 0 && (
             <div className="mt-1.5 flex items-center gap-1">
@@ -424,7 +455,7 @@ function CandidateListCard({
               </span>
             </div>
           )}
-          {totalRounds === 0 && (
+          {totalRounds === 0 && !held && (
             <p className="mt-0.5 text-[0.625rem] text-slate-400">No interviews yet</p>
           )}
         </div>
@@ -443,6 +474,17 @@ function InterviewWorkspace({
   candidate: Candidate;
 }) {
   const { data: setup } = useAssessmentSetup(reqId);
+  /**
+   * The first interview is out with somebody else.
+   *
+   * The recruiter sees all of it — when it is, who is on the panel, who has
+   * marked — and can act on none of it. Marking the session complete, calling
+   * the candidate a no-show, deleting the round, re-issuing evaluation links
+   * and scheduling on top of it are all the delegate's, because the delegate
+   * is the one in the room. Corporate watching a factory interview is not the
+   * same thing as running it.
+   */
+  const held = candidate.firstInterviewHold;
   const { data: rounds = [], isLoading } = useCandidateInterviews(candidate.id);
   const schedule = useScheduleInterview(candidate.id);
   const remove = useRemoveInterview(candidate.id);
@@ -536,6 +578,11 @@ function InterviewWorkspace({
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {held && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600">
+                <Lock className="h-3.5 w-3.5" /> With {heldByLabel(held)}
+              </span>
+            )}
             {/* Round progress strip */}
             <div className="flex items-center gap-1.5">
               {KIND_ORDER.map((k) => {
@@ -557,6 +604,8 @@ function InterviewWorkspace({
                 );
               })}
             </div>
+            {/* Compensation is the recruiter's own job, not the delegate's,
+                so it stays available while the interview is out. */}
             <Button
               size="sm"
               variant="outline"
@@ -568,7 +617,7 @@ function InterviewWorkspace({
             {/* The decision belongs where the interview was just run — going to
                 the candidate list to change a stage is a detour through another
                 screen to record something that was settled here. */}
-            {candidate.stage === 'selected' ? (
+            {held ? null : candidate.stage === 'selected' ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
                 <CheckCircle2 className="h-3.5 w-3.5" /> Selected
               </span>
@@ -713,7 +762,11 @@ function InterviewWorkspace({
               <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-8 text-center">
                 <CalendarClock className="mx-auto mb-2 h-8 w-8 text-slate-300" />
                 <p className="text-sm font-medium text-slate-400">No interviews yet</p>
-                <p className="mt-0.5 text-xs text-slate-300">Use the form on the right to schedule the first one.</p>
+                <p className="mt-0.5 text-xs text-slate-300">
+                  {held
+                    ? `${heldByLabel(held)} has not arranged it yet.`
+                    : 'Use the form on the right to schedule the first one.'}
+                </p>
               </div>
             ) : (
               rounds.map((r) => (
@@ -722,6 +775,7 @@ function InterviewWorkspace({
                   round={r}
                   candidateId={candidate.id}
                   onRemove={() => remove.mutate(r.id)}
+                  readOnly={Boolean(held)}
                 />
               ))
             )}
@@ -765,7 +819,10 @@ function InterviewWorkspace({
           </div>
         </div>
 
-        {/* Schedule form column */}
+        {/* Schedule form column — or why there isn't one */}
+        {held ? (
+          <HeldByDelegate names={heldByLabel(held)} />
+        ) : (
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="shrink-0 border-b border-slate-100 bg-white/80 px-5 py-2.5">
             <p className="flex items-center gap-2 text-sm font-semibold text-slate-800">
@@ -908,6 +965,7 @@ function InterviewWorkspace({
             </div>
           </div>
         </div>
+        )}
       </div>
 
       <BusyOverlay
@@ -915,6 +973,41 @@ function InterviewWorkspace({
         label="Scheduling interview…"
         sublabel={mode === 'online' ? 'Creating calendar invite and Google Meet link.' : 'Creating calendar invite for the panel.'}
       />
+    </div>
+  );
+}
+
+// ─── The first interview is somebody else's ───────────────────────────────────
+
+/**
+ * What the workspace shows instead of a round nobody here arranged.
+ *
+ * Not an error and not an empty state: the work is happening, just not on this
+ * screen. So it says who has it, when it comes back, and the one deliberate
+ * way to take it back — withdrawing the hand-off, which leaves a record, as
+ * opposed to quietly rescheduling somebody else's interview.
+ */
+function HeldByDelegate({ names }: { names: string }) {
+  return (
+    <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-6 py-10">
+      <div className="max-w-md text-center">
+        <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100">
+          <Lock className="h-5 w-5 text-slate-400" />
+        </span>
+        <p className="mt-3 text-sm font-semibold text-slate-800">
+          First interview is with {names}
+        </p>
+        <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+          This candidate was handed over for their first interview, so
+          arranging and running it is theirs. It appears here once they record
+          the outcome — put through or turned down.
+        </p>
+        <p className="mt-3 rounded-lg border border-dashed border-slate-200 px-3 py-2.5 text-[0.6875rem] leading-relaxed text-slate-400">
+          Follow it on the <span className="font-medium text-slate-500">Recruitment</span> tab
+          under <span className="font-medium text-slate-500">Assignments</span>. To take it
+          back, withdraw the hand-off there.
+        </p>
+      </div>
     </div>
   );
 }
@@ -930,17 +1023,26 @@ const STATUS_TONE = {
   absent: 'danger',
 } as const;
 
+/**
+ * `readOnly` is a first interview that was handed to somebody else: the whole
+ * record, none of the controls. See `firstInterviewHold`.
+ */
 function RoundCard({
   round,
   candidateId,
   onRemove,
+  readOnly = false,
 }: {
   round: InterviewRoundView;
   candidateId: string;
   onRemove: () => void;
+  readOnly?: boolean;
 }) {
   const update = useUpdateInterview(candidateId);
   const resend = useResendEvalToken(candidateId);
+  // A mark means somebody was in the room, so "did not attend" stops being
+  // offered — the server refuses it too.
+  const canMarkAbsent = round.evaluations.length === 0;
   const maxTotal = round.criteria.reduce((s, c) => s + c.max, 0);
   const avg = round.evaluations.length > 0
     ? Math.round((round.evaluations.reduce((s, e) => s + e.total, 0) / round.evaluations.length) * 10) / 10
@@ -962,43 +1064,12 @@ function RoundCard({
           <Badge tone="neutral">{round.mode}</Badge>
           <Badge tone={STATUS_TONE[round.status]}>{round.status}</Badge>
         </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          {round.status === 'scheduled' && (
-            <>
-              <button type="button"
-                onClick={() => update.mutate({ roundId: round.id, status: 'completed' })}
-                disabled={update.isPending}
-                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Mark done
-              </button>
-              {/* The candidate did not turn up. Recorded against the round
-                  rather than left as "scheduled" forever — the panel's time
-                  was spent, and the next person to look needs to know why
-                  there are no marks. Gone once anyone has marked them: a
-                  mark means they were in the room (the server refuses too). */}
-              {round.evaluations.length === 0 && (
-                <button type="button"
-                  onClick={() => update.mutate({ roundId: round.id, status: 'absent' })}
-                  disabled={update.isPending}
-                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-medium text-rose-600 transition hover:bg-rose-50 disabled:opacity-50">
-                  <UserX className="h-3.5 w-3.5" /> Absent
-                </button>
-              )}
-            </>
-          )}
-          {round.status === 'absent' && (
-            <button type="button"
-              onClick={() => update.mutate({ roundId: round.id, status: 'scheduled' })}
-              disabled={update.isPending}
-              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.6875rem] font-medium text-slate-500 transition hover:bg-slate-100 disabled:opacity-50">
-              <RotateCcw className="h-3.5 w-3.5" /> Undo absent
-            </button>
-          )}
+        {!readOnly && (
           <button type="button" title="Remove" onClick={onRemove}
-            className="rounded p-1 text-slate-300 transition hover:bg-rose-50 hover:text-rose-500">
+            className="shrink-0 rounded p-1 text-slate-300 transition hover:bg-rose-50 hover:text-rose-500">
             <Trash2 className="h-3.5 w-3.5" />
           </button>
-        </div>
+        )}
       </div>
 
       {/* Meta */}
@@ -1055,7 +1126,7 @@ function RoundCard({
                     </span>
                   )}
                 </span>
-                {!p.hasMarked && (
+                {!readOnly && !p.hasMarked && (
                   <div className="ml-auto flex items-center gap-1.5">
                     {p.evalLink && (
                       <button type="button"
@@ -1088,7 +1159,7 @@ function RoundCard({
             that room, and adding to it afterwards mints an evaluation link
             for an interview the person never sat in — the server refuses it
             too, so the control would only ever produce an error. */}
-        {round.status === 'scheduled' && (
+        {!readOnly && round.status === 'scheduled' && (
           <AddPanelistInline
             roundId={round.id}
             candidateId={candidateId}
@@ -1096,6 +1167,69 @@ function RoundCard({
           />
         )}
       </div>
+
+      {/* ── Outcome ───────────────────────────────────────────────────────
+          The two things that actually happen to a booked session, asked as a
+          question with two answers. They were a pair of 11px text links
+          wedged between the status badges and the delete bin — the most
+          consequential controls on the card, styled as the least, and one
+          mis-aim away from deleting the round instead. */}
+      {!readOnly && round.status === 'scheduled' && (
+        <div className="border-t border-slate-100 bg-white px-3 py-2.5">
+          <p className="mb-2 text-[0.625rem] font-semibold uppercase tracking-widest text-slate-400">
+            Did this interview happen?
+          </p>
+          <div className={cn('grid gap-2', canMarkAbsent ? 'grid-cols-2' : 'grid-cols-1')}>
+            <button
+              type="button"
+              onClick={() => update.mutate({ roundId: round.id, status: 'completed' })}
+              disabled={update.isPending}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 active:scale-[0.98] disabled:opacity-50"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Interviewed
+            </button>
+            {canMarkAbsent && (
+              <button
+                type="button"
+                onClick={() => update.mutate({ roundId: round.id, status: 'absent' })}
+                disabled={update.isPending}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 active:scale-[0.98] disabled:opacity-50"
+              >
+                <UserX className="h-4 w-4" />
+                Did not attend
+              </button>
+            )}
+          </div>
+          {!canMarkAbsent && (
+            <p className="mt-1.5 text-[0.625rem] text-slate-400">
+              A panelist has already marked this candidate, so they were in the
+              room — no-show is no longer offered.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* A no-show says so plainly, and says how to take it back. */}
+      {round.status === 'absent' && (
+        <div className="flex items-center justify-between gap-2 border-t border-rose-100 bg-rose-50/70 px-3 py-2">
+          <span className="inline-flex items-center gap-1.5 text-[0.6875rem] font-semibold text-rose-700">
+            <UserX className="h-3.5 w-3.5" />
+            Candidate did not attend
+          </span>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={() => update.mutate({ roundId: round.id, status: 'scheduled' })}
+              disabled={update.isPending}
+              className="inline-flex shrink-0 items-center gap-1 rounded-md border border-rose-200 bg-white px-2 py-1 text-[0.625rem] font-semibold text-rose-600 transition hover:bg-rose-50 disabled:opacity-50"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Undo
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Evaluations */}
       {round.evaluations.length > 0 && (

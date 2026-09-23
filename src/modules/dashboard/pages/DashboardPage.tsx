@@ -44,7 +44,10 @@ export default function DashboardPage() {
            personally yours to do today, then the standing figures. */
         <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.85fr)_minmax(20rem,1fr)]">
           <div className="space-y-6">
-            <RequisitionQueue requisitions={data.requisitions} />
+            <RequisitionQueue
+              requisitions={data.requisitions}
+              runningCount={data.myRecruitment?.length ?? 0}
+            />
             <DepartmentBreakdown departments={data.departments} />
           </div>
 
