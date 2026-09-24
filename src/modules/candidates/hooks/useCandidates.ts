@@ -209,7 +209,11 @@ export function useCreateCandidate(reqId: string) {
   });
 }
 
-export function useBulkCreateCandidates(reqId: string) {
+export function useBulkCreateCandidates(
+  reqId: string,
+  /** Told how many CVs are in so far, after each batch lands. */
+  onProgress?: (done: number, total: number) => void,
+) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: {
@@ -220,6 +224,8 @@ export function useBulkCreateCandidates(reqId: string) {
       // In batches, each well under nginx's 20 MB request cap — eight 3 MB
       // CVs in one request is a 413 the API never even sees.
       const merged: BulkCreateCandidatesResult = { created: [], failed: [] };
+      let sent = 0;
+      onProgress?.(0, input.files.length);
       for (const idx of bulkBatches(input.files)) {
         const r = await candidatesApi.createMany(reqId, {
           cvSource: input.cvSource,
@@ -228,6 +234,8 @@ export function useBulkCreateCandidates(reqId: string) {
         });
         merged.created.push(...r.created);
         merged.failed.push(...r.failed);
+        sent += idx.length;
+        onProgress?.(sent, input.files.length);
       }
       return merged;
     },

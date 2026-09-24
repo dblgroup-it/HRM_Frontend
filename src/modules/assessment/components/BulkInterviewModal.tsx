@@ -9,6 +9,7 @@ import {
   Search,
   Video,
   X,
+  Lightbulb,
 } from 'lucide-react';
 
 import {
@@ -32,6 +33,7 @@ import type {
   InterviewModeKey,
 } from '../types/assessment.types';
 import { VenuePicker } from './VenuePicker';
+import { nextInterviewKind, suggestBatchKind } from './nextInterviewKind';
 import { usesRoomList } from './venue';
 import { useMyPermissions } from '@modules/rbac';
 
@@ -94,7 +96,9 @@ export function BulkInterviewModal({
   useEffect(() => {
     if (open) {
       setCandidates(initialCandidates);
-      setKind('first');
+      // The interview most of the batch is due — a second once the first is
+      // behind them, rather than always starting from a first.
+      setKind(firstRoundOnly ? 'first' : suggestBatchKind(initialCandidates).kind);
       setMode('physical');
       setDate('');
       setStartTime('09:00');
@@ -170,6 +174,15 @@ export function BulkInterviewModal({
 
   const [h0, m0] = startTime.split(':').map(Number);
 
+  // Who in the batch is due something other than the chosen interview — named
+  // up front, so nobody is booked into the wrong round by being in the batch.
+  const offKind = firstRoundOnly
+    ? []
+    : candidates
+        .map((c) => ({ name: c.name, due: nextInterviewKind(c) }))
+        .filter((d) => d.due !== kind);
+  const suggested = firstRoundOnly ? null : suggestBatchKind(candidates).kind;
+
   return (
     <Modal
       open={open}
@@ -228,6 +241,13 @@ export function BulkInterviewModal({
               value={kind}
               onChange={(v) => setKind(v as InterviewKindKey)}
             />
+            {suggested && suggested !== 'first' && kind === suggested && (
+              <span className="flex items-center gap-1 text-[0.6875rem] text-brand-600">
+                <Lightbulb className="h-3.5 w-3.5 shrink-0" />
+                {suggested === 'second' ? 'First done' : 'Second done'} —{' '}
+                {suggested === 'second' ? 'Second' : 'Final'} pre-selected
+              </span>
+            )}
             <div className="hidden h-4 w-px bg-slate-200 sm:block" />
             <Segmented
               options={[
@@ -238,6 +258,15 @@ export function BulkInterviewModal({
               onChange={(v) => { setMode(v as InterviewModeKey); setLocation(''); setLocationError(false); }}
             />
           </div>
+          {offKind.length > 0 && (
+            <p className="-mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              {offKind
+                .map((d) => `${d.name} is due a ${d.due} interview`)
+                .join('; ')}
+              , not a {kind} one. Remove them from this batch and schedule them
+              separately.
+            </p>
+          )}
 
           {/* Time allocation */}
           <div className="overflow-hidden rounded-xl border border-slate-200">

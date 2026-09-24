@@ -95,6 +95,8 @@ export interface Candidate {
    * final round, but the factory's first round stays view-only.
    */
   firstRoundByFactory?: boolean;
+  /** Interview kinds already held — 'first' | 'second' | 'final'. */
+  completedRounds?: string[];
   /** The Factory HR Head sign-off, where there is one. */
   firstInterviewApproval?: FirstInterviewApprovalState | null;
   createdAt: string;

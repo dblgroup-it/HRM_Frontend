@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { AlertTriangle, FileText, Files, Upload, X } from 'lucide-react';
 
-import { Button, Modal } from '@shared/components/ui';
+import { BusyOverlay, Button, Modal } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import type { CvSource } from '@modules/requisition/types/requisition.types';
 
@@ -39,7 +39,12 @@ export function BulkCvUploadModal({
   open: boolean;
   onClose: () => void;
 }) {
-  const bulk = useBulkCreateCandidates(reqId);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(
+    null,
+  );
+  const bulk = useBulkCreateCandidates(reqId, (done, total) =>
+    setProgress({ done, total }),
+  );
   const fileRef = useRef<HTMLInputElement>(null);
   const [source, setSource] = useState('');
   const [rows, setRows] = useState<Row[]>([]);
@@ -139,6 +144,17 @@ export function BulkCvUploadModal({
         </div>
       }
     >
+      {/* The app's own full-screen loader: an upload to Drive takes a while,
+          and nothing on the dialog should be touched while it runs. */}
+      <BusyOverlay
+        show={bulk.isPending}
+        label={
+          progress && progress.total
+            ? `Uploading CVs… ${progress.done} of ${progress.total} done`
+            : 'Uploading CVs…'
+        }
+        sublabel="Saving each CV to the requisition's Drive folder. Keep this tab open."
+      />
       <div className="space-y-4">
         <CvSourcePicker
           label="Where did these CVs come from?"
