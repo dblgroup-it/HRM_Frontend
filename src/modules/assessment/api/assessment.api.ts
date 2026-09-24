@@ -18,6 +18,11 @@ import type {
   SubmitEvaluationInput,
   DelegateWorkload,
   DelegationBoard,
+  BulkFirstInterviewOutcomeResult,
+  FirstInterviewApprovalRow,
+  FirstInterviewOutcomeResult,
+  HeadDecision,
+  HeadDecisionResult,
 } from '../types/assessment.types';
 
 export const assessmentApi = {
@@ -81,11 +86,42 @@ export const assessmentApi = {
     candidateId: string,
     outcome: 'final' | 'rejected',
     note?: string,
-  ): Promise<{ id: string; name: string; stage: string }> =>
+  ): Promise<FirstInterviewOutcomeResult> =>
     http
-      .post<ApiResponse<{ id: string; name: string; stage: string }>>(
+      .post<ApiResponse<FirstInterviewOutcomeResult>>(
         `/candidates/${candidateId}/first-interview-outcome`,
         { outcome, note },
+      )
+      .then((r) => r.data),
+
+  /** The same verdict for several candidates — per-candidate results. */
+  firstInterviewOutcomeMany: (input: {
+    candidateIds: string[];
+    outcome: 'final' | 'rejected';
+    note?: string;
+  }): Promise<BulkFirstInterviewOutcomeResult> =>
+    http
+      .post<ApiResponse<BulkFirstInterviewOutcomeResult>>(
+        '/first-interview-outcomes',
+        input,
+      )
+      .then((r) => r.data),
+
+  /** Finalists waiting on this Factory HR Head. */
+  firstInterviewApprovals: (): Promise<FirstInterviewApprovalRow[]> =>
+    http
+      .get<ApiResponse<FirstInterviewApprovalRow[]>>('/first-interview-approvals')
+      .then((r) => r.data),
+
+  decideFirstInterviewApprovals: (input: {
+    candidateIds: string[];
+    decision: HeadDecision;
+    note?: string;
+  }): Promise<HeadDecisionResult> =>
+    http
+      .post<ApiResponse<HeadDecisionResult>>(
+        '/first-interview-approvals/decide',
+        input,
       )
       .then((r) => r.data),
 

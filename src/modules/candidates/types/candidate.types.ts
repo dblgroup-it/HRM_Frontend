@@ -20,6 +20,18 @@ export interface MatchCriterion {
 /** Whoever a candidate's first interview is currently out with. */
 export interface FirstInterviewHold {
   delegates: { id: string; name: string }[];
+  /**
+   * The delegate has put the candidate through and it is waiting on the
+   * unit's Factory HR Head — still theirs until the Head approves.
+   */
+  awaitingApproval?: boolean;
+}
+
+/** Where a Factory HR Head sign-off on a first-interview finalist stands. */
+export interface FirstInterviewApprovalState {
+  status: 'pending' | 'approved' | 'returned' | 'rejected';
+  note: string | null;
+  decidedByName: string | null;
 }
 
 export interface Candidate {
@@ -29,6 +41,8 @@ export interface Candidate {
   email: string;
   phone: string;
   source: string;
+  /** Where the recruiter found the CV — a CV_SOURCES key, or null. */
+  cvSource?: string | null;
   stage: CandidateStage;
   /** Set when an employee referred them; null otherwise. */
   referral?: CandidateReferral | null;
@@ -76,6 +90,8 @@ export interface Candidate {
    * the hand-off is withdrawn.
    */
   firstInterviewHold: FirstInterviewHold | null;
+  /** The Factory HR Head sign-off, where there is one. */
+  firstInterviewApproval?: FirstInterviewApprovalState | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -168,6 +184,14 @@ export interface CreateCandidateInput {
   notes?: string;
   /** Employee referral — the referrer's employee code from the directory. */
   referredByCode?: string;
+  /** Where the recruiter found the CV — a CV_SOURCES key. */
+  cvSource?: string;
+}
+
+/** What a bulk CV upload did with each file. */
+export interface BulkCreateCandidatesResult {
+  created: Candidate[];
+  failed: { fileName: string; error: string }[];
 }
 
 /** Who referred a candidate, as they were when the referral was made. */

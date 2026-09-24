@@ -13,6 +13,7 @@ import type {
   ScreeningTests,
   ScreeningTestsInput,
   SubmitEvaluationInput,
+  HeadDecision,
 } from '../types/assessment.types';
 
 export const assessmentKeys = {
@@ -418,7 +419,40 @@ export function useRevokeDelegation(candidateId: string) {
       void qc.invalidateQueries({
         queryKey: delegationKeys.forCandidate(candidateId),
       });
+      // The hold rides on the candidate row, so the list is what unlocks.
+      void qc.invalidateQueries({ queryKey: ['candidates'] });
+      void qc.invalidateQueries({ queryKey: ['interview-delegation-board'] });
     },
+    onError: (error) =>
+      toast.error(errMsg(error, 'Could not take the interview back')),
+  });
+}
+
+/**
+ * Take a handed-over first interview back — every delegate on it.
+ *
+ * The one deliberate way for the recruiter to run a first interview they had
+ * sent to the factory. Sequential per delegate: a candidate is rarely with
+ * more than one person, and each withdrawal is its own audited row.
+ */
+export function useTakeBackFirstInterview(candidateId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (delegateUserIds: string[]) => {
+      for (const id of delegateUserIds) {
+        await assessmentApi.revokeDelegation(candidateId, id);
+      }
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({
+        queryKey: delegationKeys.forCandidate(candidateId),
+      });
+      void qc.invalidateQueries({ queryKey: ['candidates'] });
+      void qc.invalidateQueries({ queryKey: ['interview-delegation-board'] });
+      toast.success('First interview is back with you');
+    },
+    onError: (error) =>
+      toast.error(errMsg(error, 'Could not take the interview back')),
   });
 }
 
@@ -445,13 +479,76 @@ export function useFirstInterviewOutcome() {
       void qc.invalidateQueries({ queryKey: delegationKeys.mine });
       void qc.invalidateQueries({ queryKey: ['candidates'] });
       toast.success(
-        data.stage === 'FINAL' || data.stage === 'final'
-          ? `${data.name} moved to the final round`
-          : `${data.name} was rejected after the first interview`,
+        data.awaitingApproval
+          ? `${data.name} sent to the Factory HR Head for approval`
+          : data.stage === 'FINAL' || data.stage === 'final'
+            ? `${data.name} moved to the final round`
+            : `${data.name} was rejected after the first interview`,
       );
     },
     onError: (error) =>
       toast.error(errMsg(error, 'Could not record the outcome')),
+  });
+}
+
+/** Several finalists at once — Factory HR's bulk send. */
+export function useBulkFirstInterviewOutcome() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: {
+      candidateIds: string[];
+      outcome: 'final' | 'rejected';
+      note?: string;
+    }) => assessmentApi.firstInterviewOutcomeMany(vars),
+    onSuccess: (result) => {
+      void qc.invalidateQueries({ queryKey: delegationKeys.mine });
+      void qc.invalidateQueries({ queryKey: ['candidates'] });
+      const sent = result.results.filter((r) => r.ok && r.awaitingApproval).length;
+      const direct = result.done - sent;
+      if (sent) toast.success(`${sent} sent to the Factory HR Head for approval`);
+      if (direct) toast.success(`${direct} moved to the final round`);
+      if (result.skipped) {
+        const first = result.results.find((r) => !r.ok)?.error;
+        toast.warning(`${result.skipped} not sent${first ? ` — ${first}` : ''}`);
+      }
+    },
+    onError: (error) =>
+      toast.error(errMsg(error, 'Could not record the outcomes')),
+  });
+}
+
+export const firstInterviewApprovalKeys = {
+  queue: ['first-interview-approvals'] as const,
+};
+
+/** The Factory HR Head's queue. */
+export function useFirstInterviewApprovals(enabled = true) {
+  return useQuery({
+    queryKey: firstInterviewApprovalKeys.queue,
+    queryFn: () => assessmentApi.firstInterviewApprovals(),
+    enabled,
+  });
+}
+
+export function useDecideFirstInterviewApprovals() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: {
+      candidateIds: string[];
+      decision: HeadDecision;
+      note?: string;
+    }) => assessmentApi.decideFirstInterviewApprovals(vars),
+    onSuccess: (result) => {
+      if (result.decided) toast.success(`${result.decided} decided`);
+      if (result.skipped) {
+        const first = result.results.find((r) => !r.ok)?.error;
+        toast.warning(`${result.skipped} skipped${first ? ` — ${first}` : ''}`);
+      }
+      void qc.invalidateQueries({ queryKey: firstInterviewApprovalKeys.queue });
+      void qc.invalidateQueries({ queryKey: ['candidates'] });
+    },
+    onError: (error) =>
+      toast.error(errMsg(error, 'Could not apply the decision')),
   });
 }
 

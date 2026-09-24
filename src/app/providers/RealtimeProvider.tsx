@@ -165,6 +165,12 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
             queryKey: ['my-delegated-candidates'],
             refetchType: 'active',
           });
+          // The Factory HR Head's queue fills and empties as Factory HR
+          // sends finalists and other Heads decide them.
+          void queryClient.invalidateQueries({
+            queryKey: ['first-interview-approvals'],
+            refetchType: 'active',
+          });
         }
       }
     };

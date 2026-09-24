@@ -19,7 +19,10 @@ import { canAccessInsights } from '@modules/insights';
 import { canAccessUnitConfig } from '@modules/units';
 import { canAccessAiSettings } from '@modules/settings';
 import { canConfigureApprovalPaths } from '@modules/approval-paths';
-import { useMyDelegatedCandidates } from '@modules/assessment';
+import {
+  canApproveFirstInterviews,
+  useMyDelegatedCandidates,
+} from '@modules/assessment';
 import { NAVIGATION } from '@app/config/navigation';
 
 interface SidebarProps {
@@ -59,6 +62,7 @@ export function Sidebar({
   // handed this person candidates to interview, so it comes from the data.
   const { data: delegated } = useMyDelegatedCandidates();
   const hasDelegations = (delegated?.length ?? 0) > 0;
+  const canApproveFinalists = canApproveFirstInterviews(perms);
 
   return (
     <>
@@ -147,6 +151,7 @@ export function Sidebar({
                 (!item.requiresMedicalApproval || canApproveMedicals) &&
                 (!item.hideForMedicalOnly || !medicalOnly) &&
                 (!item.requiresDelegations || hasDelegations) &&
+                (!item.requiresFirstInterviewApproval || canApproveFinalists) &&
                 (!item.requiresInsights || canSeeInsights) &&
                 (!item.requiresUnitConfig || canSeeUnitConfig) &&
                 (!item.requiresAiSettings || canSeeAiSettings) &&

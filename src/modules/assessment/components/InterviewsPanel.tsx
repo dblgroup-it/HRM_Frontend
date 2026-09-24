@@ -72,6 +72,7 @@ import type {
 } from '../types/assessment.types';
 import { BulkInterviewModal } from './BulkInterviewModal';
 import { heldByLabel } from './heldByLabel';
+import { TakeBackFirstInterview } from './TakeBackFirstInterview';
 import {
   recommendationLabel,
   recommendationTone,
@@ -116,8 +117,23 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
     pageSize: 200,
     sortBy: 'match',
   });
+  /**
+   * Finalists belong here too. A first interview the factory ran ends with the
+   * candidate at Final, waiting for the recruiter's second round — and this
+   * tab listed only the Interview stage, so they vanished from the one screen
+   * the second round is booked on. Moving them back to Interview to find them
+   * brought the factory's lock back with them.
+   */
+  const { data: finalPage, isLoading: finalLoading } = useCandidates(reqId, {
+    stage: 'final',
+    pageSize: 200,
+    sortBy: 'match',
+  });
 
-  const candidates = useMemo(() => page?.items ?? [], [page]);
+  const candidates = useMemo(
+    () => [...(page?.items ?? []), ...(finalPage?.items ?? [])],
+    [page, finalPage],
+  );
   /**
    * Bulk scheduling must skip anyone whose first interview is out with a
    * delegate. "Schedule all at once" over the whole list would arrange rounds
@@ -147,7 +163,7 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candidates]);
 
-  if (isLoading) {
+  if (isLoading || finalLoading) {
     return (
       <Card>
         <CardBody className="flex justify-center py-20">
@@ -168,7 +184,7 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
           </span>
           <div>
             <p className="text-sm font-semibold text-slate-800">
-              {candidates.length} candidate{candidates.length !== 1 ? 's' : ''} at interview stage
+              {candidates.length} candidate{candidates.length !== 1 ? 's' : ''} at interview or final stage
             </p>
             <p className="text-[0.6875rem] text-slate-400">
               Select a candidate to manage their interviews
@@ -202,7 +218,7 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
       {candidates.length === 0 ? (
         <EmptyState
           icon={<Users className="h-6 w-6" />}
-          title="No candidates at interview stage"
+          title="No candidates at interview or final stage"
           description="Search and add a candidate above, or move one to Interview from the Recruitment tab."
         />
       ) : (
@@ -295,8 +311,13 @@ function AddToInterviewModal({
     if (open) setPicked(new Set());
   }, [open]);
 
+  // Final is already listed on the tab; moving a finalist back to Interview
+  // would only lose where they had got to.
   const eligible = (data?.items ?? []).filter(
-    (c) => (STAGE_RANK[c.stage] ?? -1) >= STAGE_RANK.shortlisted && c.stage !== 'interview',
+    (c) =>
+      (STAGE_RANK[c.stage] ?? -1) >= STAGE_RANK.shortlisted &&
+      c.stage !== 'interview' &&
+      c.stage !== 'final',
   );
 
   const toggle = (id: string) =>
@@ -868,7 +889,7 @@ function InterviewWorkspace({
 
         {/* Schedule form column — or why there isn't one */}
         {held ? (
-          <HeldByDelegate names={heldByLabel(held)} />
+          <HeldByDelegate candidate={candidate} hold={held} />
         ) : (
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="shrink-0 border-b border-slate-100 bg-white/80 px-5 py-2.5">
@@ -1034,7 +1055,14 @@ function InterviewWorkspace({
  * way to take it back — withdrawing the hand-off, which leaves a record, as
  * opposed to quietly rescheduling somebody else's interview.
  */
-function HeldByDelegate({ names }: { names: string }) {
+function HeldByDelegate({
+  candidate,
+  hold,
+}: {
+  candidate: Candidate;
+  hold: NonNullable<Candidate['firstInterviewHold']>;
+}) {
+  const names = heldByLabel(hold);
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-6 py-10">
       <div className="max-w-md text-center">
@@ -1046,14 +1074,15 @@ function HeldByDelegate({ names }: { names: string }) {
         </p>
         <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
           This candidate was handed over for their first interview, so
-          arranging and running it is theirs. It appears here once they record
-          the outcome — put through or turned down.
+          arranging and running it is theirs. The second round opens up here
+          once they put the candidate through — after the Factory HR Head
+          approves, where the unit has one — or they turn them down.
         </p>
-        <p className="mt-3 rounded-lg border border-dashed border-slate-200 px-3 py-2.5 text-[0.6875rem] leading-relaxed text-slate-400">
-          Follow it on the <span className="font-medium text-slate-500">Recruitment</span> tab
-          under <span className="font-medium text-slate-500">Assignments</span>. To take it
-          back, withdraw the hand-off there.
-        </p>
+        <TakeBackFirstInterview
+          candidateId={candidate.id}
+          candidateName={candidate.name}
+          hold={hold}
+        />
       </div>
     </div>
   );

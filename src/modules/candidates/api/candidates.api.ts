@@ -8,6 +8,7 @@ import type {
   Candidate,
   CandidateFilters,
   CandidatePage,
+  BulkCreateCandidatesResult,
   CreateCandidateInput,
   EmailCandidateInput,
   FinalistComparison,
@@ -31,6 +32,7 @@ function toFormData(input: CreateCandidateInput, cv?: File): FormData {
   if (input.phone) fd.append('phone', input.phone);
   if (input.notes) fd.append('notes', input.notes);
   if (input.referredByCode) fd.append('referredByCode', input.referredByCode);
+  if (input.cvSource) fd.append('cvSource', input.cvSource);
   if (cv) fd.append('cv', cv);
   return fd;
 }
@@ -107,6 +109,25 @@ export const candidatesApi = {
         MULTIPART,
       )
       .then((r) => r.data),
+
+  /** One candidate per CV, all from one source; `names` in file order. */
+  createMany: (
+    reqId: string,
+    input: { cvSource: string; files: File[]; names: string[] },
+  ): Promise<BulkCreateCandidatesResult> => {
+    const fd = new FormData();
+    fd.append('cvSource', input.cvSource);
+    fd.append('names', JSON.stringify(input.names));
+    for (const f of input.files) fd.append('cvs', f);
+    return http
+      .post<ApiResponse<BulkCreateCandidatesResult>>(
+        `/requisitions/${reqId}/candidates/bulk`,
+        fd,
+        // Thirty CVs to Drive, one after another, takes a while.
+        { ...MULTIPART, timeout: 10 * 60 * 1000 },
+      )
+      .then((r) => r.data);
+  },
 
   update: (id: string, input: UpdateCandidateInput): Promise<Candidate> =>
     http

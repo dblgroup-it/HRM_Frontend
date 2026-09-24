@@ -305,6 +305,16 @@ export interface DelegatedCandidate {
   }[];
   /** Enabled screening tests only, so a card can show them without a fetch. */
   tests: DelegatedTest[];
+  /** A finalist from this unit goes to its Factory HR Head before the recruiter. */
+  requiresHeadApproval?: boolean;
+  /** Where the Factory HR Head sign-off stands, once one has been asked for. */
+  headApproval?: {
+    status: 'pending' | 'approved' | 'returned' | 'rejected';
+    submittedAt: string;
+    note: string | null;
+    decidedAt: string | null;
+    decidedByName: string | null;
+  } | null;
 }
 
 /** One screening test as it stands for a delegated candidate. */
@@ -447,4 +457,64 @@ export interface DelegationBoard {
     candidates: DelegationBoardRow[];
   }[];
   items: DelegationBoardRow[];
+}
+
+/** What a first-interview verdict came to. */
+export interface FirstInterviewOutcomeResult {
+  id: string;
+  name: string;
+  stage: string;
+  /** Sent to the unit's Factory HR Head rather than straight to final. */
+  awaitingApproval?: boolean;
+}
+
+export interface BulkFirstInterviewOutcomeResult {
+  done: number;
+  skipped: number;
+  results: (Partial<FirstInterviewOutcomeResult> & {
+    candidateId: string;
+    ok: boolean;
+    error?: string;
+  })[];
+}
+
+/** One finalist waiting on a Factory HR Head. */
+export interface FirstInterviewApprovalRow {
+  candidateId: string;
+  candidateName: string;
+  email: string;
+  phone: string;
+  cvUrl: string | null;
+  matchScore: number | null;
+  presentSalary: number | null;
+  salaryExpectation: number | null;
+  requisition: {
+    id: string;
+    code: string;
+    designation: string;
+    department: string;
+    unitFactory: string;
+  };
+  submittedBy: string | null;
+  submittedAt: string;
+  note: string | null;
+  interview: {
+    scheduledAt: string | null;
+    maxTotal: number;
+    averageTotal: number | null;
+    panel: {
+      name: string;
+      total: number;
+      recommendation: 'select' | 'reject' | 'talent_pool' | null;
+      comments: string;
+    }[];
+  };
+}
+
+export type HeadDecision = 'approve' | 'return' | 'reject';
+
+export interface HeadDecisionResult {
+  decided: number;
+  skipped: number;
+  results: { candidateId: string; ok: boolean; error?: string }[];
 }

@@ -51,6 +51,8 @@ export interface NavItem {
   hideForMedicalOnly?: boolean;
   /** Only for people actually holding interview delegations right now. */
   requiresDelegations?: boolean;
+  /** Factory HR Head (or super user) — first-interview finalist approvals. */
+  requiresFirstInterviewApproval?: boolean;
   /** Gate to management / Head of Talent Acquisition / CHRO / super (AI insights). */
   requiresInsights?: boolean;
   /** Gate to Head of Talent Acquisition / CHRO / Factory HR / SBU Head for their unit(s) / super. */
@@ -142,6 +144,12 @@ export const NAVIGATION: NavSection[] = [
         to: ROUTES.assignedCandidates,
         icon: UserCheck,
         requiresDelegations: true,
+      },
+      {
+        label: 'First Interview Approvals',
+        to: ROUTES.firstInterviewApprovals,
+        icon: UserCheck,
+        requiresFirstInterviewApproval: true,
       },
       {
         label: 'Medical Clearance',

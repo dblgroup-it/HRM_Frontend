@@ -67,6 +67,9 @@ const MyInterviewsPage = lazy(
 const AssignedCandidatesPage = lazy(
   () => import('@modules/assessment/pages/AssignedCandidatesPage')
 );
+const FirstInterviewApprovalsPage = lazy(
+  () => import('@modules/assessment/pages/FirstInterviewApprovalsPage')
+);
 const AiProficiencyExamPage = lazy(
   () => import('@modules/aiProficiency/pages/AiProficiencyExamPage'),
 );
@@ -179,6 +182,10 @@ export function AppRouter() {
             <Route
               path={ROUTES.assignedCandidates}
               element={<AssignedCandidatesPage />}
+            />
+            <Route
+              path={ROUTES.firstInterviewApprovals}
+              element={<FirstInterviewApprovalsPage />}
             />
             <Route path={ROUTES.medical} element={<MedicalQueuePage />} />
             <Route

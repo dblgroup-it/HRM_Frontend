@@ -7,6 +7,7 @@ import {
   Input,
   Modal,
   PhoneInput,
+  Select,
   Textarea,
 } from '@shared/components/ui';
 import { isValidBdMobile, toBdMobile } from '@shared/utils';
@@ -15,6 +16,8 @@ import {
   EmployeePicker,
   type PickedEmployee,
 } from '@modules/requisition/components/EmployeePicker';
+import { CV_SOURCES } from '@modules/requisition/constants';
+import type { CvSource } from '@modules/requisition/types/requisition.types';
 
 import { useCreateCandidate } from '../hooks/useCandidates';
 
@@ -23,10 +26,13 @@ const MAX_PDF_BYTES = 5 * 1024 * 1024;
 
 export function AddCandidateModal({
   reqId,
+  cvSources,
   open,
   onClose,
 }: {
   reqId: string;
+  /** The requisition's ticked CV sources; empty or absent offers them all. */
+  cvSources?: CvSource[];
   open: boolean;
   onClose: () => void;
 }) {
@@ -39,8 +45,15 @@ export function AddCandidateModal({
   const [cv, setCv] = useState<File | null>(null);
   const [referred, setReferred] = useState(false);
   const [referrer, setReferrer] = useState<PickedEmployee | null>(null);
+  const [source, setSource] = useState('');
+  const sourceOptions = (
+    cvSources?.length
+      ? CV_SOURCES.filter((s) => cvSources.includes(s.value))
+      : CV_SOURCES
+  ).map((s) => ({ value: s.value, label: s.label }));
 
   const reset = () => {
+    setSource('');
     setName('');
     setEmail('');
     setPhone('');
@@ -77,6 +90,7 @@ export function AddCandidateModal({
           notes: notes.trim() || undefined,
           referredByCode:
             referred && referrer ? referrer.employeeCode : undefined,
+          cvSource: source || undefined,
         },
         cv: cv ?? undefined,
       },
@@ -126,6 +140,12 @@ export function AddCandidateModal({
             error={phoneError}
           />
         </div>
+        <Select
+          label="Source (optional)"
+          value={source}
+          onChange={(e) => setSource(e.target.value)}
+          options={[{ value: '', label: 'Not recorded' }, ...sourceOptions]}
+        />
         <div className="space-y-3 rounded-xl border border-slate-200 p-3">
           <Checkbox
             label="Referred by an employee"

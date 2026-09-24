@@ -19,9 +19,11 @@ export {
   useDelegateInterviews,
   useRevokeDelegation,
   useFirstInterviewOutcome,
+  useFirstInterviewApprovals,
   useSetCandidatePackage,
   delegationKeys,
 } from './hooks/useAssessment';
+export { canApproveFirstInterviews, FACTORY_HR_HEAD_ROLE_KEY } from './access';
 export { isFirstInterviewDone } from './components/firstInterviewStage';
 export { assessmentApi } from './api/assessment.api';
 export type {

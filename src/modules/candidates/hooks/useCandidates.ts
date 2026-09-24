@@ -208,6 +208,25 @@ export function useCreateCandidate(reqId: string) {
   });
 }
 
+export function useBulkCreateCandidates(reqId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { cvSource: string; files: File[]; names: string[] }) =>
+      candidatesApi.createMany(reqId, input),
+    onSuccess: (result) => {
+      invalidatePipeline(qc, reqId);
+      const n = result.created.length;
+      if (n) toast.success(`Added ${n} candidate${n === 1 ? '' : 's'}`);
+      if (result.failed.length) {
+        toast.warning(
+          `${result.failed.length} CV${result.failed.length === 1 ? '' : 's'} not added — ${result.failed[0].fileName}: ${result.failed[0].error}`,
+        );
+      }
+    },
+    onError: (error) => toast.error(errMsg(error, 'Could not add the CVs')),
+  });
+}
+
 export function useUpdateCandidate(reqId: string) {
   const qc = useQueryClient();
   return useMutation({

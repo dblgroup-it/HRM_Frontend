@@ -10,7 +10,10 @@ import {
   Copy,
   CornerDownRight,
   FileText,
+  Hourglass,
   ListChecks,
+  RotateCcw,
+  Send,
   Mail,
   MapPin,
   Phone,
@@ -30,6 +33,7 @@ import {
   EmptyState,
   ErrorCard,
   LifecycleTabs,
+  Modal,
   PageHeader,
   Skeleton,
   Textarea,
@@ -39,6 +43,7 @@ import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
 
 import {
+  useBulkFirstInterviewOutcome,
   useFirstInterviewOutcome,
   useMyDelegatedCandidates,
   useUpdateInterview,
@@ -67,7 +72,7 @@ import { resolveApiFileUrl } from '@shared/api';
  * panels, so the eye reads columns of a single table instead of loose boxes.
  * ------------------------------------------------------------------ */
 
-type Col = 'to_schedule' | 'scheduled' | 'decision_due' | 'done';
+type Col = 'to_schedule' | 'scheduled' | 'decision_due' | 'with_head' | 'done';
 
 /**
  * Each stage carries its own colour, used on the rail down the left of every
@@ -110,6 +115,13 @@ const COLUMNS: {
     bar: 'bg-violet-500',
   },
   {
+    key: 'with_head',
+    icon: Hourglass,
+    title: 'With HR Head',
+    empty: 'Nothing waiting on the Factory HR Head',
+    bar: 'bg-orange-500',
+  },
+  {
     key: 'done',
     icon: Check,
     title: 'Done',
@@ -118,7 +130,13 @@ const COLUMNS: {
   },
 ];
 
-const ORDER: Col[] = ['to_schedule', 'scheduled', 'decision_due', 'done'];
+const ORDER: Col[] = [
+  'to_schedule',
+  'scheduled',
+  'decision_due',
+  'with_head',
+  'done',
+];
 
 /**
  * Cards rendered per stage before the column offers to reveal the rest.
@@ -162,6 +180,9 @@ function columnOf(row: DelegatedCandidate): Col {
   // interview goes — including candidates who have since been hired. See
   // `isFirstInterviewDone`.
   if (isFirstInterviewDone(row.candidate.stage)) return 'done';
+  // Put through, and waiting on the unit's Factory HR Head — nothing more to
+  // do here unless they send it back.
+  if (row.headApproval?.status === 'pending') return 'with_head';
   const { current } = firstRoundOf(row);
   if (!current) return 'to_schedule';
   return current.status === 'completed' ? 'decision_due' : 'scheduled';
@@ -307,6 +328,10 @@ export default function AssignedCandidatesPage() {
     label: string;
     candidates: { id: string; name: string }[];
   } | null>(null);
+  const [sendFor, setSendFor] = useState<{
+    label: string;
+    rows: DelegatedCandidate[];
+  } | null>(null);
   const [search, setSearch] = useState('');
   const [deciding, setDeciding] = useState<string | null>(null);
   /** Stages the user has asked to see in full. */
@@ -349,6 +374,7 @@ export default function AssignedCandidatesPage() {
       to_schedule: [],
       scheduled: [],
       decision_due: [],
+      with_head: [],
       done: [],
     };
     filtered.forEach((r) => b[columnOf(r)].push(r));
@@ -385,7 +411,13 @@ export default function AssignedCandidatesPage() {
    * hides a zero badge, and a stage with nothing in it should recede instead
    * of competing with the ones that have work waiting.
    */
-  const stageTabs: LifecycleTab<Col>[] = COLUMNS.map((col) => ({
+  // The Factory HR Head's stage only exists where a unit has one.
+  const showHeadTab = data.some(
+    (r) => r.requiresHeadApproval || r.headApproval?.status === 'pending',
+  );
+  const stageTabs: LifecycleTab<Col>[] = COLUMNS.filter(
+    (col) => col.key !== 'with_head' || showHeadTab,
+  ).map((col) => ({
     key: col.key,
     label: col.title,
     icon: col.icon,
@@ -555,6 +587,24 @@ export default function AssignedCandidatesPage() {
                                   Schedule all {group.rows.length}
                                 </button>
                               )}
+                            {col.key === 'decision_due' &&
+                              group.rows.length > 1 &&
+                              group.rows.some((r) => r.requiresHeadApproval) && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setSendFor({
+                                      label: `${group.code} · ${group.designation}`,
+                                      rows: group.rows,
+                                    })
+                                  }
+                                  className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold tracking-tight text-white shadow-sm shadow-brand-600/25 transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-2 active:translate-y-0"
+                                  title="Pick the finalists and send them to the Factory HR Head together"
+                                >
+                                  <Send className="h-4 w-4 shrink-0" />
+                                  Send finalists to HR Head
+                                </button>
+                              )}
                           </div>
 
                           {/* One instruction about one batch, said once. */}
@@ -672,6 +722,13 @@ export default function AssignedCandidatesPage() {
           reqLabel={bulkFor.label}
           candidates={bulkFor.candidates}
           onClose={() => setBulkFor(null)}
+        />
+      )}
+      {sendFor && (
+        <SendFinalistsModal
+          label={sendFor.label}
+          rows={sendFor.rows}
+          onClose={() => setSendFor(null)}
         />
       )}
       {marksTarget && (
@@ -901,7 +958,14 @@ function BoardCard({
    * the actions alone.
    */
   const state: { tone: string; icon: LucideIcon; text: string; title?: string } =
-    col === 'done'
+    col === 'with_head'
+      ? {
+          tone: 'bg-orange-50 text-orange-700 ring-orange-200',
+          icon: Hourglass,
+          text: 'With Factory HR Head',
+          title: 'Put through — waiting on the Factory HR Head to approve',
+        }
+    : col === 'done'
       ? rejected
         ? { tone: 'bg-rose-50 text-rose-700 ring-rose-200', icon: Ban, text: 'Not taken forward' }
         : { tone: 'bg-emerald-50 text-emerald-700 ring-emerald-200', icon: Trophy, text: 'Finalist' }
@@ -956,6 +1020,8 @@ function BoardCard({
         ? 'border-sky-200 hover:border-sky-300'
         : col === 'decision_due'
           ? 'border-violet-200 hover:border-violet-300'
+          : col === 'with_head'
+            ? 'border-orange-200 hover:border-orange-300'
           : rejected
             ? 'border-rose-100 hover:border-rose-200'
             : 'border-emerald-200 hover:border-emerald-300';
@@ -1112,6 +1178,22 @@ function BoardCard({
           )}
         </figure>
       )}
+
+        {/* Sent back by the Factory HR Head: their reason, where the next
+            decision is made. */}
+        {col === 'decision_due' && row.headApproval?.status === 'returned' && (
+          <div className="mx-4 mb-3 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 ring-1 ring-amber-200">
+            <RotateCcw className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
+            <div className="min-w-0 text-[0.6875rem] leading-4 text-amber-900">
+              <p className="font-semibold">
+                Returned by {row.headApproval.decidedByName ?? 'the Factory HR Head'}
+              </p>
+              {row.headApproval.note && (
+                <p className="mt-0.5">{row.headApproval.note}</p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* The step. Pinned to the foot of the card with `mt-auto`, so the
             buttons sit on the same line across a row of cards however much
@@ -1289,6 +1371,12 @@ function BoardCard({
                 Does {row.candidate.name.split(' ')[0]} go through to the final
                 stage?
               </p>
+              {row.requiresHeadApproval && (
+                <p className="mt-1 text-[0.625rem] text-slate-500">
+                  Yes sends them to the Factory HR Head for approval before
+                  the second interview.
+                </p>
+              )}
               <div className="mt-2 flex gap-1.5">
                 <Button
                   size="sm"
@@ -1362,7 +1450,11 @@ function BoardCard({
                     )
                   }
                 >
-                  {verdict === 'final' ? 'Mark finalist' : 'Reject'}
+                  {verdict === 'final'
+                    ? row.requiresHeadApproval
+                      ? 'Send to HR Head'
+                      : 'Mark finalist'
+                    : 'Reject'}
                 </Button>
               </div>
             </>
@@ -1370,5 +1462,120 @@ function BoardCard({
         </div>
       )}
     </article>
+  );
+}
+
+/**
+ * Several finalists to the Factory HR Head in one go.
+ *
+ * Opened from a vacancy in Decision due. Anyone whose test marks are still
+ * missing is shown but cannot be ticked — the server would refuse them — and
+ * the reply reports any that did not go through rather than claiming all did.
+ */
+function SendFinalistsModal({
+  label,
+  rows,
+  onClose,
+}: {
+  label: string;
+  rows: DelegatedCandidate[];
+  onClose: () => void;
+}) {
+  const send = useBulkFirstInterviewOutcome();
+  const blocked = (r: DelegatedCandidate) =>
+    r.tests.some((t) => t.obtained == null)
+      ? 'Test marks missing'
+      : r.headApproval?.status === 'pending'
+        ? 'Already with the HR Head'
+        : null;
+  const [picked, setPicked] = useState<Set<string>>(
+    () => new Set(rows.filter((r) => !blocked(r)).map((r) => r.candidate.id)),
+  );
+  const [note, setNote] = useState('');
+
+  const toggle = (id: string) =>
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      size="md"
+      title="Send finalists to the Factory HR Head"
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose} disabled={send.isPending}>
+            Cancel
+          </Button>
+          <Button
+            disabled={picked.size === 0}
+            isLoading={send.isPending}
+            leftIcon={<Send className="h-4 w-4" />}
+            onClick={() =>
+              send.mutate(
+                {
+                  candidateIds: [...picked],
+                  outcome: 'final',
+                  note: note.trim() || undefined,
+                },
+                { onSuccess: onClose },
+              )
+            }
+          >
+            Send {picked.size || ''}
+          </Button>
+        </div>
+      }
+    >
+      <p className="text-xs text-slate-500">{label}</p>
+      <p className="mt-1 text-sm text-slate-600">
+        Tick the candidates who pass the first interview. They go to the
+        Factory HR Head for approval, then to the Corporate Recruiter for the
+        second interview.
+      </p>
+      <ul className="mt-3 max-h-[45vh] divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200">
+        {rows.map((r) => {
+          const why = blocked(r);
+          return (
+            <li key={r.id}>
+              <label
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2',
+                  why ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-slate-50',
+                )}
+              >
+                <input
+                  type="checkbox"
+                  disabled={Boolean(why)}
+                  checked={picked.has(r.candidate.id)}
+                  onChange={() => toggle(r.candidate.id)}
+                  className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                />
+                <Avatar name={r.candidate.name} size="sm" />
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-800">
+                  {r.candidate.name}
+                </span>
+                {why && (
+                  <span className="shrink-0 text-[0.6875rem] text-amber-700">{why}</span>
+                )}
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+      <Textarea
+        className="mt-3"
+        rows={2}
+        maxLength={500}
+        placeholder="Remarks for the Factory HR Head (optional)"
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+      />
+    </Modal>
   );
 }

@@ -24,6 +24,7 @@ import {
   X,
   Send,
   ClipboardList,
+  Files,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -77,6 +78,7 @@ import type {
 } from '../types/candidate.types';
 import { CandidateRow } from './CandidateRow';
 import { AddCandidateModal } from './AddCandidateModal';
+import { BulkCvUploadModal } from './BulkCvUploadModal';
 import { EmailCandidateModal } from './EmailCandidateModal';
 import { PostToBdJobsModal, useBdJobsPost } from '@modules/integrations/bdjobs';
 import { resolveApiFileUrl } from '@shared/api';
@@ -198,6 +200,7 @@ export function CandidatesPanel({
   const finalistCount = stats?.finalists ?? 0;
 
   const [addOpen, setAddOpen] = useState(false);
+  const [bulkCvOpen, setBulkCvOpen] = useState(false);
   const [emailTarget, setEmailTarget] = useState<Candidate | null>(null);
   const [interviewTarget, setInterviewTarget] = useState<Candidate | null>(null);
   const [salaryTarget, setSalaryTarget] = useState<Candidate | null>(null);
@@ -292,6 +295,13 @@ export function CandidatesPanel({
               </GlassToolbarPrimary>
             }
           >
+            <GlassToolbarButton
+              icon={<Files />}
+              onClick={() => setBulkCvOpen(true)}
+              title="Upload several CVs at once — one candidate each, tagged with where they came from"
+            >
+              Bulk CVs
+            </GlassToolbarButton>
             <GlassToolbarButton
               icon={<ClipboardList />}
               onClick={() => setDelegationBoardOpen(true)}
@@ -862,7 +872,18 @@ export function CandidatesPanel({
         </div>
       </Modal>
 
-      <AddCandidateModal reqId={reqId} open={addOpen} onClose={() => setAddOpen(false)} />
+      <AddCandidateModal
+        reqId={reqId}
+        cvSources={requisition.cvSources}
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+      />
+      <BulkCvUploadModal
+        reqId={reqId}
+        cvSources={requisition.cvSources}
+        open={bulkCvOpen}
+        onClose={() => setBulkCvOpen(false)}
+      />
       <EmailCandidateModal
         reqId={reqId}
         candidate={emailTarget}
@@ -879,7 +900,13 @@ export function CandidatesPanel({
           // Corporate opening a factory colleague's first interview. Read-only
           // until they report back — this drawer is the other way in, past the
           // lock on the Interviews tab.
-          heldBy={interviewTarget.firstInterviewHold}
+          // Read from the live list, not the row clicked: taking the
+          // interview back refetches the list, and the drawer has to unlock
+          // without being closed and reopened.
+          heldBy={
+            (items.find((c) => c.id === interviewTarget.id) ?? interviewTarget)
+              .firstInterviewHold
+          }
         />
       )}
       {salaryTarget && (

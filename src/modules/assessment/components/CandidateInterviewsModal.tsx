@@ -54,6 +54,7 @@ import type {
   InterviewRoundView,
 } from '../types/assessment.types';
 import { heldByLabel } from './heldByLabel';
+import { TakeBackFirstInterview } from './TakeBackFirstInterview';
 import {
   recommendationLabel,
   recommendationTone,
@@ -394,12 +395,11 @@ export function CandidateInterviewsModal({
                   recording a no-show all sit with them. Scheduling a second or
                   final round opens up once they have reported the outcome.
                 </p>
-                <p className="mt-3 rounded-lg border border-dashed border-slate-200 px-3 py-2.5 text-[0.6875rem] leading-relaxed text-slate-400">
-                  Need it back? Withdraw the hand-off under{' '}
-                  <span className="font-medium text-slate-500">Assignments</span> —
-                  that is a deliberate act with a record, and it returns every
-                  control here.
-                </p>
+                <TakeBackFirstInterview
+                  candidateId={candidate.id}
+                  candidateName={candidate.name}
+                  hold={heldBy}
+                />
               </div>
             </div>
           ) : (

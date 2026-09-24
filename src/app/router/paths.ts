@@ -31,6 +31,8 @@ export const ROUTES = {
   /** Committee member's own interview marking. */
   myInterviews: '/my-interviews',
   assignedCandidates: '/assigned-candidates',
+  /** The Factory HR Head's queue of first-interview finalists. */
+  firstInterviewApprovals: '/first-interview-approvals',
   /** Medical officer's clearance queue (Phase 5). */
   medical: '/medical',
   /** The Central Medical Officer's approval queue. */
