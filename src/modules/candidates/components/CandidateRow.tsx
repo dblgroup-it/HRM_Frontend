@@ -28,9 +28,7 @@ import { Avatar, BusyOverlay } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
 import { ROUTES } from '@app/router/paths';
-// By path, not the barrel: the requisition barrel already imports this module.
-import { CV_SOURCE_LABEL } from '@modules/requisition/constants';
-import type { CvSource } from '@modules/requisition/types/requisition.types';
+import { cvSourceDisplay } from './cvSourceMeta';
 
 import {
   useFlagCandidate,
@@ -279,14 +277,23 @@ export function CandidateRow({
             )
           )}
         </p>
-        {candidate.cvSource && (
-          <p
-            className="mr-1 mt-1 inline-flex max-w-full items-center rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[0.625rem] font-medium text-sky-800"
-            title="Where this CV was found"
-          >
-            Source: {CV_SOURCE_LABEL[candidate.cvSource as CvSource] ?? candidate.cvSource}
-          </p>
-        )}
+        {(() => {
+          const src = cvSourceDisplay(candidate.cvSource);
+          if (!src) return null;
+          const Icon = src.icon;
+          return (
+            <p
+              className={cn(
+                'mr-1 mt-1 inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-0.5 text-[0.625rem] font-semibold',
+                src.tone,
+              )}
+              title={`Source: ${src.label}`}
+            >
+              <Icon className="h-2.5 w-2.5 shrink-0" />
+              {src.label}
+            </p>
+          );
+        })()}
         {candidate.referral && (
           <p
             className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[0.625rem] font-medium text-violet-800"

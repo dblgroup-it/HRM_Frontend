@@ -7,7 +7,6 @@ import {
   Input,
   Modal,
   PhoneInput,
-  Select,
   Textarea,
 } from '@shared/components/ui';
 import { isValidBdMobile, toBdMobile } from '@shared/utils';
@@ -16,10 +15,10 @@ import {
   EmployeePicker,
   type PickedEmployee,
 } from '@modules/requisition/components/EmployeePicker';
-import { CV_SOURCES } from '@modules/requisition/constants';
 import type { CvSource } from '@modules/requisition/types/requisition.types';
 
 import { useCreateCandidate } from '../hooks/useCandidates';
+import { CvSourcePicker } from './CvSourcePicker';
 
 const ACCEPT = '.pdf,application/pdf';
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
@@ -46,11 +45,6 @@ export function AddCandidateModal({
   const [referred, setReferred] = useState(false);
   const [referrer, setReferrer] = useState<PickedEmployee | null>(null);
   const [source, setSource] = useState('');
-  const sourceOptions = (
-    cvSources?.length
-      ? CV_SOURCES.filter((s) => cvSources.includes(s.value))
-      : CV_SOURCES
-  ).map((s) => ({ value: s.value, label: s.label }));
 
   const reset = () => {
     setSource('');
@@ -140,11 +134,12 @@ export function AddCandidateModal({
             error={phoneError}
           />
         </div>
-        <Select
-          label="Source (optional)"
+        <CvSourcePicker
+          label="Source"
           value={source}
-          onChange={(e) => setSource(e.target.value)}
-          options={[{ value: '', label: 'Not recorded' }, ...sourceOptions]}
+          onChange={setSource}
+          cvSources={cvSources}
+          optional
         />
         <div className="space-y-3 rounded-xl border border-slate-200 p-3">
           <Checkbox

@@ -1,14 +1,13 @@
 import { useRef, useState } from 'react';
 import { AlertTriangle, FileText, Files, Upload, X } from 'lucide-react';
 
-import { Button, Modal, Select } from '@shared/components/ui';
+import { Button, Modal } from '@shared/components/ui';
 import { cn } from '@shared/lib';
-// By path, not the barrel: the requisition barrel already imports this module.
-import { CV_SOURCES } from '@modules/requisition/constants';
 import type { CvSource } from '@modules/requisition/types/requisition.types';
 
 import { useBulkCreateCandidates } from '../hooks/useCandidates';
 import { nameFromFileName } from './bulkCvName';
+import { CvSourcePicker } from './CvSourcePicker';
 
 const MAX_FILES = 30;
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
@@ -49,12 +48,6 @@ export function BulkCvUploadModal({
     [],
   );
   const [dragging, setDragging] = useState(false);
-
-  const options = (
-    cvSources?.length
-      ? CV_SOURCES.filter((s) => cvSources.includes(s.value))
-      : CV_SOURCES
-  ).map((s) => ({ value: s.value, label: s.label }));
 
   const reset = () => {
     setSource('');
@@ -147,12 +140,11 @@ export function BulkCvUploadModal({
       }
     >
       <div className="space-y-4">
-        <Select
-          label="Source"
+        <CvSourcePicker
+          label="Where did these CVs come from?"
           value={source}
-          onChange={(e) => setSource(e.target.value)}
-          placeholder="Where did these CVs come from?"
-          options={options}
+          onChange={setSource}
+          cvSources={cvSources}
         />
 
         <input
