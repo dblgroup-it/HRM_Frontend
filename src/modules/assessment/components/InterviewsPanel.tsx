@@ -72,7 +72,6 @@ import type {
 } from '../types/assessment.types';
 import { BulkInterviewModal } from './BulkInterviewModal';
 import { heldByLabel } from './heldByLabel';
-import { TakeBackFirstInterview } from './TakeBackFirstInterview';
 import {
   recommendationLabel,
   recommendationTone,
@@ -548,13 +547,24 @@ function InterviewWorkspace({
 
   const kindAutoSetRef = useRef(false);
 
+  /**
+   * The factory ran the first interview. Once they have given their verdict
+   * the recruiter books the second or final round as usual — but the first
+   * round is the factory's, so it is neither offered nor editable here.
+   */
+  const factoryFirst = Boolean(candidate.firstRoundByFactory);
+  const kindOptions = factoryFirst
+    ? KIND_OPTIONS.filter((k) => k.value !== 'first')
+    : KIND_OPTIONS;
+
   useEffect(() => {
     // Auto-suggest kind when rounds load
-    if (!kindAutoSetRef.current && rounds.length > 0) {
-      setKind(suggestNextKind(rounds));
+    if (!kindAutoSetRef.current && (rounds.length > 0 || factoryFirst)) {
+      const next = suggestNextKind(rounds);
+      setKind(factoryFirst && next === 'first' ? 'second' : next);
       kindAutoSetRef.current = true;
     }
-  }, [rounds]);
+  }, [rounds, factoryFirst]);
 
   const committee = setup?.committee ?? [];
   const inPanel = (uid: string) => panel.some((p) => p.userId === uid);
@@ -843,7 +853,7 @@ function InterviewWorkspace({
                   round={r}
                   candidateId={candidate.id}
                   onRemove={() => remove.mutate(r.id)}
-                  readOnly={Boolean(held)}
+                  readOnly={Boolean(held) || (factoryFirst && r.kind === 'first')}
                 />
               ))
             )}
@@ -913,7 +923,7 @@ function InterviewWorkspace({
               )}
               <div className="flex flex-wrap items-center gap-3">
                 <Segmented
-                  options={KIND_OPTIONS.map((k) => ({ value: k.value, label: `${k.label} interview` }))}
+                  options={kindOptions.map((k) => ({ value: k.value, label: `${k.label} interview` }))}
                   value={kind}
                   onChange={(v) => setKind(v as InterviewKindKey)}
                 />
@@ -1051,9 +1061,8 @@ function InterviewWorkspace({
  * What the workspace shows instead of a round nobody here arranged.
  *
  * Not an error and not an empty state: the work is happening, just not on this
- * screen. So it says who has it, when it comes back, and the one deliberate
- * way to take it back — withdrawing the hand-off, which leaves a record, as
- * opposed to quietly rescheduling somebody else's interview.
+ * screen. So it says who has it and when it comes back: once they give their
+ * verdict, the recruiter books the second or final round here as usual.
  */
 function HeldByDelegate({
   candidate,
@@ -1078,11 +1087,13 @@ function HeldByDelegate({
           once they put the candidate through — after the Factory HR Head
           approves, where the unit has one — or they turn them down.
         </p>
-        <TakeBackFirstInterview
-          candidateId={candidate.id}
-          candidateName={candidate.name}
-          hold={hold}
-        />
+        {hold.awaitingApproval && (
+          <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[0.6875rem] leading-relaxed text-amber-800">
+            {names} put {candidate.name} through. It is with the Factory HR
+            Head for approval, and opens up here for the second interview once
+            they approve.
+          </p>
+        )}
       </div>
     </div>
   );

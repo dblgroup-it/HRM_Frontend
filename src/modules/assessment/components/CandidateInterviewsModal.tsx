@@ -54,7 +54,6 @@ import type {
   InterviewRoundView,
 } from '../types/assessment.types';
 import { heldByLabel } from './heldByLabel';
-import { TakeBackFirstInterview } from './TakeBackFirstInterview';
 import {
   recommendationLabel,
   recommendationTone,
@@ -96,6 +95,7 @@ export function CandidateInterviewsModal({
   onClose,
   firstRoundOnly = false,
   heldBy = null,
+  factoryFirstRound = false,
 }: {
   reqId: string;
   candidate: { id: string; name: string };
@@ -119,6 +119,12 @@ export function CandidateInterviewsModal({
    * back. See `firstInterviewHold`.
    */
   heldBy?: FirstInterviewHold | null;
+  /**
+   * The factory ran this candidate's first interview. After their verdict the
+   * recruiter schedules the second or final round as usual, but the first
+   * round stays the factory's: not offered in the form, not editable here.
+   */
+  factoryFirstRound?: boolean;
 }) {
   /* ── Animation state machine ─────────────────────────────── */
   // `mounted` keeps the portal in the DOM during exit animation.
@@ -173,11 +179,12 @@ export function CandidateInterviewsModal({
 
   useEffect(() => {
     if (firstRoundOnly) return;
-    if (open && !kindAutoSetRef.current && rounds.length > 0) {
-      setKind(suggestNextKind(rounds));
+    if (open && !kindAutoSetRef.current && (rounds.length > 0 || factoryFirstRound)) {
+      const next = suggestNextKind(rounds);
+      setKind(factoryFirstRound && next === 'first' ? 'second' : next);
       kindAutoSetRef.current = true;
     }
-  }, [open, rounds, firstRoundOnly]);
+  }, [open, rounds, firstRoundOnly, factoryFirstRound]);
 
   /* ── Keyboard / body-scroll lock ────────────────────────── */
   const handleEscKey = useCallback(() => onClose(), [onClose]);
@@ -330,7 +337,9 @@ export function CandidateInterviewsModal({
                     round={r}
                     candidateId={candidate.id}
                     onRemove={() => remove.mutate(r.id)}
-                    readOnly={Boolean(heldBy)}
+                    readOnly={
+                      Boolean(heldBy) || (factoryFirstRound && r.kind === 'first')
+                    }
                   />
                 ))
               )}
@@ -395,11 +404,13 @@ export function CandidateInterviewsModal({
                   recording a no-show all sit with them. Scheduling a second or
                   final round opens up once they have reported the outcome.
                 </p>
-                <TakeBackFirstInterview
-                  candidateId={candidate.id}
-                  candidateName={candidate.name}
-                  hold={heldBy}
-                />
+                {heldBy.awaitingApproval && (
+                  <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[0.6875rem] leading-relaxed text-amber-800">
+                    Put through by {heldByLabel(heldBy)} and waiting on the
+                    Factory HR Head. The second interview opens up here once
+                    they approve.
+                  </p>
+                )}
               </div>
             </div>
           ) : (
@@ -427,8 +438,10 @@ export function CandidateInterviewsModal({
                 )}
                 <div className="flex flex-wrap items-center gap-3">
                   <Segmented
-                    options={KIND_OPTIONS.filter(
-                      (k) => !firstRoundOnly || k.value === 'first',
+                    options={KIND_OPTIONS.filter((k) =>
+                      firstRoundOnly
+                        ? k.value === 'first'
+                        : !(factoryFirstRound && k.value === 'first'),
                     ).map((k) => ({ value: k.value, label: `${k.label} interview` }))}
                     value={kind}
                     onChange={(v) => setKind(v as InterviewKindKey)}

@@ -90,6 +90,11 @@ export interface Candidate {
    * the hand-off is withdrawn.
    */
   firstInterviewHold: FirstInterviewHold | null;
+  /**
+   * The factory ran the first interview. The recruiter books the second or
+   * final round, but the factory's first round stays view-only.
+   */
+  firstRoundByFactory?: boolean;
   /** The Factory HR Head sign-off, where there is one. */
   firstInterviewApproval?: FirstInterviewApprovalState | null;
   createdAt: string;

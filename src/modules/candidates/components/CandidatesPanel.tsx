@@ -907,6 +907,10 @@ export function CandidatesPanel({
             (items.find((c) => c.id === interviewTarget.id) ?? interviewTarget)
               .firstInterviewHold
           }
+          factoryFirstRound={
+            (items.find((c) => c.id === interviewTarget.id) ?? interviewTarget)
+              .firstRoundByFactory
+          }
         />
       )}
       {salaryTarget && (

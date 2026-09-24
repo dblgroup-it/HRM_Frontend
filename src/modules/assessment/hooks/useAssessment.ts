@@ -428,40 +428,6 @@ export function useRevokeDelegation(candidateId: string) {
   });
 }
 
-/**
- * Take a handed-over first interview back — every delegate on it.
- *
- * The one deliberate way for the recruiter to run a first interview they had
- * sent to the factory. Sequential per delegate: a candidate is rarely with
- * more than one person, and each withdrawal is its own audited row.
- */
-export function useTakeBackFirstInterview(candidateId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (delegateUserIds: string[]) => {
-      for (const id of delegateUserIds) {
-        await assessmentApi.revokeDelegation(candidateId, id);
-      }
-    },
-    onSuccess: () => {
-      void qc.invalidateQueries({
-        queryKey: delegationKeys.forCandidate(candidateId),
-      });
-      void qc.invalidateQueries({ queryKey: ['candidates'] });
-      void qc.invalidateQueries({ queryKey: ['interview-delegation-board'] });
-      toast.success('First interview is back with you');
-    },
-    onError: (error) =>
-      toast.error(errMsg(error, 'Could not take the interview back')),
-  });
-}
-
-/**
- * Record the verdict of the first interview.
- *
- * Whoever ran the session decides only this much: the candidate goes to the
- * final round, or stops here. Everything after that belongs to Head of Talent Acquisition.
- */
 export function useFirstInterviewOutcome() {
   const qc = useQueryClient();
   return useMutation({
