@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 
 import { candidatesApi } from '../api/candidates.api';
 import type {
+  BulkCreateCandidatesResult,
   CandidateFilters,
   CreateCandidateInput,
   EmailCandidateInput,
@@ -211,8 +212,25 @@ export function useCreateCandidate(reqId: string) {
 export function useBulkCreateCandidates(reqId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { cvSource: string; files: File[]; names: string[] }) =>
-      candidatesApi.createMany(reqId, input),
+    mutationFn: async (input: {
+      cvSource: string;
+      files: File[];
+      names: string[];
+    }) => {
+      // In batches, each well under nginx's 20 MB request cap — eight 3 MB
+      // CVs in one request is a 413 the API never even sees.
+      const merged: BulkCreateCandidatesResult = { created: [], failed: [] };
+      for (const idx of bulkBatches(input.files)) {
+        const r = await candidatesApi.createMany(reqId, {
+          cvSource: input.cvSource,
+          files: idx.map((i) => input.files[i]),
+          names: idx.map((i) => input.names[i]),
+        });
+        merged.created.push(...r.created);
+        merged.failed.push(...r.failed);
+      }
+      return merged;
+    },
     onSuccess: (result) => {
       invalidatePipeline(qc, reqId);
       const n = result.created.length;
@@ -225,6 +243,31 @@ export function useBulkCreateCandidates(reqId: string) {
     },
     onError: (error) => toast.error(errMsg(error, 'Could not add the CVs')),
   });
+}
+
+/** Up to 15 MB and 10 files per request — see useBulkCreateCandidates. */
+const BULK_BATCH_BYTES = 15 * 1024 * 1024;
+const BULK_BATCH_FILES = 10;
+
+/** File indexes grouped into batches, in order. */
+function bulkBatches(files: File[]): number[][] {
+  const batches: number[][] = [];
+  let current: number[] = [];
+  let bytes = 0;
+  files.forEach((f, i) => {
+    if (
+      current.length &&
+      (bytes + f.size > BULK_BATCH_BYTES || current.length >= BULK_BATCH_FILES)
+    ) {
+      batches.push(current);
+      current = [];
+      bytes = 0;
+    }
+    current.push(i);
+    bytes += f.size;
+  });
+  if (current.length) batches.push(current);
+  return batches;
 }
 
 export function useUpdateCandidate(reqId: string) {
