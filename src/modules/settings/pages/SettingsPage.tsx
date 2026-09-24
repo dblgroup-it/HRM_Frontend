@@ -231,8 +231,9 @@ function ChangePasswordModal({
 
   const submit = () => {
     setError('');
-    if (next.length < 6)
-      return setError('New password must be at least 6 characters.');
+    // Mirrors the backend defaults (PASSWORD_MIN/MAX_LENGTH).
+    if (next.length < 6 || next.length > 12)
+      return setError('New password must be 6 to 12 characters.');
     if (next !== confirm) return setError('New passwords do not match.');
     change.mutate();
   };

@@ -7,6 +7,10 @@ import { http } from '@shared/api';
 import type { ApiResponse } from '@shared/types';
 import { useAuthStore } from '../store/auth.store';
 
+/** Mirror the backend defaults (PASSWORD_MIN/MAX_LENGTH); the server has the final say. */
+const MIN_PASSWORD_LENGTH = 6;
+const MAX_PASSWORD_LENGTH = 12;
+
 /**
  * Shown instead of the app while the account still holds a password it did not
  * choose.
@@ -26,11 +30,15 @@ export function ChangePasswordRequiredPage() {
   const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const tooShort = newPassword.length > 0 && newPassword.length < 12;
+  const badLength =
+    newPassword.length > 0 &&
+    (newPassword.length < MIN_PASSWORD_LENGTH ||
+      newPassword.length > MAX_PASSWORD_LENGTH);
   const mismatch = confirm.length > 0 && confirm !== newPassword;
   const ready =
     currentPassword.length > 0 &&
-    newPassword.length >= 12 &&
+    newPassword.length >= MIN_PASSWORD_LENGTH &&
+    newPassword.length <= MAX_PASSWORD_LENGTH &&
     confirm === newPassword &&
     !busy;
 
@@ -98,15 +106,16 @@ export function ChangePasswordRequiredPage() {
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 setNewPassword(e.target.value)
               }
-              placeholder="At least 12 characters"
+              maxLength={MAX_PASSWORD_LENGTH}
+              placeholder={`${MIN_PASSWORD_LENGTH} to ${MAX_PASSWORD_LENGTH} characters`}
             />
             <span
               className={
-                tooShort ? 'text-xs text-red-600' : 'text-xs text-slate-500'
+                badLength ? 'text-xs text-red-600' : 'text-xs text-slate-500'
               }
             >
-              At least 12 characters. A short sentence you will remember works
-              well — it does not need symbols or numbers.
+              {MIN_PASSWORD_LENGTH} to {MAX_PASSWORD_LENGTH} characters. It
+              cannot be your employee code.
             </span>
           </label>
 
