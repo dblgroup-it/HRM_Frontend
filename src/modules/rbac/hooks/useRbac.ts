@@ -40,6 +40,9 @@ function useRbacInvalidation() {
     void queryClient.invalidateQueries({ queryKey: rbacKeys.roles });
     void queryClient.invalidateQueries({ queryKey: rbacKeys.assignments });
     void queryClient.invalidateQueries({ queryKey: rbacKeys.permissions });
+    // Granting or removing Factory HR changes a unit's layering — and the tab
+    // used to keep showing the old queue until a browser reload.
+    void queryClient.invalidateQueries({ queryKey: rbacKeys.hrLayering });
   };
 }
 
@@ -73,6 +76,11 @@ export function useHrLayering() {
   return useQuery({
     queryKey: rbacKeys.hrLayering,
     queryFn: () => rbacApi.hrLayering(),
+    // Always fresh on opening the tab: another admin may have granted or
+    // removed someone since, and who is on leave changes by itself.
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -102,6 +110,9 @@ export function useDeleteAssignment() {
       invalidate();
       // The chain may have changed with it.
       void queryClient.invalidateQueries({ queryKey: ['approval-paths'] });
+      // A removed Factory HR's job analyses go back to the unit's queue.
+      void queryClient.invalidateQueries({ queryKey: ['requisitions'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }

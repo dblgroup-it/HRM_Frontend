@@ -98,5 +98,5 @@ export interface HrLayering {
 /** What removing an assignment took with it in Approval Paths. */
 export interface AssignmentRemoval {
   id: string;
-  removed: { paths: number; levels: number };
+  removed: { paths: number; levels: number; jobAnalyses?: number };
 }

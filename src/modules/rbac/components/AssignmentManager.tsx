@@ -121,6 +121,9 @@ export function AssignmentManager({
           res.removed.levels
             ? `${res.removed.levels} approval level${res.removed.levels === 1 ? '' : 's'}`
             : null,
+          res.removed.jobAnalyses
+            ? `${res.removed.jobAnalyses} job analys${res.removed.jobAnalyses === 1 ? 'is' : 'es'} returned to the unit's Factory HR`
+            : null,
         ].filter(Boolean);
         toast.success(
           extra.length
