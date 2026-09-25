@@ -1,22 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Save, UserCheck, UserCog, UserPlus } from 'lucide-react';
+import { Check, Save, UserCheck, UserCog, UserPlus } from 'lucide-react';
 
 import {
-  Badge,
   Button,
   Card,
   CardBody,
   CardHeader,
   CardTitle,
-  Checkbox,
   Select,
 } from '@shared/components/ui';
+import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
 
 import type { CvSource, Requisition } from '../types/requisition.types';
 import { requisitionApi } from '../api/requisition.api';
 import { CV_SOURCE_LABEL, CV_SOURCES } from '../constants';
+import { CV_SOURCE_META } from '../cvSourceMeta';
 import {
   useAssignRecruiter,
   useSetCvSources,
@@ -89,38 +89,114 @@ export function RecruiterPanel({
         </CardTitle>
       </CardHeader>
       <CardBody className="space-y-3">
-        <section className="space-y-2">
-          <div className="flex items-baseline justify-between gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              CV collection sources
-            </p>
-            {requisition.cvSourcesSetBy && requisition.cvSourcesSetAt && (
-              <p className="text-[11px] text-slate-400">
-                {requisition.cvSourcesSetBy} ·{' '}
-                {formatDate(requisition.cvSourcesSetAt)}
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                CV collection sources
               </p>
+              <p className="mt-0.5 text-[11px] text-slate-400">
+                {requisition.cvSourcesSetBy && requisition.cvSourcesSetAt
+                  ? `Set by ${requisition.cvSourcesSetBy} · ${formatDate(requisition.cvSourcesSetAt)}`
+                  : 'Where the recruiter should look for CVs'}
+              </p>
+            </div>
+            {canAssign && (
+              <div className="flex items-center gap-3 text-xs">
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold tabular-nums text-slate-600">
+                  {ordered.length} of {CV_SOURCES.length} selected
+                </span>
+                <button
+                  type="button"
+                  className="font-semibold text-brand-600 hover:text-brand-800 disabled:text-slate-300"
+                  disabled={ordered.length === CV_SOURCES.length}
+                  onClick={() => setSources(CV_SOURCES.map((o) => o.value))}
+                >
+                  Select all
+                </button>
+                <button
+                  type="button"
+                  className="font-semibold text-slate-500 hover:text-slate-800 disabled:text-slate-300"
+                  disabled={ordered.length === 0}
+                  onClick={() => setSources([])}
+                >
+                  Clear
+                </button>
+              </div>
             )}
           </div>
           {canAssign ? (
             <>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {CV_SOURCES.map((o) => (
-                  <Checkbox
-                    key={o.value}
-                    label={o.label}
-                    className="p-2"
-                    checked={sources.includes(o.value)}
-                    onChange={() => toggle(o.value)}
-                  />
-                ))}
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                {CV_SOURCES.map((o) => {
+                  const meta = CV_SOURCE_META[o.value];
+                  const Icon = meta.icon;
+                  const on = sources.includes(o.value);
+                  return (
+                    <button
+                      key={o.value}
+                      type="button"
+                      role="checkbox"
+                      aria-checked={on}
+                      onClick={() => toggle(o.value)}
+                      className={cn(
+                        'group flex items-center gap-3 rounded-xl border p-3 text-left transition-all',
+                        on
+                          ? cn(meta.tone, 'shadow-sm')
+                          : 'border-slate-200 bg-white hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm',
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-opacity',
+                          meta.badge,
+                          !on && 'opacity-80 group-hover:opacity-100',
+                        )}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-slate-800">
+                          {o.label}
+                        </span>
+                        <span className="block truncate text-[11px] text-slate-500">
+                          {meta.hint}
+                        </span>
+                      </span>
+                      <span
+                        className={cn(
+                          'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors',
+                          on
+                            ? 'border-transparent bg-brand-600 text-white'
+                            : 'border-slate-300 bg-white text-transparent',
+                        )}
+                      >
+                        <Check className="h-3 w-3" strokeWidth={3} />
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
               {(sourcesDirty || !hasSources) && (
-                <div className="flex items-center justify-end gap-2">
-                  {!hasSources && ordered.length === 0 && (
-                    <p className="mr-auto text-xs text-amber-700">
-                      Tick where the CVs will come from — a recruiter can be
-                      assigned once this is saved.
-                    </p>
+                <div className="flex flex-wrap items-center justify-end gap-2 rounded-xl bg-slate-50 px-3 py-2">
+                  <p className="mr-auto text-xs text-slate-500">
+                    {!hasSources && ordered.length === 0 ? (
+                      <span className="text-amber-700">
+                        Pick where the CVs will come from — a recruiter can be
+                        assigned once this is saved.
+                      </span>
+                    ) : sourcesDirty ? (
+                      'Unsaved changes'
+                    ) : null}
+                  </p>
+                  {sourcesDirty && hasSources && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setSources(savedSources)}
+                    >
+                      Undo
+                    </Button>
                   )}
                   <Button
                     size="sm"
@@ -142,12 +218,23 @@ export function RecruiterPanel({
               )}
             </>
           ) : hasSources ? (
-            <div className="flex flex-wrap gap-1.5">
-              {savedSources.map((s) => (
-                <Badge key={s} tone="neutral">
-                  {CV_SOURCE_LABEL[s] ?? s}
-                </Badge>
-              ))}
+            <div className="flex flex-wrap gap-2">
+              {savedSources.map((s) => {
+                const meta = CV_SOURCE_META[s];
+                const Icon = meta?.icon;
+                return (
+                  <span
+                    key={s}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold',
+                      meta?.tone ?? 'border-slate-200 bg-slate-50 text-slate-700',
+                    )}
+                  >
+                    {Icon && <Icon className="h-3.5 w-3.5" />}
+                    {CV_SOURCE_LABEL[s] ?? s}
+                  </span>
+                );
+              })}
             </div>
           ) : (
             <p className="text-sm text-slate-500">Not chosen yet.</p>

@@ -2,8 +2,7 @@ import { cn } from '@shared/lib';
 // By path, not the barrel: the requisition barrel already imports this module.
 import { CV_SOURCES } from '@modules/requisition/constants';
 import type { CvSource } from '@modules/requisition/types/requisition.types';
-
-import { CV_SOURCE_META } from './cvSourceMeta';
+import { CV_SOURCE_META } from '@modules/requisition/cvSourceMeta';
 
 /**
  * Where the CVs came from, as a row of icon buttons rather than a dropdown —

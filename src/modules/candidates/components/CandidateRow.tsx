@@ -28,7 +28,8 @@ import { Avatar, BusyOverlay } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
 import { ROUTES } from '@app/router/paths';
-import { cvSourceDisplay } from './cvSourceMeta';
+// By path, not the barrel: the requisition barrel already imports this module.
+import { cvSourceDisplay } from '@modules/requisition/cvSourceMeta';
 
 import {
   useFlagCandidate,
