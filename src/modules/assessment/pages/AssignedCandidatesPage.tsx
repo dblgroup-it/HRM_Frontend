@@ -32,13 +32,11 @@ import {
   Button,
   EmptyState,
   ErrorCard,
-  LifecycleTabs,
   Modal,
   PageHeader,
   Skeleton,
   Textarea,
 } from '@shared/components/ui';
-import type { LifecycleTab } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
 
@@ -57,6 +55,7 @@ import type {
   DelegatedTest,
 } from '../types/assessment.types';
 import { isFirstInterviewDone } from '../components/firstInterviewStage';
+import { interviewUrgency } from '../components/interviewUrgency';
 import { resolveApiFileUrl } from '@shared/api';
 
 /* ------------------------------------------------------------------ *
@@ -88,13 +87,16 @@ const COLUMNS: {
   key: Col;
   title: string;
   empty: string;
-  /** Shown on the tab bar — see LifecycleTabs. */
+  /** One line under the stage's heading, and the rail item's tooltip. */
+  hint: string;
+  /** The stage's mark in the rail. */
   icon: LucideIcon;
   /** The rail down the left of each vacancy in this stage. */
   bar: string;
 }[] = [
   {
     key: 'to_schedule',
+    hint: 'Waiting for an interview date',
     icon: CalendarDays,
     title: 'To schedule',
     empty: 'Nothing waiting on a date',
@@ -102,6 +104,7 @@ const COLUMNS: {
   },
   {
     key: 'scheduled',
+    hint: 'Interviews booked — mark absent or manage',
     icon: Clock,
     title: 'Scheduled',
     empty: 'No sessions arranged',
@@ -109,6 +112,7 @@ const COLUMNS: {
   },
   {
     key: 'decision_due',
+    hint: 'Interviewed — say whether they go through',
     icon: ListChecks,
     title: 'Decision due',
     empty: 'No verdicts pending',
@@ -116,6 +120,7 @@ const COLUMNS: {
   },
   {
     key: 'with_head',
+    hint: 'Put through — waiting on the Factory HR Head',
     icon: Hourglass,
     title: 'With HR Head',
     empty: 'Nothing waiting on the Factory HR Head',
@@ -123,6 +128,7 @@ const COLUMNS: {
   },
   {
     key: 'done',
+    hint: 'Decided — put through or not taken forward',
     icon: Check,
     title: 'Done',
     empty: 'Nothing decided yet',
@@ -294,14 +300,7 @@ const waiting = (iso: string) => {
 };
 
 /** Only says something when the date is close enough to act on. */
-const urgency = (iso: string | null) => {
-  if (!iso) return null;
-  const d = Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
-  if (d < 0) return 'overdue';
-  if (d === 0) return 'today';
-  if (d === 1) return 'tomorrow';
-  return null;
-};
+const urgency = (iso: string | null) => interviewUrgency(iso);
 
 /** Where the session happens, in as few words as the card can afford. */
 function venueOf(round: Round) {
@@ -404,31 +403,20 @@ export default function AssignedCandidatesPage() {
     return { groups, counts, hidden };
   }, [filtered, expanded]);
 
-  /**
-   * The stage bar.
-   *
-   * A count of zero is left off rather than shown as "0": `LifecycleTabs`
-   * hides a zero badge, and a stage with nothing in it should recede instead
-   * of competing with the ones that have work waiting.
-   */
   // The Factory HR Head's stage only exists where a unit has one.
   const showHeadTab = data.some(
     (r) => r.requiresHeadApproval || r.headApproval?.status === 'pending',
   );
-  const stageTabs: LifecycleTab<Col>[] = COLUMNS.filter(
+  const stages = COLUMNS.filter(
     (col) => col.key !== 'with_head' || showHeadTab,
-  ).map((col) => ({
-    key: col.key,
-    label: col.title,
-    icon: col.icon,
-    count: board.counts[col.key],
-  }));
+  );
+  const activeStage = COLUMNS.find((c) => c.key === activeCol) ?? COLUMNS[0];
 
   return (
     <div className="space-y-5">
       <PageHeader
         title="Assigned Candidates"
-        description="Your first-interview pipeline, one stage at a time. Pick a stage above; each card carries the step it is waiting on."
+        description="Your first-interview pipeline. Pick a stage on the left; each card carries the step it is waiting on."
       />
 
       {isLoading ? (
@@ -450,58 +438,50 @@ export default function AssignedCandidatesPage() {
         </div>
       ) : (
         <>
-          {/* One stage at a time, behind the app's own tab bar.
-              Four columns side by side gave each card about sixteen rems —
-              enough for a name and a date, so the schedule, the panel and the
-              marks all had to be hidden behind a click, and on anything
-              narrower than a desktop the board scrolled sideways. A stage is
-              what somebody actually works through in one sitting, so it gets
-              the whole width and the cards can say what they need to.
+          {/* A stage rail beside the work, the way an interviewer's queue
+              reads in any applicant-tracking system: every stage and its
+              count always in view on the left, the chosen stage's cards on
+              the right. It replaced a centred tab bar, which hid the counts
+              of the stages you were not on behind small badges and pushed
+              the cards down the page. On a phone the rail becomes a row of
+              chips above the cards. */}
+          <div className="lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start lg:gap-6">
+            <StageRail
+              stages={stages.map((c) => ({
+                key: c.key,
+                title: c.title,
+                hint: c.hint,
+                icon: c.icon,
+                bar: c.bar,
+                count: board.counts[c.key],
+              }))}
+              active={activeCol}
+              onChange={setActiveCol}
+              search={search}
+              onSearch={setSearch}
+            />
 
-              The bar is `LifecycleTabs`, the same glass bar the requisition
-              lifecycle and Access Control use: a stage here should read as a
-              stage there, not as a fourth kind of control with its own
-              colours. The colour each stage carries lives on its cards and
-              its vacancy rail, where it means "this is the work", rather
-              than on the tab. */}
-          <LifecycleTabs
-            tabs={stageTabs}
-            active={activeCol}
-            onChange={(key) => setActiveCol(key)}
-          />
+            <div className="mt-5 min-w-0 lg:mt-0">
+              <div className="mb-5 flex items-center gap-3">
+                <span
+                  className={cn(
+                    'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white',
+                    activeStage.bar,
+                  )}
+                >
+                  <activeStage.icon className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <h2 className="text-lg font-semibold tracking-tight text-slate-900">
+                    {activeStage.title}
+                    <span className="ml-2 text-sm font-medium tabular-nums text-slate-400">
+                      {board.counts[activeStage.key]}
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-500">{activeStage.hint}</p>
+                </div>
+              </div>
 
-          {/* Under the tabs and on the same centre line as them.
-              It sat above, left-aligned, where it read as a page control —
-              but it narrows the stage you are looking at, so it belongs
-              below the thing that chooses the stage. Its own rounded card,
-              so it reads as part of the bar above rather than as the first
-              row of the results below. */}
-          <div className="mx-auto w-full max-w-sm">
-            <label className="group/find flex items-center gap-2.5 rounded-full border border-slate-200/80 bg-white px-4 py-2.5 shadow-sm transition-all duration-200 focus-within:border-brand-300 focus-within:shadow-md focus-within:ring-4 focus-within:ring-brand-500/10">
-              <Search className="h-4 w-4 shrink-0 text-slate-400 transition-colors group-focus-within/find:text-brand-500" />
-              <input
-                type="search"
-                placeholder="Find a candidate…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                /* The app draws a focus ring on everything focusable
-                   (`*:focus-visible` in index.css). On a bare input inside a
-                   pill that ring is a rectangle sitting inside the round
-                   border — so it is turned off here and the label carries
-                   the focus state instead, in the pill's own shape. */
-                className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-search-cancel-button]:appearance-none"
-              />
-            </label>
-          </div>
-
-          {/* Keyed on the stage so switching tabs replays the entrance
-              rather than swapping content in place — the movement is what
-              tells you the panel changed.
-
-              No frame around the panel: the tab bar already says where you
-              are, and a card inside a card inside a card is what made this
-              page read as scaffolding rather than as work. The vacancies are
-              sections on the page, separated by their own headings. */}
           <div key={activeCol} className="space-y-7">
             {COLUMNS.filter((c) => c.key === activeCol).map((col) => {
               const groups = board.groups[col.key];
@@ -691,6 +671,8 @@ export default function AssignedCandidatesPage() {
                 </section>
               );
             })}
+          </div>
+            </div>
           </div>
         </>
       )}
@@ -1201,7 +1183,10 @@ function BoardCard({
             a grid of cards look thrown together. Secondary actions are
             quiet; the one the stage is waiting for is the only solid one. */}
       {!deciding && (
-        <div className="mt-auto flex flex-wrap items-center gap-1.5 border-t border-slate-100 px-4 py-3">
+        // Two fixed rows, so nothing wraps on a narrow card: the tools share
+        // the first equally, the stage's own step(s) the second.
+        <div className="mt-auto space-y-2 border-t border-slate-100 px-4 py-3">
+          <div className="flex gap-1.5">
           {/* Labelled, not three bare glyphs in a box. A document, a
               checklist and a dollar sign all render at 14px as "some kind
               of form", and the only way to tell them apart was to hover
@@ -1212,7 +1197,7 @@ function BoardCard({
               target="_blank"
               rel="noreferrer"
               draggable={false}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[0.6875rem] font-semibold text-slate-600 transition-all hover:-translate-y-0.5 hover:border-brand-200 hover:text-brand-600 hover:shadow-sm"
+              className="inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[0.6875rem] font-semibold text-slate-600 transition-all hover:-translate-y-0.5 hover:border-brand-200 hover:text-brand-600 hover:shadow-sm"
             >
               <FileText className="h-3.5 w-3.5" />
               CV
@@ -1222,7 +1207,7 @@ function BoardCard({
             type="button"
             onClick={onEnterMarks}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[0.6875rem] font-semibold transition-all hover:-translate-y-0.5 hover:shadow-sm',
+              'inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2 py-1.5 text-[0.6875rem] font-semibold transition-all hover:-translate-y-0.5 hover:shadow-sm',
               marksIn
                 ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300'
                 : 'border-slate-200 bg-white text-slate-600 hover:border-brand-200 hover:text-brand-600',
@@ -1241,7 +1226,7 @@ function BoardCard({
             type="button"
             onClick={onEnterPackage}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[0.6875rem] font-semibold transition-all hover:-translate-y-0.5 hover:shadow-sm',
+              'inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2 py-1.5 text-[0.6875rem] font-semibold transition-all hover:-translate-y-0.5 hover:shadow-sm',
               packageIn
                 ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300'
                 : 'border-slate-200 bg-white text-slate-600 hover:border-brand-200 hover:text-brand-600',
@@ -1250,7 +1235,9 @@ function BoardCard({
             <BadgeDollarSign className="h-3.5 w-3.5" />
             {packageIn ? 'Facilities noted' : 'Facilities'}
           </button>
+          </div>
 
+          <div className="flex gap-1.5 empty:hidden">
           {/* The step itself. Solid where the board is waiting on you,
               outlined where the work is already in hand. */}
           {/* A no-show is either given another date or let go; both are
@@ -1259,7 +1246,7 @@ function BoardCard({
             <Button
               size="sm"
               variant="outline"
-              className="h-7 border-rose-200 px-2.5 text-xs text-rose-600 hover:border-rose-300 hover:bg-rose-50"
+              className="h-8 flex-1 border-rose-200 px-2.5 text-xs text-rose-600 hover:border-rose-300 hover:bg-rose-50"
               onClick={() => rejectNoShow(noShow)}
             >
               <Ban className="mr-1 h-3.5 w-3.5" /> Reject
@@ -1268,7 +1255,7 @@ function BoardCard({
           {col === 'to_schedule' && (
             <Button
               size="sm"
-              className="group/act ml-auto h-7 px-3 text-xs"
+              className="group/act h-8 flex-1 px-3 text-xs"
               onClick={onSchedule}
             >
               <CalendarDays className="mr-1 h-3.5 w-3.5 transition-transform duration-200 group-hover/act:-translate-y-px" />
@@ -1279,7 +1266,7 @@ function BoardCard({
             <Button
               size="sm"
               variant="outline"
-              className="h-7 border-rose-200 px-2.5 text-xs text-rose-600 hover:border-rose-300 hover:bg-rose-50"
+              className="h-8 flex-1 border-rose-200 px-2.5 text-xs text-rose-600 hover:border-rose-300 hover:bg-rose-50"
               isLoading={updateRound.isPending}
               onClick={() => markAbsent(first)}
               title={`${firstName} did not turn up`}
@@ -1291,7 +1278,7 @@ function BoardCard({
             <Button
               size="sm"
               variant="outline"
-              className="h-7 px-2.5 text-xs"
+              className="h-8 flex-1 px-2.5 text-xs"
               onClick={onSchedule}
             >
               <Clock className="mr-1 h-3.5 w-3.5" /> Manage
@@ -1300,13 +1287,14 @@ function BoardCard({
           {col === 'decision_due' && (
             <Button
               size="sm"
-              className="group/act ml-auto h-7 px-3 text-xs"
+              className="group/act h-8 flex-1 px-3 text-xs"
               onClick={onOpenDecision}
             >
               <Check className="mr-1 h-3.5 w-3.5 transition-transform duration-200 group-hover/act:scale-110" />
               Decide
             </Button>
           )}
+          </div>
         </div>
       )}
 
@@ -1577,5 +1565,96 @@ function SendFinalistsModal({
         onChange={(e) => setNote(e.target.value)}
       />
     </Modal>
+  );
+}
+
+/**
+ * The stages, their counts and the search, down the left of the page.
+ *
+ * Below `lg` the same items become a row of chips that scrolls sideways, with
+ * the search above it, so a phone keeps every stage one tap away.
+ */
+function StageRail({
+  stages,
+  active,
+  onChange,
+  search,
+  onSearch,
+}: {
+  stages: {
+    key: Col;
+    title: string;
+    hint: string;
+    icon: LucideIcon;
+    bar: string;
+    count: number;
+  }[];
+  active: Col;
+  onChange: (key: Col) => void;
+  search: string;
+  onSearch: (v: string) => void;
+}) {
+  return (
+    <nav
+      aria-label="Stages"
+      className="lg:sticky lg:top-4 lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:p-2 lg:shadow-sm"
+    >
+      <label className="group/find mb-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 transition-all focus-within:border-brand-300 focus-within:ring-4 focus-within:ring-brand-500/10 lg:mb-2 lg:bg-slate-50/70">
+        <Search className="h-4 w-4 shrink-0 text-slate-400 group-focus-within/find:text-brand-500" />
+        <input
+          type="search"
+          placeholder="Find a candidate…"
+          value={search}
+          onChange={(e) => onSearch(e.target.value)}
+          className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400 focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-search-cancel-button]:appearance-none"
+        />
+      </label>
+
+      <ul className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-col lg:gap-0.5 lg:overflow-visible lg:px-0 lg:pb-0">
+        {stages.map((st) => {
+          const on = st.key === active;
+          const Icon = st.icon;
+          return (
+            <li key={st.key} className="shrink-0">
+              <button
+                type="button"
+                aria-current={on ? 'page' : undefined}
+                title={st.hint}
+                onClick={() => onChange(st.key)}
+                className={cn(
+                  'group flex w-full items-center gap-2.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm transition-colors lg:rounded-xl lg:border-0 lg:px-2.5 lg:py-2',
+                  on
+                    ? 'border-brand-200 bg-brand-50 font-semibold text-brand-800'
+                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+                )}
+              >
+                <span
+                  className={cn(
+                    'flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-white transition-opacity',
+                    st.bar,
+                    !on && 'opacity-70 group-hover:opacity-100',
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                </span>
+                <span className="flex-1 text-left">{st.title}</span>
+                <span
+                  className={cn(
+                    'min-w-[1.5rem] rounded-full px-1.5 py-0.5 text-center text-[0.6875rem] font-semibold tabular-nums',
+                    on
+                      ? 'bg-brand-600 text-white'
+                      : st.count > 0
+                        ? 'bg-slate-100 text-slate-700'
+                        : 'text-slate-300',
+                  )}
+                >
+                  {st.count}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
   );
 }
