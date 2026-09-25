@@ -150,7 +150,9 @@ export function BulkCvUploadModal({
         show={bulk.isPending}
         label={
           progress && progress.total
-            ? `Uploading CVs… ${progress.done} of ${progress.total} done`
+            ? `Uploading CV ${Math.min(progress.done + 1, progress.total)} of ${progress.total}${
+                rows[progress.done] ? ` — ${rows[progress.done].name}` : ''
+              }`
             : 'Uploading CVs…'
         }
         sublabel="Saving each CV to the requisition's Drive folder. Keep this tab open."

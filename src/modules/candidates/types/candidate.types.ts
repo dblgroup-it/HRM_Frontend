@@ -166,6 +166,8 @@ export interface CareerListing {
   requiredPosts: number;
   summary: string | null;
   postedAt: string;
+  /** When applications close — the job leaves this page after it. */
+  closesAt?: string | null;
 }
 
 export interface ApplicationStatus {

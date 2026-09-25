@@ -253,9 +253,13 @@ export function useBulkCreateCandidates(
   });
 }
 
-/** Up to 15 MB and 10 files per request — see useBulkCreateCandidates. */
+/**
+ * One CV per request. Batching several made the progress count jump from
+ * "0 of 5" straight to done; one at a time it counts 1, 2, 3… and a single
+ * CV is always far under nginx's 20 MB cap.
+ */
 const BULK_BATCH_BYTES = 15 * 1024 * 1024;
-const BULK_BATCH_FILES = 10;
+const BULK_BATCH_FILES = 1;
 
 /** File indexes grouped into batches, in order. */
 function bulkBatches(files: File[]): number[][] {

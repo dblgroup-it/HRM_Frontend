@@ -18,6 +18,14 @@ import { ROUTES } from '@app/router/paths';
 import { candidatesApi } from '../api/candidates.api';
 import type { CareerListing } from '../types/candidate.types';
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "24 Sep 2026" — the day before the instant applications close, in Dhaka. */
+function lastDayToApply(closesAt: string): string {
+  const d = new Date(new Date(closesAt).getTime() - 1 + 6 * 60 * 60 * 1000);
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
 const EMP_LABEL: Record<string, string> = {
   permanent: 'Permanent',
   contractual: 'Contractual',
@@ -88,6 +96,12 @@ function JobCard({ job, index }: { job: CareerListing; index: number }) {
               {postedAgo(job.postedAt)}
             </span>
           </div>
+          {job.closesAt && (
+            <p className="flex items-center gap-1.5 text-xs font-medium text-amber-700">
+              <Clock className="h-3.5 w-3.5 shrink-0" />
+              Apply by {lastDayToApply(job.closesAt)}
+            </p>
+          )}
         </div>
 
         {/* Summary */}
