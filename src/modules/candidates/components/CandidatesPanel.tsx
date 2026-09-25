@@ -23,6 +23,7 @@ import {
   Users,
   X,
   Send,
+  Settings2,
   ClipboardList,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -77,6 +78,7 @@ import type {
 import { CandidateRow } from './CandidateRow';
 import { AddCandidateModal } from './AddCandidateModal';
 import { AddCandidateMenu } from './AddCandidateMenu';
+import { ToolbarMenu } from './ToolbarMenu';
 import { BulkCvUploadModal } from './BulkCvUploadModal';
 import { EmailCandidateModal } from './EmailCandidateModal';
 import { PostToBdJobsModal, useBdJobsPost } from '@modules/integrations/bdjobs';
@@ -347,24 +349,57 @@ export function CandidatesPanel({
               </GlassToolbarButton>
             )}
             <GlassToolbarDivider />
-            <GlassToolbarButton
-              icon={<RefreshCw className={cn(sync.isPending && 'animate-spin')} />}
-              onClick={() => sync.mutate()}
-              disabled={sync.isPending}
-              title="Pick up CVs added to the Drive folder directly"
-            >
-              Sync
-            </GlassToolbarButton>
-            {(stats?.total ?? 0) > 0 && (
-              <GlassToolbarButton
-                icon={<Download />}
-                onClick={() => exportCsv.mutate(filters)}
-                disabled={exportCsv.isPending}
-                title="Export current view to CSV (opens in Excel)"
-              >
-                {exportCsv.isPending ? 'Exporting…' : 'Export'}
-              </GlassToolbarButton>
-            )}
+            {/* Housekeeping, not daily work — one button, two actions. */}
+            <ToolbarMenu
+              label="Pipeline tools"
+              width={300}
+              trigger={({ open, toggle }) => (
+                <GlassToolbarButton
+                  icon={
+                    sync.isPending || exportCsv.isPending ? (
+                      <RefreshCw className="animate-spin" />
+                    ) : (
+                      <Settings2
+                        className={cn('transition-transform', open && 'rotate-90')}
+                      />
+                    )
+                  }
+                  aria-haspopup="menu"
+                  aria-expanded={open}
+                  onClick={toggle}
+                  title="Sync from Drive, export to Excel"
+                >
+                  {sync.isPending
+                    ? 'Syncing…'
+                    : exportCsv.isPending
+                      ? 'Exporting…'
+                      : 'Tools'}
+                </GlassToolbarButton>
+              )}
+              items={[
+                {
+                  key: 'sync',
+                  icon: <RefreshCw />,
+                  tone: 'bg-sky-600',
+                  title: 'Sync from Drive',
+                  hint: 'Pick up CVs added to the Drive folder directly',
+                  onSelect: () => sync.mutate(),
+                  disabled: sync.isPending,
+                },
+                {
+                  key: 'export',
+                  icon: <Download />,
+                  tone: 'bg-emerald-600',
+                  title: 'Export to Excel',
+                  hint:
+                    (stats?.total ?? 0) > 0
+                      ? 'The current view, as CSV'
+                      : 'No candidates to export yet',
+                  onSelect: () => exportCsv.mutate(filters),
+                  disabled: exportCsv.isPending || (stats?.total ?? 0) === 0,
+                },
+              ]}
+            />
             <GlassToolbarDivider />
             <GlassToolbarButton
               tone={bdJobsLive ? 'success' : 'bdjobs'}
