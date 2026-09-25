@@ -171,6 +171,25 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
             queryKey: ['first-interview-approvals'],
             refetchType: 'active',
           });
+          // Interviews and marks. A panelist submitting their sheet — on the
+          // emailed link or My Interviews — broadcasts candidate:changed, but
+          // none of the screens that show marks listened: the recruiter's
+          // round cards and drawer, the scorecard, the delegation board and
+          // everyone else's My Interviews all needed a reload to see it.
+          for (const queryKey of [
+            ['interviews'],
+            ['my-interviews'],
+            ['assessment-scorecard'],
+            ['interview-delegations'],
+            ['interview-delegation-board'],
+            ['interview-delegate-workload'],
+            ['screening-tests'],
+          ]) {
+            void queryClient.invalidateQueries({
+              queryKey,
+              refetchType: 'active',
+            });
+          }
         }
       }
     };
