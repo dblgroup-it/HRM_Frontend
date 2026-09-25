@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Check, Search, Send, UserRound, X } from 'lucide-react';
 
 import {
@@ -108,6 +108,20 @@ export function DelegateInterviewsModal({
       return next;
     });
 
+  /**
+   * What just went, shown in the dialog before it closes: sending used to
+   * shut the dialog with no sign anything had happened, and nothing on the
+   * candidate row said so either.
+   */
+  const [sent, setSent] = useState<{ count: number; to: string[] } | null>(
+    null,
+  );
+  useEffect(() => {
+    if (!sent) return;
+    const t = setTimeout(onClose, 2400);
+    return () => clearTimeout(t);
+  }, [sent, onClose]);
+
   const send = () =>
     delegate.mutate(
       {
@@ -124,8 +138,55 @@ export function DelegateInterviewsModal({
           aiTestEnabled: aiTest,
         },
       },
-      { onSuccess: onClose },
+      {
+        onSuccess: () =>
+          setSent({ count: eligible.length, to: [...picked.values()] }),
+      },
     );
+
+  if (sent) {
+    const names =
+      sent.to.length <= 2
+        ? sent.to.join(' and ')
+        : `${sent.to[0]} and ${sent.to.length - 1} others`;
+    return (
+      <Modal
+        open
+        onClose={onClose}
+        size="sm"
+        title="Sent for interview"
+        footer={
+          <div className="flex justify-end">
+            <Button size="sm" onClick={onClose}>
+              Done
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex flex-col items-center py-4 text-center">
+          <div className="relative flex h-20 w-20 items-center justify-center">
+            <span className="absolute inset-0 animate-ping rounded-full bg-emerald-300/40" />
+            <span className="relative flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/30">
+              {/* The plane leaves, then the check lands where it was. */}
+              <Send className="absolute h-7 w-7 animate-plane-away" />
+              <Check
+                className="h-8 w-8 animate-loader-pop [animation-delay:550ms]"
+                strokeWidth={3}
+              />
+            </span>
+          </div>
+          <p className="mt-4 text-base font-semibold text-slate-900">
+            {sent.count} CV{sent.count === 1 ? '' : 's'} sent to {names}
+          </p>
+          <p className="mt-1 max-w-xs text-sm text-slate-500">
+            They have been notified and will find{' '}
+            {sent.count === 1 ? 'it' : 'them'} under Assigned Candidates. The
+            candidate row now shows who has the first interview.
+          </p>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal

@@ -295,6 +295,32 @@ export function CandidateRow({
             </p>
           );
         })()}
+        {/* Out with a factory colleague for the first interview — said on
+            the row, so "was it sent?" never needs a second screen. */}
+        {candidate.firstInterviewHold && (
+          <p
+            className="mr-1 mt-1 inline-flex max-w-full items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[0.625rem] font-semibold text-sky-800"
+            title={
+              candidate.firstInterviewHold.awaitingApproval
+                ? 'Put through — waiting on the Factory HR Head'
+                : 'Sent for the first interview'
+            }
+          >
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-sky-500" />
+            </span>
+            <span className="truncate">
+              {candidate.firstInterviewHold.awaitingApproval
+                ? 'With Factory HR Head'
+                : `Sent for interview · ${
+                    candidate.firstInterviewHold.delegates
+                      .map((d) => d.name)
+                      .join(', ') || 'factory'
+                  }`}
+            </span>
+          </p>
+        )}
         {candidate.referral && (
           <p
             className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[0.625rem] font-medium text-violet-800"
@@ -446,14 +472,26 @@ export function CandidateRow({
           {/* Optional hand-off: Head of Talent Acquisition / the recruiter can pass a
               shortlisted CV to a factory or named people who then run the
               first interview. Shortlisted only — nothing earlier or later. */}
-          {candidate.stage === 'shortlisted' && (
-            <ActionBtn
-              title="Send this CV to a factory or named interviewers"
-              onClick={() => onSendForInterview(candidate)}
-            >
-              <Send className="h-3.5 w-3.5" /> Send for Interview
-            </ActionBtn>
-          )}
+          {candidate.stage === 'shortlisted' &&
+            (candidate.firstInterviewHold ? (
+              // Already out — the button says so, and still lets it be sent
+              // again (a nudge, or to someone else).
+              <ActionBtn
+                title="Sent for interview — click to send again or to someone else"
+                onClick={() => onSendForInterview(candidate)}
+                hoverColor="emerald"
+                active
+              >
+                <Check className="h-3.5 w-3.5" /> Sent for Interview
+              </ActionBtn>
+            ) : (
+              <ActionBtn
+                title="Send this CV to a factory or named interviewers"
+                onClick={() => onSendForInterview(candidate)}
+              >
+                <Send className="h-3.5 w-3.5" /> Send for Interview
+              </ActionBtn>
+            ))}
 
           {['interview', 'final', 'selected'].includes(candidate.stage) && (
             <ActionBtn title="Salary fixation" onClick={() => onSalaryFixation(candidate)}>

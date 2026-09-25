@@ -15,12 +15,13 @@ export function CvSourcePicker({
   value,
   onChange,
   cvSources,
-  label = 'Source',
+  label,
   optional = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   cvSources?: CvSource[];
+  /** Heading above the buttons; left out where the form already has one. */
   label?: string;
   optional?: boolean;
 }) {
@@ -30,8 +31,14 @@ export function CvSourcePicker({
 
   return (
     <div>
-      <p className="mb-1.5 text-sm font-medium text-slate-700">{label}</p>
-      <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-1.5">
+      {label && (
+        <p className="mb-1.5 text-sm font-medium text-slate-700">{label}</p>
+      )}
+      <div
+        role="radiogroup"
+        aria-label={label ?? 'Source'}
+        className="flex flex-wrap gap-1.5"
+      >
         {options.map((s) => {
           const meta = CV_SOURCE_META[s.value];
           const Icon = meta.icon;

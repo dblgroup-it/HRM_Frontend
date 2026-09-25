@@ -24,7 +24,6 @@ import {
   X,
   Send,
   ClipboardList,
-  Files,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -39,7 +38,6 @@ import {
   GlassToolbar,
   GlassToolbarButton,
   GlassToolbarDivider,
-  GlassToolbarPrimary,
   Input,
   Modal,
   Spinner,
@@ -78,6 +76,7 @@ import type {
 } from '../types/candidate.types';
 import { CandidateRow } from './CandidateRow';
 import { AddCandidateModal } from './AddCandidateModal';
+import { AddCandidateMenu } from './AddCandidateMenu';
 import { BulkCvUploadModal } from './BulkCvUploadModal';
 import { EmailCandidateModal } from './EmailCandidateModal';
 import { PostToBdJobsModal, useBdJobsPost } from '@modules/integrations/bdjobs';
@@ -286,22 +285,12 @@ export function CandidatesPanel({
             label="Candidate pipeline actions"
             className="w-full sm:w-auto sm:flex-1"
             primary={
-              <GlassToolbarPrimary
-                icon={<Plus />}
-                compactLabel="Add"
-                onClick={() => setAddOpen(true)}
-              >
-                Add candidate
-              </GlassToolbarPrimary>
+              <AddCandidateMenu
+                onSingle={() => setAddOpen(true)}
+                onBulk={() => setBulkCvOpen(true)}
+              />
             }
           >
-            <GlassToolbarButton
-              icon={<Files />}
-              onClick={() => setBulkCvOpen(true)}
-              title="Upload several CVs at once — one candidate each, tagged with where they came from"
-            >
-              Bulk CVs
-            </GlassToolbarButton>
             <GlassToolbarButton
               icon={<ClipboardList />}
               onClick={() => setDelegationBoardOpen(true)}

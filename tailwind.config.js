@@ -131,6 +131,12 @@ export default {
           '0%': { transform: 'scaleY(0)' },
           '100%': { transform: 'scaleY(1)' },
         },
+        /** "Sent for interview": the paper plane leaves up and to the right. */
+        'plane-away': {
+          '0%': { opacity: '1', transform: 'translate(0,0) rotate(0deg) scale(1)' },
+          '60%': { opacity: '1', transform: 'translate(22px,-22px) rotate(-8deg) scale(0.9)' },
+          '100%': { opacity: '0', transform: 'translate(40px,-40px) rotate(-12deg) scale(0.6)' },
+        },
         /** A tab underline drawing itself in from the left. */
         'underline-in': {
           '0%': { transform: 'scaleX(0)' },
@@ -156,6 +162,7 @@ export default {
         'branch-open': 'branch-open 0.18s ease-out both',
         'rail-draw': 'rail-draw 0.25s ease-out both',
         'underline-in': 'underline-in 0.2s cubic-bezier(0.16,1,0.3,1) both',
+        'plane-away': 'plane-away 0.7s cubic-bezier(0.4,0,0.2,1) both',
       },
     },
   },
