@@ -74,6 +74,7 @@ const ENTITY_LABELS: Record<string, string> = {
   Setting: 'System setting',
   MasterOption: 'Dropdown option',
   Employee: 'Employee records',
+  AuditLog: 'Activity log',
 };
 
 const entityLabel = (e: string) => ENTITY_LABELS[e] ?? e;
@@ -89,6 +90,7 @@ const ACTION_LABELS: Record<string, string> = {
   submitted: 'Submitted',
   changed: 'Changed',
   removed: 'Removed',
+  purged: 'Cleaned up',
   'sync failed': 'Sync failed',
 };
 
@@ -170,7 +172,7 @@ export default function ActivityLogPage() {
     <div className="space-y-5">
       <PageHeader
         title="System Activity"
-        description="Every change made in the system — who did it, when, and what changed. Viewing records is not logged; only changes are."
+        description="Every change made in the system — who did it, when, and what changed. Viewing records is not logged; only changes are. Entries are kept for 30 days, today included; older ones are removed every night."
       />
 
       {/* Filters */}

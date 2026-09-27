@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -21,6 +21,7 @@ import {
   isTwoFactorChallenge,
   type TwoFactorChallenge,
 } from '../types/auth.types';
+import { loadRememberedEmail, savedPasswordFor } from '../rememberedLogin';
 
 export function LoginForm() {
   const navigate = useNavigate();
@@ -31,14 +32,37 @@ export function LoginForm() {
   const [challenge, setChallenge] = useState<TwoFactorChallenge | null>(null);
   const [code, setCode] = useState('');
 
+  // Read once: the email a previous "Remember me" kept.
+  const [rememberedEmail] = useState(loadRememberedEmail);
   const {
     register,
     handleSubmit,
+    setValue,
+    getValues,
     formState: { errors },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '', remember: true },
+    defaultValues: {
+      email: rememberedEmail ?? '',
+      password: '',
+      remember: true,
+    },
   });
+
+  // Fill the password too, when the browser will hand it over without asking.
+  // Otherwise its own autofill does it, keyed on the email above.
+  useEffect(() => {
+    if (!rememberedEmail) return;
+    let live = true;
+    void savedPasswordFor(rememberedEmail).then((pw) => {
+      if (live && pw && !getValues('password')) {
+        setValue('password', pw, { shouldValidate: false });
+      }
+    });
+    return () => {
+      live = false;
+    };
+  }, [rememberedEmail, getValues, setValue]);
 
   const redirectTo =
     (location.state as { from?: string } | null)?.from ?? ROUTES.dashboard;
@@ -61,7 +85,9 @@ export function LoginForm() {
     if (!challenge) return;
     verify.mutate(
       { challengeToken: challenge.challengeToken, code: code.trim() },
-      { onSuccess: () => navigate(redirectTo, { replace: true }) },
+      {
+        onSuccess: () => navigate(redirectTo, { replace: true }),
+      },
     );
   };
 
@@ -129,7 +155,9 @@ export function LoginForm() {
       <Input
         label="Email address"
         type="email"
-        autoComplete="email"
+        // "username" is what password managers pair a saved password with;
+        // "email" alone is treated as a contact field, not a login.
+        autoComplete="username"
         placeholder="you@dbl-group.com"
         leftIcon={<Mail className="h-4 w-4" />}
         error={errors.email?.message}

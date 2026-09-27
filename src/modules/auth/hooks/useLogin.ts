@@ -7,6 +7,7 @@ import {
   isTwoFactorChallenge,
   type LoginCredentials,
 } from '../types/auth.types';
+import { afterPasswordStep, afterTwoFactorStep } from '../rememberedLogin';
 
 /**
  * Login mutation. Hydrates the auth store on a full success; if the account has
@@ -18,8 +19,15 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: (credentials: LoginCredentials) => authApi.login(credentials),
-    onSuccess: (result) => {
-      if (isTwoFactorChallenge(result)) return; // form handles the code step
+    // "Remember me" is handled here, not in the form: setting the session
+    // redirects away from the sign-in page, and a callback passed to
+    // mutate() by an unmounted component is never called.
+    onSuccess: (result, credentials) => {
+      if (isTwoFactorChallenge(result)) {
+        afterPasswordStep(credentials, null); // the form handles the code step
+        return;
+      }
+      afterPasswordStep(credentials, result);
       queryClient.clear();
       setSession(result);
     },
@@ -35,6 +43,7 @@ export function useVerifyTwoFactor() {
     mutationFn: (input: { challengeToken: string; code: string }) =>
       authApi.verifyTwoFactor(input),
     onSuccess: (session) => {
+      afterTwoFactorStep(session);
       queryClient.clear();
       setSession(session);
     },
