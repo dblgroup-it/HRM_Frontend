@@ -6,6 +6,8 @@ import axios, {
 
 import { AUTH_UNAUTHORIZED_EVENT, ENV, STORAGE_KEYS } from '@shared/constants';
 
+import { tokenExpired } from './tokenExpiry';
+
 /** Login attempts return 401 on bad credentials — that's not a dead session. */
 const AUTH_ATTEMPT_PATHS = ['/auth/login', '/auth/login/2fa'];
 
@@ -26,6 +28,16 @@ export const httpClient: AxiosInstance = axios.create({
 httpClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = readToken();
+    // A session that expired while the tab sat open overnight ends here,
+    // without a request the server would only refuse (and the console
+    // would list in red).
+    if (token && tokenExpired(token)) {
+      localStorage.removeItem(STORAGE_KEYS.AUTH);
+      window.dispatchEvent(new Event(AUTH_UNAUTHORIZED_EVENT));
+      return Promise.reject(
+        new axios.Cancel('Your session has expired. Please sign in again.'),
+      );
+    }
     if (token) {
       config.headers.set('Authorization', `Bearer ${token}`);
     }

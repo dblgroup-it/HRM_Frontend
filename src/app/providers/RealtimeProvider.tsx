@@ -29,6 +29,9 @@ interface RequisitionChangedPayload {
 export function RealtimeProvider({ children }: { children: ReactNode }) {
   const token = useAuthStore((s) => s.token);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  // Not before the server has accepted the session — a dead token would only
+  // open a socket for the server to close, logged as a console warning.
+  const sessionVerified = useAuthStore((s) => s.sessionVerified);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -82,7 +85,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    if (!isAuthenticated || !token) return;
+    if (!isAuthenticated || !token || !sessionVerified) return;
 
     if (!audioRef.current) {
       audioRef.current = new Audio(notificationSound);
@@ -273,7 +276,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     // Audio-priming helpers are intentionally stable across renders; re-running
     // this effect on every render would needlessly reconnect the socket.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, isAuthenticated, queryClient, navigate]);
+  }, [token, isAuthenticated, sessionVerified, queryClient, navigate]);
 
   return <>{children}</>;
 }
