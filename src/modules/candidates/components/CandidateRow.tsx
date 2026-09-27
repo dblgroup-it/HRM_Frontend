@@ -13,6 +13,7 @@ import {
   FileText,
   Flag,
   Mail,
+  MailX,
   Sparkles,
   Star,
   Trash2,
@@ -99,6 +100,7 @@ export function CandidateRow({
   onInterviews,
   onSendForInterview,
   onSalaryFixation,
+  onRegret,
 }: {
   candidate: Candidate;
   reqId: string;
@@ -110,6 +112,8 @@ export function CandidateRow({
   onInterviews: (c: Candidate) => void;
   onSendForInterview: (c: Candidate) => void;
   onSalaryFixation: (c: Candidate) => void;
+  /** Send DBL's regret letter — offered on rejected candidates only. */
+  onRegret?: (c: Candidate) => void;
 }) {
   const update = useUpdateCandidate(reqId);
   const upload = useUploadCv(reqId);
@@ -366,6 +370,16 @@ export function CandidateRow({
             )}
           </div>
         )}
+        {candidate.regretSentAt && (
+          <p className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[0.625rem] font-semibold text-emerald-700">
+            <MailX className="h-2.5 w-2.5 shrink-0" />
+            <span className="truncate">
+              Regret mail sent
+              {candidate.regretSentByName ? ` by ${candidate.regretSentByName}` : ''}
+              {' '}· {formatDate(candidate.regretSentAt)}
+            </span>
+          </p>
+        )}
         {candidate.matchSummary && (
           <div className="mt-1">
             <p
@@ -464,6 +478,18 @@ export function CandidateRow({
           >
             <Mail className="h-3.5 w-3.5" /> Email
           </ActionBtn>
+
+          {/* The regret letter, once — after that the row says it went. */}
+          {candidate.stage === 'rejected' && onRegret && !candidate.regretSentAt && (
+            <ActionBtn
+              title={candidate.email ? 'Send DBL’s regret letter' : 'No email on file'}
+              onClick={() => onRegret(candidate)}
+              disabled={!candidate.email}
+              hoverColor="rose"
+            >
+              <MailX className="h-3.5 w-3.5" /> Regret mail
+            </ActionBtn>
+          )}
 
           <ActionBtn title="Schedule / view interviews" onClick={() => onInterviews(candidate)}>
             <CalendarClock className="h-3.5 w-3.5" /> Interviews

@@ -20,6 +20,7 @@ import {
   Lightbulb,
   Lock,
   Mail,
+  MailX,
   MapPin,
   RefreshCw,
   RotateCcw,
@@ -50,7 +51,13 @@ import { formatDate } from '@shared/utils';
 import { useAnchoredPanel, useDebounce } from '@shared/hooks';
 import { useEmployees } from '@modules/employees';
 import type { Requisition } from '@modules/requisition/types/requisition.types';
-import { useCandidates, useUpdateCandidate } from '@modules/candidates';
+import {
+  RegretMailModal,
+  RegretMailToggle,
+  useCandidates,
+  useSendRegretMail,
+  useUpdateCandidate,
+} from '@modules/candidates';
 import type { Candidate } from '@modules/candidates';
 import { SalaryFixationModal, useSalaryFixation } from '@modules/salaryFixation';
 
@@ -248,6 +255,7 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
             <InterviewWorkspace
               key={selected.id}
               reqId={reqId}
+              designation={requisition.designation}
               candidate={selected}
             />
           ) : (
@@ -493,9 +501,11 @@ function CandidateListCard({
 
 function InterviewWorkspace({
   reqId,
+  designation,
   candidate,
 }: {
   reqId: string;
+  designation: string;
   candidate: Candidate;
 }) {
   const { data: setup } = useAssessmentSetup(reqId);
@@ -519,6 +529,10 @@ function InterviewWorkspace({
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const rejectCandidate = useRejectAtInterview(candidate.id);
+  // Opt-in, never automatic: rejecting does not write to anybody by itself.
+  const [rejectRegret, setRejectRegret] = useState(false);
+  const [regretOpen, setRegretOpen] = useState(false);
+  const sendRegret = useSendRegretMail();
   const [selectOpen, setSelectOpen] = useState(false);
   // Selection leads to board approval, which signs off on a salary — so the
   // figure is settled first. Read only when the confirmation is open.
@@ -664,9 +678,35 @@ function InterviewWorkspace({
                 <CheckCircle2 className="h-3.5 w-3.5" /> Selected
               </span>
             ) : candidate.stage === 'rejected' ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700">
-                <UserX className="h-3.5 w-3.5" /> Rejected
-              </span>
+              <>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700">
+                  <UserX className="h-3.5 w-3.5" /> Rejected
+                </span>
+                {candidate.regretSentAt ? (
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700"
+                    title={`Regret mail sent${candidate.regretSentByName ? ` by ${candidate.regretSentByName}` : ''}`}
+                  >
+                    <MailX className="h-3.5 w-3.5" /> Regret sent ·{' '}
+                    {formatDate(candidate.regretSentAt)}
+                  </span>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    leftIcon={<MailX className="h-4 w-4" />}
+                    onClick={() => setRegretOpen(true)}
+                    disabled={!candidate.email}
+                    title={
+                      candidate.email
+                        ? 'Send DBL’s regret letter'
+                        : 'No email on file'
+                    }
+                  >
+                    Regret mail
+                  </Button>
+                )}
+              </>
             ) : (
               <>
                 {/* Both halves of the decision sit together. Selecting was
@@ -723,8 +763,14 @@ function InterviewWorkspace({
               onClick={() =>
                 rejectCandidate.mutate(rejectReason.trim() || undefined, {
                   onSuccess: () => {
+                    // Only once the rejection has landed — the server
+                    // refuses a regret to anyone still in the running.
+                    if (rejectRegret && candidate.email) {
+                      sendRegret.mutate([candidate.id]);
+                    }
                     setRejectOpen(false);
                     setRejectReason('');
+                    setRejectRegret(false);
                   },
                 })
               }
@@ -745,7 +791,21 @@ function InterviewWorkspace({
           placeholder="Why — e.g. not enough hands-on experience with the line equipment."
           className="mt-3 w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-100"
         />
+        <RegretMailToggle
+          className="mt-3"
+          checked={rejectRegret}
+          onChange={setRejectRegret}
+          email={candidate.email}
+          alreadySentAt={candidate.regretSentAt}
+        />
       </Modal>
+
+      <RegretMailModal
+        open={regretOpen}
+        onClose={() => setRegretOpen(false)}
+        designation={designation}
+        candidates={[candidate]}
+      />
 
       {/* Confirmed rather than done on one click: selecting a candidate is what
           starts onboarding, and the button sits beside routine ones. */}

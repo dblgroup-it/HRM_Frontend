@@ -78,6 +78,9 @@ export interface Candidate {
   rejectionReason: string | null;
   /** Who turned them down, when the query supplies it. */
   rejectedByName: string | null;
+  /** When DBL's regret letter went out — it goes at most once. */
+  regretSentAt: string | null;
+  regretSentByName: string | null;
   /**
    * Set while this candidate's first interview is out with somebody else.
    *
@@ -297,4 +300,11 @@ export interface UpdateCandidateInput {
   stage?: CandidateStage;
   talentPool?: boolean;
   salaryExpectation?: number | null;
+}
+
+/** Per-candidate outcome of sending the regret letter. */
+export interface RegretMailResult {
+  sent: number;
+  skipped: number;
+  results: { candidateId: string; ok: boolean; name?: string; error?: string }[];
 }

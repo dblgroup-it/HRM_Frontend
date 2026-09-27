@@ -283,6 +283,8 @@ export interface DelegatedCandidate {
     rejectionStage: string | null;
     rejectionReason: string | null;
     rejectedByName: string | null;
+    /** When DBL's regret letter went out — it goes at most once. */
+    regretSentAt: string | null;
     /** What they earn now and want — taken in the interview room. */
     presentSalary: number | null;
     salaryExpectation: number | null;

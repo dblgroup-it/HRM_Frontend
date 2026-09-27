@@ -80,6 +80,38 @@ export function useBulkReject(reqId: string) {
   });
 }
 
+/**
+ * Send DBL's regret letter. Shared by the pipeline and Factory HR's board, so
+ * it refreshes both. Reports what did not go rather than claiming all did.
+ */
+export function useSendRegretMail({ silent = false }: { silent?: boolean } = {}) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (candidateIds: string[]) =>
+      candidatesApi.sendRegretMail(candidateIds),
+    onSuccess: (result) => {
+      void qc.invalidateQueries({ queryKey: candidateKeys.all });
+      void qc.invalidateQueries({ queryKey: ['my-delegated-candidates'] });
+      if (silent) return;
+      if (result.sent) {
+        toast.success(
+          result.sent === 1 && result.results.length === 1
+            ? `Regret mail sent to ${result.results[0].name ?? 'the candidate'}`
+            : `Regret mail sent to ${result.sent} candidate${result.sent === 1 ? '' : 's'}`,
+        );
+      }
+      if (result.skipped) {
+        const first = result.results.find((r) => !r.ok)?.error;
+        toast.warning(
+          `${result.skipped} not sent${first ? ` — ${first}` : ''}`,
+        );
+      }
+    },
+    onError: (error) =>
+      toast.error(errMsg(error, 'Could not send the regret mail')),
+  });
+}
+
 export function useTalentPool() {
   return useQuery({
     queryKey: candidateKeys.talentPool,

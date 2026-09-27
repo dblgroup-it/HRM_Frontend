@@ -15,6 +15,7 @@ import {
   RotateCcw,
   Send,
   Mail,
+  MailX,
   MapPin,
   Phone,
   Quote,
@@ -57,6 +58,21 @@ import type {
 import { isFirstInterviewDone } from '../components/firstInterviewStage';
 import { interviewUrgency } from '../components/interviewUrgency';
 import { resolveApiFileUrl } from '@shared/api';
+import {
+  RegretMailModal,
+  RegretMailToggle,
+  useSendRegretMail,
+} from '@modules/candidates';
+import type { RegretTarget } from '@modules/candidates';
+
+/** What the regret-mail modal needs, from a board row. */
+const regretTargetOf = (row: DelegatedCandidate): RegretTarget => ({
+  id: row.candidate.id,
+  name: row.candidate.name,
+  email: row.candidate.email,
+  stage: row.candidate.stage,
+  regretSentAt: row.candidate.regretSentAt,
+});
 
 /* ------------------------------------------------------------------ *
  * A board, because the work is a pipeline.
@@ -333,6 +349,11 @@ export default function AssignedCandidatesPage() {
   } | null>(null);
   const [search, setSearch] = useState('');
   const [deciding, setDeciding] = useState<string | null>(null);
+  /** The regret letter: one card's, or a vacancy's rejected candidates. */
+  const [regretFor, setRegretFor] = useState<{
+    designation: string;
+    candidates: RegretTarget[];
+  } | null>(null);
   /** Stages the user has asked to see in full. */
   const [expanded, setExpanded] = useState<Partial<Record<Col, boolean>>>({});
   /** Which stage the tabs are showing. Opens on the work that needs doing. */
@@ -585,6 +606,33 @@ export default function AssignedCandidatesPage() {
                                   Send finalists to HR Head
                                 </button>
                               )}
+                            {/* The regret letter to everyone on this vacancy
+                                who was not taken forward and has not had it. */}
+                            {col.key === 'done' &&
+                              (() => {
+                                const unsent = group.rows.filter(
+                                  (r) =>
+                                    r.candidate.stage === 'rejected' &&
+                                    !r.candidate.regretSentAt,
+                                );
+                                if (unsent.length < 2) return null;
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setRegretFor({
+                                        designation: group.designation,
+                                        candidates: unsent.map(regretTargetOf),
+                                      })
+                                    }
+                                    className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2 text-sm font-semibold tracking-tight text-rose-700 transition-all duration-200 hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300/50 focus-visible:ring-offset-2 active:translate-y-0"
+                                    title="Send DBL’s regret letter to the candidates on this vacancy who were not taken forward"
+                                  >
+                                    <MailX className="h-4 w-4 shrink-0" />
+                                    Regret mail to {unsent.length}
+                                  </button>
+                                );
+                              })()}
                           </div>
 
                           {/* One instruction about one batch, said once. */}
@@ -641,6 +689,12 @@ export default function AssignedCandidatesPage() {
                                 })
                               }
                               onEnterPackage={() => setPackageFor(row)}
+                              onRegret={() =>
+                                setRegretFor({
+                                  designation: row.requisition.designation,
+                                  candidates: [regretTargetOf(row)],
+                                })
+                              }
                               onEnterMarks={() =>
                                 setMarksTarget({
                                   id: row.candidate.id,
@@ -704,6 +758,14 @@ export default function AssignedCandidatesPage() {
           reqLabel={bulkFor.label}
           candidates={bulkFor.candidates}
           onClose={() => setBulkFor(null)}
+        />
+      )}
+      {regretFor && (
+        <RegretMailModal
+          open
+          designation={regretFor.designation}
+          candidates={regretFor.candidates}
+          onClose={() => setRegretFor(null)}
         />
       )}
       {sendFor && (
@@ -857,6 +919,7 @@ function BoardCard({
   onSchedule,
   onEnterMarks,
   onEnterPackage,
+  onRegret,
 }: {
   row: DelegatedCandidate;
   /** Position in its group — drives the entrance stagger only. */
@@ -873,8 +936,12 @@ function BoardCard({
   onSchedule: () => void;
   onEnterMarks: () => void;
   onEnterPackage: () => void;
+  onRegret: () => void;
 }) {
   const outcome = useFirstInterviewOutcome();
+  // Opt-in on a rejection — rejecting never writes to anybody by itself.
+  const [withRegret, setWithRegret] = useState(false);
+  const sendRegret = useSendRegretMail();
   // Silent: the card says "marked absent" itself, with an undo.
   const updateRound = useUpdateInterview(row.candidate.id, true);
   const [verdict, setVerdict] = useState<'final' | 'rejected' | null>(null);
@@ -1318,6 +1385,34 @@ function BoardCard({
         </div>
       )}
 
+      {/* The regret letter: sent once, and then the card says so. */}
+      {rejected && (
+        <div className="mx-4 mb-4">
+          {row.candidate.regretSentAt ? (
+            <p className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[0.6875rem] font-semibold text-emerald-700 ring-1 ring-emerald-200">
+              <MailX className="h-3.5 w-3.5" />
+              Regret mail sent · {formatDate(row.candidate.regretSentAt)}
+            </p>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 w-full border-rose-200 px-2.5 text-xs text-rose-600 hover:border-rose-300 hover:bg-rose-50"
+              disabled={!row.candidate.email}
+              title={
+                row.candidate.email
+                  ? 'Send DBL’s regret letter'
+                  : 'No email on file'
+              }
+              onClick={onRegret}
+            >
+              <MailX className="mr-1 h-3.5 w-3.5" />
+              {row.candidate.email ? 'Send regret mail' : 'No email — cannot send regret mail'}
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* The verdict, asked for on the card itself */}
       {deciding && (
         <div className="mx-4 mb-4 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
@@ -1403,6 +1498,15 @@ function BoardCard({
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
               />
+              {verdict === 'rejected' && (
+                <RegretMailToggle
+                  className="mt-2"
+                  checked={withRegret}
+                  onChange={setWithRegret}
+                  email={row.candidate.email}
+                  alreadySentAt={row.candidate.regretSentAt}
+                />
+              )}
               {outcome.isError && (
                 <p className="mt-1.5 text-[0.6875rem] text-red-600">
                   {(outcome.error as Error).message}
@@ -1434,7 +1538,21 @@ function BoardCard({
                         outcome: verdict,
                         note: note.trim() || undefined,
                       },
-                      { onSuccess: onCloseDecision },
+                      {
+                        onSuccess: (data) => {
+                          // Only once the rejection has actually landed.
+                          if (
+                            verdict === 'rejected' &&
+                            withRegret &&
+                            row.candidate.email &&
+                            data.stage.toLowerCase() === 'rejected'
+                          ) {
+                            sendRegret.mutate([row.candidate.id]);
+                          }
+                          setWithRegret(false);
+                          onCloseDecision();
+                        },
+                      },
                     )
                   }
                 >

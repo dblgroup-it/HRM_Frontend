@@ -14,6 +14,7 @@ import type {
   FinalistComparison,
   PublicApplyInput,
   PublicJobInfo,
+  RegretMailResult,
   RecruitmentWorkspace,
   ScreeningStatus,
   TalentBankMatchCandidate,
@@ -155,9 +156,15 @@ export const candidatesApi = {
       .get<ApiResponse<ScreeningStatus>>(`/requisitions/${reqId}/candidates/screening-status`)
       .then((r) => r.data),
 
-  bulkReject: (reqId: string, maxScore: number): Promise<{ rejected: number }> =>
+  bulkReject: (
+    reqId: string,
+    maxScore: number,
+  ): Promise<{ rejected: number; ids: string[] }> =>
     http
-      .post<ApiResponse<{ rejected: number }>>(`/requisitions/${reqId}/candidates/bulk-reject`, { maxScore })
+      .post<ApiResponse<{ rejected: number; ids: string[] }>>(
+        `/requisitions/${reqId}/candidates/bulk-reject`,
+        { maxScore },
+      )
       .then((r) => r.data),
 
   exportCsv: async (reqId: string, filters: CandidateFilters = {}): Promise<void> => {
@@ -249,6 +256,14 @@ export const candidatesApi = {
         `/candidates/${id}/email`,
         input,
       )
+      .then((r) => r.data),
+
+  /** DBL's regret letter to rejected candidates — one or many. */
+  sendRegretMail: (candidateIds: string[]): Promise<RegretMailResult> =>
+    http
+      .post<ApiResponse<RegretMailResult>>('/candidates/regret-mail', {
+        candidateIds,
+      })
       .then((r) => r.data),
 
   // --- public application page (no auth) ---

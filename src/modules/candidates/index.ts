@@ -13,7 +13,11 @@ export {
   useSyncDrive,
   useTalentPool,
   useToggleTalentPool,
+  useSendRegretMail,
 } from './hooks/useCandidates';
+export { RegretMailModal, RegretMailToggle } from './components/RegretMailModal';
+export { regretBlocker } from './regretMail';
+export type { RegretTarget } from './regretMail';
 export { candidatesApi } from './api/candidates.api';
 export {
   canAccessRecruitment,

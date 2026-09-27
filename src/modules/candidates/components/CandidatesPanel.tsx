@@ -25,6 +25,7 @@ import {
   Send,
   Settings2,
   ClipboardList,
+  MailX,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -56,6 +57,7 @@ import { SalaryFixationModal } from '@modules/salaryFixation';
 
 import {
   useBulkReject,
+  useSendRegretMail,
   useCandidates,
   useCompareFinalists,
   useCopyToRequisition,
@@ -81,6 +83,7 @@ import { AddCandidateMenu } from './AddCandidateMenu';
 import { ToolbarMenu } from './ToolbarMenu';
 import { BulkCvUploadModal } from './BulkCvUploadModal';
 import { EmailCandidateModal } from './EmailCandidateModal';
+import { RegretMailModal } from './RegretMailModal';
 import { PostToBdJobsModal, useBdJobsPost } from '@modules/integrations/bdjobs';
 import { resolveApiFileUrl } from '@shared/api';
 
@@ -107,6 +110,26 @@ const FUNNEL: { key: CandidateStage; label: string; tone: string }[] = [
 ];
 
 const PAGE_SIZE = 50;
+
+/**
+ * A selected candidate, kept by id so the selection survives paging. Carries
+ * what the bulk actions judge it on — the stage for Send for Interview, the
+ * email and the regret stamp for the regret mail.
+ */
+type Picked = {
+  id: string;
+  name: string;
+  stage: CandidateStage;
+  email: string | null;
+  regretSentAt: string | null;
+};
+const pickOf = (c: Candidate): Picked => ({
+  id: c.id,
+  name: c.name,
+  stage: c.stage,
+  email: c.email || null,
+  regretSentAt: c.regretSentAt ?? null,
+});
 
 export function CandidatesPanel({
   requisition,
@@ -208,8 +231,16 @@ export function CandidatesPanel({
 
   // Selected candidates tracked as Map<id, {id,name}> so names survive page changes
   const [selectedCandidates, setSelectedCandidates] = useState<
-    Map<string, { id: string; name: string; stage: CandidateStage }>
+    Map<string, Picked>
   >(new Map());
+  // The regret letter: a single row's, or the selection's.
+  const [regretFor, setRegretFor] = useState<Picked[] | null>(null);
+  const sendRegret = useSendRegretMail();
+  const [bulkRejectRegret, setBulkRejectRegret] = useState(false);
+  const rejectedSelected = useMemo(
+    () => [...selectedCandidates.values()].filter((c) => c.stage === 'rejected'),
+    [selectedCandidates],
+  );
   const [delegateOpen, setDelegateOpen] = useState(false);
   const selectedIds = useMemo(() => new Set(selectedCandidates.keys()), [selectedCandidates]);
   // Only shortlisted CVs go out to a factory interviewer. Select-all is shared
@@ -673,6 +704,25 @@ export function CandidatesPanel({
                       ? ` (${sendableCount})`
                       : ''}
                   </Button>
+                  {/* DBL's regret letter to the rejected ones in the selection.
+                      Select all on the Rejected tab is the batch send. */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={rejectedSelected.length === 0}
+                    title={
+                      rejectedSelected.length === 0
+                        ? 'Only rejected candidates can be sent the regret mail — none of the selection is rejected'
+                        : `Send the regret mail to the ${rejectedSelected.length} rejected`
+                    }
+                    leftIcon={<MailX className="h-3.5 w-3.5" />}
+                    onClick={() => setRegretFor(rejectedSelected)}
+                  >
+                    Regret mail
+                    {rejectedSelected.length > 0 && rejectedSelected.length !== selectedIds.size
+                      ? ` (${rejectedSelected.length})`
+                      : ''}
+                  </Button>
                   <button
                     type="button"
                     onClick={() => setSelectedCandidates(new Map())}
@@ -717,7 +767,7 @@ export function CandidatesPanel({
                             setSelectedCandidates((prev) => {
                               const next = new Map(prev);
                               if (allSel) items.forEach((c) => next.delete(c.id));
-                              else items.forEach((c) => next.set(c.id, { id: c.id, name: c.name, stage: c.stage }));
+                              else items.forEach((c) => next.set(c.id, pickOf(c)));
                               return next;
                             })
                           }
@@ -771,7 +821,7 @@ export function CandidatesPanel({
                                 setSelectedCandidates((prev) => {
                                   const next = new Map(prev);
                                   if (allChipSel) stageRows.forEach((c) => next.delete(c.id));
-                                  else stageRows.forEach((c) => next.set(c.id, { id: c.id, name: c.name, stage: c.stage }));
+                                  else stageRows.forEach((c) => next.set(c.id, pickOf(c)));
                                   return next;
                                 })
                               }
@@ -801,7 +851,7 @@ export function CandidatesPanel({
                         onSelect={(cand, checked) => {
                           setSelectedCandidates((prev) => {
                             const next = new Map(prev);
-                            if (checked) next.set(cand.id, { id: cand.id, name: cand.name, stage: cand.stage });
+                            if (checked) next.set(cand.id, pickOf(cand));
                             else next.delete(cand.id);
                             return next;
                           });
@@ -812,12 +862,13 @@ export function CandidatesPanel({
                           // Reuse the bulk modal with a selection of one.
                           setSelectedCandidates(
                             new Map([
-                              [c.id, { id: c.id, name: c.name, stage: c.stage }],
+                              [c.id, pickOf(c)],
                             ]),
                           );
                           setDelegateOpen(true);
                         }}
                         onSalaryFixation={setSalaryTarget}
+                        onRegret={(c) => setRegretFor([pickOf(c)])}
                       />
                     ))}
                   </div>
@@ -977,11 +1028,37 @@ export function CandidatesPanel({
         <BulkRejectModal
           defaultScore={bulkRejectScore}
           onScoreChange={setBulkRejectScore}
+          sendRegret={bulkRejectRegret}
+          onSendRegretChange={setBulkRejectRegret}
           onConfirm={() => {
-            bulkReject.mutate(bulkRejectScore, { onSettled: () => setBulkRejectOpen(false) });
+            bulkReject.mutate(bulkRejectScore, {
+              onSuccess: async (result) => {
+                // Only the people this turned down. The server writes to
+                // each at most once and skips anyone without an email.
+                if (!bulkRejectRegret || result.ids.length === 0) return;
+                for (let i = 0; i < result.ids.length; i += 100) {
+                  await sendRegret
+                    .mutateAsync(result.ids.slice(i, i + 100))
+                    .catch(() => undefined);
+                }
+              },
+              onSettled: () => {
+                setBulkRejectOpen(false);
+                setBulkRejectRegret(false);
+              },
+            });
           }}
           onClose={() => setBulkRejectOpen(false)}
-          isPending={bulkReject.isPending}
+          isPending={bulkReject.isPending || sendRegret.isPending}
+        />
+      )}
+
+      {regretFor && (
+        <RegretMailModal
+          open
+          candidates={regretFor}
+          designation={requisition.designation}
+          onClose={() => setRegretFor(null)}
         />
       )}
 
@@ -1153,12 +1230,16 @@ function ScreeningProgressBar({ status }: { status: { done: number; total: numbe
 function BulkRejectModal({
   defaultScore,
   onScoreChange,
+  sendRegret,
+  onSendRegretChange,
   onConfirm,
   onClose,
   isPending,
 }: {
   defaultScore: number;
   onScoreChange: (v: number) => void;
+  sendRegret: boolean;
+  onSendRegretChange: (v: boolean) => void;
   onConfirm: () => void;
   onClose: () => void;
   isPending: boolean;
@@ -1199,6 +1280,22 @@ function BulkRejectModal({
               </label>
             ))}
           </div>
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-slate-200 px-4 py-3 hover:bg-slate-50">
+            <input
+              type="checkbox"
+              checked={sendRegret}
+              onChange={(e) => onSendRegretChange(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+            />
+            <span>
+              <span className="block text-sm font-medium text-slate-700">
+                Also send the regret mail
+              </span>
+              <span className="block text-xs text-slate-400">
+                DBL&apos;s standard letter to each of them. Anyone without an email is skipped.
+              </span>
+            </span>
+          </label>
           <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-600">
             <AlertTriangle className="mb-0.5 mr-1 inline h-3.5 w-3.5" />
             This action cannot be undone. Rejected candidates can still be viewed in the Rejected tab.
