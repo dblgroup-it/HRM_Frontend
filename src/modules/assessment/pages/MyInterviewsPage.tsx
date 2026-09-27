@@ -26,6 +26,7 @@ import { useMyInterviews, useSubmitEvaluation } from '../hooks/useAssessment';
 import { CriteriaScoringSection } from '../components/CriteriaScoringSection';
 import { RecommendationPicker } from '../components/RecommendationPicker';
 import { CandidateRail } from '../components/CandidateRail';
+import { RailFacilities } from '../components/RailFacilities';
 import {
   recommendationLabel,
   recommendationTone,
@@ -420,6 +421,11 @@ function EvaluationSheet({
           cvUrl={round.candidate.cvUrl}
           brief={round.candidate.brief}
           stickyClassName="lg:top-0"
+          facilities={
+            round.fromHr && round.facilities ? (
+              <RailFacilities target={{ roundId: round.id }} facilities={round.facilities} />
+            ) : null
+          }
         />
 
         <div className="mt-4 space-y-4 lg:mt-0">

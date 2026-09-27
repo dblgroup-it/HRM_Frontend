@@ -30,7 +30,6 @@ import {
   UserPlus,
   Users,
   Video,
-  X,
   UserX,
 } from 'lucide-react';
 
@@ -78,6 +77,8 @@ import type {
   InterviewRoundView,
 } from '../types/assessment.types';
 import { BulkInterviewModal } from './BulkInterviewModal';
+import { PanelGroups, PanelSideToggle } from './PanelGroups';
+import { panelHandlers, panelPayload, type PanelEntry } from './panelEntry';
 import { heldByLabel } from './heldByLabel';
 import {
   recommendationLabel,
@@ -554,7 +555,7 @@ function InterviewWorkspace({
   const [scheduledAt, setScheduledAt] = useState('');
   const [location, setLocation]       = useState('');
   const [customLink, setCustomLink]   = useState(false);
-  const [panel, setPanel]             = useState<{ userId: string; name: string }[]>([]);
+  const [panel, setPanel]             = useState<PanelEntry[]>([]);
   const [notifyCandidate, setNotifyCandidate] = useState(true);
   const [notifyPanel, setNotifyPanel]         = useState(true);
   const [locationError, setLocationError]     = useState(false);
@@ -581,11 +582,7 @@ function InterviewWorkspace({
   }, [rounds, factoryFirst]);
 
   const committee = setup?.committee ?? [];
-  const inPanel = (uid: string) => panel.some((p) => p.userId === uid);
-  const addPanelist = (uid: string, name: string) =>
-    setPanel((prev) => prev.some((p) => p.userId === uid) ? prev : [...prev, { userId: uid, name }]);
-  const removePanelist = (uid: string) =>
-    setPanel((prev) => prev.filter((p) => p.userId !== uid));
+  const panelOps = panelHandlers(setPanel);
 
   const lastCompleted = rounds.reduce<InterviewKindKey | null>((best, r) => {
     if (r.status !== 'completed') return best;
@@ -604,7 +601,7 @@ function InterviewWorkspace({
         kind, mode,
         scheduledAt: scheduledAt || undefined,
         location: location.trim() || undefined,
-        panelistUserIds: panel.map((p) => p.userId),
+        ...panelPayload(panel),
         notifyCandidate, notifyPanel,
       },
       {
@@ -1046,36 +1043,19 @@ function InterviewWorkspace({
 
             {/* ③ Panel */}
             <FormStep n={3} title="Who interviews?">
-              {panel.length > 0 && (
-                <div className="mb-2 flex flex-wrap gap-1.5">
-                  {panel.map((p) => (
-                    <span key={p.userId}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-brand-600 py-1 pl-1 pr-2 text-xs font-medium text-white">
-                      <Avatar name={p.name} size="sm" />
-                      {p.name}
-                      <button type="button" onClick={() => removePanelist(p.userId)}
-                        className="rounded-full p-0.5 hover:bg-white/20">
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-              {committee.some((m) => !inPanel(m.userId)) && (
-                <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                  <span className="text-[0.6875rem] font-medium uppercase tracking-wide text-slate-400">Committee:</span>
-                  {committee.filter((m) => !inPanel(m.userId)).map((m) => (
-                    <button key={m.userId} type="button" onClick={() => addPanelist(m.userId, m.name)}
-                      className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-300 px-2.5 py-1 text-xs text-slate-600 hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700">
-                      + {m.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <PanelMemberPicker
-                reqId={reqId}
-                existingUserIds={[...committee.map((m) => m.userId), ...panel.map((p) => p.userId)]}
-                onAdded={addPanelist}
+              <PanelGroups
+                panel={panel}
+                committee={committee}
+                onAdd={panelOps.add}
+                onRemove={panelOps.remove}
+                onMove={panelOps.move}
+                renderPicker={(_hr, onAdded) => (
+                  <PanelMemberPicker
+                    reqId={reqId}
+                    existingUserIds={[...committee.map((m) => m.userId), ...panel.map((p) => p.userId)]}
+                    onAdded={onAdded}
+                  />
+                )}
               />
             </FormStep>
           </div>
@@ -1264,6 +1244,14 @@ function RoundCard({
                     <Circle className="h-2.5 w-2.5 fill-slate-300 text-slate-300" />
                   )}
                   {p.name}
+                  {p.fromHr && (
+                    <span
+                      title="Sits on this panel for HR — records the facilities"
+                      className="rounded-full bg-emerald-600 px-1.5 py-0.5 text-[0.5625rem] font-bold tracking-wide text-white"
+                    >
+                      HR
+                    </span>
+                  )}
                   {!p.hasMarked && p.tokenStatus && (
                     <span className={cn(
                       'rounded-full px-1.5 py-0.5 text-[0.5625rem] font-semibold',
@@ -1436,6 +1424,8 @@ function AddPanelistInline({
 }) {
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
+  // Most people added later are the panel's own department; HR is the choice.
+  const [asHr, setAsHr] = useState(false);
   const close = useCallback(() => setOpen(false), []);
   const { triggerRef, panelRef, panelStyle, ready } =
     useAnchoredPanel<HTMLDivElement>(open, close);
@@ -1449,6 +1439,7 @@ function AddPanelistInline({
 
   return (
     <div className="relative mt-2" ref={triggerRef}>
+      {open && <PanelSideToggle hr={asHr} onChange={setAsHr} />}
       {open ? (
         <input
           autoFocus
@@ -1489,6 +1480,7 @@ function AddPanelistInline({
                     addPanelists.mutate({
                       roundId,
                       panelistUserIds: [e.userId],
+                      fromHr: asHr,
                     });
                   }
                   setQ('');

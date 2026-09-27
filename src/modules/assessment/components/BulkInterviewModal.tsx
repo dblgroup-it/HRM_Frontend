@@ -36,9 +36,10 @@ import { VenuePicker } from './VenuePicker';
 import { nextInterviewKind, suggestBatchKind } from './nextInterviewKind';
 import { usesRoomList } from './venue';
 import { useMyPermissions } from '@modules/rbac';
+import { PanelGroups } from './PanelGroups';
+import { panelHandlers, panelPayload, type PanelEntry } from './panelEntry';
 
 type Candidate = { id: string; name: string };
-type Panelist = { userId: string; name: string };
 
 const KIND_OPTIONS: { value: InterviewKindKey; label: string }[] = [
   { value: 'first', label: 'First interview' },
@@ -129,15 +130,9 @@ export function BulkInterviewModal({
   const [notifyPanel, setNotifyPanel] = useState(true);
 
   // --- panel ---
-  const [panel, setPanel] = useState<Panelist[]>([]);
+  const [panel, setPanel] = useState<PanelEntry[]>([]);
   const committee = setup?.committee ?? [];
-  const inPanel = (uid: string) => panel.some((p) => p.userId === uid);
-  const addPanelist = (userId: string, name: string) =>
-    setPanel((prev) =>
-      prev.some((p) => p.userId === userId) ? prev : [...prev, { userId, name }],
-    );
-  const removePanelist = (uid: string) =>
-    setPanel((prev) => prev.filter((p) => p.userId !== uid));
+  const panelOps = panelHandlers(setPanel);
 
   // --- computed time slots ---
   const slots = useMemo<(string | null)[]>(() => {
@@ -164,7 +159,7 @@ export function BulkInterviewModal({
         mode,
         scheduledAts: date ? (slots.filter(Boolean) as string[]) : undefined,
         location: location.trim() || undefined,
-        panelistUserIds: panel.map((p) => p.userId),
+        ...panelPayload(panel),
         notifyCandidate,
         notifyPanel,
       },
@@ -381,53 +376,23 @@ export function BulkInterviewModal({
                 Panel members <span className="font-normal text-slate-400">(shared across all)</span>
               </p>
             </div>
-            <div className="space-y-3 p-3">
-              {panel.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {panel.map((p) => (
-                    <span
-                      key={p.userId}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-brand-600 py-1 pl-1 pr-2 text-xs font-medium text-white"
-                    >
-                      <Avatar name={p.name} size="sm" />
-                      {p.name}
-                      <button
-                        type="button"
-                        onClick={() => removePanelist(p.userId)}
-                        className="rounded-full p-0.5 hover:bg-white/20"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-              {committee.some((m) => !inPanel(m.userId)) && (
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-[0.6875rem] font-medium uppercase tracking-wide text-slate-400">
-                    Committee:
-                  </span>
-                  {committee
-                    .filter((m) => !inPanel(m.userId))
-                    .map((m) => (
-                      <button
-                        key={m.userId}
-                        type="button"
-                        onClick={() => addPanelist(m.userId, m.name)}
-                        className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-300 px-2.5 py-1 text-xs text-slate-600 hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700"
-                      >
-                        + {m.name}
-                      </button>
-                    ))}
-                </div>
-              )}
-              <BulkPanelPicker
-                reqId={reqId}
-                existingUserIds={[
-                  ...committee.map((m) => m.userId),
-                  ...panel.map((p) => p.userId),
-                ]}
-                onAdded={addPanelist}
+            <div className="p-3">
+              <PanelGroups
+                panel={panel}
+                committee={committee}
+                onAdd={panelOps.add}
+                onRemove={panelOps.remove}
+                onMove={panelOps.move}
+                renderPicker={(_hr, onAdded) => (
+                  <BulkPanelPicker
+                    reqId={reqId}
+                    existingUserIds={[
+                      ...committee.map((m) => m.userId),
+                      ...panel.map((p) => p.userId),
+                    ]}
+                    onAdded={onAdded}
+                  />
+                )}
               />
             </div>
           </div>

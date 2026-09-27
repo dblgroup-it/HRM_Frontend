@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
+import type { FacilitiesInput } from '../components/FacilitiesForm';
+
 import { assessmentApi } from '../api/assessment.api';
 import type {
   AssessmentSetup,
@@ -193,8 +195,8 @@ export function useUpdateInterview(candidateId: string, silent = false) {
 export function useAddPanelists(candidateId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (vars: { roundId: string; panelistUserIds: string[] }) =>
-      assessmentApi.addPanelists(vars.roundId, vars.panelistUserIds),
+    mutationFn: (vars: { roundId: string; panelistUserIds: string[]; fromHr?: boolean }) =>
+      assessmentApi.addPanelists(vars.roundId, vars.panelistUserIds, vars.fromHr ?? false),
     onSuccess: () => {
       void qc.invalidateQueries({
         queryKey: assessmentKeys.interviews(candidateId),
@@ -218,14 +220,19 @@ export function useSetCandidatePackage(candidateId: string) {
       salaryBenefitsNote?: string | null;
       salaryBenefits?: string[];
       transportPickup?: string | null;
+      baseUpdatedAt?: string | null;
     }) => assessmentApi.setCandidatePackage(candidateId, input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: delegationKeys.mine });
       void qc.invalidateQueries({ queryKey: assessmentKeys.myInterviews });
-      toast.success('Salary details saved');
+      toast.success('Facilities saved');
     },
-    onError: (error) =>
-      toast.error(errMsg(error, 'Could not save the salary details')),
+    onError: (error) => {
+      // A colleague saved first: fetch their figures so the form shows them.
+      void qc.invalidateQueries({ queryKey: delegationKeys.mine });
+      void qc.invalidateQueries({ queryKey: assessmentKeys.myInterviews });
+      toast.error(errMsg(error, 'Could not save the facilities'));
+    },
   });
 }
 
@@ -292,6 +299,35 @@ export function useSubmitPublicEval(token: string) {
     },
     onError: (error) =>
       toast.error(errMsg(error, 'Could not submit your evaluation')),
+  });
+}
+
+/**
+ * An HR panelist saves the facilities from the evaluation form — the emailed
+ * link (`token`) or My Interviews (`roundId`).
+ */
+export function useSaveFacilities(
+  target: { token: string } | { roundId: string },
+) {
+  const qc = useQueryClient();
+  const refresh = () =>
+    'token' in target
+      ? qc.invalidateQueries({ queryKey: ['public-eval', target.token] })
+      : qc.invalidateQueries({ queryKey: assessmentKeys.myInterviews });
+  return useMutation({
+    mutationFn: (input: FacilitiesInput) =>
+      'token' in target
+        ? assessmentApi.saveFacilitiesByToken(target.token, input)
+        : assessmentApi.saveMyFacilities(target.roundId, input),
+    onSuccess: () => {
+      void refresh();
+      toast.success('Facilities saved');
+    },
+    onError: (error) => {
+      // A colleague on the panel saved first: bring their figures in.
+      void refresh();
+      toast.error(errMsg(error, 'Could not save the facilities'));
+    },
   });
 }
 

@@ -744,6 +744,8 @@ export default function AssignedCandidatesPage() {
             salaryBenefitsNote: packageFor.candidate.salaryBenefitsNote,
             salaryBenefits: packageFor.candidate.salaryBenefits,
             transportPickup: packageFor.candidate.transportPickup,
+            packageUpdatedAt: packageFor.candidate.packageUpdatedAt,
+            packageUpdatedByName: packageFor.candidate.packageUpdatedByName,
           }}
           onClose={() => setPackageFor(null)}
         />

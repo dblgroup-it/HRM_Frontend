@@ -23,7 +23,9 @@ import type {
   FirstInterviewOutcomeResult,
   HeadDecision,
   HeadDecisionResult,
+  FacilitiesView,
 } from '../types/assessment.types';
+import type { FacilitiesInput } from '../components/FacilitiesForm';
 
 export const assessmentApi = {
   /** Hand shortlisted candidates to the people who will interview them. */
@@ -227,11 +229,12 @@ export const assessmentApi = {
   addPanelists: (
     roundId: string,
     panelistUserIds: string[],
+    fromHr = false,
   ): Promise<InterviewRoundView> =>
     http
       .post<ApiResponse<InterviewRoundView>>(
         `/interviews/${roundId}/panelists`,
-        { panelistUserIds },
+        { panelistUserIds, fromHr },
       )
       .then((r) => r.data),
 
@@ -245,6 +248,8 @@ export const assessmentApi = {
       salaryBenefits?: string[];
       /** Where the transport run would pick them up. */
       transportPickup?: string | null;
+      /** The stamp of what the form was showing — refused if a colleague saved since. */
+      baseUpdatedAt?: string | null;
     },
   ): Promise<{ id: string }> =>
     http
@@ -323,6 +328,18 @@ export const assessmentApi = {
   ): Promise<{ ok: boolean; total: number }> =>
     http
       .post<ApiResponse<{ ok: boolean; total: number }>>(`/eval/${token}`, input)
+      .then((r) => r.data),
+
+  /** An HR panelist saves the facilities from the emailed evaluation link. */
+  saveFacilitiesByToken: (token: string, input: FacilitiesInput): Promise<FacilitiesView> =>
+    http
+      .patch<ApiResponse<FacilitiesView>>(`/eval/${token}/facilities`, input)
+      .then((r) => r.data),
+
+  /** An HR panelist saves the facilities from My Interviews. */
+  saveMyFacilities: (roundId: string, input: FacilitiesInput): Promise<FacilitiesView> =>
+    http
+      .patch<ApiResponse<FacilitiesView>>(`/my-interviews/${roundId}/facilities`, input)
       .then((r) => r.data),
 
   // resend eval link for a panelist (Corp HR only)

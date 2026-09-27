@@ -36,6 +36,11 @@ export interface CandidateRailProps {
    * The emailed page's header is 4.25rem; the app's is taller.
    */
   stickyClassName?: string;
+  /**
+   * Shown under the candidate's facts, above the CV link: the facilities
+   * section, which only an interviewer sitting for HR is given.
+   */
+  facilities?: ReactNode;
 }
 
 /**
@@ -64,6 +69,7 @@ export function CandidateRail({
   cvUrl,
   brief,
   stickyClassName = 'lg:top-[4.25rem]',
+  facilities,
 }: CandidateRailProps) {
   const degrees = brief?.education?.filter((e) => e.kind !== 'certification') ?? [];
   const certs = brief?.education?.filter((e) => e.kind === 'certification') ?? [];
@@ -161,9 +167,30 @@ export function CandidateRail({
             </Box>
 
             <Box title="Age" center className="md:order-none">
-              <p className="text-lg font-bold tabular-nums text-slate-900">
-                {brief?.age != null ? brief.age : <Dash />}
-              </p>
+              {brief?.age != null ? (
+                <p className="text-lg font-bold tabular-nums text-slate-900">{brief.age}</p>
+              ) : brief?.ageEstimate ? (
+                // No date of birth on the CV: estimated from the school-leaving
+                // year, and said to be — so it is asked about, not taken as read.
+                <>
+                  <p
+                    className="text-lg font-bold tabular-nums text-slate-900"
+                    title={`Estimated: taken as ${brief.ageEstimate.basis === 'SSC' ? 16 : 18} at ${brief.ageEstimate.basis} (${brief.ageEstimate.year}). The CV gives no date of birth.`}
+                  >
+                    ≈ {brief.ageEstimate.age}
+                  </p>
+                  <p className="mt-0.5 text-[0.625rem] leading-tight text-slate-500">
+                    estimated
+                    <span className="block whitespace-nowrap">
+                      {brief.ageEstimate.basis} {brief.ageEstimate.year}
+                    </span>
+                  </p>
+                </>
+              ) : (
+                <p className="text-lg font-bold tabular-nums text-slate-900">
+                  <Dash />
+                </p>
+              )}
             </Box>
 
             <Box title="Total Service" center className="md:order-last lg:order-none">
@@ -239,6 +266,8 @@ export function CandidateRail({
               minute, or open the full CV.
             </p>
           )}
+
+          {facilities}
 
           {cvUrl && (
             <div className="border-t border-slate-200 p-3">

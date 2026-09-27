@@ -14,6 +14,7 @@ import { usePublicEval, useSubmitPublicEval } from '../hooks/useAssessment';
 import type { RecommendationKey } from '../types/assessment.types';
 import { CriteriaScoringSection } from '../components/CriteriaScoringSection';
 import { CandidateRail } from '../components/CandidateRail';
+import { RailFacilities } from '../components/RailFacilities';
 import { RecommendationPicker } from '../components/RecommendationPicker';
 import { recommendationLabel, recommendationTone } from '../components/recommendation';
 
@@ -203,6 +204,11 @@ export default function EvaluateByTokenPage() {
           markerName={data.panelistName}
           cvUrl={data.candidate.cvUrl}
           brief={data.candidate.brief}
+          facilities={
+            data.fromHr && data.facilities ? (
+              <RailFacilities target={{ token }} facilities={data.facilities} />
+            ) : null
+          }
         />
 
         <div className="mt-4 space-y-4 lg:mt-0">

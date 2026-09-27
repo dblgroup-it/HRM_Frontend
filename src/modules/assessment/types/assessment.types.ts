@@ -86,6 +86,8 @@ export interface InterviewPanelistView {
   userId: string;
   name: string;
   designation: string | null;
+  /** Sits on this panel for HR — the one who fills the facilities. */
+  fromHr: boolean;
   hasMarked: boolean;
   tokenStatus: 'sent' | 'opened' | 'submitted' | null;
   evalLink: string | null;
@@ -106,6 +108,8 @@ export interface CandidateBrief {
   email: string | null;
   address: string | null;
   age: number | null;
+  /** Only when there is no date of birth: from the SSC (at 16) or HSC (at 18) year. */
+  ageEstimate?: { age: number; basis: 'SSC' | 'HSC'; year: number } | null;
   education: {
     degree: string;
     institute: string | null;
@@ -145,10 +149,25 @@ export interface PublicEvalInterview {
   unit: string;
 }
 
+/** The shared facilities record, as an HR panelist sees it. */
+export interface FacilitiesView {
+  presentSalary: number | null;
+  salaryExpectation: number | null;
+  salaryBenefitsNote: string | null;
+  salaryBenefits: string[];
+  transportPickup: string | null;
+  updatedAt: string | null;
+  updatedByName: string | null;
+}
+
 export interface PublicEvalData {
   status: string;
   alreadySubmitted: boolean;
   panelistName: string;
+  /** On this panel for HR: the form shows the facilities section. */
+  fromHr?: boolean;
+  /** Only sent to HR panelists. */
+  facilities?: FacilitiesView | null;
   candidate: {
     name: string;
     cvUrl: string | null;
@@ -188,6 +207,8 @@ export interface BulkScheduleInput {
   scheduledAts?: string[];
   location?: string;
   panelistUserIds: string[];
+  /** Which of them sit for HR — see PanelGroups. */
+  hrPanelistUserIds?: string[];
   notifyCandidate?: boolean;
   notifyPanel?: boolean;
 }
@@ -213,6 +234,10 @@ export interface InterviewRoundView {
 
 export interface MyInterviewRound {
   id: string;
+  /** On this panel for HR: the form shows the facilities section. */
+  fromHr?: boolean;
+  /** Only sent to HR panelists. */
+  facilities?: FacilitiesView | null;
   kind: InterviewKindKey;
   mode: InterviewModeKey;
   scheduledAt: string | null;
@@ -251,6 +276,8 @@ export interface ScheduleInterviewInput {
   scheduledAt?: string;
   location?: string;
   panelistUserIds: string[];
+  /** Which of them sit for HR — see PanelGroups. */
+  hrPanelistUserIds?: string[];
   notifyCandidate?: boolean;
   notifyPanel?: boolean;
 }
@@ -293,6 +320,9 @@ export interface DelegatedCandidate {
     salaryBenefits: string[];
     /** Where the transport run would pick them up, if the post carries one. */
     transportPickup: string | null;
+    /** Who last saved the facilities. */
+    packageUpdatedAt?: string | null;
+    packageUpdatedByName?: string | null;
   };
   rounds: {
     id: string;
