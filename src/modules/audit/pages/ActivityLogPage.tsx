@@ -172,15 +172,17 @@ export default function ActivityLogPage() {
     <div className="space-y-5">
       <PageHeader
         title="System Activity"
-        description="Every change made in the system — who did it, when, and what changed. Viewing records is not logged; only changes are. Entries are kept for 30 days, today included; older ones are removed every night."
+        description="Every change in the system — who, when and what changed. Viewing is not logged. Kept for 30 days."
       />
 
       {/* Filters */}
       <div className="rounded-2xl border border-slate-200/70 bg-white p-3 shadow-card">
-        {/* Search gets the width it needs; the four filters share the rest and
-            wrap rather than squeezing each other. */}
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <div className="sm:col-span-2 lg:col-span-3 xl:col-span-2">
+        {/* One line on a wide screen: search and the date pair take a bit more
+            than each dropdown. It was a 6-column grid holding 7 columns' worth
+            (search 2 + three dropdowns + dates 2), so the dates always fell to
+            a second line. Narrower screens still wrap, deliberately. */}
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,1fr))_minmax(0,1.5fr)]">
+          <div className="sm:col-span-2 lg:col-span-3 xl:col-span-1">
             <Input
               placeholder="Search person, record or summary…"
               leftIcon={<Search className="h-4 w-4" />}
@@ -227,13 +229,13 @@ export default function ActivityLogPage() {
           {/* min-w-0 matters: a date input carries an intrinsic minimum width
               and a flex item will not shrink below it, so without this the
               pair overflows the card on narrower screens. */}
-          <div className="flex min-w-0 items-center gap-1.5 sm:col-span-2 lg:col-span-3 xl:col-span-2">
+          <div className="flex min-w-0 items-center gap-1.5 sm:col-span-2 lg:col-span-3 xl:col-span-1">
             <input
               type="date"
               aria-label="From date"
               value={from}
               onChange={(e) => onFilter(setFrom)(e.target.value)}
-              className="w-full min-w-0 flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs focus:border-brand-400 focus:outline-none"
+              className="h-10 w-full min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-brand-400 focus:outline-none"
             />
             <span className="shrink-0 text-xs text-slate-400">to</span>
             <input
@@ -241,7 +243,7 @@ export default function ActivityLogPage() {
               aria-label="To date"
               value={to}
               onChange={(e) => onFilter(setTo)(e.target.value)}
-              className="w-full min-w-0 flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs focus:border-brand-400 focus:outline-none"
+              className="h-10 w-full min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:border-brand-400 focus:outline-none"
             />
           </div>
         </div>
