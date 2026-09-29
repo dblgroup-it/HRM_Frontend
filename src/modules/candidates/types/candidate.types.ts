@@ -34,6 +34,23 @@ export interface FirstInterviewApprovalState {
   decidedByName: string | null;
 }
 
+export type CandidateGender = 'male' | 'female';
+
+/** A CV the Factory HR / Head sent in, as their own list shows it. */
+export interface SubmittedCv {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  gender: CandidateGender | null;
+  cvSource: string | null;
+  cvSourceLabel: string | null;
+  referral: CandidateReferral | null;
+  cvUrl: string | null;
+  applyCount: number;
+  createdAt: string;
+}
+
 export interface Candidate {
   id: string;
   requisitionId: string;
@@ -43,6 +60,10 @@ export interface Candidate {
   source: string;
   /** Where the recruiter found the CV — a CV_SOURCES key, or null. */
   cvSource?: string | null;
+  /** Read by the AI off the CV (or sent by BDJobs); null when unknown. */
+  gender?: CandidateGender | null;
+  /** Set when the unit's Factory HR / Factory HR Head sent the CV in. */
+  addedBy?: { name: string | null; role: string } | null;
   stage: CandidateStage;
   /** Set when an employee referred them; null otherwise. */
   referral?: CandidateReferral | null;
@@ -66,7 +87,7 @@ export interface Candidate {
   matchDetails: MatchCriterion[] | null;
   screenedAt: string | null;
   viewedAt: string | null;
-  /** How many requisitions this candidate's email has been used to apply to. */
+  /** How many times this person has applied — same email or same mobile. */
   applyCount: number;
   talentPool: boolean;
   isRedFlagged: boolean;

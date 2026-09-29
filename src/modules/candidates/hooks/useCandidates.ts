@@ -16,7 +16,17 @@ export const candidateKeys = {
   workspace: (reqId: string) => ['candidates', 'workspace', reqId] as const,
   talentPool: ['candidates', 'talent-pool'] as const,
   talentBankMatches: (reqId: string) => ['candidates', 'talent-bank-matches', reqId] as const,
+  submitted: (reqId: string) => ['candidates', 'submitted', reqId] as const,
 };
+
+/** The CVs the Factory HR / Head sent in to this requisition. */
+export function useSubmittedCvs(reqId: string, enabled = true) {
+  return useQuery({
+    queryKey: candidateKeys.submitted(reqId),
+    queryFn: () => candidatesApi.submitted(reqId),
+    enabled,
+  });
+}
 
 function errMsg(error: unknown, fallback: string): string {
   if (typeof error === 'object' && error !== null && 'message' in error) {
@@ -225,6 +235,7 @@ function invalidatePipeline(
   // A candidate leaving/re-entering this pipeline changes the Talent Bank
   // Matches modal's per-match pipelineStatus (in_pipeline/removed/not_added).
   qc.invalidateQueries({ queryKey: candidateKeys.talentBankMatches(reqId) });
+  qc.invalidateQueries({ queryKey: candidateKeys.submitted(reqId) });
   qc.invalidateQueries({ queryKey: ['requisitions'] });
 }
 

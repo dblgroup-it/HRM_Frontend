@@ -34,7 +34,12 @@ import {
 import { formatDate } from '@shared/utils';
 import { ROUTES } from '@app/router/paths';
 
-import { CandidatesPanel, canAccessRecruitment, useSetupWorkspace } from '@modules/candidates';
+import {
+  CandidatesPanel,
+  FactoryCvIntakePanel,
+  canAccessRecruitment,
+  useSetupWorkspace,
+} from '@modules/candidates';
 import { AssessmentPanel, InterviewsPanel } from '@modules/assessment';
 import { OnboardingTab } from '@modules/onboarding';
 import { cn } from '@shared/lib';
@@ -216,6 +221,7 @@ export default function RequisitionDetailPage() {
     !holdsForUnit('corporate_hr') &&
     !holdsForUnit('chro') &&
     !holdsForUnit('factory_hr') &&
+    !holdsForUnit('factory_hr_head') &&
     !(perms?.roles ?? []).some((r) => r.key === 'corporate_recruiter') &&
     req.recruiter?.id !== myUserId &&
     req.cover?.id !== myUserId;
@@ -377,6 +383,16 @@ export default function RequisitionDetailPage() {
       ? [{ label: 'Purpose', value: req.contractualPurpose }]
       : []),
   ];
+
+  /**
+   * The unit's Factory HR / Factory HR Head on a published job: they send CVs
+   * in from Profile & Posting, and the recruiter shortlists. Anyone who runs
+   * the pipeline already adds candidates there, so they do not get this.
+   */
+  const sendsCvs =
+    req.status === 'posted' &&
+    !showCandidates &&
+    (holdsForUnit('factory_hr') || holdsForUnit('factory_hr_head'));
 
   // Lifecycle-ordered tabs (only the ones that apply to this requisition).
   const stats = req.candidateStats;
@@ -654,6 +670,13 @@ export default function RequisitionDetailPage() {
               requisition={req}
               canContinue={canCorporateHrContinue}
               onPosting={() => setDrivePhase('working')}
+            />
+          )}
+          {sendsCvs && (
+            <FactoryCvIntakePanel
+              reqId={req.id}
+              reqLabel={`${req.code} · ${req.designation}`}
+              cvSources={req.cvSources}
             />
           )}
         </div>

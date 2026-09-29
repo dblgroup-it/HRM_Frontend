@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 
 import { Avatar, BusyOverlay } from '@shared/components/ui';
+import { GenderBadge } from './GenderBadge';
 import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
 import { ROUTES } from '@app/router/paths';
@@ -217,6 +218,7 @@ export function CandidateRow({
           <p className="truncate text-sm font-medium text-slate-800">
             {candidate.name}
           </p>
+          <GenderBadge gender={candidate.gender} />
           {candidate.matchScore !== null && (() => {
             const s = candidate.matchScore!;
             const cfg = matchChip(s);
@@ -255,6 +257,15 @@ export function CandidateRow({
             >
               Applied {candidate.applyCount}×
             </button>
+          )}
+          {candidate.addedBy && (
+            <span
+              className="hidden shrink-0 rounded-full bg-teal-50 px-2 py-0.5 text-[0.625rem] font-semibold text-teal-700 ring-1 ring-teal-100 sm:inline"
+              title={`Sent in by ${candidate.addedBy.name ?? 'the factory'} from the job posting`}
+            >
+              {candidate.addedBy.role === 'factory_hr_head' ? 'Factory HR Head' : 'Factory HR'}
+              {candidate.addedBy.name ? ` · ${candidate.addedBy.name}` : ''}
+            </span>
           )}
           {candidate.isRedFlagged && (
             <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide text-rose-700">

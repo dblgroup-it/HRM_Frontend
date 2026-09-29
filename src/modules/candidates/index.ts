@@ -1,4 +1,5 @@
 export { CandidatesPanel } from './components/CandidatesPanel';
+export { FactoryCvIntakePanel } from './components/FactoryCvIntakePanel';
 export {
   candidateKeys,
   useCandidates,

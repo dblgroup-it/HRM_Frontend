@@ -4,6 +4,7 @@ import type { ApiResponse } from '@shared/types';
 import type {
   ApplicationStatus,
   ApplyHistory,
+  SubmittedCv,
   CareerListing,
   Candidate,
   CandidateFilters,
@@ -230,6 +231,12 @@ export const candidatesApi = {
 
   markViewed: (id: string): Promise<{ ok: boolean }> =>
     http.patch<ApiResponse<{ ok: boolean }>>(`/candidates/${id}/view`, {}).then((r) => r.data),
+
+  /** The CVs the current user sent in from the factory side. */
+  submitted: (reqId: string): Promise<SubmittedCv[]> =>
+    http
+      .get<ApiResponse<SubmittedCv[]>>(`/requisitions/${reqId}/candidates/submitted`)
+      .then((r) => r.data),
 
   applyHistory: (id: string): Promise<ApplyHistory> =>
     http.get<ApiResponse<ApplyHistory>>(`/candidates/${id}/apply-history`).then((r) => r.data),
