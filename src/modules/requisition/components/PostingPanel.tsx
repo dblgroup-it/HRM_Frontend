@@ -29,10 +29,16 @@ export function PostingPanel({
   requisition,
   canContinue,
   onPosting,
+  showStep = true,
 }: {
   requisition: Requisition;
   canContinue: boolean;
   onPosting?: () => void;
+  /**
+   * "· Step 5" is the recruiter's workflow. Factory HR sees this panel
+   * above the role profile, where a step number reads out of order.
+   */
+  showStep?: boolean;
 }) {
   const [closingDate, setClosingDate] = useState('');
   const post = usePostRequisition();
@@ -56,7 +62,7 @@ export function PostingPanel({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Job Posting · Step 5</CardTitle>
+          <CardTitle>{showStep ? 'Job Posting · Step 5' : 'Job Posting'}</CardTitle>
         </CardHeader>
         <CardBody className="space-y-4">
           <div className="flex items-center gap-2 text-emerald-700">
@@ -137,7 +143,7 @@ export function PostingPanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Job Posting · Step 5</CardTitle>
+        <CardTitle>{showStep ? 'Job Posting · Step 5' : 'Job Posting'}</CardTitle>
       </CardHeader>
       <CardBody className="space-y-5">
         {/* There is no channel to choose any more: publishing puts the post

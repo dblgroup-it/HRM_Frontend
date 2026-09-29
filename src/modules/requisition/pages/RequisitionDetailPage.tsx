@@ -674,12 +674,14 @@ export default function RequisitionDetailPage() {
               requisition={req}
               canContinue={canCorporateHrContinue}
               onPosting={() => setDrivePhase('working')}
+              showStep={false}
             />
           )}
           <RecruiterPanel requisition={req} canAssign={canAssignRecruiter} />
           <RoleProfilePanel
             requisition={req}
             canContinue={canCorporateHrContinue}
+            showStep={!sendsCvs}
           />
           {!sendsCvs && showPosting && (
             <PostingPanel

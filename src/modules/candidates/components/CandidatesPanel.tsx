@@ -39,6 +39,7 @@ import {
   CardTitle,
   GlassToolbar,
   GlassToolbarButton,
+  GlassToolbarPrimary,
   GlassToolbarDivider,
   Input,
   Modal,
@@ -78,10 +79,8 @@ import type {
   TalentBankMatchCandidate,
 } from '../types/candidate.types';
 import { CandidateRow } from './CandidateRow';
-import { AddCandidateModal } from './AddCandidateModal';
-import { AddCandidateMenu } from './AddCandidateMenu';
+import { SubmitCvsModal } from './SubmitCvsModal';
 import { ToolbarMenu } from './ToolbarMenu';
-import { BulkCvUploadModal } from './BulkCvUploadModal';
 import { EmailCandidateModal } from './EmailCandidateModal';
 import { RegretMailModal } from './RegretMailModal';
 import { PostToBdJobsModal, useBdJobsPost } from '@modules/integrations/bdjobs';
@@ -224,7 +223,6 @@ export function CandidatesPanel({
   const finalistCount = stats?.finalists ?? 0;
 
   const [addOpen, setAddOpen] = useState(false);
-  const [bulkCvOpen, setBulkCvOpen] = useState(false);
   const [emailTarget, setEmailTarget] = useState<Candidate | null>(null);
   const [interviewTarget, setInterviewTarget] = useState<Candidate | null>(null);
   const [salaryTarget, setSalaryTarget] = useState<Candidate | null>(null);
@@ -318,10 +316,14 @@ export function CandidatesPanel({
             label="Candidate pipeline actions"
             className="w-full sm:w-auto sm:flex-1"
             primary={
-              <AddCandidateMenu
-                onSingle={() => setAddOpen(true)}
-                onBulk={() => setBulkCvOpen(true)}
-              />
+              // One button: the dialog takes one CV, thirty, or a name alone.
+              <GlassToolbarPrimary
+                icon={<Plus />}
+                compactLabel="Add"
+                onClick={() => setAddOpen(true)}
+              >
+                Add candidates
+              </GlassToolbarPrimary>
             }
           >
             <GlassToolbarButton
@@ -947,17 +949,13 @@ export function CandidatesPanel({
         </div>
       </Modal>
 
-      <AddCandidateModal
+      <SubmitCvsModal
+        audience="recruiter"
         reqId={reqId}
+        reqLabel={`${requisition.code} · ${requisition.designation}`}
         cvSources={requisition.cvSources}
         open={addOpen}
         onClose={() => setAddOpen(false)}
-      />
-      <BulkCvUploadModal
-        reqId={reqId}
-        cvSources={requisition.cvSources}
-        open={bulkCvOpen}
-        onClose={() => setBulkCvOpen(false)}
       />
       <EmailCandidateModal
         reqId={reqId}

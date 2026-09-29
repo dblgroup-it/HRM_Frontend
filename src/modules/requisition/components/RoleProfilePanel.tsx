@@ -28,9 +28,12 @@ const GENERATED_BY_LABEL: Record<string, string> = {
 export function RoleProfilePanel({
   requisition,
   canContinue,
+  showStep = true,
 }: {
   requisition: Requisition;
   canContinue: boolean;
+  /** Off for Factory HR, whose tab does not follow the recruiter's steps. */
+  showStep?: boolean;
 }) {
   const generate = useGenerateRoleProfile();
   const profile = requisition.roleProfile;
@@ -60,7 +63,7 @@ export function RoleProfilePanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Role Profile · Step 4</CardTitle>
+        <CardTitle>{showStep ? 'Role Profile · Step 4' : 'Role Profile'}</CardTitle>
         {profile && editable && !editing && (
           <div className="flex items-center gap-1">
             <Button

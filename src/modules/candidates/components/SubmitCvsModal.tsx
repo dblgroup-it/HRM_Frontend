@@ -34,9 +34,28 @@ const REFERRAL: CvSource = 'employee_referral';
 
 interface Row {
   key: string;
-  file: File;
+  /** Null for someone added by name, before any CV exists. */
+  file: File | null;
   name: string;
 }
+
+type Audience = 'factory' | 'recruiter';
+
+/** The words that differ between who is sending. */
+const COPY: Record<Audience, { title: string; eyebrow: string; lands: string; note: string }> = {
+  factory: {
+    title: 'Send CVs to the recruiter',
+    eyebrow: 'New submission',
+    lands: 'Lands as Applied',
+    note: 'The recruiter shortlists from what you send. Male / Female and “Applied before” appear once the AI has read each CV.',
+  },
+  recruiter: {
+    title: 'Add candidates',
+    eyebrow: 'Candidate pipeline',
+    lands: 'Into the pipeline',
+    note: 'Each CV is read and screened by the AI as it lands — match score, Male / Female and “Applied before” follow within a minute.',
+  },
+};
 
 const rowOf = (f: File): Row => ({
   key: `${f.name}-${f.size}-${f.lastModified}`,
@@ -45,7 +64,8 @@ const rowOf = (f: File): Row => ({
 });
 
 /**
- * Factory HR / Factory HR Head sending CVs in to a published job.
+ * Adding candidates to a job — the recruiter's pipeline, or Factory HR /
+ * Factory HR Head sending CVs in to a published job (`audience`).
  *
  * One flow for one CV or thirty: where they came from, then the files. The
  * number of files decides the rest — one gets a short form (name, email,
@@ -60,6 +80,7 @@ export function SubmitCvsModal({
   open,
   onClose,
   initialFiles,
+  audience = 'factory',
 }: {
   reqId: string;
   /** "REQ-0042 · Senior Executive". */
@@ -69,7 +90,10 @@ export function SubmitCvsModal({
   onClose: () => void;
   /** Files dropped on the panel before the dialog opened. */
   initialFiles?: File[];
+  /** Who is adding: the wording, and whether a candidate can come with no CV. */
+  audience?: Audience;
 }) {
+  const copy = COPY[audience];
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const create = useCreateCandidate(reqId);
   const bulk = useBulkCreateCandidates(reqId, (done, total) => setProgress({ done, total }));
@@ -80,6 +104,7 @@ export function SubmitCvsModal({
   const [rows, setRows] = useState<Row[]>([]);
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [remark, setRemark] = useState('');
   const [notes, setNotes] = useState<string[]>([]);
   const [failed, setFailed] = useState<{ fileName: string; error: string }[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -91,6 +116,7 @@ export function SubmitCvsModal({
     setRows([]);
     setEmail('');
     setPhone('');
+    setRemark('');
     setNotes([]);
     setFailed([]);
     setProgress(null);
@@ -106,7 +132,8 @@ export function SubmitCvsModal({
     const incoming = Array.from(list);
     const refused: string[] = [];
     setRows((prev) => {
-      const next = [...prev];
+      // Real files replace a by-name entry.
+      const next = prev.filter((r) => r.file);
       for (const f of incoming) {
         if (f.type !== 'application/pdf') refused.push(`${f.name} — PDF only`);
         else if (f.size > MAX_PDF_BYTES) refused.push(`${f.name} — over 5 MB`);
@@ -157,8 +184,14 @@ export function SubmitCvsModal({
       ? 'The 10 digits after +880, starting with 1'
       : undefined;
   const sourceDone = Boolean(source) && (source !== REFERRAL || Boolean(referrer));
+  const byName = single && !rows[0].file;
+  // The API refuses a referral without the CV — say so here instead.
+  const referralNeedsCv = source === REFERRAL && byName;
   const filesDone =
-    rows.length > 0 && rows.every((r) => r.name.trim().length >= 2) && !phoneError;
+    rows.length > 0 &&
+    rows.every((r) => r.name.trim().length >= 2) &&
+    !phoneError &&
+    !referralNeedsCv;
   const canSend = sourceDone && filesDone && !busy;
 
   const blocker = !source
@@ -167,9 +200,13 @@ export function SubmitCvsModal({
       ? 'Pick the employee who referred them'
       : !rows.length
         ? 'Add at least one CV'
-        : !filesDone
-          ? 'Check the names'
-          : null;
+        : referralNeedsCv
+          ? 'A referral comes with the CV — attach it'
+          : !filesDone
+            ? single
+              ? 'Type the candidate’s full name'
+              : 'Check the names'
+            : null;
 
   const send = () => {
     if (!canSend || !source) return;
@@ -181,10 +218,11 @@ export function SubmitCvsModal({
             name: rows[0].name.trim(),
             email: email.trim() || undefined,
             phone: toBdMobile(phone) || undefined,
+            notes: remark.trim() || undefined,
             cvSource: source,
             referredByCode,
           },
-          cv: rows[0].file,
+          cv: rows[0].file ?? undefined,
         },
         {
           onSuccess: () => {
@@ -198,7 +236,7 @@ export function SubmitCvsModal({
     bulk.mutate(
       {
         cvSource: source,
-        files: rows.map((r) => r.file),
+        files: rows.map((r) => r.file as File),
         names: rows.map((r) => r.name.trim()),
         referredByCode,
       },
@@ -211,7 +249,7 @@ export function SubmitCvsModal({
           }
           // Keep only what did not go in, so a retry cannot send the rest twice.
           const bad = new Set(result.failed.map((f) => f.fileName));
-          setRows((prev) => prev.filter((r) => bad.has(r.file.name)));
+          setRows((prev) => prev.filter((r) => bad.has(r.file?.name ?? "")));
           setFailed(result.failed);
           setProgress(null);
         },
@@ -235,7 +273,7 @@ export function SubmitCvsModal({
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Send CVs to the recruiter"
+          aria-label={copy.title}
           className="relative flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-black/5 motion-safe:animate-rise-in"
         >
           <div className="flex min-h-0 flex-1 flex-col md:flex-row">
@@ -253,9 +291,7 @@ export function SubmitCvsModal({
                 <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur motion-safe:animate-float">
                   <Send className="h-5 w-5" />
                 </span>
-                <h2 className="mt-4 text-lg font-semibold leading-snug">
-                  Send CVs to the recruiter
-                </h2>
+                <h2 className="mt-4 text-lg font-semibold leading-snug">{copy.title}</h2>
                 <p className="mt-1 text-sm text-white/75">{reqLabel}</p>
 
                 <ol className="mt-8 space-y-4">
@@ -278,23 +314,24 @@ export function SubmitCvsModal({
                     active={sourceDone && !filesDone}
                     title="CVs"
                     detail={
-                      rows.length
-                        ? `${rows.length} PDF${rows.length === 1 ? '' : 's'}`
-                        : 'One, or up to 30'
+                      byName
+                        ? 'By name — no CV yet'
+                        : rows.length
+                          ? `${rows.length} PDF${rows.length === 1 ? '' : 's'}`
+                          : 'One, or up to 30'
                     }
                   />
                   <StepItem
                     n={3}
                     done={false}
                     active={sourceDone && filesDone}
-                    title="Send"
-                    detail="Lands as Applied"
+                    title={audience === 'recruiter' ? 'Add' : 'Send'}
+                    detail={copy.lands}
                   />
                 </ol>
 
                 <p className="mt-8 hidden text-xs leading-relaxed text-white/65 md:block">
-                  The recruiter shortlists from what you send. Male / Female and
-                  &ldquo;Applied before&rdquo; appear once the AI has read each CV.
+                  {copy.note}
                 </p>
               </div>
             </aside>
@@ -303,7 +340,7 @@ export function SubmitCvsModal({
             <div className="flex min-h-0 flex-1 flex-col">
               <div className="flex items-center justify-between px-6 pt-5">
                 <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
-                  New submission
+                  {copy.eyebrow}
                 </p>
                 <button
                   type="button"
@@ -476,7 +513,11 @@ export function SubmitCvsModal({
                     </span>
                     <span className="text-left">
                       <span className="block text-sm font-semibold text-slate-800">
-                        {rows.length ? 'Add more CVs' : 'Drop CVs here, or click to browse'}
+                        {byName
+                          ? 'Have the CV after all? Drop it here'
+                          : rows.length
+                            ? 'Add more CVs'
+                            : 'Drop CVs here, or click to browse'}
                       </span>
                       <span className="block text-xs text-slate-500">
                         {rows.length
@@ -485,6 +526,16 @@ export function SubmitCvsModal({
                       </span>
                     </span>
                   </button>
+
+                  {audience === 'recruiter' && rows.length === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setRows([{ key: 'by-name', file: null, name: '' }])}
+                      className="mt-2 text-xs font-medium text-brand-700 underline-offset-2 transition hover:underline"
+                    >
+                      No CV yet? Add a candidate by name
+                    </button>
+                  )}
 
                   {notes.length > 0 && (
                     <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-200 motion-safe:animate-fade-in">
@@ -510,10 +561,13 @@ export function SubmitCvsModal({
                             value={rows[0].name}
                             disabled={busy}
                             onChange={(e) => setRows([{ ...rows[0], name: e.target.value }])}
-                            className={inputCls(rows[0].name.trim().length < 2)}
+                            placeholder="e.g. Md. Rofiqul Islam"
+                            className={inputCls(
+                              rows[0].name.length > 0 && rows[0].name.trim().length < 2,
+                            )}
                           />
                         </Field>
-                        <Field label="Email" hint="read from the CV if blank">
+                        <Field label="Email" hint={rows[0].file ? 'read from the CV if blank' : undefined}>
                           <input
                             type="email"
                             value={email}
@@ -547,6 +601,21 @@ export function SubmitCvsModal({
                             />
                           </div>
                         </Field>
+                        <Field label="Notes" hint="optional" className="sm:col-span-2">
+                          <textarea
+                            value={remark}
+                            disabled={busy}
+                            onChange={(e) => setRemark(e.target.value)}
+                            rows={2}
+                            maxLength={2000}
+                            placeholder={
+                              audience === 'recruiter'
+                                ? 'First impression, anything worth remembering…'
+                                : 'Anything the recruiter should know…'
+                            }
+                            className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-500/25"
+                          />
+                        </Field>
                       </div>
                     </div>
                   )}
@@ -566,7 +635,7 @@ export function SubmitCvsModal({
                             <input
                               value={r.name}
                               disabled={busy}
-                              aria-label={`Name for ${r.file.name}`}
+                              aria-label={`Name for ${r.file?.name}`}
                               onChange={(e) =>
                                 setRows((p) =>
                                   p.map((x) => (x.key === r.key ? { ...x, name: e.target.value } : x)),
@@ -579,14 +648,14 @@ export function SubmitCvsModal({
                                   : 'border-transparent hover:border-slate-200 focus:border-brand-400',
                               )}
                             />
-                            <p className="truncate px-2 text-[0.6875rem] text-slate-400" title={r.file.name}>
-                              {r.file.name} · {(r.file.size / 1024 / 1024).toFixed(1)} MB
+                            <p className="truncate px-2 text-[0.6875rem] text-slate-400" title={r.file?.name}>
+                              {r.file?.name} · {((r.file?.size ?? 0) / 1024 / 1024).toFixed(1)} MB
                             </p>
                           </div>
                           <button
                             type="button"
                             disabled={busy}
-                            aria-label={`Remove ${r.file.name}`}
+                            aria-label={`Remove ${r.file?.name}`}
                             onClick={() => setRows((p) => p.filter((x) => x.key !== r.key))}
                             className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40"
                           >
@@ -621,7 +690,7 @@ export function SubmitCvsModal({
                       blocker ?? (
                         <span className="text-slate-700">
                           <span className="font-semibold">
-                            {rows.length} CV{rows.length === 1 ? '' : 's'}
+                            {byName ? '1 candidate' : `${rows.length} CV${rows.length === 1 ? '' : 's'}`}
                           </span>{' '}
                           via{' '}
                           {source === REFERRAL
@@ -658,7 +727,13 @@ export function SubmitCvsModal({
                       ) : (
                         <Send className="h-4 w-4" />
                       )}
-                      {rows.length > 1 ? `Send ${rows.length} CVs` : 'Send CV'}
+                      {audience === 'recruiter'
+                        ? rows.length > 1
+                          ? `Add ${rows.length} candidates`
+                          : 'Add candidate'
+                        : rows.length > 1
+                          ? `Send ${rows.length} CVs`
+                          : 'Send CV'}
                     </button>
                   </div>
                 </div>
@@ -748,12 +823,21 @@ function FileHeader({
         <FileText className="h-5 w-5" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-slate-800" title={row.file.name}>
-          {row.file.name}
-        </p>
-        <p className="text-xs text-slate-400">
-          {(row.file.size / 1024 / 1024).toFixed(1)} MB · PDF
-        </p>
+        {row.file ? (
+          <>
+            <p className="truncate text-sm font-medium text-slate-800" title={row.file.name}>
+              {row.file.name}
+            </p>
+            <p className="text-xs text-slate-400">
+              {(row.file.size / 1024 / 1024).toFixed(1)} MB · PDF
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="text-sm font-medium text-slate-800">Added by name</p>
+            <p className="text-xs text-slate-400">Upload the CV later from the candidate&rsquo;s row</p>
+          </>
+        )}
       </div>
       <button
         type="button"
