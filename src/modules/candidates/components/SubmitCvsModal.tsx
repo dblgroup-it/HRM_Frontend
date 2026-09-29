@@ -6,7 +6,6 @@ import {
   Send,
   Upload,
   User,
-  UserPlus,
   X,
 } from 'lucide-react';
 
@@ -20,10 +19,7 @@ import {
 import { cn } from '@shared/lib';
 import { isValidBdMobile, toBdMobile } from '@shared/utils';
 // By path, not the barrel: the requisition barrel already imports this module.
-import {
-  EmployeePicker,
-  type PickedEmployee,
-} from '@modules/requisition/components/EmployeePicker';
+import type { PickedEmployee } from '@modules/requisition/components/EmployeePicker';
 import type { CvSource } from '@modules/requisition/types/requisition.types';
 
 import {
@@ -32,6 +28,7 @@ import {
 } from '../hooks/useCandidates';
 import { nameFromFileName } from './bulkCvName';
 import { CvSourcePicker } from './CvSourcePicker';
+import { ReferralPicker } from './ReferralPicker';
 
 const MAX_FILES = 30;
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
@@ -164,7 +161,9 @@ export function SubmitCvsModal({
     !phoneError &&
     (!referred || Boolean(referrer));
   const bulkReady =
-    rows.length > 0 && rows.every((r) => r.name.trim().length >= 2);
+    rows.length > 0 &&
+    rows.every((r) => r.name.trim().length >= 2) &&
+    (!referred || Boolean(referrer));
   const canSend = Boolean(source) && (mode === 'single' ? singleReady : bulkReady);
 
   const blocker = !source
@@ -177,7 +176,9 @@ export function SubmitCvsModal({
           : null
       : !rows.length
         ? 'Add at least one CV.'
-        : null;
+        : referred && !referrer
+          ? 'Pick the employee who referred them.'
+          : null;
 
   const send = () => {
     if (!canSend) return;
@@ -203,6 +204,7 @@ export function SubmitCvsModal({
         cvSource: source,
         files: rows.map((r) => r.file),
         names: rows.map((r) => r.name.trim()),
+        referredByCode: referred && referrer ? referrer.employeeCode : undefined,
       },
       {
         onSuccess: (result) => {
@@ -385,80 +387,12 @@ export function SubmitCvsModal({
             </Step>
 
             <Step n={4} title="Employee referral" hint="Optional">
-              <button
-                type="button"
-                role="switch"
-                aria-checked={referred}
-                onClick={() => {
-                  setReferred((v) => !v);
-                  if (referred) setReferrer(null);
-                }}
-                className={cn(
-                  'flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors',
-                  referred
-                    ? 'border-violet-200 bg-violet-50/70'
-                    : 'border-slate-200 bg-white hover:bg-slate-50',
-                )}
-              >
-                <span
-                  className={cn(
-                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-                    referred ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-500',
-                  )}
-                >
-                  <UserPlus className="h-4 w-4" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium text-slate-800">
-                    Referred by an employee
-                  </span>
-                  <span className="block text-xs text-slate-500">
-                    Pick who put them forward from the employee directory.
-                  </span>
-                </span>
-                <span
-                  className={cn(
-                    'relative h-5 w-9 shrink-0 rounded-full transition-colors',
-                    referred ? 'bg-violet-600' : 'bg-slate-300',
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all',
-                      referred ? 'left-[1.125rem]' : 'left-0.5',
-                    )}
-                  />
-                </span>
-              </button>
-              {referred && (
-                <div className="mt-2.5">
-                  {referrer ? (
-                    <div className="flex items-start gap-2.5 rounded-lg border border-violet-200 bg-white px-3 py-2">
-                      <div className="min-w-0 flex-1 text-sm">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
-                          Referred by
-                        </p>
-                        <p className="truncate text-slate-800">
-                          <span className="font-mono">{referrer.employeeCode}</span>
-                          {' – '}
-                          <span className="font-medium">{referrer.name}</span>
-                          {referrer.jobTitle ? ` – ${referrer.jobTitle}` : ''}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        aria-label="Change referrer"
-                        onClick={() => setReferrer(null)}
-                        className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <EmployeePicker label="Referred by" value="" onPick={setReferrer} />
-                  )}
-                </div>
-              )}
+              <ReferralPicker
+                on={referred}
+                onToggle={setReferred}
+                referrer={referrer}
+                onPick={setReferrer}
+              />
             </Step>
           </>
         ) : (
@@ -542,6 +476,18 @@ export function SubmitCvsModal({
                 ))}
               </ul>
             )}
+          </Step>
+        )}
+
+        {mode === 'bulk' && (
+          <Step n={3} title="Employee referral" hint="Optional">
+            <ReferralPicker
+              on={referred}
+              onToggle={setReferred}
+              referrer={referrer}
+              onPick={setReferrer}
+              several
+            />
           </Step>
         )}
 

@@ -263,6 +263,7 @@ export function useBulkCreateCandidates(
       cvSource: string;
       files: File[];
       names: string[];
+      referredByCode?: string;
     }) => {
       // In batches, each well under nginx's 20 MB request cap — eight 3 MB
       // CVs in one request is a 413 the API never even sees.
@@ -274,6 +275,7 @@ export function useBulkCreateCandidates(
           cvSource: input.cvSource,
           files: idx.map((i) => input.files[i]),
           names: idx.map((i) => input.names[i]),
+          referredByCode: input.referredByCode,
         });
         merged.created.push(...r.created);
         merged.failed.push(...r.failed);

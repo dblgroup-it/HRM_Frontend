@@ -115,11 +115,18 @@ export const candidatesApi = {
   /** One candidate per CV, all from one source; `names` in file order. */
   createMany: (
     reqId: string,
-    input: { cvSource: string; files: File[]; names: string[] },
+    input: {
+      cvSource: string;
+      files: File[];
+      names: string[];
+      /** One employee referring every CV in the batch. */
+      referredByCode?: string;
+    },
   ): Promise<BulkCreateCandidatesResult> => {
     const fd = new FormData();
     fd.append('cvSource', input.cvSource);
     fd.append('names', JSON.stringify(input.names));
+    if (input.referredByCode) fd.append('referredByCode', input.referredByCode);
     for (const f of input.files) fd.append('cvs', f);
     return http
       .post<ApiResponse<BulkCreateCandidatesResult>>(

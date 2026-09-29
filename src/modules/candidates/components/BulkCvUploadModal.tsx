@@ -8,6 +8,8 @@ import type { CvSource } from '@modules/requisition/types/requisition.types';
 import { useBulkCreateCandidates } from '../hooks/useCandidates';
 import { nameFromFileName } from './bulkCvName';
 import { CvSourcePicker } from './CvSourcePicker';
+import { ReferralPicker } from './ReferralPicker';
+import type { PickedEmployee } from '@modules/requisition/components/EmployeePicker';
 
 const MAX_FILES = 30;
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
@@ -53,8 +55,12 @@ export function BulkCvUploadModal({
     [],
   );
   const [dragging, setDragging] = useState(false);
+  const [referred, setReferred] = useState(false);
+  const [referrer, setReferrer] = useState<PickedEmployee | null>(null);
 
   const reset = () => {
+    setReferred(false);
+    setReferrer(null);
     setSource('');
     setRows([]);
     setRefused([]);
@@ -88,7 +94,11 @@ export function BulkCvUploadModal({
   };
 
   const invalidName = rows.some((r) => r.name.trim().length < 2);
-  const canSubmit = Boolean(source) && rows.length > 0 && !invalidName;
+  const canSubmit =
+    Boolean(source) &&
+    rows.length > 0 &&
+    !invalidName &&
+    (!referred || Boolean(referrer));
 
   const submit = () => {
     if (!canSubmit) return;
@@ -97,6 +107,7 @@ export function BulkCvUploadModal({
         cvSource: source,
         files: rows.map((r) => r.file),
         names: rows.map((r) => r.name.trim()),
+        referredByCode: referred && referrer ? referrer.employeeCode : undefined,
       },
       {
         onSuccess: (result) => {
@@ -205,6 +216,14 @@ export function BulkCvUploadModal({
             the CV by the AI screen.
           </span>
         </button>
+
+        <ReferralPicker
+          on={referred}
+          onToggle={setReferred}
+          referrer={referrer}
+          onPick={setReferrer}
+          several
+        />
 
         {refused.length > 0 && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
