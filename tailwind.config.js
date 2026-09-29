@@ -142,6 +142,25 @@ export default {
           '0%': { transform: 'scaleX(0)' },
           '100%': { transform: 'scaleX(1)' },
         },
+        /** Candidate-row buttons: light sweeping across the primary one. */
+        'btn-sheen': {
+          '0%': { transform: 'translateX(-160%) skewX(-18deg)', opacity: '0' },
+          '30%': { opacity: '1' },
+          '100%': { transform: 'translateX(360%) skewX(-18deg)', opacity: '0' },
+        },
+        /** …a shake for Remove, so it reads as a warning before the click… */
+        'btn-wiggle': {
+          '0%, 100%': { transform: 'rotate(0deg)' },
+          '20%': { transform: 'rotate(-14deg)' },
+          '40%': { transform: 'rotate(11deg)' },
+          '60%': { transform: 'rotate(-7deg)' },
+          '80%': { transform: 'rotate(4deg)' },
+        },
+        /** …and the ripple that answers every press. */
+        'btn-ripple': {
+          '0%': { transform: 'scale(0)', opacity: '0.35' },
+          '100%': { transform: 'scale(1)', opacity: '0' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.2s ease-out',
@@ -163,6 +182,9 @@ export default {
         'rail-draw': 'rail-draw 0.25s ease-out both',
         'underline-in': 'underline-in 0.2s cubic-bezier(0.16,1,0.3,1) both',
         'plane-away': 'plane-away 0.7s cubic-bezier(0.4,0,0.2,1) both',
+        'btn-sheen': 'btn-sheen 0.9s cubic-bezier(0.4,0,0.2,1)',
+        'btn-wiggle': 'btn-wiggle 0.5s ease-in-out',
+        'btn-ripple': 'btn-ripple 0.55s cubic-bezier(0.16,1,0.3,1) forwards',
       },
     },
   },

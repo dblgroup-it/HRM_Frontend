@@ -2,9 +2,11 @@ import { cn } from '@shared/lib';
 
 import type { CandidateGender } from '../types/candidate.types';
 
-const LOOK: Record<CandidateGender, { label: string; tone: string }> = {
-  male: { label: 'Male', tone: 'bg-sky-50 text-sky-700 ring-sky-200' },
-  female: { label: 'Female', tone: 'bg-pink-50 text-pink-700 ring-pink-200' },
+// A plain fact, so it stays neutral: colour on a row is kept for things
+// that need attention (sent, rejected, flagged).
+const LOOK: Record<CandidateGender, { label: string }> = {
+  male: { label: 'Male' },
+  female: { label: 'Female' },
 };
 
 /**
@@ -27,8 +29,7 @@ export function GenderBadge({
     <span
       title={`${look.label} · read from the CV`}
       className={cn(
-        'inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[0.625rem] font-semibold leading-none ring-1',
-        look.tone,
+        'inline-flex shrink-0 items-center rounded-md bg-slate-100 px-1.5 py-0.5 text-[0.6875rem] font-medium leading-none text-slate-600',
         className,
       )}
     >

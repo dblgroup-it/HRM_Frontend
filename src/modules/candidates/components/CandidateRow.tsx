@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState, lazy, Suspense } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  lazy,
+  Suspense,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from 'react';
 import { createPortal } from 'react-dom';
 
 const ApplyHistoryModal = lazy(() =>
@@ -6,27 +14,28 @@ const ApplyHistoryModal = lazy(() =>
 );
 import { useNavigate } from 'react-router-dom';
 import {
+  AlertTriangle,
   BadgeDollarSign,
   CalendarClock,
   Check,
   ChevronDown,
   FileText,
   Flag,
+  History,
+  Loader2,
   Mail,
   MailX,
+  Send,
   Sparkles,
   Star,
   Trash2,
   Upload,
   UserCheck,
   X,
-  Send,
-  AlertTriangle,
-  UserPlus,
+  type LucideIcon,
 } from 'lucide-react';
 
 import { Avatar, BusyOverlay } from '@shared/components/ui';
-import { GenderBadge } from './GenderBadge';
 import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
 import { ROUTES } from '@app/router/paths';
@@ -43,6 +52,7 @@ import {
   useUploadCv,
 } from '../hooks/useCandidates';
 import type { Candidate, CandidateStage } from '../types/candidate.types';
+import { GenderBadge } from './GenderBadge';
 import { MatchPopover } from './MatchPopover';
 import { GeneratedCvModal } from './GeneratedCvModal';
 import { resolveApiFileUrl } from '@shared/api';
@@ -70,12 +80,7 @@ const STAGE_ORDER: CandidateStage[] = [
   'rejected',
 ];
 
-function matchChip(score: number) {
-  if (score >= 75) return { fill: '#bbf7d0', empty: '#f0fdf4', text: '#065f46', border: '#6ee7b760', icon: '#10b981', label: 'Strong' };
-  if (score >= 55) return { fill: '#fde68a', empty: '#fffbeb', text: '#78350f', border: '#fcd34d60', icon: '#f59e0b', label: 'Good' };
-  return { fill: '#e2e8f0', empty: '#f8fafc', text: '#475569', border: '#cbd5e160', icon: '#94a3b8', label: 'Partial' };
-}
-
+/** How the record reached the system — used only when no CV source was recorded. */
 const SOURCE_LABEL: Record<string, string> = {
   application: 'Applied online',
   bdjobs: 'BDJobs',
@@ -85,10 +90,20 @@ const SOURCE_LABEL: Record<string, string> = {
   email: 'Email',
 };
 
+/** "6 yrs", "4.5 yrs", "8 mos" — half-year steps; more is false precision. */
+function yearsLabel(years: number): string {
+  if (years < 1) return `${Math.max(1, Math.round(years * 12))} mos`;
+  const r = Math.round(years * 2) / 2;
+  return `${Number.isInteger(r) ? r : r.toFixed(1)} yrs`;
+}
+
+type Primary = 'send' | 'interviews' | 'salary' | 'onboard' | 'scan' | null;
+
 /**
- * Two-line row: identity + status on line 1, a centered row of labeled
- * action buttons on line 2 — always visible, icon + text, no hover reveal,
- * no menu, no drawer.
+ * One candidate, as a card: who they are and what needs attention on the
+ * left, the AI match and the stage on the right, and every action labelled
+ * underneath — the step this stage is waiting on first, in blue; Red-flag and
+ * Remove set apart at the far end.
  */
 export function CandidateRow({
   candidate,
@@ -155,427 +170,419 @@ export function CandidateRow({
     return () => obs.disconnect();
   }, [candidate.id, seenLocally]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const contact = [candidate.email, candidate.phone].filter(Boolean).join(' · ');
   const isNew = !seenLocally;
+  const hold = candidate.firstInterviewHold;
+  const hasCv = Boolean(candidate.cvUrl || candidate.hasGeneratedCv);
+  const src = cvSourceDisplay(candidate.cvSource);
+  const headline = candidate.headline;
+
+  /** The step this stage is waiting on — one, in blue. */
+  const primary: Primary =
+    candidate.stage === 'selected'
+      ? 'onboard'
+      : candidate.stage === 'final' && candidate.proposedSalary == null
+        ? 'salary'
+        : candidate.stage === 'interview'
+          ? 'interviews'
+          : candidate.stage === 'shortlisted' && !hold
+            ? 'send'
+            : (candidate.stage === 'applied' || candidate.stage === 'ai_shortlisted') &&
+                hasCv &&
+                candidate.matchScore === null
+              ? 'scan'
+              : null;
+  const showSalary = ['interview', 'final', 'selected'].includes(candidate.stage);
+  const openMatch = (el: HTMLElement) => {
+    if (!candidate.matchDetails) return;
+    setMatchAnchor(el);
+    setMatchOpen(true);
+  };
+
+  const rejectedLine = (() => {
+    if (candidate.stage !== 'rejected' || !candidate.rejectedAt) return null;
+    const who = candidate.rejectedByName;
+    const head =
+      candidate.rejectionStage === 'factory_hr_head'
+        ? `Rejected by the Factory HR Head${who ? ` (${who})` : ''}`
+        : `Rejected${candidate.rejectionStage === 'first_interview' ? ' at the first interview' : ''}${who ? ` by ${who}` : ''}`;
+    return `${head} · ${formatDate(candidate.rejectedAt)}`;
+  })();
+
+  const scanBtn = hasCv && (
+    <ActionBtn
+      key="scan"
+      icon={Sparkles}
+      motion="spin"
+      tone={primary === 'scan' ? 'primary' : 'violet'}
+      busy={screen.isPending}
+      title={candidate.matchScore !== null ? 'Re-screen the CV with AI' : 'Screen the CV with AI'}
+      onClick={() => screen.mutate(candidate.id)}
+    >
+      {candidate.matchScore !== null ? 'Re-scan' : 'AI scan'}
+    </ActionBtn>
+  );
+  const interviewsBtn = (
+    <ActionBtn
+      key="interviews"
+      icon={CalendarClock}
+      motion="pop"
+      tone={primary === 'interviews' ? 'primary' : 'neutral'}
+      title="Schedule or view interviews"
+      onClick={() => onInterviews(candidate)}
+    >
+      Interviews
+    </ActionBtn>
+  );
+  const salaryBtn = showSalary && (
+    <ActionBtn
+      key="salary"
+      icon={BadgeDollarSign}
+      motion="pop"
+      tone={primary === 'salary' ? 'primary' : 'neutral'}
+      title="Salary fixation"
+      onClick={() => onSalaryFixation(candidate)}
+    >
+      Salary
+    </ActionBtn>
+  );
 
   return (
     <div
       ref={rowRef}
       className={cn(
-        'group/row relative flex flex-col gap-2 px-4 py-3 transition-colors duration-150 hover:bg-slate-50/60',
-        selected && 'bg-brand-50/50',
-        candidate.isRedFlagged && 'bg-rose-50/60 hover:bg-rose-50/80 border-l-[3px] border-rose-500 pl-[13px]',
+        'group/row relative rounded-2xl border bg-white p-4 transition-[border-color,box-shadow,background-color] duration-200',
+        'hover:shadow-[0_6px_22px_-12px_rgba(15,23,42,0.28)]',
+        selected
+          ? 'border-brand-300 bg-brand-50/30 ring-2 ring-brand-400/20'
+          : candidate.isRedFlagged
+            ? 'border-rose-200 bg-rose-50/30 hover:border-rose-300'
+            : 'border-slate-200 hover:border-slate-300',
       )}
     >
-      {/* Line 1 — identity + status */}
-      <div className="flex flex-wrap items-center gap-3">
-      {/* Custom animated checkbox — shown on hover or when selection mode is active */}
-      {canManage && onSelect && (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onSelect(candidate, !selected); }}
-          title={selected ? 'Deselect' : 'Select'}
-          className={cn(
-            'relative h-[18px] w-[18px] shrink-0 rounded-[4px] border-2 transition-all duration-200',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1',
-            selected
-              ? 'scale-100 opacity-100'
-              : isSelectMode
-                ? 'scale-100 opacity-100 border-slate-300 bg-white hover:border-brand-400'
-                : 'scale-75 opacity-0 group-hover/row:scale-100 group-hover/row:opacity-100 group-hover/row:border-brand-400',
-            selected
-              ? 'border-brand-600'
-              : 'border-slate-300 bg-white',
-          )}
-          style={selected ? {
-            background: 'linear-gradient(135deg, #1877c0 0%, #1055a0 100%)',
-            boxShadow: '0 1px 4px rgba(24,119,192,0.35)',
-          } : undefined}
-        >
-          <svg viewBox="0 0 10 8" className="absolute inset-0 m-auto h-[10px] w-[10px]" fill="none">
-            <polyline
-              points="1,4 3.5,6.5 9,1"
-              stroke="white"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeDasharray="14"
-              style={{
-                strokeDashoffset: selected ? 0 : 14,
-                transition: 'stroke-dashoffset 0.22s cubic-bezier(0.65,0,0.35,1) 0.04s',
-              }}
-            />
-          </svg>
-        </button>
-      )}
-      <Avatar name={candidate.name} size="sm" />
-
-      <div className="min-w-[140px] flex-1">
-        <div className="flex items-center gap-2">
-          {isNew && (
-            <span className="inline-flex h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" title="Not yet viewed" />
-          )}
-          <p className="truncate text-sm font-medium text-slate-800">
-            {candidate.name}
-          </p>
-          <GenderBadge gender={candidate.gender} />
-          {candidate.matchScore !== null && (() => {
-            const s = candidate.matchScore!;
-            const cfg = matchChip(s);
-            const fillPct = Math.max(s, 8); // minimum 8% so icon always visible
-            return (
-              <button
-                type="button"
-                title={candidate.matchDetails ? 'Click to view AI match breakdown' : (candidate.matchSummary || 'AI match score')}
-                onClick={(e) => { e.stopPropagation(); if (candidate.matchDetails) { setMatchAnchor(e.currentTarget); setMatchOpen(true); } }}
-                className={cn(
-                  'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-[3px] transition-all duration-150',
-                  candidate.matchDetails ? 'cursor-pointer hover:brightness-[0.97] active:scale-[0.97]' : 'cursor-default',
-                )}
-                style={{
-                  background: `linear-gradient(to right, ${cfg.fill} ${fillPct}%, ${cfg.empty} ${fillPct}%)`,
-                  border: `1px solid ${cfg.border}`,
-                }}
-              >
-                <Sparkles className="h-2.5 w-2.5 shrink-0" style={{ color: cfg.icon }} />
-                <span className="text-[0.625rem] font-bold tabular-nums" style={{ color: cfg.text }}>{s}%</span>
-                {candidate.matchDetails && (
-                  <span className="text-[0.5625rem] font-medium" style={{ color: cfg.text, opacity: 0.6 }}>{cfg.label}</span>
-                )}
-              </button>
-            );
-          })()}
-          <span className="hidden shrink-0 rounded-full bg-slate-50 px-2 py-0.5 text-[0.625rem] font-medium uppercase tracking-wide text-slate-400 sm:inline">
-            {SOURCE_LABEL[candidate.source] ?? candidate.source}
-          </span>
-          {candidate.applyCount > 1 && (
+      <div className="grid grid-cols-[24px_40px_minmax(0,1fr)] gap-x-3.5 gap-y-3 sm:grid-cols-[24px_40px_minmax(0,1fr)_auto]">
+        {/* ── Select ── */}
+        <div className="col-start-1 row-start-1 pt-2">
+          {canManage && onSelect && (
             <button
               type="button"
-              onClick={() => setHistoryOpen(true)}
-              className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[0.625rem] font-semibold text-amber-600 transition-colors hover:bg-amber-100"
-              title="View full application history"
+              onClick={(e) => { e.stopPropagation(); onSelect(candidate, !selected); }}
+              title={selected ? 'Deselect' : 'Select'}
+              aria-pressed={selected}
+              className="group/sel flex h-6 w-6 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50"
             >
-              Applied {candidate.applyCount}×
+              <span
+                className={cn(
+                  'relative h-4 w-4 rounded-[5px] border-[1.5px] transition-all duration-200',
+                  selected
+                    ? 'scale-100 border-brand-600'
+                    : isSelectMode
+                      ? 'border-slate-400 bg-white group-hover/sel:border-brand-500'
+                      : 'border-slate-300 bg-white group-hover/sel:border-brand-400',
+                )}
+                style={
+                  selected
+                    ? { background: 'linear-gradient(135deg, #1877c0 0%, #1055a0 100%)', boxShadow: '0 1px 4px rgba(24,119,192,0.35)' }
+                    : undefined
+                }
+              >
+                <svg viewBox="0 0 10 8" className="absolute inset-0 m-auto h-[9px] w-[9px]" fill="none">
+                  <polyline
+                    points="1,4 3.5,6.5 9,1"
+                    stroke="white"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeDasharray="14"
+                    style={{ strokeDashoffset: selected ? 0 : 14, transition: 'stroke-dashoffset 0.22s cubic-bezier(0.65,0,0.35,1) 0.04s' }}
+                  />
+                </svg>
+              </span>
             </button>
           )}
-          {candidate.addedBy && (
-            <span
-              className="hidden shrink-0 rounded-full bg-teal-50 px-2 py-0.5 text-[0.625rem] font-semibold text-teal-700 ring-1 ring-teal-100 sm:inline"
-              title={`Sent in by ${candidate.addedBy.name ?? 'the factory'} from the job posting`}
-            >
-              {candidate.addedBy.role === 'factory_hr_head' ? 'Factory HR Head' : 'Factory HR'}
-              {candidate.addedBy.name ? ` · ${candidate.addedBy.name}` : ''}
-            </span>
-          )}
-          {candidate.isRedFlagged && (
-            <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide text-rose-700">
-              <Flag className="h-2.5 w-2.5" fill="currentColor" />
-              Red flag
+        </div>
+
+        {/* ── Avatar ── */}
+        <div className="relative col-start-2 row-start-1">
+          <Avatar name={candidate.name} size="md" />
+          {isNew && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-3 w-3" title="Not yet viewed">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-60 motion-safe:animate-ping" />
+              <span className="relative inline-flex h-3 w-3 rounded-full border-2 border-white bg-brand-500" />
             </span>
           )}
         </div>
-        <p className="truncate text-xs text-slate-400">
-          {contact || 'No contact details'}
-          {candidate.proposedSalary != null ? (
-            <span
-              className="ml-2 inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[0.625rem] font-semibold text-brand-700 border border-brand-100"
-              title={candidate.salaryJobGrade ? `Job Grade ${candidate.salaryJobGrade}` : undefined}
-            >
-              <BadgeDollarSign className="h-2.5 w-2.5" />
-              ৳ {candidate.proposedSalary.toLocaleString()} fixed
-              {candidate.salaryJobGrade ? ` · ${candidate.salaryJobGrade}` : ''}
-            </span>
-          ) : (
-            candidate.salaryExpectation != null && (
-              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[0.625rem] font-semibold text-emerald-700 border border-emerald-100">
-                ৳ {candidate.salaryExpectation.toLocaleString()} expected
+
+        {/* ── Who they are, and what needs attention ── */}
+        <div className="col-start-3 row-start-1 grid min-w-0 content-start gap-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <h4 className="truncate text-[0.9375rem] font-semibold tracking-tight text-slate-900">
+              {candidate.name}
+            </h4>
+            <GenderBadge gender={candidate.gender} />
+            {candidate.applyCount > 1 && (
+              <button
+                type="button"
+                onClick={() => setHistoryOpen(true)}
+                title="Where else this person applied"
+                className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-50 px-1.5 py-0.5 text-[0.6875rem] font-medium leading-none text-amber-700 transition hover:bg-amber-100"
+              >
+                <History className="h-3 w-3" />
+                Applied {candidate.applyCount}×
+              </button>
+            )}
+            {candidate.isRedFlagged && (
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-rose-50 px-1.5 py-0.5 text-[0.6875rem] font-semibold leading-none text-rose-700">
+                <Flag className="h-3 w-3" fill="currentColor" /> Red flag
               </span>
-            )
-          )}
-        </p>
-        {(() => {
-          const src = cvSourceDisplay(candidate.cvSource);
-          if (!src) return null;
-          const Icon = src.icon;
-          return (
-            <p
-              className={cn(
-                'mr-1 mt-1 inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-0.5 text-[0.625rem] font-semibold',
-                src.tone,
-              )}
-              title={`Source: ${src.label}`}
-            >
-              <Icon className="h-2.5 w-2.5 shrink-0" />
-              {src.label}
-            </p>
-          );
-        })()}
-        {/* Out with a factory colleague for the first interview — said on
-            the row, so "was it sent?" never needs a second screen. */}
-        {candidate.firstInterviewHold && (
-          <p
-            className="mr-1 mt-1 inline-flex max-w-full items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[0.625rem] font-semibold text-sky-800"
-            title={
-              candidate.firstInterviewHold.awaitingApproval
-                ? 'Put through — waiting on the Factory HR Head'
-                : 'Sent for the first interview'
-            }
-          >
-            <span className="relative flex h-2 w-2 shrink-0">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-60" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-sky-500" />
-            </span>
-            <span className="truncate">
-              {candidate.firstInterviewHold.awaitingApproval
-                ? 'With Factory HR Head'
-                : `Sent for interview · ${
-                    candidate.firstInterviewHold.delegates
-                      .map((d) => d.name)
-                      .join(', ') || 'factory'
-                  }`}
-            </span>
-          </p>
-        )}
-        {candidate.referral && (
-          <p
-            className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[0.625rem] font-medium text-violet-800"
-            title="Employee referral"
-          >
-            <UserPlus className="h-2.5 w-2.5 shrink-0" />
-            <span className="truncate">
-              Employee Referral – {candidate.referral.employeeCode} –{' '}
-              {candidate.referral.name}
-              {candidate.referral.designation
-                ? ` – ${candidate.referral.designation}`
-                : ''}
-            </span>
-          </p>
-        )}
-        {candidate.isRedFlagged && candidate.redFlagReason && (
-          <div className="mt-1.5 max-w-xs rounded-r-lg border-l-4 border-amber-400 bg-amber-50 px-3 py-1.5">
-            <p className="text-xs leading-snug text-amber-800">{candidate.redFlagReason}</p>
-          </div>
-        )}
-        {/* Who turned this candidate down and why. A rejection at the first
-            interview is a factory interviewer's call; one at CV stage is
-            Head of Talent Acquisition's — the row has to say which, or "Rejected" is a dead
-            end for whoever picks the pipeline up next. */}
-        {candidate.stage === 'rejected' && candidate.rejectedAt && (
-          <div className="mt-1.5 max-w-md rounded-r-lg border-l-4 border-rose-400 bg-rose-50 px-3 py-1.5">
-            <p className="text-xs font-semibold leading-snug text-rose-800">
-              Rejected
-              {candidate.rejectionStage === 'first_interview'
-                ? ' at the first interview'
-                : candidate.rejectionStage === 'factory_hr_head'
-                  ? ' by the Factory HR Head after the first interview'
-                  : ''}
-              {candidate.rejectedByName ? ` by ${candidate.rejectedByName}` : ''}
-              <span className="font-normal text-rose-500">
-                {' '}· {formatDate(candidate.rejectedAt)}
-              </span>
-            </p>
-            {candidate.rejectionReason && (
-              <p className="mt-0.5 text-xs leading-snug text-rose-700/90">
-                {candidate.rejectionReason}
-              </p>
             )}
           </div>
-        )}
-        {candidate.regretSentAt && (
-          <p className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[0.625rem] font-semibold text-emerald-700">
-            <MailX className="h-2.5 w-2.5 shrink-0" />
-            <span className="truncate">
-              Regret mail sent
-              {candidate.regretSentByName ? ` by ${candidate.regretSentByName}` : ''}
-              {' '}· {formatDate(candidate.regretSentAt)}
-            </span>
-          </p>
-        )}
-        {candidate.matchSummary && (
-          <div className="mt-1">
-            <p
-              className={cn(
-                'text-xs italic leading-snug text-violet-600/90',
-                !showFullSummary && 'line-clamp-2',
-              )}
-            >
-              <Sparkles className="mr-1 inline h-3 w-3 align-[-1px]" />
-              {candidate.matchSummary}
+
+          {headline && (headline.title || headline.company || headline.years) && (
+            <p className="truncate text-[0.8125rem] text-slate-700">
+              {headline.title && <span className="font-semibold text-slate-800">{headline.title}</span>}
+              {[headline.company, headline.years ? yearsLabel(headline.years) : null]
+                .filter(Boolean)
+                .map((part, i) => (
+                  <span key={i}>
+                    {headline.title || i > 0 ? ' · ' : ''}
+                    {part}
+                  </span>
+                ))}
             </p>
-            {candidate.matchSummary.length > 110 && (
+          )}
+
+          <p className="flex min-w-0 flex-wrap items-center gap-x-3.5 gap-y-0.5 text-[0.8125rem] text-slate-500">
+            {candidate.referral ? (
+              <span
+                className="whitespace-nowrap"
+                title={[candidate.referral.employeeCode, candidate.referral.name, candidate.referral.designation].filter(Boolean).join(' – ')}
+              >
+                <span className="font-medium text-slate-700">Referred by {candidate.referral.name}</span>{' '}
+                ({candidate.referral.employeeCode})
+              </span>
+            ) : (
+              <span className="whitespace-nowrap font-medium text-slate-700">
+                {src?.label ?? SOURCE_LABEL[candidate.source] ?? candidate.source}
+              </span>
+            )}
+            {candidate.addedBy && (
+              <span className="whitespace-nowrap">
+                Sent by {candidate.addedBy.role === 'factory_hr_head' ? 'Factory HR Head' : 'Factory HR'}
+                {candidate.addedBy.name ? ` · ${candidate.addedBy.name}` : ''}
+              </span>
+            )}
+            {candidate.email && <span className="min-w-0 truncate">{candidate.email}</span>}
+            {candidate.phone && <span className="whitespace-nowrap tabular-nums">{candidate.phone}</span>}
+            {!candidate.email && !candidate.phone && <span>No contact details yet</span>}
+            {candidate.proposedSalary != null ? (
+              <span
+                className="whitespace-nowrap font-medium text-brand-700"
+                title={candidate.salaryJobGrade ? `Job grade ${candidate.salaryJobGrade}` : undefined}
+              >
+                ৳ {candidate.proposedSalary.toLocaleString()} fixed
+                {candidate.salaryJobGrade ? ` · ${candidate.salaryJobGrade}` : ''}
+              </span>
+            ) : candidate.salaryExpectation != null ? (
+              <span className="whitespace-nowrap">৳ {candidate.salaryExpectation.toLocaleString()} expected</span>
+            ) : null}
+          </p>
+
+          {/* What needs attention — said once each, tinted, no stripes. */}
+          {(hold || rejectedLine || (candidate.isRedFlagged && candidate.redFlagReason) || candidate.regretSentAt) && (
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {hold && (
+                <Status tone="sky" pulse>
+                  {hold.awaitingApproval
+                    ? 'Put through at the first interview — waiting on the Factory HR Head'
+                    : `Sent for the first interview · ${hold.delegates.map((d) => d.name).join(', ') || 'factory'}`}
+                </Status>
+              )}
+              {candidate.isRedFlagged && candidate.redFlagReason && (
+                <Status tone="rose">Red-flagged: {candidate.redFlagReason}</Status>
+              )}
+              {rejectedLine && (
+                <Status tone="rose">
+                  {rejectedLine}
+                  {candidate.rejectionReason && <> · “{candidate.rejectionReason}”</>}
+                </Status>
+              )}
+              {candidate.regretSentAt && (
+                <Status tone="emerald">
+                  Regret mail sent{candidate.regretSentByName ? ` by ${candidate.regretSentByName}` : ''} · {formatDate(candidate.regretSentAt)}
+                </Status>
+              )}
+            </div>
+          )}
+
+          {candidate.matchSummary && (
+            <div className="mt-0.5 flex min-w-0 items-start gap-1.5 text-[0.8125rem] text-slate-600">
+              <Sparkles className="mt-[3px] h-3.5 w-3.5 shrink-0 text-violet-500" />
               <button
                 type="button"
                 onClick={() => setShowFullSummary((v) => !v)}
-                className="mt-0.5 text-[0.6875rem] font-medium text-violet-700 hover:underline"
+                title={showFullSummary ? 'Show less' : 'Show the whole summary'}
+                className={cn(
+                  'block min-w-0 flex-1 text-left transition-colors hover:text-slate-800',
+                  showFullSummary ? 'whitespace-normal' : 'truncate',
+                )}
               >
-                {showFullSummary ? 'Show less' : 'Show more'}
+                {candidate.matchSummary}
               </button>
+              {candidate.matchDetails && candidate.matchScore !== null && (
+                <button
+                  type="button"
+                  onClick={(e) => openMatch(e.currentTarget)}
+                  className="shrink-0 font-medium text-brand-700 hover:underline"
+                >
+                  Why {candidate.matchScore}?
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── Where they stand ── */}
+        <div className="col-start-3 row-start-2 flex flex-wrap items-center gap-3 sm:col-start-4 sm:row-start-1 sm:grid sm:content-start sm:justify-items-end sm:gap-2.5">
+          {candidate.matchScore !== null && (
+            <MatchScore
+              score={candidate.matchScore}
+              clickable={Boolean(candidate.matchDetails)}
+              title={candidate.matchDetails ? 'See the AI match breakdown' : candidate.matchSummary || 'AI match score'}
+              onOpen={openMatch}
+            />
+          )}
+          <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
+            <StageMenu
+              value={candidate.stage}
+              canManage={canManage}
+              pending={update.isPending}
+              onChange={(next) => update.mutate({ id: candidate.id, input: { stage: next } })}
+            />
+            {/* A green tick beside "Rejected" would contradict itself; an
+                unwound hire says so instead. */}
+            {candidate.onboardingStatus === 'onboarded' &&
+              (candidate.stage === 'rejected' ? (
+                <span
+                  title="Onboarding had completed before this candidate was rejected — the hire was unwound."
+                  className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[0.6875rem] font-semibold text-amber-700 ring-1 ring-amber-200"
+                >
+                  <AlertTriangle className="h-3 w-3" /> Was onboarded
+                </span>
+              ) : (
+                <span
+                  title="Onboarding complete — hired and handed off to IT"
+                  className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-1 text-[0.6875rem] font-semibold text-white shadow-sm shadow-emerald-600/25"
+                >
+                  <Check className="h-3 w-3" strokeWidth={3} /> Completed
+                </span>
+              ))}
+          </div>
+        </div>
+
+        {/* ── Every action, labelled ── */}
+        {canManage && (
+          <div className="col-span-3 flex flex-wrap items-center gap-1.5 sm:col-span-2 sm:col-start-3">
+            {primary === 'send' && (
+              <ActionBtn icon={Send} motion="fly" tone="primary" title="Send this CV to a factory or named interviewers" onClick={() => onSendForInterview(candidate)}>
+                Send for interview
+              </ActionBtn>
             )}
+            {primary === 'onboard' && (
+              <ActionBtn icon={UserCheck} motion="pop" tone="primary" title="Documents, offer & onboarding" onClick={() => navigate(ROUTES.onboardingManage(candidate.id))}>
+                Onboard
+              </ActionBtn>
+            )}
+            {primary === 'interviews' && interviewsBtn}
+            {primary === 'salary' && salaryBtn}
+            {primary === 'scan' && scanBtn}
+
+            {candidate.cvUrl ? (
+              <ActionBtn as="a" href={resolveApiFileUrl(candidate.cvUrl)} icon={FileText} motion="lift" title="View the CV">
+                CV
+              </ActionBtn>
+            ) : candidate.hasGeneratedCv ? (
+              /* Applied through Bdjobs — fields, no document. The CV is built
+                 from what they submitted rather than leaving nothing to read. */
+              <ActionBtn icon={FileText} motion="lift" title="View the CV built from this application" onClick={() => setCvOpen(true)}>
+                CV
+              </ActionBtn>
+            ) : (
+              <ActionBtn icon={Upload} motion="lift" busy={upload.isPending} title="Upload a CV" onClick={() => fileRef.current?.click()}>
+                {upload.isPending ? 'Uploading…' : 'Upload CV'}
+              </ActionBtn>
+            )}
+            {primary !== 'scan' && scanBtn}
+            <ActionBtn
+              icon={Mail}
+              motion="tilt"
+              title={candidate.email ? `Email ${candidate.email}` : 'No email on file'}
+              disabled={!candidate.email}
+              onClick={() => onEmail(candidate)}
+            >
+              Email
+            </ActionBtn>
+            {primary !== 'interviews' && interviewsBtn}
+            {primary !== 'salary' && salaryBtn}
+            {/* Already out with the factory: says so, and can be sent again. */}
+            {candidate.stage === 'shortlisted' && hold && (
+              <ActionBtn icon={Check} motion="pop" tone="emerald" active title="Sent for interview — send again or to someone else" onClick={() => onSendForInterview(candidate)}>
+                Sent for interview
+              </ActionBtn>
+            )}
+            {candidate.stage === 'rejected' && onRegret && !candidate.regretSentAt && (
+              <ActionBtn
+                icon={MailX}
+                motion="tilt"
+                tone="rose"
+                title={candidate.email ? 'Send DBL’s regret letter' : 'No email on file'}
+                disabled={!candidate.email}
+                onClick={() => onRegret(candidate)}
+              >
+                Regret mail
+              </ActionBtn>
+            )}
+            <ActionBtn
+              icon={Star}
+              motion="star"
+              tone="amber"
+              active={candidate.talentPool}
+              iconFill={candidate.talentPool}
+              title={candidate.talentPool ? 'Remove from the Talent Bank' : 'Add to the Talent Bank'}
+              onClick={() => update.mutate({ id: candidate.id, input: { talentPool: !candidate.talentPool } })}
+            >
+              {candidate.talentPool ? 'In Talent Bank' : 'Talent Bank'}
+            </ActionBtn>
+
+            <span aria-hidden className="min-w-[0.5rem] flex-1" />
+
+            <ActionBtn
+              icon={Flag}
+              motion="wave"
+              tone={candidate.isRedFlagged ? 'rose' : 'quiet'}
+              active={candidate.isRedFlagged}
+              iconFill={candidate.isRedFlagged}
+              disabled={flag.isPending || unflag.isPending}
+              title={candidate.isRedFlagged ? `Red-flagged: ${candidate.redFlagReason ?? ''} — click to remove the flag` : 'Mark as red flag'}
+              onClick={() => (candidate.isRedFlagged ? unflag.mutate(candidate.id) : setFlagModalOpen(true))}
+            >
+              {candidate.isRedFlagged ? 'Flagged' : 'Red-flag'}
+            </ActionBtn>
+            <ActionBtn
+              icon={Trash2}
+              motion="wiggle"
+              tone="danger"
+              title="Remove from this pipeline"
+              onClick={() => {
+                if (window.confirm(`Remove ${candidate.name} from this pipeline?`)) {
+                  remove.mutate(candidate.id);
+                }
+              }}
+            >
+              Remove
+            </ActionBtn>
           </div>
         )}
       </div>
-
-      <div className="flex items-center gap-1.5">
-        <StageMenu
-          value={candidate.stage}
-          canManage={canManage}
-          pending={update.isPending}
-          onChange={(next) => update.mutate({ id: candidate.id, input: { stage: next } })}
-        />
-        {/* A green "Completed" beside a red "Rejected" is a contradiction
-            nobody can act on, and it happened: the onboarding record reached
-            `onboarded` and the stage was later set to rejected. The state is
-            still worth showing — it says a hire was unwound rather than never
-            made — but it is reported as that, not as a tick. */}
-        {candidate.onboardingStatus === 'onboarded' &&
-          (candidate.stage === 'rejected' ? (
-            <span
-              title="Onboarding had completed before this candidate was rejected — the hire was unwound."
-              className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[0.6875rem] font-semibold text-amber-700 ring-1 ring-amber-200"
-            >
-              <AlertTriangle className="h-3 w-3" /> Was onboarded
-            </span>
-          ) : (
-            <span
-              title="Onboarding complete — hired and handed off to IT"
-              className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-1 text-[0.6875rem] font-semibold text-white shadow-sm shadow-emerald-600/25"
-            >
-              <Check className="h-3 w-3" strokeWidth={3} /> Completed
-            </span>
-          ))}
-      </div>
-      </div>
-
-      {/* Line 2 — actions, always visible, icon + label, centered */}
-      {canManage && (
-        <div className="flex flex-wrap items-center justify-center gap-1.5">
-          {candidate.cvUrl ? (
-            <ActionBtn as="a" href={resolveApiFileUrl(candidate.cvUrl)} target="_blank" rel="noreferrer" title="View CV">
-              <FileText className="h-3.5 w-3.5" /> CV
-            </ActionBtn>
-          ) : candidate.hasGeneratedCv ? (
-            /* Applied through Bdjobs — fields, no document. The CV is built
-               from what they submitted rather than leaving nothing to read. */
-            <ActionBtn
-              title="View the CV built from this application"
-              onClick={() => setCvOpen(true)}
-            >
-              <FileText className="h-3.5 w-3.5" /> CV
-            </ActionBtn>
-          ) : (
-            <ActionBtn title="Upload CV" onClick={() => fileRef.current?.click()} disabled={upload.isPending}>
-              <Upload className="h-3.5 w-3.5" /> {upload.isPending ? 'Uploading…' : 'Upload CV'}
-            </ActionBtn>
-          )}
-
-          {/* Bdjobs applicants have no file, but their structured profile is a CV
-              the AI can read — so they get the same scan action. */}
-          {(candidate.cvUrl || candidate.hasGeneratedCv) && (
-            <ActionBtn
-              title={candidate.matchScore !== null ? 'Re-screen CV with AI' : 'Screen CV with AI'}
-              onClick={() => screen.mutate(candidate.id)}
-              disabled={screen.isPending}
-              hoverColor="violet"
-            >
-              <Sparkles className={cn('h-3.5 w-3.5', screen.isPending && 'animate-pulse')} />
-              {candidate.matchScore !== null ? 'Re-scan' : 'AI scan'}
-            </ActionBtn>
-          )}
-
-          <ActionBtn
-            title={candidate.email ? `Email ${candidate.email}` : 'No email on file'}
-            onClick={() => onEmail(candidate)}
-            disabled={!candidate.email}
-          >
-            <Mail className="h-3.5 w-3.5" /> Email
-          </ActionBtn>
-
-          {/* The regret letter, once — after that the row says it went. */}
-          {candidate.stage === 'rejected' && onRegret && !candidate.regretSentAt && (
-            <ActionBtn
-              title={candidate.email ? 'Send DBL’s regret letter' : 'No email on file'}
-              onClick={() => onRegret(candidate)}
-              disabled={!candidate.email}
-              hoverColor="rose"
-            >
-              <MailX className="h-3.5 w-3.5" /> Regret mail
-            </ActionBtn>
-          )}
-
-          <ActionBtn title="Schedule / view interviews" onClick={() => onInterviews(candidate)}>
-            <CalendarClock className="h-3.5 w-3.5" /> Interviews
-          </ActionBtn>
-
-          {/* Optional hand-off: Head of Talent Acquisition / the recruiter can pass a
-              shortlisted CV to a factory or named people who then run the
-              first interview. Shortlisted only — nothing earlier or later. */}
-          {candidate.stage === 'shortlisted' &&
-            (candidate.firstInterviewHold ? (
-              // Already out — the button says so, and still lets it be sent
-              // again (a nudge, or to someone else).
-              <ActionBtn
-                title="Sent for interview — click to send again or to someone else"
-                onClick={() => onSendForInterview(candidate)}
-                hoverColor="emerald"
-                active
-              >
-                <Check className="h-3.5 w-3.5" /> Sent for Interview
-              </ActionBtn>
-            ) : (
-              <ActionBtn
-                title="Send this CV to a factory or named interviewers"
-                onClick={() => onSendForInterview(candidate)}
-              >
-                <Send className="h-3.5 w-3.5" /> Send for Interview
-              </ActionBtn>
-            ))}
-
-          {['interview', 'final', 'selected'].includes(candidate.stage) && (
-            <ActionBtn title="Salary fixation" onClick={() => onSalaryFixation(candidate)}>
-              <BadgeDollarSign className="h-3.5 w-3.5" /> Salary
-            </ActionBtn>
-          )}
-
-          {candidate.stage === 'selected' && (
-            <ActionBtn title="Documents, offer & onboarding" onClick={() => navigate(ROUTES.onboardingManage(candidate.id))} hoverColor="emerald">
-              <UserCheck className="h-3.5 w-3.5" /> Onboard
-            </ActionBtn>
-          )}
-
-          <ActionBtn
-            title={candidate.talentPool ? 'Remove from Talent Bank' : 'Add to Talent Bank'}
-            onClick={() => update.mutate({ id: candidate.id, input: { talentPool: !candidate.talentPool } })}
-            hoverColor="amber"
-            active={candidate.talentPool}
-          >
-            <Star className="h-3.5 w-3.5" fill={candidate.talentPool ? 'currentColor' : 'none'} />
-            {candidate.talentPool ? 'In Talent Bank' : 'Talent Bank'}
-          </ActionBtn>
-
-          <ActionBtn
-            title={candidate.isRedFlagged ? `Red-flagged: ${candidate.redFlagReason ?? ''}` : 'Mark as red flag'}
-            onClick={() => candidate.isRedFlagged ? unflag.mutate(candidate.id) : setFlagModalOpen(true)}
-            disabled={flag.isPending || unflag.isPending}
-            hoverColor="rose"
-            active={candidate.isRedFlagged}
-          >
-            <Flag className="h-3.5 w-3.5" fill={candidate.isRedFlagged ? 'currentColor' : 'none'} />
-            {candidate.isRedFlagged ? 'Flagged' : 'Red-flag'}
-          </ActionBtn>
-
-          <ActionBtn
-            title="Remove candidate"
-            onClick={() => {
-              if (window.confirm(`Remove ${candidate.name} from this pipeline?`)) {
-                remove.mutate(candidate.id);
-              }
-            }}
-            hoverColor="rose"
-          >
-            <Trash2 className="h-3.5 w-3.5" /> Remove
-          </ActionBtn>
-        </div>
-      )}
 
       <input
         ref={fileRef}
@@ -662,7 +669,7 @@ export function CandidateRow({
               value={flagReason}
               onChange={(e) => setFlagReason(e.target.value)}
               placeholder="Why is this candidate being red-flagged? (min. 5 characters)"
-              className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-200 resize-none"
+              className="mt-1.5 w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-200"
             />
             <p className="mt-1 text-right text-xs text-slate-400">{flagReason.length}/1000</p>
 
@@ -712,54 +719,237 @@ export function CandidateRow({
   );
 }
 
-/** Small animated icon+label button shared by the always-visible action row. */
+/** One thing that needs attention, as a tinted line — never a stripe. */
+function Status({
+  tone,
+  pulse = false,
+  children,
+}: {
+  tone: 'sky' | 'rose' | 'emerald';
+  pulse?: boolean;
+  children: ReactNode;
+}) {
+  const look = {
+    sky: { box: 'bg-sky-50 text-sky-800', dot: 'bg-sky-500', ring: 'bg-sky-400' },
+    rose: { box: 'bg-rose-50 text-rose-800', dot: 'bg-rose-500', ring: 'bg-rose-400' },
+    emerald: { box: 'bg-emerald-50 text-emerald-800', dot: 'bg-emerald-500', ring: 'bg-emerald-400' },
+  }[tone];
+  return (
+    <span className={cn('inline-flex max-w-full items-start gap-2 rounded-lg px-2.5 py-1 text-[0.8125rem] leading-snug', look.box)}>
+      <span className="relative mt-[6px] flex h-1.5 w-1.5 shrink-0">
+        {pulse && <span className={cn('absolute inline-flex h-full w-full rounded-full opacity-60 motion-safe:animate-ping', look.ring)} />}
+        <span className={cn('relative inline-flex h-1.5 w-1.5 rounded-full', look.dot)} />
+      </span>
+      <span className="min-w-0">{children}</span>
+    </span>
+  );
+}
+
+/**
+ * The AI match: the number, what it means in words, and a bar that fills
+ * when the card appears. Opens the breakdown when there is one.
+ */
+function MatchScore({
+  score,
+  clickable,
+  title,
+  onOpen,
+}: {
+  score: number;
+  clickable: boolean;
+  title: string;
+  onOpen: (el: HTMLElement) => void;
+}) {
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    const t = requestAnimationFrame(() => setShown(score));
+    return () => cancelAnimationFrame(t);
+  }, [score]);
+  const band =
+    score >= 75
+      ? { label: 'Strong match', text: 'text-emerald-700', bar: 'bg-emerald-500' }
+      : score >= 55
+        ? { label: 'Good match', text: 'text-amber-700', bar: 'bg-amber-500' }
+        : { label: 'Partial match', text: 'text-slate-600', bar: 'bg-slate-400' };
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={(e) => { e.stopPropagation(); onOpen(e.currentTarget); }}
+      className={cn(
+        'grid justify-items-start gap-1 rounded-lg px-1.5 py-1 text-left transition-colors sm:justify-items-end sm:text-right',
+        clickable ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default',
+      )}
+    >
+      <span className="text-xl font-bold leading-none tabular-nums text-slate-900">
+        {score}
+        <span className="ml-0.5 text-[0.6875rem] font-medium text-slate-500">/100</span>
+      </span>
+      <span className={cn('flex items-center gap-1 text-[0.6875rem] font-semibold', band.text)}>
+        <Sparkles className="h-3 w-3" />
+        {band.label}
+      </span>
+      <span className="h-1 w-24 overflow-hidden rounded-full bg-slate-100">
+        <span
+          className={cn('block h-full rounded-full transition-[width] duration-700 ease-out motion-reduce:transition-none', band.bar)}
+          style={{ width: `${shown}%` }}
+        />
+      </span>
+    </button>
+  );
+}
+
+type Tone = 'neutral' | 'primary' | 'violet' | 'amber' | 'emerald' | 'rose' | 'quiet' | 'danger';
+type Motion = 'lift' | 'spin' | 'tilt' | 'pop' | 'fly' | 'star' | 'wave' | 'wiggle';
+
+/** Each icon moves in its own way on hover — the button says what it does twice. */
+const MOTION: Record<Motion, string> = {
+  lift: 'motion-safe:group-hover/btn:-translate-y-0.5',
+  spin: 'motion-safe:group-hover/btn:rotate-[18deg] motion-safe:group-hover/btn:scale-110',
+  tilt: 'motion-safe:group-hover/btn:-rotate-12',
+  pop: 'motion-safe:group-hover/btn:scale-[1.18]',
+  fly: 'motion-safe:group-hover/btn:translate-x-0.5 motion-safe:group-hover/btn:-translate-y-0.5',
+  star: 'motion-safe:group-hover/btn:rotate-[72deg] motion-safe:group-hover/btn:scale-110',
+  wave: 'motion-safe:group-hover/btn:-rotate-12 motion-safe:group-hover/btn:-translate-y-px',
+  wiggle: 'motion-safe:group-hover/btn:animate-btn-wiggle',
+};
+
+const TONE: Record<Tone, { rest: string; active: string; ripple: string }> = {
+  neutral: {
+    rest: 'border-slate-200 bg-white text-slate-700 hover:border-brand-300 hover:bg-brand-50/70 hover:text-brand-700',
+    active: 'border-brand-200 bg-brand-50 text-brand-700',
+    ripple: 'bg-brand-500',
+  },
+  primary: {
+    rest: 'border-brand-600 bg-gradient-to-b from-brand-500 to-brand-600 text-white shadow-[0_1px_2px_rgba(24,119,192,0.3),0_6px_14px_-8px_rgba(24,119,192,0.7)] hover:from-brand-500 hover:to-brand-700 hover:shadow-[0_10px_20px_-10px_rgba(24,119,192,0.85)]',
+    active: 'border-brand-600 bg-brand-600 text-white',
+    ripple: 'bg-white',
+  },
+  violet: {
+    rest: 'border-slate-200 bg-white text-slate-700 hover:border-violet-300 hover:bg-violet-50/70 hover:text-violet-700',
+    active: 'border-violet-200 bg-violet-50 text-violet-700',
+    ripple: 'bg-violet-500',
+  },
+  amber: {
+    rest: 'border-slate-200 bg-white text-slate-700 hover:border-amber-300 hover:bg-amber-50/70 hover:text-amber-700',
+    active: 'border-amber-200 bg-amber-50 text-amber-700',
+    ripple: 'bg-amber-500',
+  },
+  emerald: {
+    rest: 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-emerald-50/70 hover:text-emerald-700',
+    active: 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300',
+    ripple: 'bg-emerald-500',
+  },
+  rose: {
+    rest: 'border-slate-200 bg-white text-slate-700 hover:border-rose-300 hover:bg-rose-50/70 hover:text-rose-700',
+    active: 'border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-300',
+    ripple: 'bg-rose-500',
+  },
+  quiet: {
+    rest: 'border-transparent bg-transparent text-slate-500 hover:border-slate-200 hover:bg-white hover:text-slate-800',
+    active: 'border-rose-200 bg-rose-50 text-rose-700',
+    ripple: 'bg-slate-500',
+  },
+  danger: {
+    rest: 'border-transparent bg-transparent text-rose-600 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700',
+    active: 'border-rose-200 bg-rose-50 text-rose-700',
+    ripple: 'bg-rose-500',
+  },
+};
+
+/**
+ * An action button that feels like one: it lifts on hover, sinks when
+ * pressed, ripples from where it was clicked, and its icon moves in a way
+ * that matches what it does. The primary one catches a sweep of light.
+ * All of it stays still for people who ask their system for less motion.
+ */
 function ActionBtn({
   children,
   title,
-  onClick,
+  icon: Icon,
+  motion = 'pop',
+  tone = 'neutral',
+  active = false,
+  iconFill = false,
+  busy = false,
   disabled,
-  active,
-  hoverColor = 'brand',
+  onClick,
   as,
   href,
-  target,
-  rel,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   title: string;
-  onClick?: () => void;
-  disabled?: boolean;
+  icon: LucideIcon;
+  motion?: Motion;
+  tone?: Tone;
   active?: boolean;
-  hoverColor?: 'brand' | 'violet' | 'amber' | 'rose' | 'emerald';
+  iconFill?: boolean;
+  busy?: boolean;
+  disabled?: boolean;
+  onClick?: () => void;
   as?: 'a';
   href?: string;
-  target?: string;
-  rel?: string;
 }) {
-  const hoverClass: Record<string, string> = {
-    brand: 'hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700',
-    violet: 'hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700',
-    amber: 'hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700',
-    rose: 'hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700',
-    emerald: 'hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700',
+  const [ripples, setRipples] = useState<{ id: number; x: number; y: number; size: number }[]>([]);
+  const t = TONE[tone];
+
+  const addRipple = (e: ReactPointerEvent<HTMLElement>) => {
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height) * 2.2;
+    const id = Date.now() + Math.random();
+    setRipples((r) => [...r, { id, x: e.clientX - rect.left - size / 2, y: e.clientY - rect.top - size / 2, size }]);
   };
-  const activeClass: Record<string, string> = {
-    brand: 'border-brand-200 bg-brand-50 text-brand-700',
-    violet: 'border-violet-200 bg-violet-50 text-violet-700',
-    amber: 'border-amber-200 bg-amber-50 text-amber-700',
-    rose: 'border-rose-200 bg-rose-50 text-rose-700',
-    emerald: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  };
+
   const cls = cn(
-    'inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600',
-    'transition-all duration-150 ease-out hover:-translate-y-px hover:shadow-sm active:translate-y-0 active:scale-95',
-    'disabled:pointer-events-none disabled:opacity-40',
-    active ? activeClass[hoverColor] : hoverClass[hoverColor],
+    'group/btn relative isolate inline-flex h-8 shrink-0 select-none items-center gap-1.5 overflow-hidden rounded-lg border px-3 text-[0.8125rem] font-medium',
+    'transition-[transform,box-shadow,background-color,border-color,color] duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]',
+    'hover:shadow-[0_6px_14px_-8px_rgba(15,23,42,0.35)] motion-safe:hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.96]',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 focus-visible:ring-offset-1',
+    'disabled:pointer-events-none disabled:opacity-45',
+    active ? t.active : t.rest,
   );
+
+  const inner = (
+    <>
+      {tone === 'primary' && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 left-0 -z-0 w-1/3 bg-gradient-to-r from-transparent via-white/45 to-transparent opacity-0 motion-safe:group-hover/btn:animate-btn-sheen"
+        />
+      )}
+      {ripples.map((r) => (
+        <span
+          key={r.id}
+          aria-hidden
+          onAnimationEnd={() => setRipples((all) => all.filter((x) => x.id !== r.id))}
+          className={cn('pointer-events-none absolute rounded-full opacity-0 animate-btn-ripple', t.ripple)}
+          style={{ left: r.x, top: r.y, width: r.size, height: r.size }}
+        />
+      ))}
+      <span className={cn('relative inline-flex transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]', !busy && MOTION[motion])}>
+        {busy ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Icon className="h-3.5 w-3.5" fill={iconFill ? 'currentColor' : 'none'} />
+        )}
+      </span>
+      <span className="relative">{children}</span>
+    </>
+  );
+
   if (as === 'a') {
     return (
-      <a href={href} target={target} rel={rel} title={title} className={cls} onClick={(e) => e.stopPropagation()}>
-        {children}
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        title={title}
+        className={cls}
+        onPointerDown={addRipple}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {inner}
       </a>
     );
   }
@@ -767,11 +957,12 @@ function ActionBtn({
     <button
       type="button"
       title={title}
-      onClick={(e) => { e.stopPropagation(); onClick?.(); }}
-      disabled={disabled}
+      disabled={disabled || busy}
       className={cls}
+      onPointerDown={addRipple}
+      onClick={(e) => { e.stopPropagation(); onClick?.(); }}
     >
-      {children}
+      {inner}
     </button>
   );
 }

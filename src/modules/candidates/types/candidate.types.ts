@@ -89,6 +89,13 @@ export interface Candidate {
   viewedAt: string | null;
   /** How many times this person has applied — same email or same mobile. */
   applyCount: number;
+  /** Latest title · company · years, from the CV once it has been read. */
+  headline?: {
+    title: string | null;
+    company: string | null;
+    years: number | null;
+    current: boolean;
+  } | null;
   talentPool: boolean;
   isRedFlagged: boolean;
   redFlagReason: string | null;

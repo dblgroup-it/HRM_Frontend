@@ -737,7 +737,7 @@ export function CandidatesPanel({
             )}
 
             {/* Candidate list */}
-            <div className="overflow-hidden rounded-lg border border-slate-200">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/70">
               {isLoading ? (
                 <div className="flex justify-center py-10">
                   <Spinner />
@@ -808,7 +808,7 @@ export function CandidatesPanel({
                         <span className="shrink-0 text-xs text-slate-400">
                           {selectedIds.size > 0
                             ? `${selectedIds.size} of ${meta?.total ?? items.length} selected`
-                            : 'Select all · or hover any row'}
+                            : 'Select all'}
                         </span>
                         {STAGE_CHIPS.map(({ stage: s, label, cls }) => {
                           const stageRows = items.filter((c) => c.stage === s);
@@ -841,7 +841,8 @@ export function CandidatesPanel({
                     );
                   })()}
 
-                  <div className={cn('divide-y divide-slate-100', isFetching && !isLoading && 'opacity-60 transition-opacity')}>
+                  {/* Each candidate is its own bordered card, spaced on a light tray. */}
+                  <div className={cn('space-y-3 p-3', isFetching && !isLoading && 'opacity-60 transition-opacity')}>
                     {items.map((c) => (
                       <CandidateRow
                         key={c.id}
@@ -989,6 +990,7 @@ export function CandidatesPanel({
       {salaryTarget && (
         <SalaryFixationModal
           reqId={reqId}
+          context={`${requisition.code} · ${requisition.designation}`}
           candidate={{ id: salaryTarget.id, name: salaryTarget.name }}
           open={Boolean(salaryTarget)}
           onClose={() => setSalaryTarget(null)}
