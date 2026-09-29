@@ -22,7 +22,11 @@ import {
   X,
   Send,
   AlertTriangle,
-  UserPlus,
+  AtSign,
+  Handshake,
+  History,
+  MoreHorizontal,
+  Phone,
 } from 'lucide-react';
 
 import { Avatar, BusyOverlay } from '@shared/components/ui';
@@ -70,12 +74,6 @@ const STAGE_ORDER: CandidateStage[] = [
   'rejected',
 ];
 
-function matchChip(score: number) {
-  if (score >= 75) return { fill: '#bbf7d0', empty: '#f0fdf4', text: '#065f46', border: '#6ee7b760', icon: '#10b981', label: 'Strong' };
-  if (score >= 55) return { fill: '#fde68a', empty: '#fffbeb', text: '#78350f', border: '#fcd34d60', icon: '#f59e0b', label: 'Good' };
-  return { fill: '#e2e8f0', empty: '#f8fafc', text: '#475569', border: '#cbd5e160', icon: '#94a3b8', label: 'Partial' };
-}
-
 const SOURCE_LABEL: Record<string, string> = {
   application: 'Applied online',
   bdjobs: 'BDJobs',
@@ -86,9 +84,10 @@ const SOURCE_LABEL: Record<string, string> = {
 };
 
 /**
- * Two-line row: identity + status on line 1, a centered row of labeled
- * action buttons on line 2 — always visible, icon + text, no hover reveal,
- * no menu, no drawer.
+ * One candidate, as a card: who they are, where they came from and what needs
+ * attention on the left; the AI match and the stage on the right; the
+ * everyday actions in a quiet bar underneath, with the rare and destructive
+ * ones (Talent Bank, red flag, remove) under More.
  */
 export function CandidateRow({
   candidate,
@@ -158,308 +157,236 @@ export function CandidateRow({
   const contact = [candidate.email, candidate.phone].filter(Boolean).join(' · ');
   const isNew = !seenLocally;
 
+  const stage = STAGE_META[candidate.stage];
+  const src = cvSourceDisplay(candidate.cvSource);
+  const SrcIcon = src?.icon;
+  const hold = candidate.firstInterviewHold;
+
   return (
     <div
       ref={rowRef}
       className={cn(
-        'group/row relative flex flex-col gap-2 px-4 py-3 transition-colors duration-150 hover:bg-slate-50/60',
-        selected && 'bg-brand-50/50',
-        candidate.isRedFlagged && 'bg-rose-50/60 hover:bg-rose-50/80 border-l-[3px] border-rose-500 pl-[13px]',
+        'group/row relative overflow-hidden rounded-2xl border bg-white transition-all duration-200 motion-safe:animate-card-in',
+        'hover:shadow-[0_6px_20px_-8px_rgba(15,23,42,0.15)] motion-safe:hover:-translate-y-px',
+        selected
+          ? 'border-brand-300 ring-2 ring-brand-400/25'
+          : candidate.isRedFlagged
+            ? 'border-rose-200 bg-rose-50/30'
+            : 'border-slate-200 hover:border-slate-300',
       )}
     >
-      {/* Line 1 — identity + status */}
-      <div className="flex flex-wrap items-center gap-3">
-      {/* Custom animated checkbox — shown on hover or when selection mode is active */}
-      {canManage && onSelect && (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onSelect(candidate, !selected); }}
-          title={selected ? 'Deselect' : 'Select'}
-          className={cn(
-            'relative h-[18px] w-[18px] shrink-0 rounded-[4px] border-2 transition-all duration-200',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1',
-            selected
-              ? 'scale-100 opacity-100'
-              : isSelectMode
-                ? 'scale-100 opacity-100 border-slate-300 bg-white hover:border-brand-400'
-                : 'scale-75 opacity-0 group-hover/row:scale-100 group-hover/row:opacity-100 group-hover/row:border-brand-400',
-            selected
-              ? 'border-brand-600'
-              : 'border-slate-300 bg-white',
-          )}
-          style={selected ? {
-            background: 'linear-gradient(135deg, #1877c0 0%, #1055a0 100%)',
-            boxShadow: '0 1px 4px rgba(24,119,192,0.35)',
-          } : undefined}
-        >
-          <svg viewBox="0 0 10 8" className="absolute inset-0 m-auto h-[10px] w-[10px]" fill="none">
-            <polyline
-              points="1,4 3.5,6.5 9,1"
-              stroke="white"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeDasharray="14"
-              style={{
-                strokeDashoffset: selected ? 0 : 14,
-                transition: 'stroke-dashoffset 0.22s cubic-bezier(0.65,0,0.35,1) 0.04s',
-              }}
-            />
-          </svg>
-        </button>
-      )}
-      <Avatar name={candidate.name} size="sm" />
+      {/* The stage, as a colour down the edge — scannable across a long list. */}
+      <span aria-hidden className={cn('absolute inset-y-0 left-0 w-1', candidate.isRedFlagged ? 'bg-rose-500' : stage.dot)} />
 
-      <div className="min-w-[140px] flex-1">
-        <div className="flex items-center gap-2">
-          {isNew && (
-            <span className="inline-flex h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" title="Not yet viewed" />
-          )}
-          <p className="truncate text-sm font-medium text-slate-800">
-            {candidate.name}
-          </p>
-          <GenderBadge gender={candidate.gender} />
-          {candidate.matchScore !== null && (() => {
-            const s = candidate.matchScore!;
-            const cfg = matchChip(s);
-            const fillPct = Math.max(s, 8); // minimum 8% so icon always visible
-            return (
-              <button
-                type="button"
-                title={candidate.matchDetails ? 'Click to view AI match breakdown' : (candidate.matchSummary || 'AI match score')}
-                onClick={(e) => { e.stopPropagation(); if (candidate.matchDetails) { setMatchAnchor(e.currentTarget); setMatchOpen(true); } }}
-                className={cn(
-                  'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-[3px] transition-all duration-150',
-                  candidate.matchDetails ? 'cursor-pointer hover:brightness-[0.97] active:scale-[0.97]' : 'cursor-default',
-                )}
-                style={{
-                  background: `linear-gradient(to right, ${cfg.fill} ${fillPct}%, ${cfg.empty} ${fillPct}%)`,
-                  border: `1px solid ${cfg.border}`,
-                }}
-              >
-                <Sparkles className="h-2.5 w-2.5 shrink-0" style={{ color: cfg.icon }} />
-                <span className="text-[0.625rem] font-bold tabular-nums" style={{ color: cfg.text }}>{s}%</span>
-                {candidate.matchDetails && (
-                  <span className="text-[0.5625rem] font-medium" style={{ color: cfg.text, opacity: 0.6 }}>{cfg.label}</span>
-                )}
-              </button>
-            );
-          })()}
-          <span className="hidden shrink-0 rounded-full bg-slate-50 px-2 py-0.5 text-[0.625rem] font-medium uppercase tracking-wide text-slate-400 sm:inline">
-            {SOURCE_LABEL[candidate.source] ?? candidate.source}
-          </span>
-          {candidate.applyCount > 1 && (
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3.5 gap-y-3 px-4 pb-3 pt-3.5 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
+        {/* ── Who: select + avatar ── */}
+        <div className="flex items-start gap-2.5 pt-0.5">
+          {canManage && onSelect && (
             <button
               type="button"
-              onClick={() => setHistoryOpen(true)}
-              className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[0.625rem] font-semibold text-amber-600 transition-colors hover:bg-amber-100"
-              title="View full application history"
+              onClick={(e) => { e.stopPropagation(); onSelect(candidate, !selected); }}
+              title={selected ? 'Deselect' : 'Select'}
+              className={cn(
+                'relative mt-2.5 h-[18px] w-[18px] shrink-0 rounded-[5px] border-2 transition-all duration-200',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1',
+                selected
+                  ? 'scale-100 border-brand-600 opacity-100'
+                  : isSelectMode
+                    ? 'scale-100 border-slate-300 bg-white opacity-100 hover:border-brand-400'
+                    : 'scale-75 border-slate-300 bg-white opacity-0 group-hover/row:scale-100 group-hover/row:opacity-100 group-hover/row:border-brand-400',
+              )}
+              style={selected ? { background: 'linear-gradient(135deg, #1877c0 0%, #1055a0 100%)', boxShadow: '0 1px 4px rgba(24,119,192,0.35)' } : undefined}
             >
-              Applied {candidate.applyCount}×
+              <svg viewBox="0 0 10 8" className="absolute inset-0 m-auto h-[10px] w-[10px]" fill="none">
+                <polyline
+                  points="1,4 3.5,6.5 9,1"
+                  stroke="white"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeDasharray="14"
+                  style={{ strokeDashoffset: selected ? 0 : 14, transition: 'stroke-dashoffset 0.22s cubic-bezier(0.65,0,0.35,1) 0.04s' }}
+                />
+              </svg>
             </button>
           )}
-          {candidate.addedBy && (
-            <span
-              className="hidden shrink-0 rounded-full bg-teal-50 px-2 py-0.5 text-[0.625rem] font-semibold text-teal-700 ring-1 ring-teal-100 sm:inline"
-              title={`Sent in by ${candidate.addedBy.name ?? 'the factory'} from the job posting`}
-            >
-              {candidate.addedBy.role === 'factory_hr_head' ? 'Factory HR Head' : 'Factory HR'}
-              {candidate.addedBy.name ? ` · ${candidate.addedBy.name}` : ''}
+          <span className="relative">
+            <span className={cn('block rounded-full p-[2px] ring-2', stageRing[candidate.stage])}>
+              <Avatar name={candidate.name} size="md" />
             </span>
-          )}
-          {candidate.isRedFlagged && (
-            <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide text-rose-700">
-              <Flag className="h-2.5 w-2.5" fill="currentColor" />
-              Red flag
-            </span>
-          )}
-        </div>
-        <p className="truncate text-xs text-slate-400">
-          {contact || 'No contact details'}
-          {candidate.proposedSalary != null ? (
-            <span
-              className="ml-2 inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-[0.625rem] font-semibold text-brand-700 border border-brand-100"
-              title={candidate.salaryJobGrade ? `Job Grade ${candidate.salaryJobGrade}` : undefined}
-            >
-              <BadgeDollarSign className="h-2.5 w-2.5" />
-              ৳ {candidate.proposedSalary.toLocaleString()} fixed
-              {candidate.salaryJobGrade ? ` · ${candidate.salaryJobGrade}` : ''}
-            </span>
-          ) : (
-            candidate.salaryExpectation != null && (
-              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[0.625rem] font-semibold text-emerald-700 border border-emerald-100">
-                ৳ {candidate.salaryExpectation.toLocaleString()} expected
+            {isNew && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-3 w-3" title="Not yet viewed">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-60 motion-safe:animate-ping" />
+                <span className="relative inline-flex h-3 w-3 rounded-full border-2 border-white bg-brand-500" />
               </span>
-            )
-          )}
-        </p>
-        {(() => {
-          const src = cvSourceDisplay(candidate.cvSource);
-          if (!src) return null;
-          const Icon = src.icon;
-          return (
-            <p
-              className={cn(
-                'mr-1 mt-1 inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-0.5 text-[0.625rem] font-semibold',
-                src.tone,
-              )}
-              title={`Source: ${src.label}`}
-            >
-              <Icon className="h-2.5 w-2.5 shrink-0" />
-              {src.label}
-            </p>
-          );
-        })()}
-        {/* Out with a factory colleague for the first interview — said on
-            the row, so "was it sent?" never needs a second screen. */}
-        {candidate.firstInterviewHold && (
-          <p
-            className="mr-1 mt-1 inline-flex max-w-full items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[0.625rem] font-semibold text-sky-800"
-            title={
-              candidate.firstInterviewHold.awaitingApproval
-                ? 'Put through — waiting on the Factory HR Head'
-                : 'Sent for the first interview'
-            }
-          >
-            <span className="relative flex h-2 w-2 shrink-0">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-60" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-sky-500" />
-            </span>
-            <span className="truncate">
-              {candidate.firstInterviewHold.awaitingApproval
-                ? 'With Factory HR Head'
-                : `Sent for interview · ${
-                    candidate.firstInterviewHold.delegates
-                      .map((d) => d.name)
-                      .join(', ') || 'factory'
-                  }`}
-            </span>
-          </p>
-        )}
-        {candidate.referral && (
-          <p
-            className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[0.625rem] font-medium text-violet-800"
-            title="Employee referral"
-          >
-            <UserPlus className="h-2.5 w-2.5 shrink-0" />
-            <span className="truncate">
-              Employee Referral – {candidate.referral.employeeCode} –{' '}
-              {candidate.referral.name}
-              {candidate.referral.designation
-                ? ` – ${candidate.referral.designation}`
-                : ''}
-            </span>
-          </p>
-        )}
-        {candidate.isRedFlagged && candidate.redFlagReason && (
-          <div className="mt-1.5 max-w-xs rounded-r-lg border-l-4 border-amber-400 bg-amber-50 px-3 py-1.5">
-            <p className="text-xs leading-snug text-amber-800">{candidate.redFlagReason}</p>
-          </div>
-        )}
-        {/* Who turned this candidate down and why. A rejection at the first
-            interview is a factory interviewer's call; one at CV stage is
-            Head of Talent Acquisition's — the row has to say which, or "Rejected" is a dead
-            end for whoever picks the pipeline up next. */}
-        {candidate.stage === 'rejected' && candidate.rejectedAt && (
-          <div className="mt-1.5 max-w-md rounded-r-lg border-l-4 border-rose-400 bg-rose-50 px-3 py-1.5">
-            <p className="text-xs font-semibold leading-snug text-rose-800">
-              Rejected
-              {candidate.rejectionStage === 'first_interview'
-                ? ' at the first interview'
-                : candidate.rejectionStage === 'factory_hr_head'
-                  ? ' by the Factory HR Head after the first interview'
-                  : ''}
-              {candidate.rejectedByName ? ` by ${candidate.rejectedByName}` : ''}
-              <span className="font-normal text-rose-500">
-                {' '}· {formatDate(candidate.rejectedAt)}
-              </span>
-            </p>
-            {candidate.rejectionReason && (
-              <p className="mt-0.5 text-xs leading-snug text-rose-700/90">
-                {candidate.rejectionReason}
-              </p>
             )}
-          </div>
-        )}
-        {candidate.regretSentAt && (
-          <p className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[0.625rem] font-semibold text-emerald-700">
-            <MailX className="h-2.5 w-2.5 shrink-0" />
-            <span className="truncate">
-              Regret mail sent
-              {candidate.regretSentByName ? ` by ${candidate.regretSentByName}` : ''}
-              {' '}· {formatDate(candidate.regretSentAt)}
-            </span>
-          </p>
-        )}
-        {candidate.matchSummary && (
-          <div className="mt-1">
-            <p
-              className={cn(
-                'text-xs italic leading-snug text-violet-600/90',
-                !showFullSummary && 'line-clamp-2',
-              )}
-            >
-              <Sparkles className="mr-1 inline h-3 w-3 align-[-1px]" />
-              {candidate.matchSummary}
-            </p>
-            {candidate.matchSummary.length > 110 && (
+          </span>
+        </div>
+
+        {/* ── What: identity, provenance, anything that needs attention ── */}
+        <div className="min-w-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <h4 className="truncate text-[0.9375rem] font-semibold tracking-tight text-slate-900">
+              {candidate.name}
+            </h4>
+            <GenderBadge gender={candidate.gender} />
+            {candidate.applyCount > 1 && (
               <button
                 type="button"
-                onClick={() => setShowFullSummary((v) => !v)}
-                className="mt-0.5 text-[0.6875rem] font-medium text-violet-700 hover:underline"
+                onClick={() => setHistoryOpen(true)}
+                title="Where else this person applied"
+                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[0.625rem] font-semibold text-amber-700 ring-1 ring-amber-200 transition hover:bg-amber-100"
               >
-                {showFullSummary ? 'Show less' : 'Show more'}
+                <History className="h-2.5 w-2.5" />
+                Applied {candidate.applyCount}×
               </button>
             )}
+            {candidate.isRedFlagged && (
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-rose-600 px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide text-white">
+                <Flag className="h-2.5 w-2.5" fill="currentColor" /> Red flag
+              </span>
+            )}
+            {candidate.talentPool && (
+              <span title="In the Talent Bank" className="inline-flex shrink-0 items-center gap-1 rounded-full bg-yellow-50 px-2 py-0.5 text-[0.625rem] font-semibold text-yellow-700 ring-1 ring-yellow-200">
+                <Star className="h-2.5 w-2.5" fill="currentColor" /> Talent Bank
+              </span>
+            )}
           </div>
-        )}
+
+          <p className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500">
+            {candidate.phone && (
+              <span className="inline-flex items-center gap-1 tabular-nums"><Phone className="h-3 w-3 text-slate-400" />{candidate.phone}</span>
+            )}
+            {candidate.email && (
+              <span className="inline-flex min-w-0 items-center gap-1"><AtSign className="h-3 w-3 shrink-0 text-slate-400" /><span className="truncate">{candidate.email}</span></span>
+            )}
+            {!contact && <span className="text-slate-400">No contact details yet</span>}
+            {candidate.proposedSalary != null ? (
+              <span className="inline-flex items-center gap-1 font-semibold text-brand-700" title={candidate.salaryJobGrade ? `Job Grade ${candidate.salaryJobGrade}` : undefined}>
+                <BadgeDollarSign className="h-3 w-3" />
+                ৳ {candidate.proposedSalary.toLocaleString()} fixed{candidate.salaryJobGrade ? ` · ${candidate.salaryJobGrade}` : ''}
+              </span>
+            ) : candidate.salaryExpectation != null ? (
+              <span className="inline-flex items-center gap-1 text-emerald-700">
+                <BadgeDollarSign className="h-3 w-3" />৳ {candidate.salaryExpectation.toLocaleString()} expected
+              </span>
+            ) : null}
+          </p>
+
+          {/* Provenance — where they came from, and who put them forward. */}
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            {src && SrcIcon && !candidate.referral && (
+              <Chip className={src.tone} title={`Source: ${src.label}`}><SrcIcon className="h-3 w-3" />{src.label}</Chip>
+            )}
+            {candidate.referral && (
+              <Chip
+                className="border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700"
+                title={[candidate.referral.employeeCode, candidate.referral.name, candidate.referral.designation].filter(Boolean).join(' – ')}
+              >
+                <Handshake className="h-3 w-3" />Referred by {candidate.referral.name}
+                <span className="font-normal opacity-70">· {candidate.referral.employeeCode}</span>
+              </Chip>
+            )}
+            {candidate.addedBy && (
+              <Chip className="border-teal-200 bg-teal-50 text-teal-700" title="Sent in from the job posting">
+                <Send className="h-3 w-3" />
+                {candidate.addedBy.role === 'factory_hr_head' ? 'Factory HR Head' : 'Factory HR'}
+                {candidate.addedBy.name ? ` · ${candidate.addedBy.name}` : ''}
+              </Chip>
+            )}
+            <Chip className="border-slate-200 bg-slate-50 text-slate-500">{SOURCE_LABEL[candidate.source] ?? candidate.source}</Chip>
+          </div>
+
+          {/* What needs attention — one callout each, in the order it matters. */}
+          {hold && (
+            <Callout tone="sky" icon={<span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-60 motion-safe:animate-ping" /><span className="relative inline-flex h-2 w-2 rounded-full bg-sky-500" /></span>}>
+              {hold.awaitingApproval
+                ? 'Put through at the first interview — waiting on the Factory HR Head'
+                : `Sent for the first interview · ${hold.delegates.map((d) => d.name).join(', ') || 'factory'}`}
+            </Callout>
+          )}
+          {candidate.isRedFlagged && candidate.redFlagReason && (
+            <Callout tone="amber" icon={<Flag className="h-3.5 w-3.5" />}>{candidate.redFlagReason}</Callout>
+          )}
+          {candidate.stage === 'rejected' && candidate.rejectedAt && (
+            <Callout tone="rose" icon={<X className="h-3.5 w-3.5" />}>
+              <span className="font-semibold">
+                Rejected
+                {candidate.rejectionStage === 'first_interview'
+                  ? ' at the first interview'
+                  : candidate.rejectionStage === 'factory_hr_head'
+                    ? ' by the Factory HR Head'
+                    : ''}
+                {candidate.rejectedByName ? ` by ${candidate.rejectedByName}` : ''}
+              </span>
+              <span className="opacity-70"> · {formatDate(candidate.rejectedAt)}</span>
+              {candidate.rejectionReason && <span className="block opacity-90">{candidate.rejectionReason}</span>}
+            </Callout>
+          )}
+          {candidate.regretSentAt && (
+            <Callout tone="emerald" icon={<MailX className="h-3.5 w-3.5" />}>
+              Regret mail sent{candidate.regretSentByName ? ` by ${candidate.regretSentByName}` : ''} · {formatDate(candidate.regretSentAt)}
+            </Callout>
+          )}
+
+          {candidate.matchSummary && (
+            <div className="mt-2 rounded-xl bg-gradient-to-r from-violet-50/80 to-transparent px-3 py-2">
+              <p className={cn('text-xs leading-relaxed text-slate-600', !showFullSummary && 'line-clamp-2')}>
+                <Sparkles className="mr-1 inline h-3 w-3 align-[-1px] text-violet-500" />
+                {candidate.matchSummary}
+              </p>
+              {candidate.matchSummary.length > 110 && (
+                <button type="button" onClick={() => setShowFullSummary((v) => !v)} className="mt-0.5 text-[0.6875rem] font-medium text-violet-700 hover:underline">
+                  {showFullSummary ? 'Show less' : 'Read more'}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── Where they stand: AI match + stage ── */}
+        <div className="col-span-2 flex items-center gap-3 sm:col-span-1 sm:flex-col sm:items-end sm:justify-start">
+          {candidate.matchScore !== null && (
+            <ScoreRing
+              score={candidate.matchScore}
+              clickable={Boolean(candidate.matchDetails)}
+              title={candidate.matchDetails ? 'See the AI match breakdown' : candidate.matchSummary || 'AI match score'}
+              onClick={(el) => { if (candidate.matchDetails) { setMatchAnchor(el); setMatchOpen(true); } }}
+            />
+          )}
+          <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
+            <StageMenu
+              value={candidate.stage}
+              canManage={canManage}
+              pending={update.isPending}
+              onChange={(next) => update.mutate({ id: candidate.id, input: { stage: next } })}
+            />
+            {/* A green "Completed" beside a red "Rejected" is a contradiction —
+                an unwound hire says so instead. */}
+            {candidate.onboardingStatus === 'onboarded' &&
+              (candidate.stage === 'rejected' ? (
+                <span title="Onboarding had completed before this candidate was rejected — the hire was unwound." className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[0.6875rem] font-semibold text-amber-700 ring-1 ring-amber-200">
+                  <AlertTriangle className="h-3 w-3" /> Was onboarded
+                </span>
+              ) : (
+                <span title="Onboarding complete — hired and handed off to IT" className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-1 text-[0.6875rem] font-semibold text-white shadow-sm shadow-emerald-600/25">
+                  <Check className="h-3 w-3" strokeWidth={3} /> Hired
+                </span>
+              ))}
+          </div>
+        </div>
       </div>
 
-      <div className="flex items-center gap-1.5">
-        <StageMenu
-          value={candidate.stage}
-          canManage={canManage}
-          pending={update.isPending}
-          onChange={(next) => update.mutate({ id: candidate.id, input: { stage: next } })}
-        />
-        {/* A green "Completed" beside a red "Rejected" is a contradiction
-            nobody can act on, and it happened: the onboarding record reached
-            `onboarded` and the stage was later set to rejected. The state is
-            still worth showing — it says a hire was unwound rather than never
-            made — but it is reported as that, not as a tick. */}
-        {candidate.onboardingStatus === 'onboarded' &&
-          (candidate.stage === 'rejected' ? (
-            <span
-              title="Onboarding had completed before this candidate was rejected — the hire was unwound."
-              className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-[0.6875rem] font-semibold text-amber-700 ring-1 ring-amber-200"
-            >
-              <AlertTriangle className="h-3 w-3" /> Was onboarded
-            </span>
-          ) : (
-            <span
-              title="Onboarding complete — hired and handed off to IT"
-              className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-1 text-[0.6875rem] font-semibold text-white shadow-sm shadow-emerald-600/25"
-            >
-              <Check className="h-3 w-3" strokeWidth={3} /> Completed
-            </span>
-          ))}
-      </div>
-      </div>
-
-      {/* Line 2 — actions, always visible, icon + label, centered */}
+      {/* ── Actions: the everyday ones in view, the rare ones under More ── */}
       {canManage && (
-        <div className="flex flex-wrap items-center justify-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1 border-t border-slate-100 bg-slate-50/50 px-3 py-1.5">
           {candidate.cvUrl ? (
             <ActionBtn as="a" href={resolveApiFileUrl(candidate.cvUrl)} target="_blank" rel="noreferrer" title="View CV">
               <FileText className="h-3.5 w-3.5" /> CV
             </ActionBtn>
           ) : candidate.hasGeneratedCv ? (
-            /* Applied through Bdjobs — fields, no document. The CV is built
-               from what they submitted rather than leaving nothing to read. */
-            <ActionBtn
-              title="View the CV built from this application"
-              onClick={() => setCvOpen(true)}
-            >
+            /* Applied through Bdjobs — fields, no document. */
+            <ActionBtn title="View the CV built from this application" onClick={() => setCvOpen(true)}>
               <FileText className="h-3.5 w-3.5" /> CV
             </ActionBtn>
           ) : (
@@ -467,9 +394,6 @@ export function CandidateRow({
               <Upload className="h-3.5 w-3.5" /> {upload.isPending ? 'Uploading…' : 'Upload CV'}
             </ActionBtn>
           )}
-
-          {/* Bdjobs applicants have no file, but their structured profile is a CV
-              the AI can read — so they get the same scan action. */}
           {(candidate.cvUrl || candidate.hasGeneratedCv) && (
             <ActionBtn
               title={candidate.matchScore !== null ? 'Re-screen CV with AI' : 'Screen CV with AI'}
@@ -481,99 +405,76 @@ export function CandidateRow({
               {candidate.matchScore !== null ? 'Re-scan' : 'AI scan'}
             </ActionBtn>
           )}
-
-          <ActionBtn
-            title={candidate.email ? `Email ${candidate.email}` : 'No email on file'}
-            onClick={() => onEmail(candidate)}
-            disabled={!candidate.email}
-          >
+          <ActionBtn title={candidate.email ? `Email ${candidate.email}` : 'No email on file'} onClick={() => onEmail(candidate)} disabled={!candidate.email}>
             <Mail className="h-3.5 w-3.5" /> Email
           </ActionBtn>
-
-          {/* The regret letter, once — after that the row says it went. */}
-          {candidate.stage === 'rejected' && onRegret && !candidate.regretSentAt && (
-            <ActionBtn
-              title={candidate.email ? 'Send DBL’s regret letter' : 'No email on file'}
-              onClick={() => onRegret(candidate)}
-              disabled={!candidate.email}
-              hoverColor="rose"
-            >
-              <MailX className="h-3.5 w-3.5" /> Regret mail
-            </ActionBtn>
-          )}
-
           <ActionBtn title="Schedule / view interviews" onClick={() => onInterviews(candidate)}>
             <CalendarClock className="h-3.5 w-3.5" /> Interviews
           </ActionBtn>
 
-          {/* Optional hand-off: Head of Talent Acquisition / the recruiter can pass a
-              shortlisted CV to a factory or named people who then run the
-              first interview. Shortlisted only — nothing earlier or later. */}
+          {/* Divider only when a stage step follows it. */}
+          {(candidate.stage === 'shortlisted' ||
+            ['interview', 'final', 'selected'].includes(candidate.stage) ||
+            (candidate.stage === 'rejected' && onRegret && !candidate.regretSentAt)) && (
+            <span aria-hidden className="mx-1 hidden h-4 w-px bg-slate-200 sm:block" />
+          )}
+
+          {/* The one step this stage is waiting on, set apart. */}
           {candidate.stage === 'shortlisted' &&
-            (candidate.firstInterviewHold ? (
-              // Already out — the button says so, and still lets it be sent
-              // again (a nudge, or to someone else).
-              <ActionBtn
-                title="Sent for interview — click to send again or to someone else"
-                onClick={() => onSendForInterview(candidate)}
-                hoverColor="emerald"
-                active
-              >
-                <Check className="h-3.5 w-3.5" /> Sent for Interview
+            (hold ? (
+              <ActionBtn title="Sent for interview — send again or to someone else" onClick={() => onSendForInterview(candidate)} hoverColor="emerald" active>
+                <Check className="h-3.5 w-3.5" /> Sent for interview
               </ActionBtn>
             ) : (
-              <ActionBtn
-                title="Send this CV to a factory or named interviewers"
-                onClick={() => onSendForInterview(candidate)}
-              >
-                <Send className="h-3.5 w-3.5" /> Send for Interview
+              <ActionBtn title="Send this CV to a factory or named interviewers" onClick={() => onSendForInterview(candidate)} primary>
+                <Send className="h-3.5 w-3.5" /> Send for interview
               </ActionBtn>
             ))}
-
           {['interview', 'final', 'selected'].includes(candidate.stage) && (
-            <ActionBtn title="Salary fixation" onClick={() => onSalaryFixation(candidate)}>
+            <ActionBtn title="Salary fixation" onClick={() => onSalaryFixation(candidate)} primary={candidate.stage === 'final'}>
               <BadgeDollarSign className="h-3.5 w-3.5" /> Salary
             </ActionBtn>
           )}
-
           {candidate.stage === 'selected' && (
-            <ActionBtn title="Documents, offer & onboarding" onClick={() => navigate(ROUTES.onboardingManage(candidate.id))} hoverColor="emerald">
+            <ActionBtn title="Documents, offer & onboarding" onClick={() => navigate(ROUTES.onboardingManage(candidate.id))} primary>
               <UserCheck className="h-3.5 w-3.5" /> Onboard
             </ActionBtn>
           )}
+          {candidate.stage === 'rejected' && onRegret && !candidate.regretSentAt && (
+            <ActionBtn title={candidate.email ? 'Send DBL’s regret letter' : 'No email on file'} onClick={() => onRegret(candidate)} disabled={!candidate.email} hoverColor="rose">
+              <MailX className="h-3.5 w-3.5" /> Regret mail
+            </ActionBtn>
+          )}
 
-          <ActionBtn
-            title={candidate.talentPool ? 'Remove from Talent Bank' : 'Add to Talent Bank'}
-            onClick={() => update.mutate({ id: candidate.id, input: { talentPool: !candidate.talentPool } })}
-            hoverColor="amber"
-            active={candidate.talentPool}
-          >
-            <Star className="h-3.5 w-3.5" fill={candidate.talentPool ? 'currentColor' : 'none'} />
-            {candidate.talentPool ? 'In Talent Bank' : 'Talent Bank'}
-          </ActionBtn>
-
-          <ActionBtn
-            title={candidate.isRedFlagged ? `Red-flagged: ${candidate.redFlagReason ?? ''}` : 'Mark as red flag'}
-            onClick={() => candidate.isRedFlagged ? unflag.mutate(candidate.id) : setFlagModalOpen(true)}
-            disabled={flag.isPending || unflag.isPending}
-            hoverColor="rose"
-            active={candidate.isRedFlagged}
-          >
-            <Flag className="h-3.5 w-3.5" fill={candidate.isRedFlagged ? 'currentColor' : 'none'} />
-            {candidate.isRedFlagged ? 'Flagged' : 'Red-flag'}
-          </ActionBtn>
-
-          <ActionBtn
-            title="Remove candidate"
-            onClick={() => {
-              if (window.confirm(`Remove ${candidate.name} from this pipeline?`)) {
-                remove.mutate(candidate.id);
-              }
-            }}
-            hoverColor="rose"
-          >
-            <Trash2 className="h-3.5 w-3.5" /> Remove
-          </ActionBtn>
+          <div className="ml-auto">
+            <MoreMenu
+              items={[
+                {
+                  key: 'talent',
+                  icon: <Star className="h-4 w-4" fill={candidate.talentPool ? 'currentColor' : 'none'} />,
+                  label: candidate.talentPool ? 'Remove from Talent Bank' : 'Add to Talent Bank',
+                  onSelect: () => update.mutate({ id: candidate.id, input: { talentPool: !candidate.talentPool } }),
+                },
+                {
+                  key: 'flag',
+                  icon: <Flag className="h-4 w-4" fill={candidate.isRedFlagged ? 'currentColor' : 'none'} />,
+                  label: candidate.isRedFlagged ? 'Remove red flag' : 'Red-flag candidate',
+                  tone: 'rose',
+                  disabled: flag.isPending || unflag.isPending,
+                  onSelect: () => (candidate.isRedFlagged ? unflag.mutate(candidate.id) : setFlagModalOpen(true)),
+                },
+                {
+                  key: 'remove',
+                  icon: <Trash2 className="h-4 w-4" />,
+                  label: 'Remove from pipeline',
+                  tone: 'rose',
+                  onSelect: () => {
+                    if (window.confirm(`Remove ${candidate.name} from this pipeline?`)) remove.mutate(candidate.id);
+                  },
+                },
+              ]}
+            />
+          </div>
         </div>
       )}
 
@@ -712,6 +613,164 @@ export function CandidateRow({
   );
 }
 
+/** The stage's colour as a ring round the avatar. */
+const stageRing: Record<CandidateStage, string> = {
+  applied: 'ring-slate-200',
+  ai_shortlisted: 'ring-violet-300',
+  shortlisted: 'ring-sky-300',
+  interview: 'ring-amber-300',
+  final: 'ring-indigo-300',
+  selected: 'ring-emerald-400',
+  rejected: 'ring-rose-300',
+};
+
+function Chip({ children, className, title }: { children: React.ReactNode; className?: string; title?: string }) {
+  return (
+    <span title={title} className={cn('inline-flex max-w-full items-center gap-1 truncate rounded-full border px-2 py-0.5 text-[0.6875rem] font-medium', className)}>
+      {children}
+    </span>
+  );
+}
+
+const CALLOUT_TONE = {
+  sky: 'bg-sky-50 text-sky-800 ring-sky-100',
+  amber: 'bg-amber-50 text-amber-800 ring-amber-100',
+  rose: 'bg-rose-50 text-rose-800 ring-rose-100',
+  emerald: 'bg-emerald-50 text-emerald-800 ring-emerald-100',
+} as const;
+
+/** One thing about this candidate that needs attention, said once. */
+function Callout({ tone, icon, children }: { tone: keyof typeof CALLOUT_TONE; icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className={cn('mt-2 flex max-w-2xl items-start gap-2 rounded-xl px-3 py-1.5 text-xs leading-snug ring-1', CALLOUT_TONE[tone])}>
+      <span className="mt-[3px] flex shrink-0 items-center">{icon}</span>
+      <div className="min-w-0">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * The AI match as a small ring gauge — a number with a sense of how full it
+ * is, readable at a glance down a long list. It fills when it first appears.
+ */
+function ScoreRing({ score, clickable, title, onClick }: {
+  score: number;
+  clickable: boolean;
+  title: string;
+  onClick: (el: HTMLElement) => void;
+}) {
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    const t = requestAnimationFrame(() => setShown(score));
+    return () => cancelAnimationFrame(t);
+  }, [score]);
+  const tone = score >= 75 ? '#10b981' : score >= 55 ? '#f59e0b' : '#94a3b8';
+  const label = score >= 75 ? 'Strong' : score >= 55 ? 'Good' : 'Partial';
+  const r = 17;
+  const c = 2 * Math.PI * r;
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={(e) => { e.stopPropagation(); onClick(e.currentTarget); }}
+      className={cn('group/ring flex items-center gap-2 rounded-xl px-1 py-0.5 text-left transition', clickable ? 'cursor-pointer hover:bg-slate-50' : 'cursor-default')}
+    >
+      <span className="relative h-11 w-11">
+        <svg viewBox="0 0 40 40" className="h-11 w-11 -rotate-90">
+          <circle cx="20" cy="20" r={r} fill="none" stroke="#eef2f7" strokeWidth="4" />
+          <circle
+            cx="20" cy="20" r={r} fill="none" stroke={tone} strokeWidth="4" strokeLinecap="round"
+            strokeDasharray={c}
+            strokeDashoffset={c - (c * shown) / 100}
+            style={{ transition: 'stroke-dashoffset 0.9s cubic-bezier(0.16,1,0.3,1)' }}
+          />
+        </svg>
+        <span className="absolute inset-0 flex items-center justify-center text-[0.6875rem] font-bold tabular-nums text-slate-800">{score}</span>
+      </span>
+      <span className="leading-tight">
+        <span className="flex items-center gap-1 text-[0.625rem] font-semibold uppercase tracking-wider text-slate-400">
+          <Sparkles className="h-2.5 w-2.5 text-violet-500" /> AI match
+        </span>
+        <span className="block text-xs font-semibold" style={{ color: tone }}>{label}</span>
+      </span>
+    </button>
+  );
+}
+
+/** Rarely used or destructive actions, kept out of the everyday row. */
+function MoreMenu({ items }: {
+  items: { key: string; icon: React.ReactNode; label: string; tone?: 'rose'; disabled?: boolean; onSelect: () => void }[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [style, setStyle] = useState<React.CSSProperties>({});
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open || !btnRef.current) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    const W = 220;
+    const below = window.innerHeight - rect.bottom;
+    setStyle({
+      position: 'fixed',
+      left: Math.max(8, rect.right - W),
+      width: W,
+      zIndex: 9999,
+      ...(below < 180 ? { bottom: window.innerHeight - rect.top + 6 } : { top: rect.bottom + 6 }),
+    });
+    const close = (e: MouseEvent) => {
+      if (menuRef.current?.contains(e.target as Node) || btnRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); };
+  }, [open]);
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title="More actions"
+        className={cn('inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-white hover:text-slate-800 hover:shadow-sm', open && 'bg-white text-slate-800 shadow-sm')}
+      >
+        <MoreHorizontal className="h-4 w-4" /> More
+      </button>
+      {open && createPortal(
+        <div
+          ref={menuRef}
+          role="menu"
+          style={style}
+          className="overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 shadow-[0_12px_32px_-8px_rgba(0,0,0,0.18)] motion-safe:animate-loader-pop"
+        >
+          {items.map((it) => (
+            <button
+              key={it.key}
+              type="button"
+              role="menuitem"
+              disabled={it.disabled}
+              onClick={() => { setOpen(false); it.onSelect(); }}
+              className={cn(
+                'flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-[0.8125rem] transition-colors disabled:opacity-40',
+                it.tone === 'rose' ? 'text-rose-700 hover:bg-rose-50' : 'text-slate-700 hover:bg-slate-50',
+              )}
+            >
+              {it.icon}
+              {it.label}
+            </button>
+          ))}
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+}
+
 /** Small animated icon+label button shared by the always-visible action row. */
 function ActionBtn({
   children,
@@ -720,6 +779,7 @@ function ActionBtn({
   disabled,
   active,
   hoverColor = 'brand',
+  primary = false,
   as,
   href,
   target,
@@ -731,6 +791,8 @@ function ActionBtn({
   disabled?: boolean;
   active?: boolean;
   hoverColor?: 'brand' | 'violet' | 'amber' | 'rose' | 'emerald';
+  /** The step this stage is waiting on — filled, so it reads first. */
+  primary?: boolean;
   as?: 'a';
   href?: string;
   target?: string;
@@ -751,10 +813,13 @@ function ActionBtn({
     emerald: 'border-emerald-200 bg-emerald-50 text-emerald-700',
   };
   const cls = cn(
-    'inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600',
-    'transition-all duration-150 ease-out hover:-translate-y-px hover:shadow-sm active:translate-y-0 active:scale-95',
-    'disabled:pointer-events-none disabled:opacity-40',
-    active ? activeClass[hoverColor] : hoverClass[hoverColor],
+    'inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium',
+    'transition-all duration-150 ease-out active:scale-95 disabled:pointer-events-none disabled:opacity-40',
+    primary
+      ? 'border-brand-600 bg-brand-600 text-white shadow-sm shadow-brand-600/20 hover:bg-brand-700 hover:shadow-md'
+      : active
+        ? activeClass[hoverColor]
+        : cn('border-transparent text-slate-600 hover:bg-white hover:shadow-sm', hoverClass[hoverColor]),
   );
   if (as === 'a') {
     return (
