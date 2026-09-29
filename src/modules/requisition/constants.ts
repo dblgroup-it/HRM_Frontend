@@ -131,6 +131,7 @@ export const CV_SOURCES: { value: CvSource; label: string }[] = [
   { value: 'internal_posting', label: 'Internal Posting' },
   { value: 'cv_bank', label: 'CV Bank' },
   { value: 'talent_pool', label: 'Talent Pool' },
+  { value: 'employee_referral', label: 'Employee Referral' },
 ];
 
 export const CV_SOURCE_LABEL = Object.fromEntries(

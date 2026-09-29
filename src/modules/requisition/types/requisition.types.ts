@@ -56,7 +56,8 @@ export type CvSource =
   | 'campus'
   | 'internal_posting'
   | 'cv_bank'
-  | 'talent_pool';
+  | 'talent_pool'
+  | 'employee_referral';
 
 /** One of the 4 fixed facility types the requisitioner can request. */
 export type FacilityKey = 'laptopDesktop' | 'transport' | 'dormitory' | 'seating';

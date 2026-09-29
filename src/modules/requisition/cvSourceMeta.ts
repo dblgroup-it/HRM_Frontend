@@ -7,6 +7,7 @@ import {
   Linkedin,
   Share2,
   Star,
+  Handshake,
   UserSearch,
   type LucideIcon,
 } from 'lucide-react';
@@ -85,6 +86,12 @@ export const CV_SOURCE_META: Record<
     tone: 'border-yellow-200 bg-yellow-50 text-yellow-800',
     badge: 'bg-yellow-500 text-white',
     hint: 'Past strong candidates',
+  },
+  employee_referral: {
+    icon: Handshake,
+    tone: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
+    badge: 'bg-fuchsia-600 text-white',
+    hint: 'Put forward by a DBL employee',
   },
 };
 

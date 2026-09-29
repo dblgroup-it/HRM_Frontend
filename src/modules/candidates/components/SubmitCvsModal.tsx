@@ -1,25 +1,25 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   AlertTriangle,
+  Check,
   FileText,
-  Files,
+  Loader2,
+  Search,
   Send,
-  Upload,
-  User,
+  UploadCloud,
   X,
 } from 'lucide-react';
 
-import {
-  BusyOverlay,
-  Button,
-  Input,
-  Modal,
-  PhoneInput,
-} from '@shared/components/ui';
+import { Avatar, Portal } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import { isValidBdMobile, toBdMobile } from '@shared/utils';
 // By path, not the barrel: the requisition barrel already imports this module.
-import type { PickedEmployee } from '@modules/requisition/components/EmployeePicker';
+import { CV_SOURCES } from '@modules/requisition/constants';
+import { CV_SOURCE_META } from '@modules/requisition/cvSourceMeta';
+import {
+  EmployeePicker,
+  type PickedEmployee,
+} from '@modules/requisition/components/EmployeePicker';
 import type { CvSource } from '@modules/requisition/types/requisition.types';
 
 import {
@@ -27,14 +27,10 @@ import {
   useCreateCandidate,
 } from '../hooks/useCandidates';
 import { nameFromFileName } from './bulkCvName';
-import { CvSourcePicker } from './CvSourcePicker';
-import { ReferralPicker } from './ReferralPicker';
 
 const MAX_FILES = 30;
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
-
-export type SubmitMode = 'single' | 'bulk';
-type Mode = SubmitMode;
+const REFERRAL: CvSource = 'employee_referral';
 
 interface Row {
   key: string;
@@ -42,14 +38,20 @@ interface Row {
   name: string;
 }
 
+const rowOf = (f: File): Row => ({
+  key: `${f.name}-${f.size}-${f.lastModified}`,
+  file: f,
+  name: nameFromFileName(f.name),
+});
+
 /**
  * Factory HR / Factory HR Head sending CVs in to a published job.
  *
- * They know who is looking for work locally; the recruiter decides who is
- * shortlisted. So this is a sending form, not the recruiter's pipeline: one CV
- * or up to thirty, always with where they came from, and — for a single CV —
- * the employee who referred them. Everything sent lands in the pipeline as
- * Applied, and the recruiter is told.
+ * One flow for one CV or thirty: where they came from, then the files. The
+ * number of files decides the rest — one gets a short form (name, email,
+ * mobile), several get a list of names to check. An employee referral is a
+ * source like any other: choosing it asks for the employee, and nothing else.
+ * Everything sent lands in the pipeline as Applied; the recruiter shortlists.
  */
 export function SubmitCvsModal({
   reqId,
@@ -57,63 +59,40 @@ export function SubmitCvsModal({
   cvSources,
   open,
   onClose,
-  initialMode = 'single',
+  initialFiles,
 }: {
   reqId: string;
-  /** "REQ-0042 · Senior Executive", shown under the title. */
+  /** "REQ-0042 · Senior Executive". */
   reqLabel: string;
   cvSources?: CvSource[];
   open: boolean;
   onClose: () => void;
-  /** Which tab it opens on — the panel has a button for each. */
-  initialMode?: Mode;
+  /** Files dropped on the panel before the dialog opened. */
+  initialFiles?: File[];
 }) {
-  const [mode, setMode] = useState<Mode>(initialMode);
-  // Each time it opens, open where the button that opened it said.
-  useEffect(() => {
-    if (open) setMode(initialMode);
-  }, [open, initialMode]);
-  const [source, setSource] = useState('');
-
-  // Single
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const create = useCreateCandidate(reqId);
-  const singleRef = useRef<HTMLInputElement>(null);
-  const [cv, setCv] = useState<File | null>(null);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [referred, setReferred] = useState(false);
-  const [referrer, setReferrer] = useState<PickedEmployee | null>(null);
-
-  // Bulk
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(
-    null,
-  );
-  const bulk = useBulkCreateCandidates(reqId, (done, total) =>
-    setProgress({ done, total }),
-  );
-  const bulkRef = useRef<HTMLInputElement>(null);
-  const [rows, setRows] = useState<Row[]>([]);
-  const [failed, setFailed] = useState<{ fileName: string; error: string }[]>(
-    [],
-  );
-
-  const [notes, setNotes] = useState<string[]>([]);
-  const [dragging, setDragging] = useState(false);
+  const bulk = useBulkCreateCandidates(reqId, (done, total) => setProgress({ done, total }));
   const busy = create.isPending || bulk.isPending;
 
+  const [source, setSource] = useState<CvSource | ''>('');
+  const [referrer, setReferrer] = useState<PickedEmployee | null>(null);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [notes, setNotes] = useState<string[]>([]);
+  const [failed, setFailed] = useState<{ fileName: string; error: string }[]>([]);
+  const [dragging, setDragging] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
   const reset = () => {
-    setMode('single');
     setSource('');
-    setCv(null);
-    setName('');
-    setEmail('');
-    setPhone('');
-    setReferred(false);
     setReferrer(null);
     setRows([]);
-    setFailed([]);
+    setEmail('');
+    setPhone('');
     setNotes([]);
+    setFailed([]);
     setProgress(null);
   };
   const close = () => {
@@ -122,88 +101,97 @@ export function SubmitCvsModal({
     onClose();
   };
 
-  /** Why a file is refused, or null when it is a usable CV. */
-  const refusal = (f: File): string | null =>
-    f.type !== 'application/pdf'
-      ? `${f.name} — PDF only`
-      : f.size > MAX_PDF_BYTES
-        ? `${f.name} — over 5 MB`
-        : null;
-
-  const pickSingle = (f?: File | null) => {
-    if (!f) return;
-    const why = refusal(f);
-    setNotes(why ? [why] : []);
-    if (why) return;
-    setCv(f);
-    if (!name.trim()) setName(nameFromFileName(f.name));
-  };
-
-  const addBulk = (list: FileList | File[]) => {
+  /** Add files, refusing what cannot be a CV and saying why. */
+  const add = (list: FileList | File[]) => {
+    const incoming = Array.from(list);
     const refused: string[] = [];
-    const next = [...rows];
-    for (const f of Array.from(list)) {
-      const why = refusal(f);
-      if (why) refused.push(why);
-      else if (next.length >= MAX_FILES)
-        refused.push(`${f.name} — ${MAX_FILES} CVs at a time`);
-      else if (!next.some((r) => r.file.name === f.name && r.file.size === f.size))
-        next.push({
-          key: `${f.name}-${f.size}-${f.lastModified}`,
-          file: f,
-          name: nameFromFileName(f.name),
-        });
-    }
-    setRows(next);
+    setRows((prev) => {
+      const next = [...prev];
+      for (const f of incoming) {
+        if (f.type !== 'application/pdf') refused.push(`${f.name} — PDF only`);
+        else if (f.size > MAX_PDF_BYTES) refused.push(`${f.name} — over 5 MB`);
+        else if (next.length >= MAX_FILES) refused.push(`${f.name} — ${MAX_FILES} at a time`);
+        else if (!next.some((r) => r.key === rowOf(f).key)) next.push(rowOf(f));
+      }
+      return next;
+    });
     setNotes(refused);
+    setFailed([]);
   };
 
-  const phoneError =
-    phone && !isValidBdMobile(phone)
-      ? 'Enter the 10 digits after +880, starting with 1 (e.g. 1712345678)'
-      : undefined;
+  // Files dropped on the panel arrive with the dialog. Only on opening:
+  // re-running with every render would add the same files again.
+  useEffect(() => {
+    if (open && initialFiles?.length) add(initialFiles);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
-  const singleReady =
-    Boolean(cv) &&
-    name.trim().length >= 2 &&
-    !phoneError &&
-    (!referred || Boolean(referrer));
-  const bulkReady =
-    rows.length > 0 &&
-    rows.every((r) => r.name.trim().length >= 2) &&
-    (!referred || Boolean(referrer));
-  const canSend = Boolean(source) && (mode === 'single' ? singleReady : bulkReady);
+  // Escape closes, and the page behind does not scroll.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+    };
+    document.addEventListener('keydown', onKey);
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = overflow;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, busy]);
+
+  /** The requisition's ticked sources, with Employee Referral always first. */
+  const options = useMemo(() => {
+    const ticked = CV_SOURCES.filter(
+      (s) => s.value !== REFERRAL && (!cvSources?.length || cvSources.includes(s.value)),
+    );
+    const referral = CV_SOURCES.find((s) => s.value === REFERRAL);
+    return referral ? [referral, ...ticked] : ticked;
+  }, [cvSources]);
+
+  const single = rows.length === 1;
+  const phoneError =
+    single && phone && !isValidBdMobile(phone)
+      ? 'The 10 digits after +880, starting with 1'
+      : undefined;
+  const sourceDone = Boolean(source) && (source !== REFERRAL || Boolean(referrer));
+  const filesDone =
+    rows.length > 0 && rows.every((r) => r.name.trim().length >= 2) && !phoneError;
+  const canSend = sourceDone && filesDone && !busy;
 
   const blocker = !source
-    ? 'Choose where the CV came from.'
-    : mode === 'single'
-      ? !cv
-        ? 'Attach the CV.'
-        : referred && !referrer
-          ? 'Pick the employee who referred them.'
-          : null
+    ? 'Choose how these CVs reached you'
+    : source === REFERRAL && !referrer
+      ? 'Pick the employee who referred them'
       : !rows.length
-        ? 'Add at least one CV.'
-        : referred && !referrer
-          ? 'Pick the employee who referred them.'
+        ? 'Add at least one CV'
+        : !filesDone
+          ? 'Check the names'
           : null;
 
   const send = () => {
-    if (!canSend) return;
-    if (mode === 'single') {
+    if (!canSend || !source) return;
+    const referredByCode = source === REFERRAL ? referrer?.employeeCode : undefined;
+    if (single) {
       create.mutate(
         {
           input: {
-            name: name.trim(),
+            name: rows[0].name.trim(),
             email: email.trim() || undefined,
             phone: toBdMobile(phone) || undefined,
             cvSource: source,
-            referredByCode:
-              referred && referrer ? referrer.employeeCode : undefined,
+            referredByCode,
           },
-          cv: cv ?? undefined,
+          cv: rows[0].file,
         },
-        { onSuccess: close },
+        {
+          onSuccess: () => {
+            reset();
+            onClose();
+          },
+        },
       );
       return;
     }
@@ -212,7 +200,7 @@ export function SubmitCvsModal({
         cvSource: source,
         files: rows.map((r) => r.file),
         names: rows.map((r) => r.name.trim()),
-        referredByCode: referred && referrer ? referrer.employeeCode : undefined,
+        referredByCode,
       },
       {
         onSuccess: (result) => {
@@ -225,368 +213,589 @@ export function SubmitCvsModal({
           const bad = new Set(result.failed.map((f) => f.fileName));
           setRows((prev) => prev.filter((r) => bad.has(r.file.name)));
           setFailed(result.failed);
+          setProgress(null);
         },
       },
     );
   };
 
-  const count = mode === 'single' ? (cv ? 1 : 0) : rows.length;
+  if (!open) return null;
+
+  const sourceLabel = options.find((o) => o.value === source)?.label;
+  const pct = progress?.total ? Math.round((progress.done / progress.total) * 100) : 0;
 
   return (
-    <Modal
-      open={open}
-      onClose={close}
-      title="Send CVs to the recruiter"
-      size="lg"
-      footer={
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-slate-500">
-            {blocker ??
-              'They go into the pipeline as Applied; the recruiter shortlists.'}
-          </p>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={close} disabled={busy}>
-              Cancel
-            </Button>
-            <Button
-              onClick={send}
-              isLoading={busy}
-              disabled={!canSend}
-              leftIcon={<Send className="h-4 w-4" />}
-            >
-              {count > 1 ? `Send ${count} CVs` : 'Send CV'}
-            </Button>
-          </div>
-        </div>
-      }
-    >
-      <BusyOverlay
-        show={bulk.isPending}
-        label={
-          progress && progress.total
-            ? `Sending CV ${Math.min(progress.done + 1, progress.total)} of ${progress.total}`
-            : 'Sending CVs…'
-        }
-        sublabel="Saving each CV to the job's Drive folder. Keep this tab open."
-      />
-
-      <div className="space-y-5">
-        <p className="-mt-1 text-sm text-slate-500">
-          For <span className="font-medium text-slate-700">{reqLabel}</span>
-        </p>
-
-        {/* One or many */}
+    <Portal>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
         <div
-          role="tablist"
-          aria-label="How many CVs"
-          className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1"
+          aria-hidden
+          onClick={close}
+          className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm motion-safe:animate-fade-in"
+        />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Send CVs to the recruiter"
+          className="relative flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-black/5 motion-safe:animate-rise-in"
         >
-          {(
-            [
-              { key: 'single', label: 'One CV', hint: 'with details and referral', icon: User },
-              { key: 'bulk', label: 'Several CVs', hint: `up to ${MAX_FILES} PDFs`, icon: Files },
-            ] as const
-          ).map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              role="tab"
-              aria-selected={mode === t.key}
-              disabled={busy}
-              onClick={() => {
-                setMode(t.key);
-                setNotes([]);
-              }}
-              className={cn(
-                'flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm transition-all',
-                mode === t.key
-                  ? 'bg-white font-semibold text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700',
-              )}
-            >
-              <t.icon className="h-4 w-4" />
-              <span>
-                {t.label}
-                <span className="hidden text-xs font-normal text-slate-400 sm:inline">
-                  {' '}
-                  · {t.hint}
-                </span>
-              </span>
-            </button>
-          ))}
-        </div>
-
-        <Step n={1} title="Where did the CV come from?" hint="Required">
-          <CvSourcePicker value={source} onChange={setSource} cvSources={cvSources} />
-        </Step>
-
-        {mode === 'single' ? (
-          <>
-            <Step n={2} title="CV" hint="PDF, up to 5 MB">
-              <input
-                ref={singleRef}
-                type="file"
-                accept=".pdf,application/pdf"
-                className="hidden"
-                onChange={(e) => {
-                  pickSingle(e.target.files?.[0]);
-                  e.target.value = '';
-                }}
+          <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+            {/* ── Left: where it goes, and how far along it is ── */}
+            <aside className="relative shrink-0 overflow-hidden bg-gradient-to-br from-brand-700 via-brand-600 to-sky-500 px-6 py-6 text-white md:w-72">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -bottom-16 -left-10 h-48 w-48 rounded-full bg-white/10 blur-2xl"
               />
-              {cv ? (
-                <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 px-3 py-2.5">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
-                    <FileText className="h-4 w-4" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-slate-800" title={cv.name}>
-                      {cv.name}
-                    </span>
-                    <span className="block text-[0.6875rem] text-slate-500">
-                      {(cv.size / 1024 / 1024).toFixed(1)} MB
-                    </span>
-                  </span>
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -right-12 top-10 h-40 w-40 rounded-full bg-emerald-300/20 blur-2xl"
+              />
+              <div className="relative">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur motion-safe:animate-float">
+                  <Send className="h-5 w-5" />
+                </span>
+                <h2 className="mt-4 text-lg font-semibold leading-snug">
+                  Send CVs to the recruiter
+                </h2>
+                <p className="mt-1 text-sm text-white/75">{reqLabel}</p>
+
+                <ol className="mt-8 space-y-4">
+                  <StepItem
+                    n={1}
+                    done={sourceDone}
+                    active={!sourceDone}
+                    title="Source"
+                    detail={
+                      sourceDone
+                        ? source === REFERRAL
+                          ? `Referral · ${referrer?.name ?? ''}`
+                          : sourceLabel
+                        : 'How they reached you'
+                    }
+                  />
+                  <StepItem
+                    n={2}
+                    done={filesDone}
+                    active={sourceDone && !filesDone}
+                    title="CVs"
+                    detail={
+                      rows.length
+                        ? `${rows.length} PDF${rows.length === 1 ? '' : 's'}`
+                        : 'One, or up to 30'
+                    }
+                  />
+                  <StepItem
+                    n={3}
+                    done={false}
+                    active={sourceDone && filesDone}
+                    title="Send"
+                    detail="Lands as Applied"
+                  />
+                </ol>
+
+                <p className="mt-8 hidden text-xs leading-relaxed text-white/65 md:block">
+                  The recruiter shortlists from what you send. Male / Female and
+                  &ldquo;Applied before&rdquo; appear once the AI has read each CV.
+                </p>
+              </div>
+            </aside>
+
+            {/* ── Right: the form ── */}
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="flex items-center justify-between px-6 pt-5">
+                <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                  New submission
+                </p>
+                <button
+                  type="button"
+                  onClick={close}
+                  disabled={busy}
+                  aria-label="Close"
+                  className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="min-h-0 flex-1 space-y-7 overflow-y-auto px-6 pb-6 pt-3">
+                {/* ① Source */}
+                <Section title="How did these CVs reach you?">
+                  <div role="radiogroup" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {options.map((o, i) => {
+                      const meta = CV_SOURCE_META[o.value];
+                      const Icon = meta.icon;
+                      const on = source === o.value;
+                      const featured = o.value === REFERRAL;
+                      return (
+                        <button
+                          key={o.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={on}
+                          disabled={busy}
+                          onClick={() => {
+                            setSource(o.value);
+                            if (o.value !== REFERRAL) setReferrer(null);
+                          }}
+                          style={{ animationDelay: `${i * 25}ms` }}
+                          className={cn(
+                            'group relative flex items-center gap-2.5 rounded-2xl border p-2.5 text-left transition-all duration-200 motion-safe:animate-card-in',
+                            featured && 'col-span-2 sm:col-span-3',
+                            on
+                              ? 'border-brand-400 bg-brand-50/60 shadow-sm ring-2 ring-brand-400/30'
+                              : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm motion-safe:hover:-translate-y-px',
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 group-hover:scale-105',
+                              meta.badge,
+                            )}
+                          >
+                            <Icon className="h-4 w-4" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-semibold text-slate-800">
+                              {o.label}
+                            </span>
+                            <span className="block truncate text-[0.6875rem] text-slate-500">
+                              {meta.hint}
+                            </span>
+                          </span>
+                          <span
+                            className={cn(
+                              'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all duration-200',
+                              on
+                                ? 'scale-100 border-brand-600 bg-brand-600 text-white'
+                                : 'scale-90 border-slate-300 text-transparent',
+                            )}
+                          >
+                            <Check className="h-3 w-3" strokeWidth={3} />
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* The referrer, when that is the source — slides open. */}
+                  <div
+                    className={cn(
+                      'grid transition-[grid-template-rows,opacity] duration-300 ease-out',
+                      source === REFERRAL
+                        ? 'mt-3 grid-rows-[1fr] opacity-100'
+                        : 'grid-rows-[0fr] opacity-0',
+                    )}
+                  >
+                    <div className="overflow-hidden">
+                      <div className="rounded-2xl border border-fuchsia-200 bg-fuchsia-50/50 p-3">
+                        {referrer ? (
+                          <div className="flex items-center gap-3 motion-safe:animate-fade-in">
+                            <Avatar name={referrer.name} size="sm" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-fuchsia-700">
+                                Referred by
+                              </p>
+                              <p className="truncate text-sm font-medium text-slate-800">
+                                {referrer.name}
+                                <span className="font-normal text-slate-500">
+                                  {' '}
+                                  · {referrer.employeeCode}
+                                  {referrer.jobTitle ? ` · ${referrer.jobTitle}` : ''}
+                                </span>
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setReferrer(null)}
+                              disabled={busy}
+                              className="rounded-lg px-2 py-1 text-xs font-medium text-fuchsia-700 transition hover:bg-fuchsia-100"
+                            >
+                              Change
+                            </button>
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-fuchsia-800">
+                              <Search className="h-3.5 w-3.5" />
+                              Which employee referred them?
+                              {rows.length > 1 && (
+                                <span className="font-normal text-fuchsia-700/80">
+                                  — recorded on all {rows.length}
+                                </span>
+                              )}
+                            </p>
+                            <EmployeePicker label="" value="" onPick={setReferrer} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </Section>
+
+                {/* ② CVs */}
+                <Section title="CVs" hint={`PDF · up to 5 MB each · ${MAX_FILES} at a time`}>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    multiple
+                    accept=".pdf,application/pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files) add(e.target.files);
+                      e.target.value = '';
+                    }}
+                  />
                   <button
                     type="button"
-                    aria-label="Remove CV"
-                    onClick={() => setCv(null)}
-                    className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-slate-700"
+                    disabled={busy}
+                    onClick={() => fileRef.current?.click()}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDragging(true);
+                    }}
+                    onDragLeave={() => setDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragging(false);
+                      if (e.dataTransfer.files?.length) add(e.dataTransfer.files);
+                    }}
+                    className={cn(
+                      'group flex w-full items-center gap-4 rounded-2xl border-2 border-dashed px-5 transition-all duration-200',
+                      rows.length ? 'py-3' : 'py-7',
+                      dragging
+                        ? 'scale-[1.01] border-brand-400 bg-brand-50'
+                        : 'border-slate-200 bg-slate-50/60 hover:border-brand-300 hover:bg-brand-50/40',
+                    )}
                   >
-                    <X className="h-4 w-4" />
+                    <span
+                      className={cn(
+                        'flex shrink-0 items-center justify-center rounded-2xl bg-white text-brand-600 shadow-sm ring-1 ring-slate-200 transition-transform duration-200 group-hover:-translate-y-0.5',
+                        rows.length ? 'h-9 w-9' : 'h-12 w-12',
+                      )}
+                    >
+                      <UploadCloud className={rows.length ? 'h-4 w-4' : 'h-6 w-6'} />
+                    </span>
+                    <span className="text-left">
+                      <span className="block text-sm font-semibold text-slate-800">
+                        {rows.length ? 'Add more CVs' : 'Drop CVs here, or click to browse'}
+                      </span>
+                      <span className="block text-xs text-slate-500">
+                        {rows.length
+                          ? 'Drop them anywhere in this box'
+                          : 'One CV gets a short form; several get a list of names to check'}
+                      </span>
+                    </span>
                   </button>
-                </div>
-              ) : (
-                <DropZone
-                  dragging={dragging}
-                  setDragging={setDragging}
-                  onClick={() => singleRef.current?.click()}
-                  onDrop={(files) => pickSingle(files[0])}
-                  icon={<Upload className="h-4 w-4" />}
-                  title="Drop the CV here, or click to choose"
-                  hint="The name is filled in from the file — correct it below."
-                />
-              )}
-            </Step>
 
-            <Step n={3} title="Candidate">
-              <div className="space-y-3">
-                <Input
-                  label="Full name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Md. Rofiqul Islam"
-                />
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Input
-                    label="Email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Read from the CV if left blank"
-                  />
-                  <PhoneInput
-                    label="Mobile"
-                    value={phone}
-                    onChange={setPhone}
-                    error={phoneError}
-                  />
-                </div>
-              </div>
-            </Step>
-
-            <Step n={4} title="Employee referral" hint="Optional">
-              <ReferralPicker
-                on={referred}
-                onToggle={setReferred}
-                referrer={referrer}
-                onPick={setReferrer}
-              />
-            </Step>
-          </>
-        ) : (
-          <Step n={2} title="CVs" hint={`PDF, up to 5 MB each · ${MAX_FILES} at a time`}>
-            <input
-              ref={bulkRef}
-              type="file"
-              multiple
-              accept=".pdf,application/pdf"
-              className="hidden"
-              onChange={(e) => {
-                if (e.target.files) addBulk(e.target.files);
-                e.target.value = '';
-              }}
-            />
-            <DropZone
-              dragging={dragging}
-              setDragging={setDragging}
-              onClick={() => bulkRef.current?.click()}
-              onDrop={addBulk}
-              icon={<Files className="h-4 w-4" />}
-              title="Drop PDF CVs here, or click to choose"
-              hint="Each file is one candidate. Email and mobile are read from the CV."
-            />
-
-            {failed.length > 0 && (
-              <div className="mt-3 flex gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                <div className="min-w-0">
-                  <p className="font-semibold">
-                    These did not go in — the rest were sent. Try again or remove them.
-                  </p>
-                  <ul className="mt-1 space-y-0.5">
-                    {failed.map((f) => (
-                      <li key={f.fileName} className="break-words">
-                        <span className="font-medium">{f.fileName}</span>: {f.error}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {rows.length > 0 && (
-              <ul className="mt-3 max-h-[36vh] divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200">
-                {rows.map((r) => (
-                  <li key={r.key} className="flex items-center gap-2 px-3 py-2">
-                    <FileText className="h-4 w-4 shrink-0 text-slate-400" />
-                    <div className="min-w-0 flex-1">
-                      <input
-                        value={r.name}
-                        onChange={(e) =>
-                          setRows((prev) =>
-                            prev.map((x) =>
-                              x.key === r.key ? { ...x, name: e.target.value } : x,
-                            ),
-                          )
-                        }
-                        aria-label={`Candidate name for ${r.file.name}`}
-                        className={cn(
-                          'h-8 w-full rounded-md border px-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/30',
-                          r.name.trim().length < 2
-                            ? 'border-rose-300'
-                            : 'border-slate-200 focus:border-brand-400',
-                        )}
-                      />
-                      <p className="mt-0.5 truncate text-[0.6875rem] text-slate-400" title={r.file.name}>
-                        {r.file.name} · {(r.file.size / 1024 / 1024).toFixed(1)} MB
+                  {notes.length > 0 && (
+                    <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800 ring-1 ring-amber-200 motion-safe:animate-fade-in">
+                      Not added: {notes.join(' · ')}
+                    </p>
+                  )}
+                  {failed.length > 0 && (
+                    <div className="mt-2 flex gap-2 rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-800 ring-1 ring-rose-200 motion-safe:animate-fade-in">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                      <p>
+                        These did not go in — the rest were sent:{' '}
+                        {failed.map((f) => `${f.fileName} (${f.error})`).join(' · ')}
                       </p>
                     </div>
+                  )}
+
+                  {single && (
+                    <div className="mt-3 rounded-2xl border border-slate-200 p-4 motion-safe:animate-card-in">
+                      <FileHeader row={rows[0]} onRemove={() => setRows([])} disabled={busy} />
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <Field label="Full name" className="sm:col-span-2">
+                          <input
+                            value={rows[0].name}
+                            disabled={busy}
+                            onChange={(e) => setRows([{ ...rows[0], name: e.target.value }])}
+                            className={inputCls(rows[0].name.trim().length < 2)}
+                          />
+                        </Field>
+                        <Field label="Email" hint="read from the CV if blank">
+                          <input
+                            type="email"
+                            value={email}
+                            disabled={busy}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="name@example.com"
+                            className={inputCls(false)}
+                          />
+                        </Field>
+                        <Field label="Mobile" error={phoneError}>
+                          <div
+                            className={cn(
+                              'flex overflow-hidden rounded-xl border bg-white transition focus-within:ring-2 focus-within:ring-brand-500/25',
+                              phoneError
+                                ? 'border-rose-300'
+                                : 'border-slate-200 focus-within:border-brand-400',
+                            )}
+                          >
+                            <span className="flex items-center border-r border-slate-200 bg-slate-50 px-2.5 text-sm text-slate-500">
+                              +880
+                            </span>
+                            <input
+                              inputMode="numeric"
+                              value={phone}
+                              disabled={busy}
+                              onChange={(e) =>
+                                setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))
+                              }
+                              placeholder="1XXXXXXXXX"
+                              className="h-10 min-w-0 flex-1 px-3 text-sm outline-none"
+                            />
+                          </div>
+                        </Field>
+                      </div>
+                    </div>
+                  )}
+
+                  {rows.length > 1 && (
+                    <ul className="mt-3 max-h-[34vh] space-y-2 overflow-y-auto pr-1">
+                      {rows.map((r, i) => (
+                        <li
+                          key={r.key}
+                          style={{ animationDelay: `${Math.min(i, 10) * 30}ms` }}
+                          className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 transition hover:border-slate-300 motion-safe:animate-card-in"
+                        >
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-600">
+                            <FileText className="h-4 w-4" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <input
+                              value={r.name}
+                              disabled={busy}
+                              aria-label={`Name for ${r.file.name}`}
+                              onChange={(e) =>
+                                setRows((p) =>
+                                  p.map((x) => (x.key === r.key ? { ...x, name: e.target.value } : x)),
+                                )
+                              }
+                              className={cn(
+                                'h-8 w-full rounded-lg border px-2 text-sm font-medium text-slate-800 outline-none transition focus:ring-2 focus:ring-brand-500/25',
+                                r.name.trim().length < 2
+                                  ? 'border-rose-300'
+                                  : 'border-transparent hover:border-slate-200 focus:border-brand-400',
+                              )}
+                            />
+                            <p className="truncate px-2 text-[0.6875rem] text-slate-400" title={r.file.name}>
+                              {r.file.name} · {(r.file.size / 1024 / 1024).toFixed(1)} MB
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            aria-label={`Remove ${r.file.name}`}
+                            onClick={() => setRows((p) => p.filter((x) => x.key !== r.key))}
+                            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Section>
+              </div>
+
+              {/* ── Footer: what will happen, and the button that does it ── */}
+              <div className="relative border-t border-slate-100 bg-white/90 px-6 py-4 backdrop-blur">
+                {busy && (
+                  <div className="absolute inset-x-0 top-0 h-0.5 overflow-hidden bg-slate-100">
+                    <div
+                      className="h-full bg-gradient-to-r from-brand-500 to-emerald-400 transition-all duration-500"
+                      style={{ width: `${single ? 70 : Math.max(pct, 8)}%` }}
+                    />
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm text-slate-500">
+                    {busy ? (
+                      single || !progress ? (
+                        'Saving to the job’s Drive folder…'
+                      ) : (
+                        `Sending ${Math.min(progress.done + 1, progress.total)} of ${progress.total}…`
+                      )
+                    ) : (
+                      blocker ?? (
+                        <span className="text-slate-700">
+                          <span className="font-semibold">
+                            {rows.length} CV{rows.length === 1 ? '' : 's'}
+                          </span>{' '}
+                          via{' '}
+                          {source === REFERRAL
+                            ? `referral from ${referrer?.name ?? ''}`
+                            : sourceLabel}
+                        </span>
+                      )
+                    )}
+                  </p>
+                  <div className="flex gap-2">
                     <button
                       type="button"
-                      aria-label={`Remove ${r.file.name}`}
+                      onClick={close}
                       disabled={busy}
-                      onClick={() => setRows((prev) => prev.filter((x) => x.key !== r.key))}
-                      className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40"
+                      className="rounded-xl px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 disabled:opacity-40"
                     >
-                      <X className="h-4 w-4" />
+                      Cancel
                     </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Step>
-        )}
-
-        {mode === 'bulk' && (
-          <Step n={3} title="Employee referral" hint="Optional">
-            <ReferralPicker
-              on={referred}
-              onToggle={setReferred}
-              referrer={referrer}
-              onPick={setReferrer}
-              several
-            />
-          </Step>
-        )}
-
-        {notes.length > 0 && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            <p className="font-semibold">Not added:</p>
-            <ul className="mt-1 list-disc space-y-0.5 pl-4">
-              {notes.map((n) => (
-                <li key={n} className="break-all">
-                  {n}
-                </li>
-              ))}
-            </ul>
+                    <button
+                      type="button"
+                      onClick={send}
+                      disabled={!canSend}
+                      className={cn(
+                        'inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-200',
+                        canSend
+                          ? 'bg-brand-600 shadow-brand-600/25 hover:bg-brand-700 hover:shadow-md active:scale-[0.98]'
+                          : busy
+                            ? 'bg-brand-500'
+                            : 'cursor-not-allowed bg-slate-300',
+                      )}
+                    >
+                      {busy ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                      {rows.length > 1 ? `Send ${rows.length} CVs` : 'Send CV'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        )}
+        </div>
       </div>
-    </Modal>
+    </Portal>
   );
 }
 
-function DropZone({
-  dragging,
-  setDragging,
-  onClick,
-  onDrop,
-  icon,
+function StepItem({
+  n,
+  done,
+  active,
   title,
-  hint,
+  detail,
 }: {
-  dragging: boolean;
-  setDragging: (v: boolean) => void;
-  onClick: () => void;
-  onDrop: (files: FileList) => void;
-  icon: ReactNode;
+  n: number;
+  done: boolean;
+  active: boolean;
   title: string;
-  hint: string;
+  detail?: string;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      onDragOver={(e) => {
-        e.preventDefault();
-        setDragging(true);
-      }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setDragging(false);
-        if (e.dataTransfer.files?.length) onDrop(e.dataTransfer.files);
-      }}
-      className={cn(
-        'flex w-full items-center gap-3 rounded-xl border-2 border-dashed px-4 py-4 text-left transition-colors',
-        dragging
-          ? 'border-brand-400 bg-brand-50'
-          : 'border-slate-200 bg-slate-50/60 hover:border-brand-300 hover:bg-brand-50/40',
-      )}
-    >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-slate-400 ring-1 ring-slate-200">
-        {icon}
+    <li className="flex items-start gap-3">
+      <span
+        className={cn(
+          'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-all duration-300',
+          done
+            ? 'bg-white text-brand-700 motion-safe:animate-loader-pop'
+            : active
+              ? 'bg-white/20 text-white ring-2 ring-white/70'
+              : 'bg-white/10 text-white/60 ring-1 ring-white/25',
+        )}
+      >
+        {done ? <Check className="h-4 w-4" strokeWidth={3} /> : n}
       </span>
-      <span>
-        <span className="block text-sm font-medium text-slate-700">{title}</span>
-        <span className="block text-xs text-slate-400">{hint}</span>
+      <span className="min-w-0 pt-0.5">
+        <span
+          className={cn(
+            'block text-sm font-semibold',
+            done || active ? 'text-white' : 'text-white/60',
+          )}
+        >
+          {title}
+        </span>
+        {detail && <span className="block truncate text-xs text-white/65">{detail}</span>}
       </span>
-    </button>
+    </li>
   );
 }
 
-/** A numbered step of the form, so it reads top to bottom. */
-function Step({
-  n,
+function Section({
   title,
   hint,
   children,
 }: {
-  n: number;
   title: string;
   hint?: string;
   children: ReactNode;
 }) {
   return (
     <section>
-      <div className="mb-2 flex items-center gap-2">
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-600 text-[0.625rem] font-bold text-white">
-          {n}
-        </span>
-        <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
-        {hint && <span className="text-xs text-slate-400">· {hint}</span>}
+      <div className="mb-3 flex items-baseline gap-2">
+        <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+        {hint && <span className="text-xs text-slate-400">{hint}</span>}
       </div>
       {children}
     </section>
+  );
+}
+
+function FileHeader({
+  row,
+  onRemove,
+  disabled,
+}: {
+  row: Row;
+  onRemove: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+        <FileText className="h-5 w-5" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-slate-800" title={row.file.name}>
+          {row.file.name}
+        </p>
+        <p className="text-xs text-slate-400">
+          {(row.file.size / 1024 / 1024).toFixed(1)} MB · PDF
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onRemove}
+        disabled={disabled}
+        aria-label="Remove CV"
+        className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  hint,
+  error,
+  className,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  error?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className={cn('block', className)}>
+      <span className="mb-1 flex items-baseline gap-1.5 text-xs font-medium text-slate-600">
+        {label}
+        {hint && <span className="font-normal text-slate-400">· {hint}</span>}
+      </span>
+      {children}
+      {error && <span className="mt-1 block text-[0.6875rem] text-rose-600">{error}</span>}
+    </label>
+  );
+}
+
+function inputCls(invalid: boolean) {
+  return cn(
+    'h-10 w-full rounded-xl border bg-white px-3 text-sm text-slate-800 outline-none transition focus:ring-2 focus:ring-brand-500/25',
+    invalid ? 'border-rose-300' : 'border-slate-200 focus:border-brand-400',
   );
 }

@@ -25,9 +25,13 @@ export function CvSourcePicker({
   label?: string;
   optional?: boolean;
 }) {
-  const options = cvSources?.length
-    ? CV_SOURCES.filter((s) => cvSources.includes(s.value))
-    : CV_SOURCES;
+  // A referral has its own switch in these forms (and is recorded as the
+  // source automatically), so it is not offered twice.
+  const options = (
+    cvSources?.length
+      ? CV_SOURCES.filter((s) => cvSources.includes(s.value))
+      : CV_SOURCES
+  ).filter((s) => s.value !== 'employee_referral');
 
   return (
     <div>

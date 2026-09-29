@@ -1,23 +1,17 @@
-import { lazy, Suspense, useState, type ComponentType } from 'react';
-import {
-  ArrowRight,
-  ExternalLink,
-  FileText,
-  Files,
-  History,
-  Inbox,
-  Send,
-  UserPlus,
-} from 'lucide-react';
+import { lazy, Suspense, useRef, useState } from 'react';
+import { ArrowUpRight, History, Inbox, Send, UploadCloud } from 'lucide-react';
 
 import { Avatar } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
+// By path, not the barrel: the requisition barrel already imports this module.
+import { cvSourceDisplay } from '@modules/requisition/cvSourceMeta';
 import type { CvSource } from '@modules/requisition/types/requisition.types';
 
 import { useSubmittedCvs } from '../hooks/useCandidates';
+import type { SubmittedCv } from '../types/candidate.types';
 import { GenderBadge } from './GenderBadge';
-import { SubmitCvsModal, type SubmitMode } from './SubmitCvsModal';
+import { SubmitCvsModal } from './SubmitCvsModal';
 
 const ApplyHistoryModal = lazy(() =>
   import('./ApplyHistoryModal').then((m) => ({ default: m.ApplyHistoryModal })),
@@ -26,10 +20,10 @@ const ApplyHistoryModal = lazy(() =>
 /**
  * Factory HR / Factory HR Head's part in a published job: sending CVs in.
  *
- * Leads Profile & Posting for them, above the public job link — the other way
- * CVs reach the recruiter. Two ways to start (one CV, several), then what this
- * person has already sent: the gender the AI read off each CV, and whether the
- * same person — by email or mobile — has applied to DBL before, and where.
+ * The whole panel is a drop target — drag one PDF or thirty onto it and the
+ * dialog opens with them already in. Below is what this person has sent,
+ * with the two things worth knowing about each: the gender the AI read off
+ * the CV, and whether the same person (by email or mobile) applied before.
  */
 export function FactoryCvIntakePanel({
   reqId,
@@ -40,153 +34,151 @@ export function FactoryCvIntakePanel({
   reqLabel: string;
   cvSources?: CvSource[];
 }) {
-  const [open, setOpen] = useState<SubmitMode | null>(null);
-  const [history, setHistory] = useState<{ id: string; name: string } | null>(
-    null,
-  );
+  const [open, setOpen] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const [dragging, setDragging] = useState(false);
+  const [history, setHistory] = useState<{ id: string; name: string } | null>(null);
+  const pick = useRef<HTMLInputElement>(null);
   const { data: sent = [], isLoading } = useSubmittedCvs(reqId);
+
+  const start = (list?: FileList | File[] | null) => {
+    setFiles(list ? Array.from(list) : []);
+    setOpen(true);
+  };
 
   const referrals = sent.filter((c) => c.referral).length;
   const repeat = sent.filter((c) => c.applyCount > 1).length;
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm motion-safe:animate-rise-in">
+    <section
+      className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm motion-safe:animate-rise-in"
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragging(false);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragging(false);
+        if (e.dataTransfer.files?.length) start(e.dataTransfer.files);
+      }}
+    >
+      {/* Drop veil — the whole card takes the files. */}
+      <div
+        className={cn(
+          'pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-3xl border-2 border-dashed border-brand-400 bg-brand-50/90 backdrop-blur-sm transition-opacity duration-200',
+          dragging ? 'opacity-100' : 'opacity-0',
+        )}
+      >
+        <div className="text-center">
+          <UploadCloud className="mx-auto h-10 w-10 text-brand-600 motion-safe:animate-float" />
+          <p className="mt-2 text-sm font-semibold text-brand-800">Drop to send these CVs</p>
+        </div>
+      </div>
+
       {/* Header */}
-      <div className="relative overflow-hidden border-b border-slate-100 bg-gradient-to-br from-brand-50 via-white to-emerald-50/60 px-5 py-5 sm:px-6">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-brand-200/30 blur-2xl"
+      <div className="flex flex-wrap items-center gap-4 border-b border-slate-100 px-6 py-5">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-600 to-sky-500 text-white shadow-md shadow-brand-600/20">
+          <Send className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-base font-semibold text-slate-900">Send CVs to the recruiter</h2>
+          <p className="mt-0.5 truncate text-sm text-slate-500">
+            {reqLabel} · they arrive as Applied, and the recruiter shortlists.
+          </p>
+        </div>
+        <dl className="flex divide-x divide-slate-200 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/60">
+          <Metric label="Sent" value={sent.length} />
+          <Metric label="Referrals" value={referrals} tone="fuchsia" />
+          <Metric label="Applied before" value={repeat} tone="amber" />
+        </dl>
+      </div>
+
+      {/* The drop zone */}
+      <div className="px-6 pt-5">
+        <input
+          ref={pick}
+          type="file"
+          multiple
+          accept=".pdf,application/pdf"
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files?.length) start(e.target.files);
+            e.target.value = '';
+          }}
         />
-        <div className="relative flex flex-wrap items-start gap-4">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-md shadow-brand-600/25 motion-safe:animate-float">
-            <Send className="h-5 w-5" />
+        <div className="group relative flex flex-col items-center gap-4 overflow-hidden rounded-2xl border-2 border-dashed border-slate-200 bg-gradient-to-br from-slate-50 via-white to-brand-50/40 px-6 py-7 text-center transition-colors duration-300 hover:border-brand-300 sm:flex-row sm:text-left">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-brand-200/30 blur-2xl transition-transform duration-500 group-hover:scale-125"
+          />
+          <span className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white text-brand-600 shadow-sm ring-1 ring-slate-200 transition-transform duration-300 group-hover:-translate-y-1">
+            <UploadCloud className="h-7 w-7" />
           </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold text-slate-900">
-              Send CVs to the recruiter
-            </h2>
-            <p className="mt-0.5 text-sm text-slate-500">
-              For <span className="font-medium text-slate-700">{reqLabel}</span>.
-              They reach the recruiter as Applied, and the recruiter shortlists.
+          <div className="relative min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-800">
+              Drag CVs here — one, or up to thirty
+            </p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              PDF only. Then say how they reached you — a job site, a campus, or an
+              employee who referred them.
             </p>
           </div>
-          {sent.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              <Stat label="Sent" value={sent.length} />
-              <Stat label="Referrals" value={referrals} />
-              <Stat label="Applied before" value={repeat} tone="amber" />
-            </div>
-          )}
-        </div>
-
-        {/* The two ways in */}
-        <div className="relative mt-5 grid gap-3 sm:grid-cols-2">
-          <ActionTile
-            icon={FileText}
-            title="One CV"
-            hint="With name, mobile and an employee referral"
-            onClick={() => setOpen('single')}
-          />
-          <ActionTile
-            icon={Files}
-            title="Several CVs"
-            hint="Up to 30 PDFs at once, one referral for all"
-            onClick={() => setOpen('bulk')}
-          />
+          <div className="relative flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={() => pick.current?.click()}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+            >
+              Browse files
+            </button>
+            <button
+              type="button"
+              onClick={() => start()}
+              className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-brand-600/25 transition-all hover:bg-brand-700 hover:shadow-md active:scale-[0.98]"
+            >
+              <Send className="h-4 w-4" />
+              Send CVs
+            </button>
+          </div>
         </div>
       </div>
 
       {/* What they sent */}
-      <div className="px-5 py-4 sm:px-6">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Sent by you
-        </p>
+      <div className="px-6 pb-6 pt-6">
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Sent by you</p>
+          {sent.length > 0 && (
+            <p className="text-xs text-slate-400">
+              Male / Female and &ldquo;Applied&rdquo; show once the AI has read the CV
+            </p>
+          )}
+        </div>
+
         {isLoading ? (
           <div className="space-y-2">
-            {[0, 1].map((i) => (
-              <div key={i} className="h-14 animate-pulse rounded-xl bg-slate-100" />
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-16 animate-pulse rounded-2xl bg-slate-100" />
             ))}
           </div>
         ) : sent.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 py-8 text-center">
-            <Inbox className="h-7 w-7 text-slate-300" />
-            <p className="text-sm font-medium text-slate-600">No CVs sent yet</p>
-            <p className="text-xs text-slate-400">
-              Start with one CV or several above.
-            </p>
+          <div className="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-4 text-sm text-slate-500">
+            <Inbox className="h-5 w-5 shrink-0 text-slate-300" />
+            Nothing sent yet for this job.
           </div>
         ) : (
-          <ul className="space-y-2">
+          <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200">
             {sent.map((c, i) => (
-              <li
+              <SentRow
                 key={c.id}
-                style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
-                className="group flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 transition-all duration-200 hover:border-brand-200 hover:shadow-sm motion-safe:animate-card-in"
-              >
-                <Avatar name={c.name} size="sm" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                    <span className="truncate text-sm font-medium text-slate-800">
-                      {c.name}
-                    </span>
-                    <GenderBadge gender={c.gender} />
-                    {c.applyCount > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => setHistory({ id: c.id, name: c.name })}
-                        className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[0.625rem] font-semibold text-amber-700 ring-1 ring-amber-200 transition-colors hover:bg-amber-100"
-                        title="Where else this person applied"
-                      >
-                        <History className="h-2.5 w-2.5" />
-                        Applied {c.applyCount}×
-                      </button>
-                    )}
-                  </div>
-                  <p className="mt-0.5 truncate text-xs text-slate-400">
-                    {[c.phone, c.email].filter(Boolean).join(' · ') ||
-                      'Contact is read from the CV'}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                  {c.cvSourceLabel && (
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
-                      {c.cvSourceLabel}
-                    </span>
-                  )}
-                  {c.referral && (
-                    <span
-                      className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 font-medium text-violet-700"
-                      title={[c.referral.employeeCode, c.referral.name, c.referral.designation]
-                        .filter(Boolean)
-                        .join(' – ')}
-                    >
-                      <UserPlus className="h-3 w-3" />
-                      {c.referral.name}
-                    </span>
-                  )}
-                  <span className="tabular-nums text-slate-400">
-                    {formatDate(c.createdAt)}
-                  </span>
-                  {c.cvUrl && (
-                    <a
-                      href={c.cvUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 rounded-lg px-2 py-1 font-medium text-brand-700 transition-colors hover:bg-brand-50"
-                    >
-                      CV <ExternalLink className="h-3 w-3" />
-                    </a>
-                  )}
-                </div>
-              </li>
+                cv={c}
+                index={i}
+                onHistory={() => setHistory({ id: c.id, name: c.name })}
+              />
             ))}
           </ul>
-        )}
-        {sent.length > 0 && (
-          <p className="mt-3 text-xs text-slate-400">
-            Male / Female and "Applied N×" appear once the AI has read the CV —
-            usually within a minute.
-          </p>
         )}
       </div>
 
@@ -194,9 +186,12 @@ export function FactoryCvIntakePanel({
         reqId={reqId}
         reqLabel={reqLabel}
         cvSources={cvSources}
-        open={open !== null}
-        initialMode={open ?? 'single'}
-        onClose={() => setOpen(null)}
+        open={open}
+        initialFiles={files}
+        onClose={() => {
+          setOpen(false);
+          setFiles([]);
+        }}
       />
       {history && (
         <Suspense fallback={null}>
@@ -211,62 +206,104 @@ export function FactoryCvIntakePanel({
   );
 }
 
-function ActionTile({
-  icon: Icon,
-  title,
-  hint,
-  onClick,
+function SentRow({
+  cv,
+  index,
+  onHistory,
 }: {
-  icon: ComponentType<{ className?: string }>;
-  title: string;
-  hint: string;
-  onClick: () => void;
+  cv: SubmittedCv;
+  index: number;
+  onHistory: () => void;
 }) {
+  const source = cvSourceDisplay(cv.cvSource);
+  const SourceIcon = source?.icon;
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white/90 px-4 py-3 text-left shadow-sm transition-all duration-200 hover:border-brand-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 motion-safe:hover:-translate-y-0.5"
+    <li
+      style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+      className="group flex flex-wrap items-center gap-x-4 gap-y-2 bg-white px-4 py-3 transition-colors hover:bg-slate-50/80 motion-safe:animate-card-in"
     >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-700 transition-colors group-hover:bg-brand-600 group-hover:text-white">
-        <Icon className="h-5 w-5" />
+      <Avatar name={cv.name} size="sm" />
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <span className="truncate text-sm font-semibold text-slate-800">{cv.name}</span>
+          <GenderBadge gender={cv.gender} />
+          {cv.applyCount > 1 && (
+            <button
+              type="button"
+              onClick={onHistory}
+              title="Where else this person applied"
+              className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[0.625rem] font-semibold text-amber-700 ring-1 ring-amber-200 transition hover:bg-amber-100"
+            >
+              <History className="h-2.5 w-2.5" />
+              Applied {cv.applyCount}×
+            </button>
+          )}
+        </div>
+        <p className="mt-0.5 truncate text-xs text-slate-400">
+          {[cv.phone, cv.email].filter(Boolean).join(' · ') || 'Contact is read from the CV'}
+        </p>
+      </div>
+
+      {source && SourceIcon && (
+        <span
+          className={cn(
+            'inline-flex max-w-[16rem] items-center gap-1.5 truncate rounded-full border px-2.5 py-1 text-xs font-medium',
+            source.tone,
+          )}
+          title={
+            cv.referral
+              ? [cv.referral.employeeCode, cv.referral.name, cv.referral.designation]
+                  .filter(Boolean)
+                  .join(' – ')
+              : undefined
+          }
+        >
+          <SourceIcon className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">
+            {cv.referral ? `Referred by ${cv.referral.name}` : source.label}
+          </span>
+        </span>
+      )}
+
+      <span className="w-24 text-right text-xs tabular-nums text-slate-400">
+        {formatDate(cv.createdAt)}
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-slate-800">{title}</span>
-        <span className="block text-xs text-slate-500">{hint}</span>
-      </span>
-      <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 transition-all group-hover:text-brand-600 motion-safe:group-hover:translate-x-0.5" />
-    </button>
+      {cv.cvUrl ? (
+        <a
+          href={cv.cvUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-brand-700 transition hover:bg-brand-50"
+        >
+          CV
+          <ArrowUpRight className="h-3.5 w-3.5 transition-transform group-hover:-translate-y-px group-hover:translate-x-px" />
+        </a>
+      ) : (
+        <span className="w-10" />
+      )}
+    </li>
   );
 }
 
-function Stat({
+function Metric({
   label,
   value,
   tone = 'slate',
 }: {
   label: string;
   value: number;
-  tone?: 'slate' | 'amber';
+  tone?: 'slate' | 'amber' | 'fuchsia';
 }) {
+  const color =
+    value > 0 && tone === 'amber'
+      ? 'text-amber-600'
+      : value > 0 && tone === 'fuchsia'
+        ? 'text-fuchsia-600'
+        : 'text-slate-800';
   return (
-    <div
-      className={cn(
-        'rounded-xl border bg-white/80 px-3 py-1.5 text-center backdrop-blur-sm',
-        tone === 'amber' && value > 0 ? 'border-amber-200' : 'border-slate-200',
-      )}
-    >
-      <p
-        className={cn(
-          'text-base font-bold tabular-nums leading-tight',
-          tone === 'amber' && value > 0 ? 'text-amber-700' : 'text-slate-800',
-        )}
-      >
-        {value}
-      </p>
-      <p className="text-[0.625rem] font-medium uppercase tracking-wide text-slate-400">
-        {label}
-      </p>
+    <div className="px-4 py-2 text-center">
+      <dd className={cn('text-lg font-bold tabular-nums leading-tight', color)}>{value}</dd>
+      <dt className="text-[0.625rem] font-medium uppercase tracking-wider text-slate-400">{label}</dt>
     </div>
   );
 }
