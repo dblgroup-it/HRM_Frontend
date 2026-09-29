@@ -141,7 +141,8 @@ export function BulkInterviewModal({
     return candidates.map((_, i) => {
       const off = slotsMode === 'sequential' ? addMinutes(h, m, i * intervalMin) : { h, m };
       const pad = (n: number) => String(n).padStart(2, '0');
-      return `${date}T${pad(off.h)}:${pad(off.m)}:00`;
+      // Always Dhaka time (GMT+6), whatever zone this computer is in.
+      return `${date}T${pad(off.h)}:${pad(off.m)}:00+06:00`;
     });
   }, [date, startTime, slotsMode, intervalMin, candidates]);
 
@@ -308,7 +309,7 @@ export function BulkInterviewModal({
               </div>
               <div>
                 <label className="mb-1 block text-[0.6875rem] font-medium text-slate-400">
-                  {slotsMode === 'sequential' ? 'Start time' : 'Time'}
+                  {slotsMode === 'sequential' ? 'Start time' : 'Time'} (GMT+6)
                 </label>
                 <Input
                   type="time"

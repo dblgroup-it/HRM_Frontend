@@ -224,6 +224,14 @@ export interface InterviewRoundView {
   status: InterviewStatusKey;
   meetLink: string | null;
   calendarSynced: boolean;
+  /** Set once the round has been moved to a new time. */
+  rescheduled?: {
+    count: number;
+    from: string | null;
+    reason: string | null;
+    at: string | null;
+    byName: string | null;
+  } | null;
   criteria: EvaluationCriterionView[];
   panelists: InterviewPanelistView[];
   evaluations: EvaluationView[];

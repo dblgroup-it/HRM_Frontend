@@ -185,6 +185,34 @@ export function useUpdateInterview(candidateId: string, silent = false) {
   });
 }
 
+/** Move an arranged interview; says who was told. */
+export function useRescheduleInterview(candidateId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: {
+      roundId: string;
+      data: Parameters<typeof assessmentApi.rescheduleInterview>[1];
+    }) => assessmentApi.rescheduleInterview(vars.roundId, vars.data),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: assessmentKeys.interviews(candidateId) });
+      void qc.invalidateQueries({ queryKey: delegationKeys.mine });
+      void qc.invalidateQueries({ queryKey: ['candidates'] });
+      const told = [
+        r.notified.candidate ? 'the candidate' : null,
+        r.notified.panel
+          ? `${r.notified.panel} panelist${r.notified.panel === 1 ? '' : 's'}`
+          : null,
+      ].filter(Boolean);
+      toast.success(
+        told.length
+          ? `Interview rescheduled — ${told.join(' and ')} told`
+          : 'Interview rescheduled',
+      );
+    },
+    onError: (error) => toast.error(errMsg(error, 'Could not reschedule the interview')),
+  });
+}
+
 /**
  * Add people to a panel that is already arranged.
  *

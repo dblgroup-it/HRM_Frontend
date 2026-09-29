@@ -33,7 +33,7 @@ import {
   Spinner,
 } from '@shared/components/ui';
 import { cn } from '@shared/lib';
-import { formatDate } from '@shared/utils';
+import { dhakaInputToIso } from '@shared/utils';
 import { useDebounce } from '@shared/hooks';
 import { useEmployees } from '@modules/employees';
 
@@ -59,6 +59,8 @@ import {
   recommendationTone,
 } from './recommendation';
 import { VenuePicker } from './VenuePicker';
+import { RescheduleButton, RescheduledNote } from './RescheduleInterview';
+import { slotLabel } from './slotLabel';
 import { PanelGroups, PanelSideToggle } from './PanelGroups';
 import { panelHandlers, panelPayload, type PanelEntry } from './panelEntry';
 import { usesRoomList } from './venue';
@@ -208,6 +210,29 @@ export function CandidateInterviewsModal({
     return best;
   }, null);
 
+  /**
+   * Rounds this form may still book. A round already arranged (or, for a
+   * delegate, already held) is not offered again: filling the form in a
+   * second time tried to book a duplicate and the server refused it. The
+   * way to change an arranged round is Reschedule on its card.
+   */
+  const arranged = rounds.filter((r) => r.status === 'scheduled');
+  const bookable = KIND_OPTIONS.filter((k) =>
+    firstRoundOnly ? k.value === 'first' : !(factoryFirstRound && k.value === 'first'),
+  ).filter(
+    (k) =>
+      !arranged.some((r) => r.kind === k.value) &&
+      !(firstRoundOnly && rounds.some((r) => r.kind === 'first' && r.status === 'completed')),
+  );
+  const nothingToBook = !isLoading && bookable.length === 0;
+
+  // Keep the selection on something that can actually be booked.
+  useEffect(() => {
+    if (bookable.length && !bookable.some((k) => k.value === kind)) {
+      setKind(bookable[0].value);
+    }
+  }, [bookable, kind]);
+
   const committee = setup?.committee ?? [];
   const panelOps = panelHandlers(setPanel);
 
@@ -221,7 +246,8 @@ export function CandidateInterviewsModal({
     schedule.mutate(
       {
         kind, mode,
-        scheduledAt: scheduledAt || undefined,
+        // Always Dhaka time, whatever zone this computer is in.
+        scheduledAt: dhakaInputToIso(scheduledAt),
         location: location.trim() || undefined,
         ...panelPayload(panel),
         notifyCandidate, notifyPanel,
@@ -388,7 +414,25 @@ export function CandidateInterviewsModal({
           </div>
 
           {/* RIGHT — Schedule form, or why there isn't one ─ */}
-          {heldBy ? (
+          {!heldBy && nothingToBook ? (
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center border-t border-slate-100 px-6 py-10 md:border-t-0">
+              <div className="max-w-sm text-center motion-safe:animate-fade-in">
+                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50">
+                  <CalendarClock className="h-5 w-5 text-emerald-600" />
+                </span>
+                <p className="mt-3 text-sm font-semibold text-slate-800">
+                  {arranged.length
+                    ? `${KIND_LABEL[arranged[0].kind]} interview arranged`
+                    : 'Nothing left to schedule'}
+                </p>
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                  {arranged.length
+                    ? `Booked for ${slotLabel(arranged[0].scheduledAt)}. To change the time, use Reschedule on its card — the candidate and the panel are told.`
+                    : 'Every round you can book here has been held.'}
+                </p>
+              </div>
+            </div>
+          ) : heldBy ? (
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center border-t border-slate-100 px-6 py-10 md:border-t-0">
               <div className="max-w-sm text-center">
                 <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100">
@@ -436,11 +480,7 @@ export function CandidateInterviewsModal({
                 )}
                 <div className="flex flex-wrap items-center gap-3">
                   <Segmented
-                    options={KIND_OPTIONS.filter((k) =>
-                      firstRoundOnly
-                        ? k.value === 'first'
-                        : !(factoryFirstRound && k.value === 'first'),
-                    ).map((k) => ({ value: k.value, label: `${k.label} interview` }))}
+                    options={bookable.map((k) => ({ value: k.value, label: `${k.label} interview` }))}
                     value={kind}
                     onChange={(v) => setKind(v as InterviewKindKey)}
                   />
@@ -508,7 +548,7 @@ export function CandidateInterviewsModal({
                 </div>
                 <p className="mt-2 flex items-center gap-1.5 text-[0.6875rem] text-slate-400">
                   <CalendarCheck className="h-3.5 w-3.5 shrink-0" />
-                  Everyone on the panel gets a Google Calendar invite with reminders.
+                  Times are Dhaka time (GMT+6). Everyone on the panel gets a Google Calendar invite with reminders.
                 </p>
               </FormStep>
 
@@ -775,7 +815,7 @@ function RoundRow({
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-[0.6875rem] text-slate-500">
           <span className="inline-flex items-center gap-1">
             <CalendarClock className="h-3 w-3" />
-            {round.scheduledAt ? formatDate(round.scheduledAt) : 'Time TBD'}
+            {round.scheduledAt ? `${slotLabel(round.scheduledAt)} (GMT+6)` : 'Time TBD'}
           </span>
           {round.meetLink ? (
             <a href={round.meetLink} target="_blank" rel="noreferrer"
@@ -887,6 +927,8 @@ function RoundRow({
         )}
       </div>
 
+      <RescheduledNote round={round} />
+
       {/* ── Outcome ───────────────────────────────────────────────────────
           The two things that actually happen to a booked session, asked as a
           question with two answers. They were a pair of 11px text links wedged
@@ -920,6 +962,10 @@ function RoundRow({
               </button>
             )}
           </div>
+          {/* Still to happen and nobody has marked: it can move. */}
+          {canMarkAbsent && (
+            <RescheduleButton round={round} candidateId={candidateId} />
+          )}
           {!canMarkAbsent && (
             <p className="mt-1.5 text-[0.625rem] text-slate-400">
               A panelist has already marked this candidate, so they were in the

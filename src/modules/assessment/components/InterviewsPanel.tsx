@@ -46,7 +46,7 @@ import {
   Spinner,
 } from '@shared/components/ui';
 import { cn } from '@shared/lib';
-import { formatDate } from '@shared/utils';
+import { dhakaInputToIso, formatDate } from '@shared/utils';
 import { useAnchoredPanel, useDebounce } from '@shared/hooks';
 import { useEmployees } from '@modules/employees';
 import type { Requisition } from '@modules/requisition/types/requisition.types';
@@ -84,6 +84,8 @@ import {
   recommendationLabel,
   recommendationTone,
 } from './recommendation';
+import { RescheduleButton, RescheduledNote } from './RescheduleInterview';
+import { slotLabel } from './slotLabel';
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -599,7 +601,8 @@ function InterviewWorkspace({
     schedule.mutate(
       {
         kind, mode,
-        scheduledAt: scheduledAt || undefined,
+        // Always Dhaka time, whatever zone this computer is in.
+        scheduledAt: dhakaInputToIso(scheduledAt),
         location: location.trim() || undefined,
         ...panelPayload(panel),
         notifyCandidate, notifyPanel,
@@ -1037,7 +1040,7 @@ function InterviewWorkspace({
               </div>
               <p className="mt-2 flex items-center gap-1.5 text-[0.6875rem] text-slate-400">
                 <CalendarCheck className="h-3.5 w-3.5 shrink-0" />
-                Panel gets a Google Calendar invite with reminders.
+                Times are Dhaka time (GMT+6). Panel gets a Google Calendar invite with reminders.
               </p>
             </FormStep>
 
@@ -1204,7 +1207,7 @@ function RoundCard({
         <div className="flex flex-wrap gap-x-3 gap-y-1">
           <span className="inline-flex items-center gap-1">
             <CalendarClock className="h-3 w-3" />
-            {round.scheduledAt ? formatDate(round.scheduledAt) : 'Time TBD'}
+            {round.scheduledAt ? `${slotLabel(round.scheduledAt)} (GMT+6)` : 'Time TBD'}
           </span>
           {round.meetLink ? (
             <a href={round.meetLink} target="_blank" rel="noreferrer"
@@ -1303,6 +1306,8 @@ function RoundCard({
         )}
       </div>
 
+      <RescheduledNote round={round} />
+
       {/* ── Outcome ───────────────────────────────────────────────────────
           The two things that actually happen to a booked session, asked as a
           question with two answers. They were a pair of 11px text links
@@ -1336,6 +1341,10 @@ function RoundCard({
               </button>
             )}
           </div>
+          {/* Still to happen and nobody has marked: it can move. */}
+          {canMarkAbsent && (
+            <RescheduleButton round={round} candidateId={candidateId} />
+          )}
           {!canMarkAbsent && (
             <p className="mt-1.5 text-[0.625rem] text-slate-400">
               A panelist has already marked this candidate, so they were in the

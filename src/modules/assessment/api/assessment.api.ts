@@ -225,6 +225,25 @@ export const assessmentApi = {
       .patch<ApiResponse<{ id: string }>>(`/interviews/${roundId}`, data)
       .then((r) => r.data),
 
+  /** Move an arranged interview to a new time; the candidate and panel are told. */
+  rescheduleInterview: (
+    roundId: string,
+    data: {
+      scheduledAt: string;
+      mode?: string;
+      location?: string;
+      reason?: string;
+      notifyCandidate?: boolean;
+      notifyPanel?: boolean;
+    },
+  ): Promise<InterviewRoundView & { notified: { candidate: boolean; panel: number } }> =>
+    http
+      .post<ApiResponse<InterviewRoundView & { notified: { candidate: boolean; panel: number } }>>(
+        `/interviews/${roundId}/reschedule`,
+        data,
+      )
+      .then((r) => r.data),
+
   /** Append people to a panel that already exists — including mid-session. */
   addPanelists: (
     roundId: string,

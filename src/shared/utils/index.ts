@@ -16,3 +16,4 @@ export {
   isValidBdMobile,
   toBdMobile,
 } from './inputGuards';
+export { DHAKA_OFFSET, dhakaInputToIso, isoToDhakaInput } from './dhakaTime';
