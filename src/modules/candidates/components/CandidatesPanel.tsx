@@ -841,7 +841,7 @@ export function CandidatesPanel({
                     );
                   })()}
 
-                  <div className={cn('space-y-2.5', isFetching && !isLoading && 'opacity-60 transition-opacity')}>
+                  <div className={cn('divide-y divide-slate-100', isFetching && !isLoading && 'opacity-60 transition-opacity')}>
                     {items.map((c) => (
                       <CandidateRow
                         key={c.id}
