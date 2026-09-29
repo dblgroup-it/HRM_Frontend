@@ -660,23 +660,32 @@ export default function RequisitionDetailPage() {
 
       {activeTab === 'posting' && showProfile && (
         <div className="space-y-6">
-          <RecruiterPanel requisition={req} canAssign={canAssignRecruiter} />
-          <RoleProfilePanel
-            requisition={req}
-            canContinue={canCorporateHrContinue}
-          />
-          {showPosting && (
+          {/* Factory HR / Head come here to send CVs and share the job link,
+              so those two lead; the recruiter's own order is unchanged. */}
+          {sendsCvs && (
+            <FactoryCvIntakePanel
+              reqId={req.id}
+              reqLabel={`${req.code} · ${req.designation}`}
+              cvSources={req.cvSources}
+            />
+          )}
+          {sendsCvs && showPosting && (
             <PostingPanel
               requisition={req}
               canContinue={canCorporateHrContinue}
               onPosting={() => setDrivePhase('working')}
             />
           )}
-          {sendsCvs && (
-            <FactoryCvIntakePanel
-              reqId={req.id}
-              reqLabel={`${req.code} · ${req.designation}`}
-              cvSources={req.cvSources}
+          <RecruiterPanel requisition={req} canAssign={canAssignRecruiter} />
+          <RoleProfilePanel
+            requisition={req}
+            canContinue={canCorporateHrContinue}
+          />
+          {!sendsCvs && showPosting && (
+            <PostingPanel
+              requisition={req}
+              canContinue={canCorporateHrContinue}
+              onPosting={() => setDrivePhase('working')}
             />
           )}
         </div>

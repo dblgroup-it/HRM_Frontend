@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   AlertTriangle,
   FileText,
@@ -33,7 +33,8 @@ import { ReferralPicker } from './ReferralPicker';
 const MAX_FILES = 30;
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
 
-type Mode = 'single' | 'bulk';
+export type SubmitMode = 'single' | 'bulk';
+type Mode = SubmitMode;
 
 interface Row {
   key: string;
@@ -56,6 +57,7 @@ export function SubmitCvsModal({
   cvSources,
   open,
   onClose,
+  initialMode = 'single',
 }: {
   reqId: string;
   /** "REQ-0042 · Senior Executive", shown under the title. */
@@ -63,8 +65,14 @@ export function SubmitCvsModal({
   cvSources?: CvSource[];
   open: boolean;
   onClose: () => void;
+  /** Which tab it opens on — the panel has a button for each. */
+  initialMode?: Mode;
 }) {
-  const [mode, setMode] = useState<Mode>('single');
+  const [mode, setMode] = useState<Mode>(initialMode);
+  // Each time it opens, open where the button that opened it said.
+  useEffect(() => {
+    if (open) setMode(initialMode);
+  }, [open, initialMode]);
   const [source, setSource] = useState('');
 
   // Single
