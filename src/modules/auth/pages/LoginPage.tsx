@@ -267,7 +267,7 @@ function DblWatermark({ className }: { className?: string }) {
           />
           <feBlend in="land" in2="canopy" mode="multiply" result="mix" />
           <feComponentTransfer in="mix" result="contrast">
-            <feFuncR type="linear" slope="2.6" intercept="-0.35" />
+            <feFuncR type="linear" slope="1.7" intercept="-0.1" />
           </feComponentTransfer>
           <feColorMatrix
             in="contrast"
@@ -277,11 +277,13 @@ function DblWatermark({ className }: { className?: string }) {
                     0.22 0 0 0 0.03
                     0 0 0 0 1"
           />
+          {/* Soften the grain so it reads as texture, not noise */}
+          <feGaussianBlur stdDeviation="0.8" />
         </filter>
         <linearGradient id={id('river')} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#1877c0" stopOpacity="0" />
           <stop offset="55%" stopColor="#1877c0" stopOpacity="0.05" />
-          <stop offset="100%" stopColor="#1877c0" stopOpacity="0.4" />
+          <stop offset="100%" stopColor="#1877c0" stopOpacity="0.3" />
         </linearGradient>
         <clipPath id={id('letters')}>
           <text
@@ -579,8 +581,8 @@ export default function LoginPage() {
         />
       </div>
 
-      {/* The "dbl" watermark across the whole background, bled off the bottom */}
-      <DblWatermark className="pointer-events-none absolute -bottom-[9vw] left-1/2 w-[140vw] -translate-x-1/2 opacity-[0.1] sm:w-[110vw] lg:w-[96vw] lg:opacity-[0.12]" />
+      {/* The "dbl" watermark: whole word, lifted off the bottom, fading upward */}
+      <DblWatermark className="login-watermark pointer-events-none absolute bottom-[4vh] left-1/2 w-[min(92vw,calc((100vh-8vh)*1.714))] -translate-x-1/2 opacity-[0.07] lg:w-[min(74vw,calc((100vh-8vh)*1.714))] lg:opacity-[0.085]" />
 
       {/* Phones and tablets: the drops sit faintly behind the card */}
       <DblArtwork className="pointer-events-none absolute left-1/2 top-1/2 w-[140vw] max-w-[760px] -translate-x-1/2 -translate-y-1/2 overflow-visible opacity-30 lg:hidden" />

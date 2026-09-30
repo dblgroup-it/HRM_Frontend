@@ -169,6 +169,11 @@
     0% { fill: theme('colors.brand.600'); }
     40%, 100% { fill: theme('colors.slate.500'); }
   }
+  /* The background "dbl" fades out toward its top so it melts into the page. */
+  .login-watermark {
+    -webkit-mask-image: linear-gradient(to top, #000 35%, transparent 100%);
+    mask-image: linear-gradient(to top, #000 35%, transparent 100%);
+  }
   @keyframes login-drop-float {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-8px); }
