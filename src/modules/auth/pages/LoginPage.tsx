@@ -101,23 +101,28 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <div className="relative space-y-3">
+          <ol className="relative grid grid-cols-2 gap-x-8 gap-y-6">
             {features.map((f, i) => (
-              <div
+              <li
                 key={f.title}
                 style={{ animationDelay: `${420 + i * 90}ms` }}
-                className="flex animate-rise-in items-start gap-3 rounded-2xl border border-white/70 bg-white/70 p-3 shadow-sm backdrop-blur-sm transition-all duration-300 [animation-fill-mode:both] hover:-translate-y-0.5 hover:border-brand-100 hover:shadow-card-hover"
+                className="animate-rise-in [animation-fill-mode:both]"
               >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 text-white shadow-sm">
-                  <f.icon className="h-5 w-5" />
+                <span
+                  aria-hidden
+                  className="login-feature-num block text-[2.75rem] font-extrabold leading-none tracking-tight"
+                  style={{ animationDelay: `${i * 3}s` }}
+                >
+                  {String(i + 1).padStart(2, '0')}
                 </span>
-                <div>
-                  <p className="text-sm font-semibold text-ink-dark">{f.title}</p>
-                  <p className="text-xs leading-5 text-slate-500">{f.desc}</p>
-                </div>
-              </div>
+                <p className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-ink-dark">
+                  <f.icon className="h-4 w-4 shrink-0 text-brand-600" strokeWidth={2} />
+                  {f.title}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">{f.desc}</p>
+              </li>
             ))}
-          </div>
+          </ol>
         </section>
 
         {/* Form side */}
