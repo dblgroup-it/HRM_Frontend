@@ -268,35 +268,35 @@ export function Sidebar({
 
         <div
           className={cn(
-            'border-t border-slate-100 p-3 transition-all duration-300',
+            'p-3 transition-all duration-300',
             collapsed && 'lg:px-2'
           )}
         >
-          <div
-            className={cn(
-              'flex items-center gap-2.5 rounded-lg bg-brand-50/70 px-3 py-2 ring-1 ring-brand-100',
-              collapsed && 'lg:hidden'
-            )}
-          >
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-brand-600 text-white shadow-sm">
-              <Code2 className="h-3.5 w-3.5" aria-hidden />
-            </span>
-            <div className="min-w-0 leading-tight">
-              <p className="text-[0.625rem] font-medium uppercase tracking-wider text-slate-400">
-                Developed by
-              </p>
-              <p className="truncate text-xs font-semibold text-brand-700">
-                IT Team · {APP_META.company}
-              </p>
+          <div className={cn('dev-credit', collapsed && 'lg:hidden')}>
+            <div className="dev-credit-inner">
+              <span className="dev-credit-tile">
+                <Code2 className="h-[15px] w-[15px]" strokeWidth={2.2} aria-hidden />
+              </span>
+              <div className="min-w-0 leading-tight">
+                <p className="flex items-center gap-1.5 text-[0.59375rem] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                  Developed by
+                  <span className="dev-credit-dot" aria-hidden />
+                </p>
+                <p className="dev-credit-name truncate text-[0.78125rem] font-bold tracking-tight">
+                  IT Team · {APP_META.company}
+                </p>
+              </div>
             </div>
           </div>
           {collapsed && (
-            <p
-              className="hidden text-center text-[0.6875rem] font-semibold text-brand-600 lg:block"
+            <div
+              className="dev-credit mx-auto hidden w-fit lg:block"
               title={`Developed by IT Team · ${APP_META.company}`}
             >
-              v1
-            </p>
+              <span className="dev-credit-tile m-[3px]">
+                <Code2 className="h-[15px] w-[15px]" strokeWidth={2.2} aria-hidden />
+              </span>
+            </div>
           )}
         </div>
       </aside>
