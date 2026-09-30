@@ -57,43 +57,10 @@
 @layer components {
 
   /*
-   * Sidebar "Developed by" credit: text only, no fill, no icon. A comet of
-   * brand light orbits a hairline ring (masked, so the sidebar shows through
-   * the middle), the name shimmers blue to green and a live dot pings. The
-   * global reduced-motion rule above freezes all of it on request.
+   * Sidebar "Developed by" credit: plain text, no card. The name shimmers
+   * blue to green continuously; the global reduced-motion rule above
+   * freezes it on request.
    */
-  .dev-credit {
-    position: relative;
-    border-radius: 14px;
-  }
-  .dev-credit-ring {
-    pointer-events: none;
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-    border-radius: inherit;
-    padding: 1.5px;
-    background: theme('colors.brand.100');
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-  }
-  .dev-credit-ring::before {
-    content: '';
-    position: absolute;
-    inset: -150%;
-    background: conic-gradient(
-      from 0deg,
-      theme('colors.brand.600'),
-      theme('colors.accent.500'),
-      theme('colors.brand.400'),
-      theme('colors.brand.600') 40%,
-      transparent 55%,
-      transparent 85%,
-      theme('colors.brand.600')
-    );
-    animation: dev-credit-orbit 5s linear infinite;
-  }
   .dev-credit-name {
     background: linear-gradient(
       90deg,
@@ -109,29 +76,8 @@
     color: transparent;
     animation: dev-credit-flow 4s linear infinite;
   }
-  .dev-credit-dot {
-    position: relative;
-    width: 6px;
-    height: 6px;
-    border-radius: 9999px;
-    background: theme('colors.accent.500');
-  }
-  .dev-credit-dot::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background: inherit;
-    animation: dev-credit-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
-  }
-  @keyframes dev-credit-orbit {
-    to { transform: rotate(360deg); }
-  }
   @keyframes dev-credit-flow {
     to { background-position: -200% center; }
-  }
-  @keyframes dev-credit-ping {
-    75%, 100% { transform: scale(2.4); opacity: 0; }
   }
   .scrollbar-thin {
     scrollbar-width: thin;

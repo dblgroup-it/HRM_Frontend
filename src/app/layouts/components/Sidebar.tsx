@@ -274,14 +274,12 @@ export function Sidebar({
         >
           <div
             className={cn(
-              'dev-credit px-3 py-2 text-center',
+              'px-3 py-2 text-center',
               collapsed && 'lg:hidden'
             )}
           >
-            <span className="dev-credit-ring" aria-hidden />
-            <p className="flex items-center justify-center gap-1.5 text-[0.59375rem] font-semibold uppercase tracking-[0.14em] text-slate-400">
+            <p className="text-[0.59375rem] font-semibold uppercase tracking-[0.14em] text-slate-400">
               Developed by
-              <span className="dev-credit-dot" aria-hidden />
             </p>
             <p className="dev-credit-name truncate text-[0.8125rem] font-bold tracking-tight">
               IT Team · {APP_META.company}
@@ -289,10 +287,9 @@ export function Sidebar({
           </div>
           {collapsed && (
             <div
-              className="dev-credit mx-auto hidden h-10 w-10 place-items-center lg:grid"
+              className="hidden text-center lg:block"
               title={`Developed by IT Team · ${APP_META.company}`}
             >
-              <span className="dev-credit-ring" aria-hidden />
               <span className="dev-credit-name text-xs font-bold">IT</span>
             </div>
           )}
