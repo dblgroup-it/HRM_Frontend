@@ -58,34 +58,26 @@
 
   /*
    * Sidebar "Developed by" credit: plain text, no card. The name shimmers
-   * blue to green while a comet of brand light keeps crossing a hairline
-   * beneath it. The global reduced-motion rule above freezes both.
+   * blue to green, and one short streak of brand light keeps travelling
+   * around both lines. Only the streak is drawn: there is no base outline,
+   * so it never reads as a box. The global reduced-motion rule above
+   * freezes both.
    */
-  .dev-credit-track {
-    position: relative;
-    display: block;
-    height: 2px;
-    margin-top: 4px;
-    overflow: hidden;
-    border-radius: 9999px;
-    background: theme('colors.brand.100');
-  }
-  .dev-credit-track::after {
-    content: '';
+  .dev-credit-orbit {
+    pointer-events: none;
     position: absolute;
-    top: 0;
-    bottom: 0;
-    left: -40%;
-    width: 40%;
-    border-radius: inherit;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      theme('colors.brand.600'),
-      theme('colors.accent.500'),
-      transparent
-    );
-    animation: dev-credit-comet 2.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    filter: drop-shadow(0 0 3px rgb(140 198 63 / 0.55));
+  }
+  .dev-credit-orbit rect {
+    fill: none;
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-dasharray: 16 84;
+    animation: dev-credit-orbit 3.2s linear infinite;
   }
   .dev-credit-name {
     background: linear-gradient(
@@ -102,8 +94,8 @@
     color: transparent;
     animation: dev-credit-flow 4s linear infinite;
   }
-  @keyframes dev-credit-comet {
-    to { left: 100%; }
+  @keyframes dev-credit-orbit {
+    to { stroke-dashoffset: -100; }
   }
   @keyframes dev-credit-flow {
     to { background-position: -200% center; }

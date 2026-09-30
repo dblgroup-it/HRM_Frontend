@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { NavLink } from 'react-router-dom';
 import { X } from 'lucide-react';
 
@@ -274,33 +275,54 @@ export function Sidebar({
         >
           <div
             className={cn(
-              'px-3 py-2 text-center',
+              'relative mx-auto w-fit max-w-full px-4 py-2 text-center',
               collapsed && 'lg:hidden'
             )}
           >
+            <CreditOrbit />
             <p className="text-[0.59375rem] font-semibold uppercase tracking-[0.14em] text-slate-400">
               Developed by
             </p>
-            <p className="mx-auto w-fit max-w-full">
-              <span className="dev-credit-name block truncate text-[0.8125rem] font-bold tracking-tight">
-                IT Team · {APP_META.company}
-              </span>
-              <span className="dev-credit-track" aria-hidden />
+            <p className="dev-credit-name truncate text-[0.8125rem] font-bold tracking-tight">
+              IT Team · {APP_META.company}
             </p>
           </div>
           {collapsed && (
             <div
-              className="hidden text-center lg:block"
+              className="relative mx-auto hidden w-fit px-2.5 py-1.5 lg:block"
               title={`Developed by IT Team · ${APP_META.company}`}
             >
-              <span className="mx-auto block w-fit">
-                <span className="dev-credit-name block text-xs font-bold">IT</span>
-                <span className="dev-credit-track" aria-hidden />
-              </span>
+              <CreditOrbit />
+              <span className="dev-credit-name block text-xs font-bold">IT</span>
             </div>
           )}
         </div>
       </aside>
     </>
+  );
+}
+
+/**
+ * One short streak of brand light running around the credit's edge. Only
+ * the streak is stroked (no base outline), so the text never sits in a box.
+ */
+function CreditOrbit() {
+  const id = useId();
+  return (
+    <svg className="dev-credit-orbit" aria-hidden>
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#1877c0" />
+          <stop offset="100%" stopColor="#8cc63f" />
+        </linearGradient>
+      </defs>
+      <rect
+        width="100%"
+        height="100%"
+        rx="12"
+        pathLength={100}
+        stroke={`url(#${id})`}
+      />
+    </svg>
   );
 }
