@@ -592,7 +592,7 @@ export default function LoginPage() {
         <div ref={parallaxRef} className="login-tilt relative hidden lg:block">
           {/* Desktop: the "dbl" watermark sits behind the wings, a little low,
               and tilts with them */}
-          <DblWatermark className="pointer-events-none absolute -bottom-[23%] left-1/2 w-[100%] [@media(max-height:800px)]:-bottom-[7%] -translate-x-[42%] opacity-[0.14]" />
+          <DblWatermark className="pointer-events-none absolute -bottom-[23%] left-1/2 w-[100%] [@media(max-height:800px)]:-bottom-[7%] -translate-x-[34%] opacity-[0.14]" />
           <DblArtwork className="relative h-auto max-h-[calc(100vh-4rem)] w-full -translate-y-[9%] overflow-visible" />
         </div>
 
