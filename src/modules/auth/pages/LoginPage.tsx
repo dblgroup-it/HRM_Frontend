@@ -280,8 +280,8 @@ function useParallax() {
 /**
  * DBL's two drops, the page's background artwork: glossy, layered rims,
  * line-art leaves and water beads inside, a streak of light round each
- * edge, both floating out of step. The feature text, journey and
- * notices show from xl up.
+ * edge, both floating out of step. The feature text shows from lg up;
+ * the journey and notices from xl up.
  */
 function DblArtwork({ className }: { className?: string }) {
   const uid = useId().replace(/:/g, '');
@@ -354,7 +354,7 @@ function DblArtwork({ className }: { className?: string }) {
             className="fill-none stroke-white/15"
           />
           <path d={GREEN_DROP} pathLength={100} className="login-drop-streak" />
-          <g className="hidden xl:inline">
+          <g className="hidden lg:inline">
             <FeatureItem f={greenFeatures[0]} x={122} y={302} align="start" />
             <line
               x1={90}
@@ -408,7 +408,7 @@ function DblArtwork({ className }: { className?: string }) {
             pathLength={100}
             className="login-drop-streak [animation-delay:-3.5s]"
           />
-          <g className="hidden xl:inline">
+          <g className="hidden lg:inline">
             <FeatureItem f={blueFeatures[0]} x={620} y={142} align="end" />
             <line
               x1={440}
@@ -497,7 +497,7 @@ function DblArtwork({ className }: { className?: string }) {
 export default function LoginPage() {
   const parallaxRef = useParallax();
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[linear-gradient(135deg,#eaf2fa_0%,#f8fafc_45%,#eef6e3_100%)] p-4 lg:p-8">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[linear-gradient(135deg,#eaf2fa_0%,#f8fafc_45%,#eef6e3_100%)] p-4 lg:p-6 xl:p-8">
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <div className="absolute -left-40 -top-40 h-[36rem] w-[36rem] animate-blob-1 rounded-full bg-brand-200/40 blur-3xl" />
         <div className="absolute -bottom-40 -right-32 h-[36rem] w-[36rem] animate-blob-2 rounded-full bg-accent-200/40 blur-3xl" />
@@ -514,7 +514,7 @@ export default function LoginPage() {
       {/* Phones and tablets: the drops sit faintly behind the card */}
       <DblArtwork className="pointer-events-none absolute left-1/2 top-1/2 w-[140vw] max-w-[760px] -translate-x-1/2 -translate-y-1/2 overflow-visible opacity-30 lg:hidden" />
 
-      <div className="relative grid w-full max-w-[1320px] items-center gap-10 lg:grid-cols-[1.45fr_1fr]">
+      <div className="relative grid w-full max-w-[1320px] items-center gap-10 lg:grid-cols-[1.6fr_1fr] lg:gap-5 xl:grid-cols-[1.45fr_1fr] xl:gap-10">
         {/* Desktop: the drops and the hiring journey on the left */}
         <div ref={parallaxRef} className="login-tilt hidden lg:block">
           <DblArtwork className="h-auto max-h-[calc(100vh-4rem)] w-full overflow-visible" />
@@ -522,7 +522,7 @@ export default function LoginPage() {
 
         {/* Sign-in on the right */}
         <div className="flex justify-center">
-          <div className="relative z-10 w-full max-w-sm animate-rise-in">
+          <div className="relative z-10 w-full max-w-sm animate-rise-in lg:max-w-[340px] xl:max-w-sm">
             <div
               aria-hidden
               className="login-card-glow pointer-events-none absolute -inset-[2px] rounded-[26px]"
