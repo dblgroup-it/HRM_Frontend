@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import {
+  Briefcase,
   Clock,
+  GraduationCap,
+  ListChecks,
   Loader2,
   Pencil,
   Save,
@@ -10,6 +13,7 @@ import {
   UserRound,
   Wand2,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { BusyOverlay, Button, Input, Textarea } from '@shared/components/ui';
@@ -41,9 +45,9 @@ import {
  *  2. open to this viewer, as a form they submit;
  *  3. read-only — either waiting on someone else, or already completed.
  *
- * Rendered inside `JobAnalysisCard`, which tabs it against the attachments:
+ * Rendered inside `JobAnalysisCard`, with the attachments directly below it:
  * the detailed JD is an attachment, so writing one and filing the other are
- * the same piece of work and belong behind one heading.
+ * the same piece of work and belong under one heading.
  */
 export function JobAnalysisSection({
   requisition: req,
@@ -133,8 +137,6 @@ export function JobAnalysisSection({
       },
     );
 
-  const completedBy = req.jobAnalysis?.completedBy;
-  const completedAt = req.jobAnalysis?.completedAt;
   const owners = ownership.data?.owners ?? [];
   const assignee = ownership.data?.assignee ?? req.jobAnalysis?.assignee ?? null;
   /**
@@ -181,13 +183,6 @@ export function JobAnalysisSection({
 
   return (
     <div className="space-y-4">
-      {completedBy && (
-        <p className="text-xs text-slate-400">
-          Written by {completedBy.name}
-          {completedAt ? ` · ${formatDate(completedAt)}` : ''}
-        </p>
-      )}
-
       {/* 1 · Handed back: section A is the raiser's to fix. */}
       {open && returnedAt && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
@@ -229,8 +224,8 @@ export function JobAnalysisSection({
               {ownership.data?.viaFactoryHr
                 ? 'Shared with every Factory HR on duty for this unit — any of you can continue it, and each save is logged under your name.'
                 : `${req.unitFactory} has no Factory HR available, so this is yours to complete.`}{' '}
-              Submitting starts the approval chain. The detailed JD goes in the
-              Attachments tab.
+              Submitting starts the approval chain. Attach the detailed JD
+              under Attachments, below.
               {lastWork && (
                 <span className="mt-1 block text-xs text-slate-500">
                   Last worked on by {lastWork.actor} ·{' '}
@@ -504,33 +499,26 @@ export function JobAnalysisSection({
         </div>
       )}
 
-      {/* 3b · Already written — the record, as every other section reads. */}
+      {/* 3b · Already written — the record. The description is prose and
+          gets the width; the specification is three short facts, laid side
+          by side where there is room and stacked where there is not. */}
       {!open && (
         <>
-          <div>
-            <p className="text-xs text-slate-400">Job description</p>
-            <p className="mt-0.5 whitespace-pre-line text-sm text-slate-700">
+          <div className="rounded-xl bg-slate-50/80 px-4 py-3.5">
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-slate-500">
+              Job description
+            </p>
+            <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-slate-800">
               {req.jobDescription || '—'}
             </p>
           </div>
-          <div>
-            <p className="text-xs text-slate-400">Education & training</p>
-            <p className="mt-0.5 text-sm text-slate-700">
-              {req.education || '—'}
-            </p>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(15rem,1fr))] gap-3">
+            <SpecFact icon={GraduationCap} tone="bg-sky-50 text-sky-600" label="Education & training" value={req.education} />
+            <SpecFact icon={Briefcase} tone="bg-amber-50 text-amber-600" label="Experience" value={req.experience} />
+            {req.others && (
+              <SpecFact icon={ListChecks} tone="bg-violet-50 text-violet-600" label="Others" value={req.others} />
+            )}
           </div>
-          <div>
-            <p className="text-xs text-slate-400">Experience</p>
-            <p className="mt-0.5 text-sm text-slate-700">
-              {req.experience || '—'}
-            </p>
-          </div>
-          {req.others && (
-            <div>
-              <p className="text-xs text-slate-400">Others</p>
-              <p className="mt-0.5 text-sm text-slate-700">{req.others}</p>
-            </div>
-          )}
         </>
       )}
 
@@ -545,6 +533,30 @@ export function JobAnalysisSection({
         label="Drafting the job analysis…"
         sublabel="Reading the vacancy and writing section B."
       />
+    </div>
+  );
+}
+
+function SpecFact({
+  icon: Icon,
+  tone,
+  label,
+  value,
+}: {
+  icon: LucideIcon;
+  tone: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4 transition-shadow duration-200 hover:shadow-sm">
+      <p className="flex items-center gap-2 text-[0.6875rem] font-semibold uppercase tracking-wider text-slate-500">
+        <span className={cn('flex h-6 w-6 items-center justify-center rounded-md', tone)}>
+          <Icon className="h-3.5 w-3.5" />
+        </span>
+        {label}
+      </p>
+      <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-800">{value || '—'}</p>
     </div>
   );
 }

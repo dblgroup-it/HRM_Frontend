@@ -1,27 +1,20 @@
-import { useState } from 'react';
-import { FileText, Paperclip } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { CheckCircle2, FileText, Paperclip } from 'lucide-react';
 
-import { Card, CardBody } from '@shared/components/ui';
-import { cn } from '@shared/lib';
+import { Card } from '@shared/components/ui';
+import { formatDate } from '@shared/utils';
 
 import type { Requisition } from '../types/requisition.types';
 import { JobAnalysisSection } from './JobAnalysisPanel';
 import { AttachmentsSection } from './AttachmentsPanel';
 
-type Tab = 'analysis' | 'attachments';
-
 /**
- * Section B and the requisition's files, behind one heading.
+ * Section B and the requisition's files, one after the other in one card.
  *
- * They used to be two cards stacked in different columns, with the
- * attachments below the fold on the far side of the page — which meant the
- * person writing the job analysis was told "attach the detailed JD" by a card
- * they could not see. They are one job: the JD is written here and filed here.
- *
- * A card-level tab bar rather than the page's glass one — that bar is the
- * lifecycle, and a second copy of it inside a card would read as another
- * lifecycle. This is a segmented switch that keeps its own row.
+ * They used to be two cards in different columns, and then two tabs of one
+ * card — either way the person writing the job analysis was told "attach the
+ * detailed JD" by something they could not see, and a reader of a finished
+ * requisition had to click to learn whether a JD was attached at all. They
+ * are one job, so they read as one page: the analysis, then its files.
  */
 export function JobAnalysisCard({
   requisition,
@@ -35,92 +28,66 @@ export function JobAnalysisCard({
    */
   canEditFiles: boolean;
 }) {
-  const [tab, setTab] = useState<Tab>('analysis');
   const attachmentCount = requisition.attachments?.length ?? 0;
-  /** Amber while nobody has written it — the tab says what is outstanding. */
   const pending = requisition.status === 'pending_job_analysis';
-
-  const tabs: {
-    key: Tab;
-    label: string;
-    icon: LucideIcon;
-    count?: number;
-    dot?: boolean;
-  }[] = [
-    { key: 'analysis', label: 'B · Job Analysis', icon: FileText, dot: pending },
-    {
-      key: 'attachments',
-      label: 'Attachments',
-      icon: Paperclip,
-      count: attachmentCount,
-    },
-  ];
+  const completedBy = requisition.jobAnalysis?.completedBy;
+  const completedAt = requisition.jobAnalysis?.completedAt;
 
   return (
     <Card className="relative overflow-hidden">
-      <div
-        role="tablist"
-        aria-label="Job analysis and attachments"
-        className="flex items-center gap-1 border-b border-slate-100 bg-slate-50/70 px-2 py-2"
-      >
-        {tabs.map((t) => {
-          const on = t.key === tab;
-          const Icon = t.icon;
-          return (
-            <button
-              key={t.key}
-              type="button"
-              role="tab"
-              aria-selected={on}
-              onClick={() => setTab(t.key)}
-              className={cn(
-                'inline-flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
-                on
-                  ? 'bg-white text-brand-700 shadow-sm ring-1 ring-slate-200/80'
-                  : 'text-slate-500 hover:bg-white/70 hover:text-slate-700',
-              )}
-            >
-              <Icon
-                className={cn(
-                  'h-4 w-4 shrink-0',
-                  on ? 'text-brand-600' : 'text-slate-400',
-                )}
-              />
-              <span className="truncate">{t.label}</span>
-              {t.dot && (
-                <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-amber-500" />
-              )}
-              {t.count !== undefined && t.count > 0 && (
-                <span
-                  className={cn(
-                    'min-w-[1.25rem] rounded-full px-1.5 text-center text-[0.6875rem] font-semibold tabular-nums leading-5',
-                    on
-                      ? 'bg-brand-50 text-brand-700'
-                      : 'bg-slate-200/70 text-slate-500',
-                  )}
-                >
-                  {t.count}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      <CardBody>
-        {/* Both tabs stay mounted and the inactive one is hidden.
-            Swapping them out unmounted the job-analysis form, and with it
-            everything typed into it — so drafting section B with AI and then
-            stepping over to attach the detailed JD, which the form itself
-            tells you to do, threw the draft away. Nothing here is expensive
-            enough to be worth unmounting for. */}
-        <div className={tab === 'analysis' ? 'animate-fade-in' : 'hidden'}>
+      <div className="space-y-6 p-5 sm:p-6">
+        <section className="space-y-4">
+          <header className="flex flex-wrap items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600 ring-1 ring-brand-100">
+              <FileText className="h-5 w-5" />
+            </span>
+            <div className="min-w-[12rem] flex-1">
+              <h3 className="text-base font-semibold text-slate-900">
+                B · Job Analysis
+              </h3>
+              <p className="text-xs text-slate-500">
+                Job description and specification, written by HR from the
+                vacancy
+              </p>
+            </div>
+            {pending ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" />
+                In progress
+              </span>
+            ) : completedBy ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {completedBy.name}
+                {completedAt ? ` · ${formatDate(completedAt)}` : ''}
+              </span>
+            ) : null}
+          </header>
           <JobAnalysisSection requisition={requisition} />
-        </div>
-        <div className={tab === 'attachments' ? 'animate-fade-in' : 'hidden'}>
+        </section>
+
+        <section className="space-y-3 rounded-2xl bg-slate-50/80 p-4 ring-1 ring-slate-200/70 sm:p-5">
+          <header className="flex items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-slate-600 shadow-sm ring-1 ring-slate-200">
+              <Paperclip className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                Attachments
+                {attachmentCount > 0 && (
+                  <span className="min-w-[1.25rem] rounded-full bg-brand-50 px-1.5 text-center text-[0.6875rem] font-semibold tabular-nums leading-5 text-brand-700">
+                    {attachmentCount}
+                  </span>
+                )}
+              </h3>
+              <p className="text-xs text-slate-500">
+                The detailed JD and any supporting files
+              </p>
+            </div>
+          </header>
           <AttachmentsSection requisition={requisition} canEdit={canEditFiles} />
-        </div>
-      </CardBody>
+        </section>
+      </div>
     </Card>
   );
 }

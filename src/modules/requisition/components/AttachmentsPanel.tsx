@@ -17,9 +17,9 @@ const MAX_BYTES = 15 * 1024 * 1024;
 /**
  * The requisition's files — the detailed JD above all.
  *
- * The body only: it is tabbed against the job analysis inside
- * `JobAnalysisCard`, because filing the detailed JD and writing section B are
- * the same piece of work.
+ * The body only: it sits under the job analysis inside `JobAnalysisCard`,
+ * because filing the detailed JD and writing section B are the same piece of
+ * work.
  */
 export function AttachmentsSection({
   requisition,
@@ -55,7 +55,7 @@ export function AttachmentsSection({
   return (
     <div>
       {attachments.length === 0 && !canEdit ? (
-        <p className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-400">
+        <p className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">
           No files were attached to this requisition.
         </p>
       ) : attachments.length === 0 ? (
@@ -63,7 +63,7 @@ export function AttachmentsSection({
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={upload.isPending}
-          className="flex w-full flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 px-4 py-8 text-center transition hover:border-brand-300 hover:bg-brand-50/40 disabled:opacity-60"
+          className="flex w-full flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center transition hover:border-brand-300 hover:bg-brand-50/40 disabled:opacity-60"
         >
           <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-400">
             {upload.isPending ? (
@@ -85,7 +85,7 @@ export function AttachmentsSection({
             {attachments.map((a) => (
               <li
                 key={a.fileId}
-                className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 transition hover:border-brand-200 hover:bg-brand-50/30"
+                className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 transition hover:-translate-y-px hover:border-brand-200 hover:shadow-sm"
               >
                 <a
                   href={resolveApiFileUrl(a.url)}
