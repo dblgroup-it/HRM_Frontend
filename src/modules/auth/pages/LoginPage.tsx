@@ -588,12 +588,20 @@ export default function LoginPage() {
       <DblArtwork className="pointer-events-none absolute left-1/2 top-1/2 w-[140vw] max-w-[760px] -translate-x-1/2 -translate-y-1/2 overflow-visible opacity-30 lg:hidden" />
 
       <div className="relative grid w-full max-w-[1320px] items-center gap-10 lg:grid-cols-[1.6fr_1fr] lg:gap-5 xl:grid-cols-[1.45fr_1fr] xl:gap-10">
-        {/* Desktop: the drops and the hiring journey on the left */}
-        <div ref={parallaxRef} className="login-tilt relative hidden lg:block">
-          {/* Desktop: the "dbl" watermark sits behind the wings, a little low,
-              and tilts with them */}
-          <DblWatermark className="pointer-events-none absolute -bottom-[23%] left-1/2 w-[100%] [@media(max-height:800px)]:-bottom-[7%] -translate-x-[34%] opacity-[0.14]" />
-          <DblArtwork className="relative h-auto max-h-[calc(100vh-4rem)] w-full -translate-y-[9%] overflow-visible" />
+        {/* Desktop: the drops and the hiring journey on the left. The stage
+            is sized by the viewport's height as well as the column's width,
+            so on a short laptop screen the whole scene (wings, journey,
+            notices and the watermark hanging below) shrinks to fit rather
+            than running off the top and bottom. */}
+        <div className="hidden justify-center lg:flex">
+          <div className="relative w-[min(100%,calc((100vh-3rem)*0.84))] [@media(max-height:800px)]:w-[min(100%,calc((100vh-2rem)*0.92))] [@media(max-height:800px)]:-translate-y-[6%]">
+            {/* The "dbl" watermark sits behind the wings, a little low. It is
+                outside the tilting layer on purpose: it stays still. */}
+            <DblWatermark className="pointer-events-none absolute -bottom-[23%] left-1/2 w-full -translate-x-[34%] opacity-[0.14]" />
+            <div ref={parallaxRef} className="login-tilt relative">
+              <DblArtwork className="relative h-auto w-full -translate-y-[9%] overflow-visible" />
+            </div>
+          </div>
         </div>
 
         {/* Sign-in on the right */}
