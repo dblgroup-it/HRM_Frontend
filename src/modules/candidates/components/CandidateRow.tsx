@@ -147,7 +147,6 @@ export function CandidateRow({
   const rowRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [cvOpen, setCvOpen] = useState(false);
-  const [showFullSummary, setShowFullSummary] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [flagModalOpen, setFlagModalOpen] = useState(false);
   const [matchOpen, setMatchOpen] = useState(false);
@@ -419,29 +418,23 @@ export function CandidateRow({
             </div>
           )}
 
+          {/* The AI's read of the CV, in full: it is the reason to look at a
+              card at all, so it is not hidden behind a click. */}
           {candidate.matchSummary && (
-            <div className="mt-0.5 flex min-w-0 items-start gap-1.5 text-[0.8125rem] text-slate-600">
-              <Sparkles className="mt-[3px] h-3.5 w-3.5 shrink-0 text-violet-500" />
-              <button
-                type="button"
-                onClick={() => setShowFullSummary((v) => !v)}
-                title={showFullSummary ? 'Show less' : 'Show the whole summary'}
-                className={cn(
-                  'block min-w-0 flex-1 text-left transition-colors hover:text-slate-800',
-                  showFullSummary ? 'whitespace-normal' : 'truncate',
-                )}
-              >
+            <div className="mt-1 flex min-w-0 items-start gap-1.5 text-[0.8125rem] leading-relaxed text-slate-600">
+              <Sparkles className="mt-[4px] h-3.5 w-3.5 shrink-0 text-violet-500" />
+              <p className="min-w-0 flex-1">
                 {candidate.matchSummary}
-              </button>
-              {candidate.matchDetails && candidate.matchScore !== null && (
-                <button
-                  type="button"
-                  onClick={(e) => openMatch(e.currentTarget)}
-                  className="shrink-0 font-medium text-brand-700 hover:underline"
-                >
-                  Why {candidate.matchScore}?
-                </button>
-              )}
+                {candidate.matchDetails && candidate.matchScore !== null && (
+                  <button
+                    type="button"
+                    onClick={(e) => openMatch(e.currentTarget)}
+                    className="ml-1.5 whitespace-nowrap font-medium text-brand-700 hover:underline"
+                  >
+                    Why {candidate.matchScore}?
+                  </button>
+                )}
+              </p>
             </div>
           )}
         </div>

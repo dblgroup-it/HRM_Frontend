@@ -36,16 +36,14 @@ function verdict(pct: number) {
  * A centred dialog rather than a popover pinned to the score: pinned, it only
  * got the room left above or below the button, the summary ate most of that,
  * and the criteria — the reason to open it — were a two-line strip. Here the
- * summary folds away and the criteria have the rest of the window to scroll.
+ * summary is shown whole above, and the criteria scroll in the rest.
  */
 export function MatchPopover({ open, onClose, candidateName, matchScore, matchSummary, criteria }: Props) {
   const [shown, setShown] = useState(false);
-  const [fullSummary, setFullSummary] = useState(false);
 
   useEffect(() => {
     if (!open) {
       setShown(false);
-      setFullSummary(false);
       return;
     }
     const t = requestAnimationFrame(() => setShown(true));
@@ -125,19 +123,8 @@ export function MatchPopover({ open, onClose, candidateName, matchScore, matchSu
             </button>
           </div>
           {matchSummary && (
-            <div className="mt-4 rounded-2xl bg-violet-50/70 px-4 py-3">
-              <p className={cn('text-[0.8125rem] leading-relaxed text-slate-700', !fullSummary && 'line-clamp-2')}>
-                {matchSummary}
-              </p>
-              {matchSummary.length > 180 && (
-                <button
-                  type="button"
-                  onClick={() => setFullSummary((v) => !v)}
-                  className="mt-1 text-xs font-medium text-violet-700 hover:underline"
-                >
-                  {fullSummary ? 'Show less' : 'Read the whole summary'}
-                </button>
-              )}
+            <div className="mt-4 max-h-[30vh] overflow-y-auto rounded-2xl bg-violet-50/70 px-4 py-3">
+              <p className="text-[0.8125rem] leading-relaxed text-slate-700">{matchSummary}</p>
             </div>
           )}
         </div>
