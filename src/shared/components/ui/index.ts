@@ -75,3 +75,5 @@ export {
 
 export { LifecycleTabs } from './LifecycleTabs';
 export type { LifecycleTab } from './LifecycleTabs';
+export { DevCredit } from './DevCredit';
+export type { CreditLine } from './DevCredit';
