@@ -60,14 +60,19 @@ import { resolveApiFileUrl } from '@shared/api';
 const ACCEPT = '.pdf,application/pdf';
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
 
-const STAGE_META: Record<CandidateStage, { label: string; tone: string; dot: string }> = {
-  applied: { label: 'Applied', tone: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' },
-  ai_shortlisted: { label: 'AI Shortlisted', tone: 'bg-violet-100 text-violet-700', dot: 'bg-violet-500' },
-  shortlisted: { label: 'Shortlisted', tone: 'bg-sky-100 text-sky-700', dot: 'bg-sky-500' },
-  interview: { label: 'Interview', tone: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' },
-  final: { label: 'Final', tone: 'bg-indigo-100 text-indigo-700', dot: 'bg-indigo-500' },
-  selected: { label: 'Selected', tone: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
-  rejected: { label: 'Rejected', tone: 'bg-rose-100 text-rose-700', dot: 'bg-rose-500' },
+/**
+ * `tone` is the read-only pill; `control` is the stage selector, which is the
+ * most-used control on the card and is drawn to look like one — outlined in
+ * the stage's colour, with its arrow in a well of its own.
+ */
+const STAGE_META: Record<CandidateStage, { label: string; tone: string; dot: string; control: string; well: string }> = {
+  applied: { label: 'Applied', tone: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400', control: 'border-slate-300 bg-slate-50 text-slate-700 hover:border-slate-400', well: 'border-slate-300 bg-slate-100' },
+  ai_shortlisted: { label: 'AI Shortlisted', tone: 'bg-violet-100 text-violet-700', dot: 'bg-violet-500', control: 'border-violet-300 bg-violet-50 text-violet-800 hover:border-violet-400', well: 'border-violet-200 bg-violet-100' },
+  shortlisted: { label: 'Shortlisted', tone: 'bg-sky-100 text-sky-700', dot: 'bg-sky-500', control: 'border-sky-300 bg-sky-50 text-sky-800 hover:border-sky-400', well: 'border-sky-200 bg-sky-100' },
+  interview: { label: 'Interview', tone: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500', control: 'border-amber-300 bg-amber-50 text-amber-800 hover:border-amber-400', well: 'border-amber-200 bg-amber-100' },
+  final: { label: 'Final', tone: 'bg-indigo-100 text-indigo-700', dot: 'bg-indigo-500', control: 'border-indigo-300 bg-indigo-50 text-indigo-800 hover:border-indigo-400', well: 'border-indigo-200 bg-indigo-100' },
+  selected: { label: 'Selected', tone: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500', control: 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:border-emerald-400', well: 'border-emerald-200 bg-emerald-100' },
+  rejected: { label: 'Rejected', tone: 'bg-rose-100 text-rose-700', dot: 'bg-rose-500', control: 'border-rose-300 bg-rose-50 text-rose-800 hover:border-rose-400', well: 'border-rose-200 bg-rose-100' },
 };
 
 const STAGE_ORDER: CandidateStage[] = [
@@ -996,7 +1001,7 @@ function StageMenu({
     const rect = btnRef.current.getBoundingClientRect();
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const W = 190;
+    const W = 210;
     const GAP = 6;
     const left = Math.min(Math.max(8, rect.right - W), vw - W - 8);
     const spaceBelow = vh - rect.bottom - GAP;
@@ -1041,15 +1046,27 @@ function StageMenu({
         type="button"
         disabled={pending}
         onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        title="Change stage"
         className={cn(
-          'inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
-          'transition-all duration-150 ease-out hover:shadow-sm hover:brightness-95 active:scale-95 disabled:opacity-50',
-          meta.tone,
+          'group/stage inline-flex h-8 shrink-0 items-stretch overflow-hidden rounded-lg border text-[0.8125rem] font-semibold shadow-sm',
+          'transition-all duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:shadow-md motion-safe:hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97]',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 focus-visible:ring-offset-1 disabled:opacity-50',
+          open && 'ring-2 ring-brand-400/40',
+          meta.control,
         )}
       >
-        <span className={cn('h-1.5 w-1.5 rounded-full', meta.dot)} />
-        {meta.label}
-        <ChevronDown className={cn('h-3 w-3 opacity-60 transition-transform duration-150', open && 'rotate-180')} />
+        <span className="flex items-center gap-2 pl-3 pr-2.5">
+          <span className="relative flex h-2 w-2">
+            <span className={cn('absolute inline-flex h-full w-full rounded-full opacity-50 motion-safe:group-hover/stage:animate-ping', meta.dot)} />
+            <span className={cn('relative inline-flex h-2 w-2 rounded-full', meta.dot)} />
+          </span>
+          {meta.label}
+        </span>
+        <span className={cn('flex items-center border-l px-1.5', meta.well)}>
+          <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-200', open && 'rotate-180')} />
+        </span>
       </button>
 
       {open &&
@@ -1062,8 +1079,10 @@ function StageMenu({
               transform: ready ? 'scale(1) translateY(0)' : 'scale(0.96) translateY(-4px)',
               transition: 'opacity 0.14s cubic-bezier(0.16,1,0.3,1), transform 0.14s cubic-bezier(0.16,1,0.3,1)',
             }}
+            role="listbox"
             className="overflow-hidden rounded-xl border border-slate-200 bg-white py-1.5 shadow-[0_12px_32px_-8px_rgba(0,0,0,0.18),0_2px_8px_-2px_rgba(0,0,0,0.06)]"
           >
+            <p className="px-3.5 pb-1 pt-1 text-[0.625rem] font-semibold uppercase tracking-widest text-slate-400">Move to stage</p>
             {STAGE_ORDER.map((s) => {
               const m = STAGE_META[s];
               const disabled = s === 'ai_shortlisted';
@@ -1074,13 +1093,15 @@ function StageMenu({
                   type="button"
                   disabled={disabled}
                   onClick={() => { onChange(s); setOpen(false); }}
+                  role="option"
+                  aria-selected={isCurrent}
                   className={cn(
                     'flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-[0.8125rem] transition-colors',
                     'hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40',
-                    isCurrent ? 'font-semibold text-slate-800' : 'text-slate-600',
+                    isCurrent ? cn('font-semibold', m.tone) : 'text-slate-700',
                   )}
                 >
-                  <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', m.dot)} />
+                  <span className={cn('h-2 w-2 shrink-0 rounded-full', m.dot)} />
                   {m.label}
                   {disabled && <span className="text-[0.625rem] text-slate-400">(AI only)</span>}
                   {isCurrent && <Check className="ml-auto h-3.5 w-3.5 shrink-0 text-brand-600" />}
