@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Code2, X } from 'lucide-react';
+import { X } from 'lucide-react';
 
 import { cn } from '@shared/lib';
 import { APP_META } from '@shared/constants';
@@ -272,30 +272,28 @@ export function Sidebar({
             collapsed && 'lg:px-2'
           )}
         >
-          <div className={cn('dev-credit', collapsed && 'lg:hidden')}>
-            <div className="dev-credit-inner">
-              <span className="dev-credit-tile">
-                <Code2 className="h-[15px] w-[15px]" strokeWidth={2.2} aria-hidden />
-              </span>
-              <div className="min-w-0 leading-tight">
-                <p className="flex items-center gap-1.5 text-[0.59375rem] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                  Developed by
-                  <span className="dev-credit-dot" aria-hidden />
-                </p>
-                <p className="dev-credit-name truncate text-[0.78125rem] font-bold tracking-tight">
-                  IT Team · {APP_META.company}
-                </p>
-              </div>
-            </div>
+          <div
+            className={cn(
+              'dev-credit px-3 py-2 text-center',
+              collapsed && 'lg:hidden'
+            )}
+          >
+            <span className="dev-credit-ring" aria-hidden />
+            <p className="flex items-center justify-center gap-1.5 text-[0.59375rem] font-semibold uppercase tracking-[0.14em] text-slate-400">
+              Developed by
+              <span className="dev-credit-dot" aria-hidden />
+            </p>
+            <p className="dev-credit-name truncate text-[0.8125rem] font-bold tracking-tight">
+              IT Team · {APP_META.company}
+            </p>
           </div>
           {collapsed && (
             <div
-              className="dev-credit mx-auto hidden w-fit lg:block"
+              className="dev-credit mx-auto hidden h-10 w-10 place-items-center lg:grid"
               title={`Developed by IT Team · ${APP_META.company}`}
             >
-              <span className="dev-credit-tile m-[3px]">
-                <Code2 className="h-[15px] w-[15px]" strokeWidth={2.2} aria-hidden />
-              </span>
+              <span className="dev-credit-ring" aria-hidden />
+              <span className="dev-credit-name text-xs font-bold">IT</span>
             </div>
           )}
         </div>
