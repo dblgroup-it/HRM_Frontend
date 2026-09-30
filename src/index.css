@@ -95,6 +95,14 @@
     stroke-dasharray: 2 7;
     animation: login-journey-drift 1.6s linear infinite;
   }
+  .login-orbit {
+    fill: none;
+    stroke: theme('colors.brand.200');
+    stroke-width: 1.25;
+    stroke-dasharray: 1 11;
+    stroke-linecap: round;
+    animation: login-orbit-drift 30s linear infinite;
+  }
   .login-stage-halo {
     transform-box: fill-box;
     transform-origin: center;
@@ -104,6 +112,9 @@
     opacity: 0;
     filter: drop-shadow(0 10px 18px rgb(15 42 69 / 0.16));
     animation: login-notice-pop 9s ease-in-out infinite;
+  }
+  @keyframes login-orbit-drift {
+    to { stroke-dashoffset: -240; }
   }
   @keyframes login-journey-drift {
     to { stroke-dashoffset: -9; }
