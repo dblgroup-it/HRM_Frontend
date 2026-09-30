@@ -147,18 +147,16 @@ export default function LoginPage() {
 
             <LoginForm />
 
+            <p className="mt-10 text-center text-[0.6875rem] font-medium uppercase tracking-[0.28em] text-slate-400">
+              {APP_META.fullName}
+            </p>
             <DevCredit
-              className="mx-auto mt-10 w-fit max-w-full"
+              className="mx-auto mt-6 w-fit max-w-full"
               lines={[
-                {
-                  text: APP_META.fullName,
-                  className:
-                    'text-[0.6875rem] font-medium uppercase tracking-[0.28em] text-slate-400',
-                },
                 {
                   text: 'Developed by',
                   className:
-                    'mt-1 text-[0.59375rem] font-semibold uppercase tracking-[0.14em] text-slate-400',
+                    'text-[0.59375rem] font-semibold uppercase tracking-[0.14em] text-slate-400',
                 },
                 {
                   text: `IT Team · ${APP_META.company}`,
