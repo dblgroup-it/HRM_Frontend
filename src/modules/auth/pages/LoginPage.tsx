@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import {
   Bell,
   CalendarCheck,
@@ -69,7 +69,11 @@ const about = (c: { cx: number; cy: number }, k: number) =>
 /** A line-art leaf with its midrib and veins, drawn pointing up. */
 function Leaf({ transform }: { transform: string }) {
   return (
-    <g transform={transform} className="fill-none stroke-white/30" strokeWidth={1.2}>
+    <g
+      transform={transform}
+      className="fill-none stroke-white/30"
+      strokeWidth={1.2}
+    >
       <path d="M0 0 C 18 -14 20 -44 0 -70 C -20 -44 -18 -14 0 0 Z" />
       <path d="M0 -4 V -64" />
       <path d="M0 -22 L 10 -32 M0 -36 L -10 -46 M0 -48 L 8 -56" />
@@ -92,9 +96,27 @@ function FeatureItem({
   const badge = align === 'start' ? x - 34 : x + 34;
   return (
     <g>
-      <circle cx={badge} cy={y + 8} r={17} className="fill-white/20 stroke-white/45" strokeWidth={1} />
-      <f.icon x={badge - 9} y={y - 1} width={18} height={18} color="white" strokeWidth={1.9} />
-      <text x={x} y={y} textAnchor={align} className="fill-white text-[15px] font-bold tracking-tight">
+      <circle
+        cx={badge}
+        cy={y + 8}
+        r={17}
+        className="fill-white/20 stroke-white/45"
+        strokeWidth={1}
+      />
+      <f.icon
+        x={badge - 9}
+        y={y - 1}
+        width={18}
+        height={18}
+        color="white"
+        strokeWidth={1.9}
+      />
+      <text
+        x={x}
+        y={y}
+        textAnchor={align}
+        className="fill-white text-[15px] font-bold tracking-tight"
+      >
         {f.title}
       </text>
       {f.desc.map((line, i) => (
@@ -145,12 +167,27 @@ const NOTICES: { icon: LucideIcon; text: string; x: number; y: number }[] = [
 ];
 
 /** A candidate: a small person in a white badge. */
-function Person({ x = 0, y = 0, className }: { x?: number; y?: number; className?: string }) {
+function Person({
+  x = 0,
+  y = 0,
+  className,
+}: {
+  x?: number;
+  y?: number;
+  className?: string;
+}) {
   return (
     <g transform={`translate(${x} ${y})`} className={className}>
-      <circle r={12} className="fill-white stroke-brand-500" strokeWidth={1.5} />
+      <circle
+        r={12}
+        className="fill-white stroke-brand-500"
+        strokeWidth={1.5}
+      />
       <circle cy={-3.5} r={3.2} className="fill-brand-600" />
-      <path d="M-5.5 6.5 C -5.5 1.5, 5.5 1.5, 5.5 6.5 Z" className="fill-brand-600" />
+      <path
+        d="M-5.5 6.5 C -5.5 1.5, 5.5 1.5, 5.5 6.5 Z"
+        className="fill-brand-600"
+      />
     </g>
   );
 }
@@ -175,13 +212,7 @@ function Traveller({ pathId, delay }: { pathId: string; delay: number }) {
   );
 }
 
-function Notice({
-  n,
-  delay,
-}: {
-  n: (typeof NOTICES)[number];
-  delay: number;
-}) {
+function Notice({ n, delay }: { n: (typeof NOTICES)[number]; delay: number }) {
   const w = 30 + n.text.length * 7.1 + 18;
   return (
     <g
@@ -191,12 +222,59 @@ function Notice({
     >
       <rect width={w} height={36} rx={18} className="fill-white" />
       <circle cx={18} cy={18} r={12} className="fill-brand-50" />
-      <n.icon x={11} y={11} width={14} height={14} className="text-brand-600" strokeWidth={2} />
+      <n.icon
+        x={11}
+        y={11}
+        width={14}
+        height={14}
+        className="text-brand-600"
+        strokeWidth={2}
+      />
       <text x={38} y={22.5} className="fill-ink-dark text-[12px] font-semibold">
         {n.text}
       </text>
     </g>
   );
+}
+
+/** How far a layer drifts with the mouse, in px at full deflection. */
+const depth = (px: number) => ({ '--depth': px }) as CSSProperties;
+
+/**
+ * Tilts the artwork toward the mouse and lets its layers drift by depth,
+ * through two CSS variables so nothing re-renders. Off for touch and for
+ * reduced motion.
+ */
+function useParallax() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof window === 'undefined') return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    if (!window.matchMedia?.('(pointer: fine)').matches) return;
+    let frame = 0;
+    const onMove = (e: PointerEvent) => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const x = (e.clientX / window.innerWidth) * 2 - 1;
+        const y = (e.clientY / window.innerHeight) * 2 - 1;
+        el.style.setProperty('--mx', x.toFixed(3));
+        el.style.setProperty('--my', y.toFixed(3));
+      });
+    };
+    const onLeave = () => {
+      el.style.setProperty('--mx', '0');
+      el.style.setProperty('--my', '0');
+    };
+    window.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerleave', onLeave);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerleave', onLeave);
+    };
+  }, []);
+  return ref;
 }
 
 /**
@@ -212,7 +290,7 @@ function DblArtwork({ className }: { className?: string }) {
   const [still] = useState(
     () =>
       typeof window !== 'undefined' &&
-      !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
+      !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
   );
   return (
     <svg
@@ -248,56 +326,119 @@ function DblArtwork({ className }: { className?: string }) {
         </clipPath>
       </defs>
 
-      {/* A slow dotted orbit behind both drops, and candidates drifting by */}
-      <ellipse cx={380} cy={300} rx={365} ry={255} className="login-orbit" />
-      <g className="hidden xl:inline">
-        <Person x={30} y={250} className="login-bead [animation-delay:-1s]" />
-        <Person x={712} y={400} className="login-bead [animation-delay:-3s]" />
-        <Person x={236} y={96} className="login-bead [animation-delay:-2s]" />
+      {/* A slow dotted orbit behind both drops */}
+      <g className="login-parallax" style={depth(4)}>
+        <ellipse cx={380} cy={300} rx={365} ry={255} className="login-orbit" />
       </g>
 
-      <g className="login-drop">
-        <path d={GREEN_DROP} fill={`url(#${id('green')})`} className="login-drop-shadow" />
-        <g clipPath={`url(#${id('gclip')})`}>
-          <path d={GREEN_DROP} fill={`url(#${id('gloss')})`} />
-          <Leaf transform="translate(96 470) rotate(-32) scale(1.15)" />
-          <Leaf transform="translate(132 500) rotate(4) scale(0.85)" />
+      <g className="login-parallax" style={depth(10)}>
+        <g className="login-drop">
+          <path
+            d={GREEN_DROP}
+            fill={`url(#${id('green')})`}
+            className="login-drop-shadow"
+          />
+          <g clipPath={`url(#${id('gclip')})`}>
+            <path d={GREEN_DROP} fill={`url(#${id('gloss')})`} />
+            <Leaf transform="translate(96 470) rotate(-32) scale(1.15)" />
+            <Leaf transform="translate(132 500) rotate(4) scale(0.85)" />
+          </g>
+          <path
+            d={GREEN_DROP}
+            transform={about(GREEN, 0.93)}
+            className="fill-none stroke-white/30"
+          />
+          <path
+            d={GREEN_DROP}
+            transform={about(GREEN, 0.86)}
+            className="fill-none stroke-white/15"
+          />
+          <path d={GREEN_DROP} pathLength={100} className="login-drop-streak" />
+          <g className="hidden xl:inline">
+            <FeatureItem f={greenFeatures[0]} x={122} y={302} align="start" />
+            <line
+              x1={90}
+              x2={362}
+              y1={354}
+              y2={354}
+              className="stroke-white/30"
+            />
+            <FeatureItem f={greenFeatures[1]} x={122} y={382} align="start" />
+          </g>
+          <circle
+            cx={80}
+            cy={260}
+            r={5}
+            fill={`url(#${id('bead')})`}
+            className="login-bead"
+          />
         </g>
-        <path d={GREEN_DROP} transform={about(GREEN, 0.93)} className="fill-none stroke-white/30" />
-        <path d={GREEN_DROP} transform={about(GREEN, 0.86)} className="fill-none stroke-white/15" />
-        <path d={GREEN_DROP} pathLength={100} className="login-drop-streak" />
-        <g className="hidden xl:inline">
-          <FeatureItem f={greenFeatures[0]} x={122} y={302} align="start" />
-          <line x1={90} x2={362} y1={354} y2={354} className="stroke-white/30" />
-          <FeatureItem f={greenFeatures[1]} x={122} y={382} align="start" />
-        </g>
-        <circle cx={80} cy={260} r={5} fill={`url(#${id('bead')})`} className="login-bead" />
       </g>
 
-      <g className="login-drop login-drop-blue">
-        <path d={BLUE_DROP} fill={`url(#${id('blue')})`} className="login-drop-shadow" />
-        <path d={SPIKE} fill={`url(#${id('blue')})`} className="login-drop-shadow" />
-        <path d={SPIKE} fill={`url(#${id('gloss')})`} />
-        <g clipPath={`url(#${id('bclip')})`}>
-          <path d={BLUE_DROP} fill={`url(#${id('gloss')})`} />
-          <Leaf transform="translate(644 352) rotate(-28) scale(0.9)" />
-          <Leaf transform="translate(612 372) rotate(4) scale(0.7)" />
+      <g className="login-parallax" style={depth(18)}>
+        <g className="login-drop login-drop-blue">
+          <path
+            d={BLUE_DROP}
+            fill={`url(#${id('blue')})`}
+            className="login-drop-shadow"
+          />
+          <path
+            d={SPIKE}
+            fill={`url(#${id('blue')})`}
+            className="login-drop-shadow"
+          />
+          <path d={SPIKE} fill={`url(#${id('gloss')})`} />
+          <g clipPath={`url(#${id('bclip')})`}>
+            <path d={BLUE_DROP} fill={`url(#${id('gloss')})`} />
+            <Leaf transform="translate(644 352) rotate(-28) scale(0.9)" />
+            <Leaf transform="translate(612 372) rotate(4) scale(0.7)" />
+          </g>
+          <path
+            d={BLUE_DROP}
+            transform={about(BLUE, 0.93)}
+            className="fill-none stroke-white/30"
+          />
+          <path
+            d={BLUE_DROP}
+            transform={about(BLUE, 0.86)}
+            className="fill-none stroke-white/15"
+          />
+          <path
+            d={BLUE_DROP}
+            pathLength={100}
+            className="login-drop-streak [animation-delay:-3.5s]"
+          />
+          <g className="hidden xl:inline">
+            <FeatureItem f={blueFeatures[0]} x={620} y={142} align="end" />
+            <line
+              x1={440}
+              x2={664}
+              y1={194}
+              y2={194}
+              className="stroke-white/30"
+            />
+            <FeatureItem f={blueFeatures[1]} x={620} y={222} align="end" />
+          </g>
+          <circle
+            cx={712}
+            cy={250}
+            r={4}
+            fill={`url(#${id('bead')})`}
+            className="login-bead [animation-delay:-2s]"
+          />
         </g>
-        <path d={BLUE_DROP} transform={about(BLUE, 0.93)} className="fill-none stroke-white/30" />
-        <path d={BLUE_DROP} transform={about(BLUE, 0.86)} className="fill-none stroke-white/15" />
-        <path d={BLUE_DROP} pathLength={100} className="login-drop-streak [animation-delay:-3.5s]" />
-        <g className="hidden xl:inline">
-          <FeatureItem f={blueFeatures[0]} x={620} y={142} align="end" />
-          <line x1={440} x2={664} y1={194} y2={194} className="stroke-white/30" />
-          <FeatureItem f={blueFeatures[1]} x={620} y={222} align="end" />
-        </g>
-        <circle cx={712} cy={250} r={4} fill={`url(#${id('bead')})`} className="login-bead [animation-delay:-2s]" />
       </g>
 
-      <circle cx={300} cy={120} r={3} fill={`url(#${id('bead')})`} className="login-bead [animation-delay:-4s]" />
+      <circle
+        cx={300}
+        cy={120}
+        r={3}
+        fill={`url(#${id('bead')})`}
+        className="login-bead [animation-delay:-4s]"
+      />
 
       {/* The hiring journey (desktop only) */}
-      <g className="hidden xl:inline">
+      <g className="login-parallax hidden xl:inline" style={depth(6)}>
         <path id={id('journey')} d={JOURNEY} className="login-journey" />
         {STAGES.map((st) => (
           <g key={st.label}>
@@ -308,12 +449,19 @@ function DblArtwork({ className }: { className?: string }) {
               className="login-stage-halo fill-brand-400/40"
               style={{ animationDelay: pulseDelay(st.at) }}
             />
-            <circle cx={st.x} cy={STAGE_Y} r={5} className="fill-white stroke-brand-500" strokeWidth={2} />
+            <circle
+              cx={st.x}
+              cy={STAGE_Y}
+              r={5}
+              className="fill-white stroke-brand-500"
+              strokeWidth={2}
+            />
             <text
               x={st.x}
               y={STAGE_Y + 24}
               textAnchor="middle"
-              className="fill-slate-500 text-[10.5px] font-semibold uppercase tracking-[0.14em]"
+              className="login-stage-label text-[10.5px] font-semibold uppercase tracking-[0.14em]"
+              style={{ animationDelay: pulseDelay(st.at) }}
             >
               {st.label}
             </text>
@@ -322,10 +470,22 @@ function DblArtwork({ className }: { className?: string }) {
         <g transform={`translate(${ARRIVAL.x} ${ARRIVAL.y})`}>
           <circle r={14} className="login-stage-halo fill-accent-400/50" />
           <circle r={11} className="fill-accent-500" />
-          <path d="M-4.5 0.5 L-1.2 3.8 L4.8 -3" className="fill-none stroke-white" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M-4.5 0.5 L-1.2 3.8 L4.8 -3"
+            className="fill-none stroke-white"
+            strokeWidth={2.2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </g>
         {!still &&
-          TRAVELLERS.map((d) => <Traveller key={d} pathId={id('journey')} delay={d} />)}
+          TRAVELLERS.map((d) => (
+            <Traveller key={d} pathId={id('journey')} delay={d} />
+          ))}
+      </g>
+
+      {/* Notices float nearest the viewer */}
+      <g className="login-parallax hidden xl:inline" style={depth(26)}>
         {NOTICES.map((n, i) => (
           <Notice key={n.text} n={n} delay={i * 3} />
         ))}
@@ -335,6 +495,7 @@ function DblArtwork({ className }: { className?: string }) {
 }
 
 export default function LoginPage() {
+  const parallaxRef = useParallax();
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[linear-gradient(135deg,#eaf2fa_0%,#f8fafc_45%,#eef6e3_100%)] p-4 lg:p-8">
       <div aria-hidden className="pointer-events-none absolute inset-0">
@@ -343,7 +504,8 @@ export default function LoginPage() {
         <div
           className="absolute inset-0 opacity-40"
           style={{
-            backgroundImage: 'radial-gradient(rgba(24,119,192,0.2) 1px, transparent 1px)',
+            backgroundImage:
+              'radial-gradient(rgba(24,119,192,0.2) 1px, transparent 1px)',
             backgroundSize: '24px 24px',
           }}
         />
@@ -352,46 +514,53 @@ export default function LoginPage() {
       {/* Phones and tablets: the drops sit faintly behind the card */}
       <DblArtwork className="pointer-events-none absolute left-1/2 top-1/2 w-[140vw] max-w-[760px] -translate-x-1/2 -translate-y-1/2 overflow-visible opacity-30 lg:hidden" />
 
-      <div className="relative grid w-full max-w-[1400px] items-center gap-10 lg:grid-cols-[1.45fr_1fr]">
+      <div className="relative grid w-full max-w-[1320px] items-center gap-10 lg:grid-cols-[1.45fr_1fr]">
         {/* Desktop: the drops and the hiring journey on the left */}
-        <div className="hidden lg:block">
+        <div ref={parallaxRef} className="login-tilt hidden lg:block">
           <DblArtwork className="h-auto max-h-[calc(100vh-4rem)] w-full overflow-visible" />
         </div>
 
         {/* Sign-in on the right */}
-        <div className="flex justify-center lg:justify-end">
-          <div className="relative z-10 w-full max-w-sm animate-rise-in rounded-3xl bg-white/80 p-7 shadow-[0_30px_70px_-30px_rgba(15,42,69,0.45)] ring-1 ring-white/80 backdrop-blur-2xl sm:p-9">
-            <div className="mb-7 flex flex-col items-center text-center">
-              <Logo size="xl" withLabel={false} />
-              <h2 className="mt-4 text-2xl font-semibold tracking-tight text-ink-dark">
-                Sign in to your workspace
-              </h2>
-              <p className="mt-1.5 text-sm leading-6">
-                <span className="dev-credit-name font-semibold">
-                  Smarter Sourcing, Seamless Integration.
-                </span>
-              </p>
-            </div>
-
-            <LoginForm />
-
-            <p className="mt-9 text-center text-[0.6875rem] font-medium uppercase tracking-[0.28em] text-slate-400">
-              {APP_META.fullName}
-            </p>
-            <DevCredit
-              className="mx-auto mt-5 w-fit max-w-full"
-              lines={[
-                {
-                  text: 'Developed by',
-                  className:
-                    'text-[0.59375rem] font-semibold uppercase tracking-[0.14em] text-slate-400',
-                },
-                {
-                  text: `IT Team · ${APP_META.company}`,
-                  className: 'dev-credit-name text-[0.8125rem] font-bold tracking-tight',
-                },
-              ]}
+        <div className="flex justify-center">
+          <div className="relative z-10 w-full max-w-sm animate-rise-in">
+            <div
+              aria-hidden
+              className="login-card-glow pointer-events-none absolute -inset-[2px] rounded-[26px]"
             />
+            <div className="relative rounded-3xl bg-white/80 p-7 shadow-[0_30px_70px_-30px_rgba(15,42,69,0.45)] ring-1 ring-white/80 backdrop-blur-2xl sm:p-9">
+              <div className="mb-7 flex flex-col items-center text-center">
+                <Logo size="xl" withLabel={false} />
+                <h2 className="mt-4 text-2xl font-semibold tracking-tight text-ink-dark">
+                  Sign in to your workspace
+                </h2>
+                <p className="mt-1.5 text-sm leading-6">
+                  <span className="dev-credit-name font-semibold">
+                    Smarter Sourcing, Seamless Integration.
+                  </span>
+                </p>
+              </div>
+
+              <LoginForm />
+
+              <p className="mt-9 text-center text-[0.6875rem] font-medium uppercase tracking-[0.28em] text-slate-400">
+                {APP_META.fullName}
+              </p>
+              <DevCredit
+                className="mx-auto mt-5 w-fit max-w-full"
+                lines={[
+                  {
+                    text: 'Developed by',
+                    className:
+                      'text-[0.59375rem] font-semibold uppercase tracking-[0.14em] text-slate-400',
+                  },
+                  {
+                    text: `IT Team · ${APP_META.company}`,
+                    className:
+                      'dev-credit-name text-[0.8125rem] font-bold tracking-tight',
+                  },
+                ]}
+              />
+            </div>
           </div>
         </div>
       </div>
