@@ -237,6 +237,74 @@ function Notice({ n, delay }: { n: (typeof NOTICES)[number]; delay: number }) {
   );
 }
 
+/**
+ * A huge "dbl" watermark across the page background, its letters filled with
+ * an aerial-forest texture drawn by the SVG itself (fractal noise mapped to
+ * greens, a river-blue wash toward one side) rather than a photograph. Faint
+ * on purpose: it is atmosphere, not content.
+ */
+function DblWatermark({ className }: { className?: string }) {
+  const uid = useId().replace(/:/g, '');
+  const id = (n: string) => `login-wm-${n}-${uid}`;
+  return (
+    <svg viewBox="0 0 720 420" className={className} aria-hidden>
+      <defs>
+        <filter id={id('forest')} x="0" y="0" width="100%" height="100%">
+          {/* Broad land shapes, then canopy grain on top */}
+          <feTurbulence
+            type="fractalNoise"
+            baseFrequency="0.012 0.018"
+            numOctaves={3}
+            seed={11}
+            result="land"
+          />
+          <feTurbulence
+            type="fractalNoise"
+            baseFrequency="0.11"
+            numOctaves={2}
+            seed={4}
+            result="canopy"
+          />
+          <feBlend in="land" in2="canopy" mode="multiply" result="mix" />
+          <feComponentTransfer in="mix" result="contrast">
+            <feFuncR type="linear" slope="2.6" intercept="-0.35" />
+          </feComponentTransfer>
+          <feColorMatrix
+            in="contrast"
+            type="matrix"
+            values="0.45 0 0 0 0.02
+                    0.95 0 0 0 0.12
+                    0.22 0 0 0 0.03
+                    0 0 0 0 1"
+          />
+        </filter>
+        <linearGradient id={id('river')} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#1877c0" stopOpacity="0" />
+          <stop offset="55%" stopColor="#1877c0" stopOpacity="0.05" />
+          <stop offset="100%" stopColor="#1877c0" stopOpacity="0.4" />
+        </linearGradient>
+        <clipPath id={id('letters')}>
+          <text
+            x="0"
+            y="400"
+            fontFamily="Inter, ui-sans-serif, system-ui, sans-serif"
+            fontSize="470"
+            fontWeight={600}
+            letterSpacing="-18"
+          >
+            dbl
+          </text>
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${id('letters')})`}>
+        <rect width="720" height="420" fill="#446323" />
+        <rect width="720" height="420" filter={`url(#${id('forest')})`} />
+        <rect width="720" height="420" fill={`url(#${id('river')})`} />
+      </g>
+    </svg>
+  );
+}
+
 /** How far a layer drifts with the mouse, in px at full deflection. */
 const depth = (px: number) => ({ '--depth': px }) as CSSProperties;
 
@@ -510,6 +578,9 @@ export default function LoginPage() {
           }}
         />
       </div>
+
+      {/* The "dbl" watermark across the whole background, bled off the bottom */}
+      <DblWatermark className="pointer-events-none absolute -bottom-[9vw] left-1/2 w-[140vw] -translate-x-1/2 opacity-[0.1] sm:w-[110vw] lg:w-[96vw] lg:opacity-[0.12]" />
 
       {/* Phones and tablets: the drops sit faintly behind the card */}
       <DblArtwork className="pointer-events-none absolute left-1/2 top-1/2 w-[140vw] max-w-[760px] -translate-x-1/2 -translate-y-1/2 overflow-visible opacity-30 lg:hidden" />
