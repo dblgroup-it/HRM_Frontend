@@ -582,7 +582,7 @@ export default function LoginPage() {
       </div>
 
       {/* The "dbl" watermark: whole word, lifted off the bottom, fading upward */}
-      <DblWatermark className="login-watermark pointer-events-none absolute bottom-[4vh] left-1/2 w-[min(92vw,calc((100vh-8vh)*1.714))] -translate-x-1/2 opacity-[0.07] lg:w-[min(74vw,calc((100vh-8vh)*1.714))] lg:opacity-[0.085]" />
+      <DblWatermark className="login-watermark pointer-events-none absolute bottom-[1.5vh] left-1/2 w-[min(92vw,calc((100vh-4vh)*1.714))] -translate-x-1/2 opacity-[0.07] lg:w-[min(74vw,calc((100vh-4vh)*1.714))] lg:opacity-[0.085]" />
 
       {/* Phones and tablets: the drops sit faintly behind the card */}
       <DblArtwork className="pointer-events-none absolute left-1/2 top-1/2 w-[140vw] max-w-[760px] -translate-x-1/2 -translate-y-1/2 overflow-visible opacity-30 lg:hidden" />
