@@ -281,8 +281,11 @@ export function Sidebar({
             <p className="text-[0.59375rem] font-semibold uppercase tracking-[0.14em] text-slate-400">
               Developed by
             </p>
-            <p className="dev-credit-name truncate text-[0.8125rem] font-bold tracking-tight">
-              IT Team · {APP_META.company}
+            <p className="mx-auto w-fit max-w-full">
+              <span className="dev-credit-name block truncate text-[0.8125rem] font-bold tracking-tight">
+                IT Team · {APP_META.company}
+              </span>
+              <span className="dev-credit-track" aria-hidden />
             </p>
           </div>
           {collapsed && (
@@ -290,7 +293,10 @@ export function Sidebar({
               className="hidden text-center lg:block"
               title={`Developed by IT Team · ${APP_META.company}`}
             >
-              <span className="dev-credit-name text-xs font-bold">IT</span>
+              <span className="mx-auto block w-fit">
+                <span className="dev-credit-name block text-xs font-bold">IT</span>
+                <span className="dev-credit-track" aria-hidden />
+              </span>
             </div>
           )}
         </div>
