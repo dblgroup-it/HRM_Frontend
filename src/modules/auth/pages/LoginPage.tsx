@@ -1,7 +1,10 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import {
   Bell,
+  CalendarCheck,
   ClipboardCheck,
+  FileText,
+  Handshake,
   Network,
   Sparkles,
   type LucideIcon,
@@ -106,6 +109,83 @@ function FeatureItem({
   );
 }
 
+/*
+ * The hiring journey, drawn above the card: it leaves the green drop at its
+ * top tangent point, runs level just over the card through four stages and
+ * lands on the blue drop. Candidates travel it one after another.
+ */
+const JOURNEY =
+  'M245.6 239 C 280 90, 350 22, 430 22 L 770 22 C 860 22, 905 75, 928 142';
+/** One candidate's trip, in seconds; three are on the path at once. */
+const TRIP = 9;
+const TRAVELLERS = [0, 3, 6];
+/*
+ * Stage points, with the share of the trip at which a candidate reaches
+ * each (measured along the path). Their pulse is timed to that, so the
+ * point lights as somebody passes.
+ */
+const STAGES = [
+  { label: 'Sourcing', x: 440, at: 0.38 },
+  { label: 'Screening', x: 547, at: 0.51 },
+  { label: 'Interview', x: 653, at: 0.64 },
+  { label: 'Offer', x: 760, at: 0.77 },
+];
+const pulseDelay = (at: number) => `${((at * TRIP) % 3).toFixed(2)}s`;
+
+/** Notices that take turns popping up beside the drops. */
+const NOTICES: { icon: LucideIcon; text: string; x: number; y: number }[] = [
+  { icon: FileText, text: 'New CV received', x: 40, y: 572 },
+  { icon: CalendarCheck, text: 'Interview scheduled', x: 972, y: 452 },
+  { icon: Handshake, text: 'Offer accepted', x: 990, y: 30 },
+];
+
+/** A candidate: a small person in a white badge. */
+function Traveller({ pathId, delay }: { pathId: string; delay: number }) {
+  const begin = `${-delay}s`;
+  return (
+    <g opacity={0}>
+      <circle r={12} className="fill-white stroke-brand-500" strokeWidth={1.5} />
+      <circle cy={-3.5} r={3.2} className="fill-brand-600" />
+      <path d="M-5.5 6.5 C -5.5 1.5, 5.5 1.5, 5.5 6.5 Z" className="fill-brand-600" />
+      <animateMotion dur={`${TRIP}s`} begin={begin} repeatCount="indefinite">
+        <mpath href={`#${pathId}`} />
+      </animateMotion>
+      <animate
+        attributeName="opacity"
+        values="0;1;1;0"
+        keyTimes="0;0.06;0.94;1"
+        dur={`${TRIP}s`}
+        begin={begin}
+        repeatCount="indefinite"
+      />
+    </g>
+  );
+}
+
+function Notice({
+  n,
+  delay,
+}: {
+  n: (typeof NOTICES)[number];
+  delay: number;
+}) {
+  const w = 30 + n.text.length * 7.1 + 18;
+  return (
+    <g
+      className="login-notice"
+      style={{ animationDelay: `${delay}s` }}
+      transform={`translate(${n.x} ${n.y})`}
+    >
+      <rect width={w} height={36} rx={18} className="fill-white" />
+      <circle cx={18} cy={18} r={12} className="fill-brand-50" />
+      <n.icon x={11} y={11} width={14} height={14} className="text-brand-600" strokeWidth={2} />
+      <text x={38} y={22.5} className="fill-ink-dark text-[12px] font-semibold">
+        {n.text}
+      </text>
+    </g>
+  );
+}
+
 /**
  * DBL's two drops, the page's background artwork: glossy, layered rims,
  * line-art leaves and water beads inside, a streak of light round each
@@ -114,6 +194,12 @@ function FeatureItem({
 function DblArtwork({ className }: { className?: string }) {
   const uid = useId().replace(/:/g, '');
   const id = (n: string) => `login-${n}-${uid}`;
+  // SMIL motion ignores the CSS reduced-motion rule, so honour it here.
+  const [still] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
+  );
   return (
     <svg
       viewBox="0 0 1200 640"
@@ -185,6 +271,41 @@ function DblArtwork({ className }: { className?: string }) {
       </g>
 
       <circle cx={600} cy={40} r={3} fill={`url(#${id('bead')})`} className="login-bead [animation-delay:-4s]" />
+
+      {/* The hiring journey (desktop only) */}
+      <g className="hidden xl:inline">
+        <path id={id('journey')} d={JOURNEY} className="login-journey" />
+        {STAGES.map((st) => (
+          <g key={st.label}>
+            <circle
+              cx={st.x}
+              cy={22}
+              r={6}
+              className="login-stage-halo fill-brand-400/40"
+              style={{ animationDelay: pulseDelay(st.at) }}
+            />
+            <circle cx={st.x} cy={22} r={5} className="fill-white stroke-brand-500" strokeWidth={2} />
+            <text
+              x={st.x}
+              y={4}
+              textAnchor="middle"
+              className="fill-slate-500 text-[10.5px] font-semibold uppercase tracking-[0.14em]"
+            >
+              {st.label}
+            </text>
+          </g>
+        ))}
+        <g transform="translate(928 142)">
+          <circle r={14} className="login-stage-halo fill-accent-400/50" />
+          <circle r={11} className="fill-accent-500" />
+          <path d="M-4.5 0.5 L-1.2 3.8 L4.8 -3" className="fill-none stroke-white" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
+        </g>
+        {!still &&
+          TRAVELLERS.map((d) => <Traveller key={d} pathId={id('journey')} delay={d} />)}
+        {NOTICES.map((n, i) => (
+          <Notice key={n.text} n={n} delay={i * 3} />
+        ))}
+      </g>
     </svg>
   );
 }

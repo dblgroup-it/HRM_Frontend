@@ -85,6 +85,38 @@
     transform-box: fill-box;
     animation: login-drop-float 5s ease-in-out infinite;
   }
+  /* The hiring journey above the card: dashes drift along it, each stage
+   * point pulses as a candidate passes, notices take turns popping up. */
+  .login-journey {
+    fill: none;
+    stroke: theme('colors.brand.300');
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-dasharray: 2 7;
+    animation: login-journey-drift 1.6s linear infinite;
+  }
+  .login-stage-halo {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: login-stage-pulse 3s ease-out infinite;
+  }
+  .login-notice {
+    opacity: 0;
+    filter: drop-shadow(0 10px 18px rgb(15 42 69 / 0.16));
+    animation: login-notice-pop 9s ease-in-out infinite;
+  }
+  @keyframes login-journey-drift {
+    to { stroke-dashoffset: -9; }
+  }
+  @keyframes login-stage-pulse {
+    0% { transform: scale(0.8); opacity: 0.9; }
+    40%, 100% { transform: scale(2.6); opacity: 0; }
+  }
+  @keyframes login-notice-pop {
+    0% { opacity: 0; translate: 0 8px; }
+    5%, 28% { opacity: 1; translate: 0 0; }
+    34%, 100% { opacity: 0; translate: 0 -6px; }
+  }
   @keyframes login-drop-float {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-8px); }
