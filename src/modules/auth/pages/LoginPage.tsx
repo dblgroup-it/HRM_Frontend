@@ -581,16 +581,19 @@ export default function LoginPage() {
         />
       </div>
 
-      {/* The "dbl" watermark: whole word, lifted off the bottom, fading upward */}
-      <DblWatermark className="login-watermark pointer-events-none absolute bottom-[1.5vh] left-1/2 w-[min(92vw,calc((100vh-4vh)*1.714))] -translate-x-1/2 opacity-[0.07] lg:w-[min(74vw,calc((100vh-4vh)*1.714))] lg:opacity-[0.085]" />
+      {/* Phones and tablets: a faint "dbl" behind the card (desktop has it behind the wings) */}
+      <DblWatermark className="pointer-events-none absolute bottom-[3vh] left-1/2 w-[92vw] -translate-x-1/2 opacity-[0.07] lg:hidden" />
 
       {/* Phones and tablets: the drops sit faintly behind the card */}
       <DblArtwork className="pointer-events-none absolute left-1/2 top-1/2 w-[140vw] max-w-[760px] -translate-x-1/2 -translate-y-1/2 overflow-visible opacity-30 lg:hidden" />
 
       <div className="relative grid w-full max-w-[1320px] items-center gap-10 lg:grid-cols-[1.6fr_1fr] lg:gap-5 xl:grid-cols-[1.45fr_1fr] xl:gap-10">
         {/* Desktop: the drops and the hiring journey on the left */}
-        <div ref={parallaxRef} className="login-tilt hidden lg:block">
-          <DblArtwork className="h-auto max-h-[calc(100vh-4rem)] w-full overflow-visible" />
+        <div ref={parallaxRef} className="login-tilt relative hidden lg:block">
+          {/* Desktop: the "dbl" watermark sits behind the wings, a little low,
+              and tilts with them */}
+          <DblWatermark className="pointer-events-none absolute -bottom-[8%] left-1/2 w-[112%] -translate-x-[42%] opacity-[0.11]" />
+          <DblArtwork className="relative h-auto max-h-[calc(100vh-4rem)] w-full overflow-visible" />
         </div>
 
         {/* Sign-in on the right */}
