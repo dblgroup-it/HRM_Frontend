@@ -57,30 +57,40 @@
 @layer components {
 
   /*
-   * Login page features: an editorial numbered list, no boxes. Each large
-   * numeral is drawn in outline and fills with the brand gradient in turn
-   * (3s apart, 12s a lap, staggered by inline animation-delay), then
-   * empties again. Frozen by the global reduced-motion rule.
+   * Login artwork: DBL's two drops float out of step, a streak of white
+   * light runs round each rim, and the water beads bob. Frozen by the
+   * global reduced-motion rule.
    */
-  .login-feature-num {
-    width: fit-content;
-    color: transparent;
-    -webkit-text-stroke: 1.25px theme('colors.brand.300');
-    background-image: linear-gradient(
-      90deg,
-      theme('colors.brand.600'),
-      theme('colors.accent.500')
-    );
-    background-repeat: no-repeat;
-    background-size: 0% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    animation: login-feature-fill 12s cubic-bezier(0.65, 0, 0.35, 1) infinite both;
+  .login-drop {
+    transform-box: fill-box;
+    animation: login-drop-float 7s ease-in-out infinite;
   }
-  @keyframes login-feature-fill {
-    0% { background-size: 0% 100%; -webkit-text-stroke-color: theme('colors.brand.300'); }
-    8%, 22% { background-size: 100% 100%; -webkit-text-stroke-color: transparent; }
-    30%, 100% { background-size: 0% 100%; -webkit-text-stroke-color: theme('colors.brand.300'); }
+  .login-drop-blue {
+    animation-duration: 8s;
+    animation-delay: -3s;
+  }
+  .login-drop-shadow {
+    filter: drop-shadow(0 22px 26px rgb(15 42 69 / 0.22));
+  }
+  .login-drop-streak {
+    fill: none;
+    stroke: #fff;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-dasharray: 9 91;
+    filter: drop-shadow(0 0 4px rgb(255 255 255 / 0.8));
+    animation: login-drop-streak 7s linear infinite;
+  }
+  .login-bead {
+    transform-box: fill-box;
+    animation: login-drop-float 5s ease-in-out infinite;
+  }
+  @keyframes login-drop-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  @keyframes login-drop-streak {
+    to { stroke-dashoffset: -100; }
   }
 
   /*
