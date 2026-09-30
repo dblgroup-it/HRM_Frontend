@@ -604,8 +604,8 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Sign-in on the right */}
-        <div className="flex justify-center">
+        {/* Sign-in on the right; nudged a little left on laptop-size screens */}
+        <div className="flex justify-center lg:pr-20 2xl:pr-0">
           <div className="relative z-10 w-full max-w-sm animate-rise-in lg:max-w-[340px] xl:max-w-sm">
             <div
               aria-hidden
