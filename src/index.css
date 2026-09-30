@@ -60,7 +60,8 @@
    * Sidebar "Developed by" credit: plain text, no card. The name shimmers
    * blue to green, and one short streak of brand light keeps travelling
    * around both lines. Only the streak is drawn: there is no base outline,
-   * so it never reads as a box. The global reduced-motion rule above
+   * so it never reads as a box. The path hugs
+   * the words (built in Sidebar.tsx from their measured widths). The global reduced-motion rule above
    * freezes both.
    */
   .dev-credit-orbit {
@@ -72,12 +73,12 @@
     overflow: visible;
     filter: drop-shadow(0 0 3px rgb(140 198 63 / 0.55));
   }
-  .dev-credit-orbit rect {
+  .dev-credit-orbit path {
     fill: none;
     stroke-width: 1.75;
     stroke-linecap: round;
-    stroke-dasharray: 16 84;
-    animation: dev-credit-orbit 3.2s linear infinite;
+    stroke-dasharray: 14 86;
+    animation: dev-credit-orbit 6.5s linear infinite;
   }
   .dev-credit-name {
     background: linear-gradient(
