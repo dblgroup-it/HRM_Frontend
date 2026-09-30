@@ -190,12 +190,11 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
    */
   const countNotice =
     requirementType === 'existing' &&
-    namedReplacements.length > 0 &&
-    requiredPosts > 0 &&
-    namedReplacements.length !== requiredPosts
-      ? `Replacing ${namedReplacements.length} ${namedReplacements.length === 1 ? 'person' : 'people'} but requesting ${requiredPosts} ${requiredPosts === 1 ? 'post' : 'posts'} — headcount goes ${
-          namedReplacements.length > requiredPosts ? 'down' : 'up'
-        } by ${Math.abs(namedReplacements.length - requiredPosts)}.`
+      namedReplacements.length > 0 &&
+      requiredPosts > 0 &&
+      namedReplacements.length !== requiredPosts
+      ? `Replacing ${namedReplacements.length} ${namedReplacements.length === 1 ? 'person' : 'people'} but requesting ${requiredPosts} ${requiredPosts === 1 ? 'post' : 'posts'} — headcount goes ${namedReplacements.length > requiredPosts ? 'down' : 'up'
+      } by ${Math.abs(namedReplacements.length - requiredPosts)}.`
       : null;
 
   const { data: orgUnits } = useOrganogramUnits();
@@ -310,8 +309,8 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
   const subSectionChoices =
     department && sectionValue
       ? (master?.sectionSubSections[sectionKey(department, sectionValue)] ??
-         master?.subSections ??
-         [])
+        master?.subSections ??
+        [])
       : [];
   const subSectionOptions: SelectOption[] = subSectionChoices.map((v) => ({
     value: v,
@@ -413,11 +412,11 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                   className={cn(
                     'flex h-9 w-9 items-center justify-center rounded-full border-2 text-xs font-bold transition-all duration-300',
                     state === 'done' &&
-                      'border-brand-600 bg-brand-600 text-white',
+                    'border-brand-600 bg-brand-600 text-white',
                     state === 'current' &&
-                      'scale-110 border-brand-600 bg-white text-brand-700 shadow-md shadow-brand-200',
+                    'scale-110 border-brand-600 bg-white text-brand-700 shadow-md shadow-brand-200',
                     state === 'upcoming' &&
-                      'border-slate-200 bg-white text-slate-400 group-hover:border-slate-300 group-hover:text-slate-500',
+                    'border-slate-200 bg-white text-slate-400 group-hover:border-slate-300 group-hover:text-slate-500',
                   )}
                 >
                   {state === 'done' ? <Check className="h-4 w-4" /> : s.letter}
@@ -492,7 +491,7 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
               )}
               <div className="space-y-7">
                 {/* 1 · Where the role sits */}
-                <FormGroup title="Placement" hint="Where in the organisation this post belongs">
+                <FormGroup title="Placement" hint="Where the role fits in the organization.">
                   {noRaiserScope && (
                     <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs leading-5 text-amber-800">
                       You are not currently nominated to raise requisitions for
@@ -706,27 +705,26 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
                           <button
                             key={opt.value}
                             type="button"
-                            onClick={() =>
-                              {
-                                setValue('requirementType', opt.value, {
-                                  shouldValidate: true,
+                            onClick={() => {
+                              setValue('requirementType', opt.value, {
+                                shouldValidate: true,
+                              });
+                              // Choosing Replacement with no rows leaves an
+                              // empty panel and no way to start; give them
+                              // the first one.
+                              if (
+                                opt.value === 'existing' &&
+                                replacementRows.fields.length === 0
+                              ) {
+                                replacementRows.append({
+                                  employeeName: '',
+                                  employeeCode: '',
+                                  separationReason: '',
+                                  vacantDate: '',
+                                  remarks: '',
                                 });
-                                // Choosing Replacement with no rows leaves an
-                                // empty panel and no way to start; give them
-                                // the first one.
-                                if (
-                                  opt.value === 'existing' &&
-                                  replacementRows.fields.length === 0
-                                ) {
-                                  replacementRows.append({
-                                    employeeName: '',
-                                    employeeCode: '',
-                                    separationReason: '',
-                                    vacantDate: '',
-                                    remarks: '',
-                                  });
-                                }
                               }
+                            }
                             }
                             className={cn(
                               'rounded-xl border px-4 py-3 text-left transition-colors duration-200',
@@ -1275,28 +1273,28 @@ function toPayload(
     // Only sent on a replacement — the API clears them on a NEW headcount anyway.
     ...(values.requirementType === 'existing'
       ? (() => {
-          // Rows the raiser added but never filled are dropped here rather
-          // than sent as blanks for the server to reject.
-          const rows = (values.replacements ?? [])
-            .filter((r) => (r.employeeName ?? '').trim().length > 1)
-            .map((r) => ({
-              employeeName: r.employeeName.trim(),
-              employeeCode: r.employeeCode?.trim() || undefined,
-              separationReason: r.separationReason?.trim() || undefined,
-              vacantDate: r.vacantDate?.trim() || undefined,
-              remarks: r.remarks?.trim() || undefined,
-            }));
-          const first = rows[0];
-          return {
-            replacements: rows,
-            // The first entry also fills the single columns the approval
-            // sheet and the board export still read.
-            replaceOfName: first?.employeeName,
-            replaceOfEmployeeCode: first?.employeeCode,
-            separationReason: first?.separationReason,
-            replacementRemarks: first?.remarks,
-          };
-        })()
+        // Rows the raiser added but never filled are dropped here rather
+        // than sent as blanks for the server to reject.
+        const rows = (values.replacements ?? [])
+          .filter((r) => (r.employeeName ?? '').trim().length > 1)
+          .map((r) => ({
+            employeeName: r.employeeName.trim(),
+            employeeCode: r.employeeCode?.trim() || undefined,
+            separationReason: r.separationReason?.trim() || undefined,
+            vacantDate: r.vacantDate?.trim() || undefined,
+            remarks: r.remarks?.trim() || undefined,
+          }));
+        const first = rows[0];
+        return {
+          replacements: rows,
+          // The first entry also fills the single columns the approval
+          // sheet and the board export still read.
+          replaceOfName: first?.employeeName,
+          replaceOfEmployeeCode: first?.employeeCode,
+          separationReason: first?.separationReason,
+          replacementRemarks: first?.remarks,
+        };
+      })()
       : {}),
     requiredPosts: values.requiredPosts,
     totalVacantPosts: values.totalVacantPosts,

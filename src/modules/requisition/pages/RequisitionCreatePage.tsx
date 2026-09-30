@@ -73,7 +73,7 @@ export default function RequisitionCreatePage() {
       <div className="animate-rise-in">
         <PageHeader
           title="New Manpower Requisition"
-          description="Step 1 · State the vacancy and what the hire will need. Factory HR writes the job analysis next."
+          description="Step 1 · Define the Vacancy & Hiring Requirements. HR prepares the job analysis next."
         />
       </div>
 
