@@ -49,15 +49,18 @@ const blueFeatures: Feature[] = [
 ];
 
 /*
- * Artwork geometry, in the 760 x 620 viewBox. Each drop is a circle with a
- * tangent point 1.55 radii out, the full-bodied drop of the DBL mark. They
- * interlock as in the logo: green low-left pointing right, blue high-right
- * pointing left, their facing edges parallel with a clear gap between.
+ * Artwork geometry, in the 760 x 620 viewBox, traced from the DBL mark
+ * (logo.png, scaled 1.2): each wing is a half-disc with two straight edges
+ * meeting in a point. Green is round on the left and points right, blue is
+ * round on the right and points left, their facing edges parallel with a
+ * narrow gap, and the small spike sits above blue's point, parallel to its
+ * top edge. Keep these in step with the logo, not redrawn by eye.
  */
-const GREEN = { cx: 200, cy: 370, r: 150 };
-const BLUE = { cx: 550, cy: 165, r: 150 };
-const GREEN_DROP = 'M430.2 337.6 L279.9 243.0 A150 150 0 1 0 311.8 470.0 Z';
-const BLUE_DROP = 'M319.8 197.4 L470.1 292.0 A150 150 0 1 0 438.2 65.0 Z';
+const GREEN = { cx: 212, cy: 346, r: 159.6 };
+const BLUE = { cx: 546.8, cy: 220, r: 159.6 };
+const GREEN_DROP = 'M458 346 L212 186.4 A159.6 159.6 0 0 0 212 505.6 Z';
+const BLUE_DROP = 'M299.6 218.8 L546.8 60.4 A159.6 159.6 0 0 1 546.8 379.6 Z';
+const SPIKE = 'M327.2 66.4 L352.4 167.2 L284 210.4 Z';
 
 /** Scale a path about a centre, for the drop's inner rims. */
 const about = (c: { cx: number; cy: number }, k: number) =>
@@ -115,9 +118,9 @@ function FeatureItem({
  * Candidates travel it one after another.
  */
 const JOURNEY =
-  'M171.4 517.2 C 190 575, 230 582, 285 582 L 575 582 C 660 582, 680 420, 625 294.9';
-const ARRIVAL = { x: 625, y: 294.9 };
-const STAGE_Y = 582;
+  'M157.4 496 C 175 572, 220 580, 285 580 L 575 580 C 660 580, 690 430, 626.6 358.2';
+const ARRIVAL = { x: 626.6, y: 358.2 };
+const STAGE_Y = 580;
 /** One candidate's trip, in seconds; three are on the path at once. */
 const TRIP = 9;
 const TRAVELLERS = [0, 3, 6];
@@ -127,10 +130,10 @@ const TRAVELLERS = [0, 3, 6];
  * point lights as somebody passes.
  */
 const STAGES = [
-  { label: 'Sourcing', x: 310, at: 0.23 },
-  { label: 'Screening', x: 397, at: 0.35 },
-  { label: 'Interview', x: 483, at: 0.46 },
-  { label: 'Offer', x: 570, at: 0.58 },
+  { label: 'Sourcing', x: 310, at: 0.25 },
+  { label: 'Screening', x: 397, at: 0.37 },
+  { label: 'Interview', x: 483, at: 0.5 },
+  { label: 'Offer', x: 570, at: 0.62 },
 ];
 const pulseDelay = (at: number) => `${((at * TRIP) % 3).toFixed(2)}s`;
 
@@ -250,43 +253,45 @@ function DblArtwork({ className }: { className?: string }) {
       <g className="hidden xl:inline">
         <Person x={30} y={250} className="login-bead [animation-delay:-1s]" />
         <Person x={712} y={400} className="login-bead [animation-delay:-3s]" />
-        <Person x={250} y={90} className="login-bead [animation-delay:-2s]" />
+        <Person x={236} y={96} className="login-bead [animation-delay:-2s]" />
       </g>
 
       <g className="login-drop">
         <path d={GREEN_DROP} fill={`url(#${id('green')})`} className="login-drop-shadow" />
         <g clipPath={`url(#${id('gclip')})`}>
           <path d={GREEN_DROP} fill={`url(#${id('gloss')})`} />
-          <Leaf transform="translate(88 486) rotate(-30) scale(1.2)" />
-          <Leaf transform="translate(122 512) rotate(6) scale(0.85)" />
+          <Leaf transform="translate(96 470) rotate(-32) scale(1.15)" />
+          <Leaf transform="translate(132 500) rotate(4) scale(0.85)" />
         </g>
         <path d={GREEN_DROP} transform={about(GREEN, 0.93)} className="fill-none stroke-white/30" />
         <path d={GREEN_DROP} transform={about(GREEN, 0.86)} className="fill-none stroke-white/15" />
         <path d={GREEN_DROP} pathLength={100} className="login-drop-streak" />
         <g className="hidden xl:inline">
-          <FeatureItem f={greenFeatures[0]} x={116} y={318} align="start" />
-          <line x1={86} x2={330} y1={372} y2={372} className="stroke-white/30" />
-          <FeatureItem f={greenFeatures[1]} x={116} y={398} align="start" />
+          <FeatureItem f={greenFeatures[0]} x={122} y={302} align="start" />
+          <line x1={90} x2={362} y1={354} y2={354} className="stroke-white/30" />
+          <FeatureItem f={greenFeatures[1]} x={122} y={382} align="start" />
         </g>
-        <circle cx={62} cy={300} r={5} fill={`url(#${id('bead')})`} className="login-bead" />
+        <circle cx={80} cy={260} r={5} fill={`url(#${id('bead')})`} className="login-bead" />
       </g>
 
       <g className="login-drop login-drop-blue">
         <path d={BLUE_DROP} fill={`url(#${id('blue')})`} className="login-drop-shadow" />
+        <path d={SPIKE} fill={`url(#${id('blue')})`} className="login-drop-shadow" />
+        <path d={SPIKE} fill={`url(#${id('gloss')})`} />
         <g clipPath={`url(#${id('bclip')})`}>
           <path d={BLUE_DROP} fill={`url(#${id('gloss')})`} />
-          <Leaf transform="translate(660 60) rotate(-112) scale(1.1)" />
-          <Leaf transform="translate(612 44) rotate(-78) scale(0.8)" />
+          <Leaf transform="translate(644 352) rotate(-28) scale(0.9)" />
+          <Leaf transform="translate(612 372) rotate(4) scale(0.7)" />
         </g>
         <path d={BLUE_DROP} transform={about(BLUE, 0.93)} className="fill-none stroke-white/30" />
         <path d={BLUE_DROP} transform={about(BLUE, 0.86)} className="fill-none stroke-white/15" />
         <path d={BLUE_DROP} pathLength={100} className="login-drop-streak [animation-delay:-3.5s]" />
         <g className="hidden xl:inline">
-          <FeatureItem f={blueFeatures[0]} x={616} y={116} align="end" />
-          <line x1={434} x2={650} y1={170} y2={170} className="stroke-white/30" />
-          <FeatureItem f={blueFeatures[1]} x={616} y={196} align="end" />
+          <FeatureItem f={blueFeatures[0]} x={620} y={142} align="end" />
+          <line x1={440} x2={664} y1={194} y2={194} className="stroke-white/30" />
+          <FeatureItem f={blueFeatures[1]} x={620} y={222} align="end" />
         </g>
-        <circle cx={694} cy={236} r={4} fill={`url(#${id('bead')})`} className="login-bead [animation-delay:-2s]" />
+        <circle cx={712} cy={250} r={4} fill={`url(#${id('bead')})`} className="login-bead [animation-delay:-2s]" />
       </g>
 
       <circle cx={300} cy={120} r={3} fill={`url(#${id('bead')})`} className="login-bead [animation-delay:-4s]" />
