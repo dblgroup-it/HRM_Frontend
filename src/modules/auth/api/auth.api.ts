@@ -70,6 +70,35 @@ export const authApi = {
       .then((res) => res.data);
   },
 
+  // --- forgot password (emailed code) -----------------------------------
+
+  /** Step 1. Always resolves the same way, whether or not the email is known. */
+  requestPasswordReset(email: string): Promise<{ ok: true }> {
+    return http
+      .post<ApiResponse<{ ok: true }>>('/auth/password/forgot', { email })
+      .then((res) => res.data);
+  },
+
+  /** Step 2. Exchanges the emailed code for a short-lived reset token. */
+  verifyResetCode(input: {
+    email: string;
+    code: string;
+  }): Promise<{ resetToken: string }> {
+    return http
+      .post<ApiResponse<{ resetToken: string }>>('/auth/password/verify', input)
+      .then((res) => res.data);
+  },
+
+  /** Step 3. Sets the new password; every session on the account ends. */
+  resetPassword(input: {
+    resetToken: string;
+    newPassword: string;
+  }): Promise<{ ok: true }> {
+    return http
+      .post<ApiResponse<{ ok: true }>>('/auth/password/reset', input)
+      .then((res) => res.data);
+  },
+
   me(): Promise<AuthUser> {
     if (ENV.USE_MOCK_API) return mockMe();
     return http.get<ApiResponse<AuthUser>>('/auth/me').then((res) => res.data);

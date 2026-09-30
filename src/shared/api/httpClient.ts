@@ -9,7 +9,8 @@ import { AUTH_UNAUTHORIZED_EVENT, ENV, STORAGE_KEYS } from '@shared/constants';
 import { tokenExpired } from './tokenExpiry';
 
 /** Login attempts return 401 on bad credentials — that's not a dead session. */
-const AUTH_ATTEMPT_PATHS = ['/auth/login', '/auth/login/2fa'];
+// Signed-out requests whose 401 means "wrong answer", not "session over".
+const AUTH_ATTEMPT_PATHS = ['/auth/login', '/auth/login/2fa', '/auth/password/'];
 
 /**
  * Pre-configured Axios instance.

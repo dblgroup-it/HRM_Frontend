@@ -529,7 +529,7 @@ export default function LoginPage() {
             />
             <div className="relative rounded-3xl bg-white/80 p-7 shadow-[0_30px_70px_-30px_rgba(15,42,69,0.45)] ring-1 ring-white/80 backdrop-blur-2xl sm:p-9">
               <div className="mb-7 flex flex-col items-center text-center">
-                <Logo size="xl" withLabel={false} />
+                <Logo size="xl" markClassName="h-20 w-20" withLabel={false} />
                 <h2 className="mt-4 text-2xl font-semibold tracking-tight text-ink-dark">
                   Sign in to your workspace
                 </h2>

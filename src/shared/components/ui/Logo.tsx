@@ -7,6 +7,8 @@ export interface LogoProps {
   /** Render the wordmark in white (for dark backgrounds). */
   inverted?: boolean;
   className?: string;
+  /** Overrides the mark's size classes when none of the presets fits. */
+  markClassName?: string;
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
 }
 
@@ -24,6 +26,7 @@ export function Logo({
   withLabel = true,
   inverted = false,
   className,
+  markClassName,
   size = 'md',
 }: LogoProps) {
   return (
@@ -31,7 +34,7 @@ export function Logo({
       <img
         src={logoUrl}
         alt="DBL Group"
-        className={cn('shrink-0 object-contain', markSizes[size])}
+        className={cn('shrink-0 object-contain', markClassName ?? markSizes[size])}
       />
       {withLabel && (
         <div className="leading-tight">

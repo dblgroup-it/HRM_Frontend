@@ -22,6 +22,7 @@ import {
   type TwoFactorChallenge,
 } from '../types/auth.types';
 import { loadRememberedEmail, savedPasswordFor } from '../rememberedLogin';
+import { ForgotPasswordFlow } from './ForgotPasswordFlow';
 
 export function LoginForm() {
   const navigate = useNavigate();
@@ -31,6 +32,7 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [challenge, setChallenge] = useState<TwoFactorChallenge | null>(null);
   const [code, setCode] = useState('');
+  const [forgot, setForgot] = useState(false);
 
   // Read once: the email a previous "Remember me" kept.
   const [rememberedEmail] = useState(loadRememberedEmail);
@@ -90,6 +92,20 @@ export function LoginForm() {
       },
     );
   };
+
+  // --- Forgot password: its own three steps, inside the same card ---
+  if (forgot) {
+    return (
+      <ForgotPasswordFlow
+        initialEmail={getValues('email')}
+        onBack={(email) => {
+          setForgot(false);
+          if (email) setValue('email', email);
+          setValue('password', '');
+        }}
+      />
+    );
+  }
 
   // --- Step 2: two-factor code ---
   if (challenge) {
@@ -170,6 +186,20 @@ export function LoginForm() {
         autoComplete="current-password"
         placeholder="••••••••"
         leftIcon={<Lock className="h-4 w-4" />}
+        rightElement={
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            className="rounded-md p-1.5 text-slate-400 transition-colors hover:text-slate-600"
+          >
+            {showPassword ? (
+              <EyeOff className="h-4 w-4" />
+            ) : (
+              <Eye className="h-4 w-4" />
+            )}
+          </button>
+        }
         error={errors.password?.message}
         {...register('password')}
       />
@@ -185,15 +215,13 @@ export function LoginForm() {
         </label>
         <button
           type="button"
-          onClick={() => setShowPassword((v) => !v)}
-          className="inline-flex items-center gap-1 text-sm text-slate-500 transition-colors hover:text-slate-700"
+          onClick={() => {
+            login.reset();
+            setForgot(true);
+          }}
+          className="text-sm font-medium text-brand-600 transition-colors hover:text-brand-700"
         >
-          {showPassword ? (
-            <EyeOff className="h-4 w-4" />
-          ) : (
-            <Eye className="h-4 w-4" />
-          )}
-          {showPassword ? 'Hide' : 'Show'}
+          Forgot password?
         </button>
       </div>
 
