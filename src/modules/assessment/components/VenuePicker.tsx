@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { ChevronDown } from 'lucide-react';
 
 import { Input } from '@shared/components/ui';
 import { cn } from '@shared/lib';
@@ -27,16 +28,19 @@ export function VenuePicker({
 }) {
   const { data: master } = useMasterData();
   // Memoised on the fetched value, not on a fresh `?? {}` each render.
-  const rooms = useMemo(() => master?.meetingRooms ?? {}, [master?.meetingRooms]);
+  const rooms = useMemo(
+    () => master?.meetingRooms ?? {},
+    [master?.meetingRooms]
+  );
 
   const known = useMemo(
     () =>
       new Set(
         Object.entries(rooms).flatMap(([building, list]) =>
-          list.map((room) => roomLabel(building, room)),
-        ),
+          list.map((room) => roomLabel(building, room))
+        )
       ),
-    [rooms],
+    [rooms]
   );
   // A venue typed before the list existed, or chosen as "somewhere else",
   // must not silently reset the field to blank when the modal reopens.
@@ -59,31 +63,34 @@ export function VenuePicker({
 
   return (
     <div className="space-y-2">
-      <select
-        value={isOther ? '__other' : value}
-        disabled={disabled}
-        onChange={(e) =>
-          onChange(e.target.value === '__other' ? '' : e.target.value)
-        }
-        className={cn(
-          'w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none transition-colors focus:ring-2 focus:ring-brand-500/20',
-          invalid
-            ? 'border-rose-400 focus:border-rose-400'
-            : 'border-slate-200 focus:border-brand-400',
-        )}
-      >
-        <option value="">Select a meeting room…</option>
-        {Object.entries(rooms).map(([building, list]) => (
-          <optgroup key={building} label={building}>
-            {list.map((room) => (
-              <option key={room} value={roomLabel(building, room)}>
-                {room}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-        <option value="__other">Somewhere else…</option>
-      </select>
+      <div className="relative">
+        <select
+          value={isOther ? '__other' : value}
+          disabled={disabled}
+          onChange={(e) =>
+            onChange(e.target.value === '__other' ? '' : e.target.value)
+          }
+          className={cn(
+            'h-10 w-full appearance-none truncate rounded-lg border bg-white px-3 pr-9 text-sm text-slate-900 outline-none transition-colors focus:ring-2 focus:ring-brand-500/40',
+            invalid
+              ? 'border-rose-400 focus:border-rose-400'
+              : 'border-slate-300 focus:border-brand-500'
+          )}
+        >
+          <option value="">Select a meeting room…</option>
+          {Object.entries(rooms).map(([building, list]) => (
+            <optgroup key={building} label={building}>
+              {list.map((room) => (
+                <option key={room} value={roomLabel(building, room)}>
+                  {room}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+          <option value="__other">Somewhere else…</option>
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      </div>
 
       {isOther && (
         <Input

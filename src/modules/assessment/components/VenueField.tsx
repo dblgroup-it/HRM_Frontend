@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Building2, MapPin } from 'lucide-react';
+import { Building2, ChevronDown, MapPin } from 'lucide-react';
 
 import { Input } from '@shared/components/ui';
 import { cn } from '@shared/lib';
@@ -34,7 +34,7 @@ export function VenueField({
   const { data: master } = useMasterData();
   const locations = useMemo(
     () => master?.jobLocations ?? [],
-    [master?.jobLocations],
+    [master?.jobLocations]
   );
   const { place, location } = splitVenue(value, locations);
 
@@ -43,25 +43,32 @@ export function VenueField({
       <label className="mb-1 flex items-center gap-1 text-[0.6875rem] font-medium text-slate-400">
         <MapPin className="h-3 w-3" /> Location
       </label>
-      <select
-        value={location}
-        disabled={disabled || locations.length === 0}
-        onChange={(e) => onChange(joinVenue(place, e.target.value))}
-        className={cn(
-          'h-10 w-full rounded-lg border bg-white px-3 text-sm outline-none transition-colors focus:ring-2 focus:ring-brand-500/20',
-          'border-slate-300 focus:border-brand-400',
-          !location && 'text-slate-400',
-        )}
-      >
-        <option value="">
-          {locations.length ? 'Select a location…' : 'No locations configured'}
-        </option>
-        {locations.map((l) => (
-          <option key={l} value={l} className="text-slate-800">
-            {l}
+      <div className="relative">
+        <select
+          value={location}
+          disabled={disabled || locations.length === 0}
+          onChange={(e) => onChange(joinVenue(place, e.target.value))}
+          className={cn(
+            // The app's own dropdown look (see Select): no browser arrow, our
+            // chevron, room for it on the right.
+            'h-10 w-full appearance-none truncate rounded-lg border bg-white px-3 pr-9 text-sm outline-none transition-colors focus:ring-2 focus:ring-brand-500/40',
+            'border-slate-300 focus:border-brand-500',
+            location ? 'text-slate-900' : 'text-slate-400'
+          )}
+        >
+          <option value="">
+            {locations.length
+              ? 'Select a location…'
+              : 'No locations configured'}
           </option>
-        ))}
-      </select>
+          {locations.map((l) => (
+            <option key={l} value={l} className="text-slate-800">
+              {l}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      </div>
     </div>
   );
 
