@@ -21,6 +21,8 @@ export function CandidatePackageModal({
   candidate,
   open,
   onClose,
+  stacked,
+  onSaved,
 }: {
   candidate: {
     id: string;
@@ -35,6 +37,10 @@ export function CandidatePackageModal({
   };
   open: boolean;
   onClose: () => void;
+  /** Opened from another dialog — show it above that one. */
+  stacked?: boolean;
+  /** After a successful save, e.g. to refresh the screen it was opened from. */
+  onSaved?: () => void;
 }) {
   const save = useSetCandidatePackage(candidate.id);
   const initial = {
@@ -51,6 +57,7 @@ export function CandidatePackageModal({
     <Modal
       open={open}
       onClose={onClose}
+      stacked={stacked}
       size="md"
       title={`Facilities & salary — ${candidate.name}`}
     >
@@ -63,7 +70,14 @@ export function CandidatePackageModal({
         key={`${candidate.id}:${initial.updatedAt ?? 'new'}:${open}`}
         initial={initial}
         saving={save.isPending}
-        onSave={(input) => save.mutate(input, { onSuccess: onClose })}
+        onSave={(input) =>
+          save.mutate(input, {
+            onSuccess: () => {
+              onSaved?.();
+              onClose();
+            },
+          })
+        }
         renderActions={(submit, { dirty, saved }) => (
           <>
             <p className="mt-4 flex items-start gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-[0.6875rem] leading-relaxed text-slate-500">

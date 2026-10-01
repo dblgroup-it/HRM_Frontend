@@ -7,6 +7,7 @@ import {
   Check,
   CheckCircle2,
   Loader2,
+  Pencil,
   RotateCcw,
   Send,
   Users,
@@ -19,6 +20,7 @@ import { formatDate } from '@shared/utils';
 import { useUpdateCandidate } from '@modules/candidates';
 // The file, not the barrel: assessment already imports salaryFixation.
 import { benefitLabels } from '@modules/assessment/components/benefits';
+import { CandidatePackageModal } from '@modules/assessment/components/CandidatePackageModal';
 
 import { BANDS, GRADES, JOB_GRADES, bandSalary, evaluateScreeningTest, gradeLabel } from '../constants';
 import {
@@ -87,6 +89,8 @@ export function SalaryFixationModal({
 }) {
   const qc = useQueryClient();
   const { data, isLoading } = useSalaryFixation(candidate.id, open);
+  /** The interview package form, for correcting present salary and benefits. */
+  const [packageOpen, setPackageOpen] = useState(false);
   const upsert = useUpsertSalaryFixation(candidate.id);
   const markOffered = useMarkOffered(candidate.id);
   const finalize = useFinalizeSalaryFixation(candidate.id);
@@ -483,7 +487,27 @@ export function SalaryFixationModal({
                 />
               )}
               <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
-                <Field label="Present salary" hint="from the interview">
+                <div className="flex items-center justify-between sm:col-span-2">
+                  <p className="text-[0.6875rem] text-slate-400">
+                    From the interview
+                    {data.packageUpdatedByName
+                      ? ` · ${data.packageUpdatedByName}`
+                      : ''}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setPackageOpen(true)}
+                    className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-brand-600 transition-colors hover:bg-brand-50 hover:text-brand-700"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    {data.presentSalary != null ||
+                    data.salaryBenefits.length > 0 ||
+                    data.salaryBenefitsNote
+                      ? 'Edit'
+                      : 'Add'}
+                  </button>
+                </div>
+                <Field label="Present salary">
                   <p className="text-lg font-bold tabular-nums text-slate-900">
                     {data.presentSalary != null ? taka(data.presentSalary) : <span className="text-sm font-medium text-slate-400">Not recorded</span>}
                   </p>
@@ -562,6 +586,29 @@ export function SalaryFixationModal({
           </div>
         </div>
       </div>
+      {packageOpen && (
+        <CandidatePackageModal
+          open
+          stacked
+          candidate={{
+            id: candidate.id,
+            name: candidate.name,
+            presentSalary: data.presentSalary,
+            salaryExpectation: data.salaryExpectation,
+            salaryBenefitsNote: data.salaryBenefitsNote,
+            salaryBenefits: data.salaryBenefits,
+            transportPickup: data.transportPickup ?? null,
+            packageUpdatedAt: data.packageUpdatedAt ?? null,
+            packageUpdatedByName: data.packageUpdatedByName ?? null,
+          }}
+          onSaved={() =>
+            qc.invalidateQueries({
+              queryKey: salaryFixationKeys.detail(candidate.id),
+            })
+          }
+          onClose={() => setPackageOpen(false)}
+        />
+      )}
     </div>,
     document.body,
   );

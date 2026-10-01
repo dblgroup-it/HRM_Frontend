@@ -11,6 +11,8 @@ export interface ModalProps {
   children: ReactNode;
   footer?: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  /** Open above another full-screen dialog (e.g. Salary Fixation, z-150). */
+  stacked?: boolean;
 }
 
 const sizes = {
@@ -29,6 +31,7 @@ export function Modal({
   children,
   footer,
   size = 'md',
+  stacked = false,
 }: ModalProps) {
   useEffect(() => {
     if (!open) return;
@@ -46,7 +49,12 @@ export function Modal({
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+    <div
+      className={cn(
+        'fixed inset-0 flex items-center justify-center p-3 sm:p-4',
+        stacked ? 'z-[160]' : 'z-50',
+      )}
+    >
       <div
         className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
         onClick={onClose}

@@ -69,6 +69,11 @@ export interface SalaryFixation {
   salaryBenefitsNote: string | null;
   /** The same, as ticked keys (lunch, pick and drop, housing, tax). */
   salaryBenefits: string[];
+  /** Where they would be picked up from, if transport is offered. */
+  transportPickup?: string | null;
+  /** When the interview package was last saved, and by whom. */
+  packageUpdatedAt?: string | null;
+  packageUpdatedByName?: string | null;
   /** What the candidate actually asked for — separate from what we're
    * proposing, so both sides of the negotiation are visible together.
    * Optional; updated as it comes up in interviews. */
