@@ -105,7 +105,9 @@ export type ApprovalRole =
   | 'factory_hr'
   | 'sbu_head'
   | 'corporate_hr'
-  | 'chro';
+  | 'chro'
+  /** Appended when the CHRO sends it to the board; decided by emailed votes. */
+  | 'board';
 
 export type ApprovalDecision =
   | 'approved'
@@ -113,7 +115,57 @@ export type ApprovalDecision =
   | 'need_more_info'
   | 'escalate'
   | 'escalated'
+  | 'send_to_board'
   | 'edited';
+
+/** One board member's emailed answer, shown under the BOARD step. */
+export interface RequisitionBoardVote {
+  stepId: string;
+  name: string;
+  status: 'pending' | 'approved' | 'rejected';
+  notes: string | null;
+  respondedAt: ISODateString | null;
+}
+
+/** The public page behind a board member's emailed link. */
+export interface RequisitionBoardVoteInfo {
+  voter: string;
+  status: 'pending' | 'approved' | 'rejected';
+  expired: boolean;
+  /** Set when someone on the board has already decided it. */
+  decided: { outcome: 'approved' | 'rejected'; by: string } | null;
+  requisition: {
+    code: string;
+    designation: string;
+    unit: string;
+    department: string;
+    section: string | null;
+    requiredPosts: number;
+    requirementType: 'new' | 'replacement';
+    priority: string;
+    employmentNature: string;
+    placeOfPosting: string;
+    neededDate: ISODateString | null;
+    raisedBy: string | null;
+    jobDescription: string;
+    education: string;
+    experience: string;
+    chain: {
+      title: string;
+      assignee: string;
+      status: string;
+      note: string;
+      actedAt: ISODateString | null;
+    }[];
+  };
+}
+
+/** A board group the CHRO picks voters from. */
+export interface BoardGroupOption {
+  id: string;
+  name: string;
+  members: { id: string; name: string; hasEmail: boolean }[];
+}
 export type StepStatus = 'pending' | 'approved' | 'rejected' | 'info_requested';
 
 export interface ApprovalStep {
@@ -228,7 +280,7 @@ export interface RoleProfile {
   requirements: string[];
   generatedAt: ISODateString;
   /** Whether the LLM wrote it, the template produced it, or HR edited it. */
-  generatedBy?: 'ai' | 'template' | 'manual';
+  generatedBy?: 'ai' | 'template' | 'manual' | 'job_analysis';
 }
 
 /** Job posting record (Step 4). */
@@ -345,6 +397,8 @@ export interface Requisition {
   // Workflow
   status: RequisitionStatus;
   approvalChain: ApprovalStep[];
+  /** Emailed board votes; empty unless the CHRO sent it to the board. */
+  boardVotes?: RequisitionBoardVote[];
   activityLog: ActivityLogEntry[];
   roleProfile: RoleProfile | null;
   posting: JobPosting | null;

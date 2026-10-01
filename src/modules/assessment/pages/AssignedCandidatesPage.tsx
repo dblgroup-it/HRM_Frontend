@@ -170,6 +170,7 @@ const ORDER: Col[] = [
  * and the DOM stays small.
  */
 const COLUMN_LIMIT = 12;
+const EMPTY_PICK: ReadonlySet<string> = new Set();
 
 
 type Round = DelegatedCandidate['rounds'][number];
@@ -356,6 +357,25 @@ export default function AssignedCandidatesPage() {
   } | null>(null);
   /** Stages the user has asked to see in full. */
   const [expanded, setExpanded] = useState<Partial<Record<Col, boolean>>>({});
+  /**
+   * To schedule: who is ticked, per vacancy. "Schedule all" becomes
+   * "Schedule N selected" — ten on the list does not have to mean ten in
+   * one session.
+   */
+  const [picked, setPicked] = useState<Record<string, Set<string>>>({});
+  const pickedIn = (reqId: string) => picked[reqId] ?? EMPTY_PICK;
+  const togglePick = (reqId: string, candidateId: string) =>
+    setPicked((prev) => {
+      const next = new Set(prev[reqId] ?? []);
+      if (next.has(candidateId)) next.delete(candidateId);
+      else next.add(candidateId);
+      return { ...prev, [reqId]: next };
+    });
+  const setGroupPick = (reqId: string, ids: string[]) =>
+    setPicked((prev) => ({ ...prev, [reqId]: new Set(ids) }));
+  /** Ticked rows still in the group (a scheduled one leaves it). */
+  const chosenRows = (group: Group) =>
+    group.rows.filter((r) => pickedIn(group.id).has(r.candidate.id));
   /** Which stage the tabs are showing. Opens on the work that needs doing. */
   const [activeCol, setActiveCol] = useState<Col>('to_schedule');
 
@@ -565,27 +585,61 @@ export default function AssignedCandidatesPage() {
                             </div>
                             {col.key === 'to_schedule' &&
                               group.rows.length > 1 && (
+                                <label className="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-slate-300">
+                                  <input
+                                    type="checkbox"
+                                    className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                                    checked={
+                                      group.rows.every((r) =>
+                                        pickedIn(group.id).has(r.candidate.id),
+                                      )
+                                    }
+                                    onChange={(e) =>
+                                      setGroupPick(
+                                        group.id,
+                                        e.target.checked
+                                          ? group.rows.map((r) => r.candidate.id)
+                                          : [],
+                                      )
+                                    }
+                                  />
+                                  Select all
+                                </label>
+                              )}
+                            {col.key === 'to_schedule' &&
+                              (group.rows.length > 1 ||
+                                chosenRows(group).length > 0) && (
                                 /* One session for the whole shortlist — the
                                    afternoon's work in a single click, so it
                                    is given the weight of an offer rather
                                    than of another outline button. */
                                 <button
                                   type="button"
-                                  onClick={() =>
+                                  onClick={() => {
+                                    // The ticked candidates, or everyone when
+                                    // nobody is ticked.
+                                    const chosen = chosenRows(group);
+                                    const rows = chosen.length ? chosen : group.rows;
                                     setBulkFor({
                                       reqId: group.id,
                                       label: `${group.code} · ${group.designation}`,
-                                      candidates: group.rows.map((r) => ({
+                                      candidates: rows.map((r) => ({
                                         id: r.candidate.id,
                                         name: r.candidate.name,
                                       })),
-                                    })
-                                  }
+                                    });
+                                  }}
                                   className="group/all inline-flex shrink-0 items-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold tracking-tight text-white shadow-sm shadow-brand-600/25 transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-md hover:shadow-brand-700/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:ring-offset-2 active:translate-y-0 active:scale-[0.98]"
-                                  title={`One session for all ${group.rows.length} candidates on ${group.code}`}
+                                  title={
+                                    chosenRows(group).length
+                                      ? `One session for the ${chosenRows(group).length} you ticked`
+                                      : `One session for all ${group.rows.length} candidates on ${group.code}`
+                                  }
                                 >
                                   <CalendarDays className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover/all:-translate-y-px" />
-                                  Schedule all {group.rows.length}
+                                  {chosenRows(group).length
+                                    ? `Schedule ${chosenRows(group).length} selected`
+                                    : `Schedule all ${group.rows.length}`}
                                 </button>
                               )}
                             {col.key === 'decision_due' &&
@@ -666,13 +720,18 @@ export default function AssignedCandidatesPage() {
                             Cards are equal height (`items-stretch` + the
                             action row's `mt-auto`), so the grid reads as a
                             grid. */}
-                        <div className="grid items-stretch gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+                        <div className="space-y-2.5">
                           {group.rows.map((row, ri) => (
                             <BoardCard
                               key={row.id}
                               row={row}
                               index={ri}
                               col={col.key}
+                              selectable={col.key === 'to_schedule'}
+                              selected={pickedIn(group.id).has(row.candidate.id)}
+                              onToggleSelect={() =>
+                                togglePick(group.id, row.candidate.id)
+                              }
                               // Said once in the header above; repeating it
                               // on each card is what it looked like before.
                               hideNote={Boolean(group.sharedNote)}
@@ -922,6 +981,9 @@ function BoardCard({
   onEnterMarks,
   onEnterPackage,
   onRegret,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
 }: {
   row: DelegatedCandidate;
   /** Position in its group — drives the entrance stagger only. */
@@ -939,6 +1001,10 @@ function BoardCard({
   onEnterMarks: () => void;
   onEnterPackage: () => void;
   onRegret: () => void;
+  /** To schedule: a tick box to pick who goes into one session. */
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }) {
   const outcome = useFirstInterviewOutcome();
   // Opt-in on a rejection — rejecting never writes to anybody by itself.
@@ -1062,20 +1128,9 @@ function BoardCard({
    * the card rather than as part of it. A border says the same thing without
    * adding a band: the whole edge carries it, quietly.
    */
-  const edge =
-    col === 'to_schedule'
-      ? age.tone === 'late'
-        ? 'border-rose-200 hover:border-rose-300'
-        : 'border-amber-200 hover:border-amber-300'
-      : col === 'scheduled'
-        ? 'border-sky-200 hover:border-sky-300'
-        : col === 'decision_due'
-          ? 'border-violet-200 hover:border-violet-300'
-          : col === 'with_head'
-            ? 'border-orange-200 hover:border-orange-300'
-          : rejected
-            ? 'border-rose-100 hover:border-rose-200'
-            : 'border-emerald-200 hover:border-emerald-300';
+  const edge = selected
+    ? 'border-brand-300 ring-1 ring-brand-200'
+    : 'border-slate-200 hover:border-slate-300';
   /** Urgent enough that the pill's icon should move. */
   const pressing =
     (col === 'to_schedule' && age.tone === 'late') || soon === 'overdue';
@@ -1088,10 +1143,29 @@ function BoardCard({
         'group animate-card-in relative flex flex-col overflow-hidden rounded-2xl border bg-white',
         edge,
         'shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-16px_rgba(15,23,42,0.18)]',
-        'transition-[transform,box-shadow,border-color] duration-300 ease-out hover:-translate-y-1',
+        'transition-[transform,box-shadow,border-color] duration-300 ease-out hover:-translate-y-0.5',
         'hover:shadow-[0_2px_4px_rgba(15,23,42,0.05),0_20px_44px_-20px_rgba(15,23,42,0.3)]',
       )}
     >
+      {/* A row, like the recruiter's candidate rows: who and what is
+          known on the left, the step on the right, the verdict opening
+          full width underneath. */}
+      <div className="flex flex-col lg:flex-row">
+        {selectable && (
+          <label
+            className="flex shrink-0 cursor-pointer items-start px-3 pt-5 lg:items-center lg:pt-0"
+            title={selected ? 'Remove from this session' : 'Add to one session'}
+          >
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+              checked={selected}
+              onChange={onToggleSelect}
+              aria-label={`Select ${row.candidate.name}`}
+            />
+          </label>
+        )}
+        <div className={cn('min-w-0 flex-1', selectable && 'lg:-ml-1')}>
       {/* ── Head: who, and what it is waiting on ── */}
       <div className="relative overflow-hidden bg-gradient-to-b from-slate-50/80 to-white px-4 pb-3 pt-3.5">
         {/* A sheen that crosses the header once on hover. */}
@@ -1162,7 +1236,7 @@ function BoardCard({
           row.candidate.email ||
           row.tests.length > 0 ||
           venue) && (
-          <div className="flex flex-col gap-px border-t border-slate-100 px-4 py-2.5">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-px border-t border-slate-100 px-4 py-2">
             {row.candidate.phone && (
               <CopyRow
                 icon={Phone}
@@ -1246,6 +1320,57 @@ function BoardCard({
           </div>
         )}
 
+      {rejected && (row.candidate.rejectionReason || row.candidate.rejectedByName) && (
+        <div className="mx-4 mb-4 border-l-2 border-rose-200 pl-2">
+          {row.candidate.rejectionReason && (
+            <p
+              className="line-clamp-2 text-[0.6875rem] leading-4 text-slate-500"
+              title={row.candidate.rejectionReason}
+            >
+              {row.candidate.rejectionReason}
+            </p>
+          )}
+          {row.candidate.rejectedByName && (
+            <p className="mt-0.5 text-[0.6875rem] text-slate-400">
+              by {row.candidate.rejectedByName}
+              {row.candidate.rejectedAt &&
+                ` · ${formatDate(row.candidate.rejectedAt)}`}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* The regret letter: sent once, and then the card says so. */}
+      {rejected && (
+        <div className="mx-4 mb-4">
+          {row.candidate.regretSentAt ? (
+            <p className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[0.6875rem] font-semibold text-emerald-700 ring-1 ring-emerald-200">
+              <MailX className="h-3.5 w-3.5" />
+              Regret mail sent · {formatDate(row.candidate.regretSentAt)}
+            </p>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 w-fit border-rose-200 px-3 text-xs text-rose-600 hover:border-rose-300 hover:bg-rose-50"
+              disabled={!row.candidate.email}
+              title={
+                row.candidate.email
+                  ? 'Send DBL’s regret letter'
+                  : 'No email on file'
+              }
+              onClick={onRegret}
+            >
+              <MailX className="mr-1 h-3.5 w-3.5" />
+              {row.candidate.email ? 'Send regret mail' : 'No email — cannot send regret mail'}
+            </Button>
+          )}
+        </div>
+      )}
+
+        </div>
+        {!deciding && (
+        <div className="flex shrink-0 flex-col justify-center lg:w-[19rem] lg:border-l lg:border-slate-100">
         {/* The step. Pinned to the foot of the card with `mt-auto`, so the
             buttons sit on the same line across a row of cards however much
             detail is above them — a ragged bottom edge is most of what made
@@ -1254,7 +1379,7 @@ function BoardCard({
       {!deciding && (
         // Two fixed rows, so nothing wraps on a narrow card: the tools share
         // the first equally, the stage's own step(s) the second.
-        <div className="mt-auto space-y-2 border-t border-slate-100 px-4 py-3">
+        <div className="space-y-2 border-t border-slate-100 px-4 py-3 lg:border-t-0">
           <div className="flex gap-1.5">
           {/* Labelled, not three bare glyphs in a box. A document, a
               checklist and a dollar sign all render at 14px as "some kind
@@ -1367,53 +1492,9 @@ function BoardCard({
         </div>
       )}
 
-      {rejected && (row.candidate.rejectionReason || row.candidate.rejectedByName) && (
-        <div className="mx-4 mb-4 border-l-2 border-rose-200 pl-2">
-          {row.candidate.rejectionReason && (
-            <p
-              className="line-clamp-2 text-[0.6875rem] leading-4 text-slate-500"
-              title={row.candidate.rejectionReason}
-            >
-              {row.candidate.rejectionReason}
-            </p>
-          )}
-          {row.candidate.rejectedByName && (
-            <p className="mt-0.5 text-[0.6875rem] text-slate-400">
-              by {row.candidate.rejectedByName}
-              {row.candidate.rejectedAt &&
-                ` · ${formatDate(row.candidate.rejectedAt)}`}
-            </p>
-          )}
         </div>
-      )}
-
-      {/* The regret letter: sent once, and then the card says so. */}
-      {rejected && (
-        <div className="mx-4 mb-4">
-          {row.candidate.regretSentAt ? (
-            <p className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[0.6875rem] font-semibold text-emerald-700 ring-1 ring-emerald-200">
-              <MailX className="h-3.5 w-3.5" />
-              Regret mail sent · {formatDate(row.candidate.regretSentAt)}
-            </p>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 w-full border-rose-200 px-2.5 text-xs text-rose-600 hover:border-rose-300 hover:bg-rose-50"
-              disabled={!row.candidate.email}
-              title={
-                row.candidate.email
-                  ? 'Send DBL’s regret letter'
-                  : 'No email on file'
-              }
-              onClick={onRegret}
-            >
-              <MailX className="mr-1 h-3.5 w-3.5" />
-              {row.candidate.email ? 'Send regret mail' : 'No email — cannot send regret mail'}
-            </Button>
-          )}
-        </div>
-      )}
+        )}
+      </div>
 
       {/* The verdict, asked for on the card itself */}
       {deciding && (

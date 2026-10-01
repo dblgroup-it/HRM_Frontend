@@ -86,6 +86,7 @@ import {
 } from './recommendation';
 import { RescheduleButton, RescheduledNote } from './RescheduleInterview';
 import { slotLabel } from './slotLabel';
+import { VenueField } from './VenueField';
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -154,14 +155,36 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
     [candidates],
   );
   const heldCount = candidates.length - schedulable.length;
+  /**
+   * Two lists. The main one is who the recruiter can act on now — the
+   * factory's finalists and their own interviews. "Other candidates" are
+   * still out with the factory for a first interview: shown, but apart, so
+   * a vacancy where the factory sent back three of ten does not open on
+   * seven locked rows.
+   */
+  const held = useMemo(
+    () => candidates.filter((c) => c.firstInterviewHold),
+    [candidates],
+  );
+  const [listTab, setListTab] = useState<'ready' | 'other'>('ready');
+  // Nothing ready yet: open on the factory's list rather than an empty one.
+  useEffect(() => {
+    if (listTab === 'ready' && schedulable.length === 0 && held.length > 0) {
+      setListTab('other');
+    }
+  }, [listTab, schedulable.length, held.length]);
+  const listed = listTab === 'ready' ? schedulable : held;
   const [selected, setSelected] = useState<Candidate | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
 
-  // Auto-select first candidate when list loads
+  // Auto-select the first candidate of the list being shown.
   useEffect(() => {
-    if (!selected && candidates.length > 0) setSelected(candidates[0]);
-  }, [candidates, selected]);
+    if (listed.length === 0) return;
+    if (!selected || !listed.some((c) => c.id === selected.id)) {
+      setSelected(listed[0]);
+    }
+  }, [listed, selected]);
 
   // Keep selection in sync if candidate data refreshes
   useEffect(() => {
@@ -236,13 +259,60 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
 
           {/* LEFT — candidate list */}
           <div className="flex w-72 shrink-0 flex-col border-r border-slate-100">
-            <div className="border-b border-slate-100 px-3 py-2.5">
-              <p className="text-[0.625rem] font-semibold uppercase tracking-widest text-slate-400">
-                Candidates
-              </p>
+            <div className="border-b border-slate-100 p-2">
+              {held.length > 0 ? (
+                <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
+                  {(
+                    [
+                      ['ready', 'Ready', schedulable.length],
+                      ['other', 'Other', held.length],
+                    ] as const
+                  ).map(([key, label, n]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setListTab(key)}
+                      title={
+                        key === 'other'
+                          ? 'Still with the factory for their first interview'
+                          : 'Decided — ready for you to interview'
+                      }
+                      className={cn(
+                        'flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-[0.6875rem] font-semibold transition-colors',
+                        listTab === key
+                          ? 'bg-white text-slate-800 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-700',
+                      )}
+                    >
+                      {label}
+                      <span
+                        className={cn(
+                          'rounded-full px-1.5 text-[0.625rem] tabular-nums',
+                          listTab === key
+                            ? 'bg-brand-50 text-brand-700'
+                            : 'bg-slate-200 text-slate-500',
+                        )}
+                      >
+                        {n}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="px-1 py-0.5 text-[0.625rem] font-semibold uppercase tracking-widest text-slate-400">
+                  Candidates
+                </p>
+              )}
             </div>
             <div className="flex-1 overflow-y-auto">
-              {candidates.map((c) => (
+              {listed.length === 0 && (
+                <p className="px-4 py-8 text-center text-xs leading-5 text-slate-400">
+                  {listTab === 'ready'
+                    ? 'Nobody is back from the factory yet. Their candidates are under Other until they decide.'
+                    : 'Nobody is out with the factory.'}
+                </p>
+              )}
+              {listed.map((c) => (
                 <CandidateListCard
                   key={c.id}
                   candidate={c}
@@ -1018,12 +1088,20 @@ function InterviewWorkspace({
                   </div>
                 ) : (
                   <div>
+                    {mode !== 'online' ? (
+                      <VenueField
+                        compact
+                        value={location}
+                        invalid={locationError}
+                        onChange={(v) => { setLocation(v); if (v.trim()) setLocationError(false); }}
+                      />
+                    ) : (
                     <Input
-                      placeholder={mode === 'online' ? 'https://… (Teams, Zoom…)' : 'Venue — e.g. HQ Board Room 3 *'}
+                      placeholder="https://… (Teams, Zoom…)"
                       value={location}
                       onChange={(e) => { setLocation(e.target.value); if (e.target.value.trim()) setLocationError(false); }}
-                      className={locationError && mode !== 'online' ? 'border-rose-400 focus:ring-rose-400' : ''}
                     />
+                    )}
                     {locationError && mode !== 'online' && (
                       <p className="mt-1 flex items-center gap-1 text-[0.6875rem] font-medium text-rose-600">
                         <MapPin className="h-3 w-3" /> Venue is required for in-person interviews

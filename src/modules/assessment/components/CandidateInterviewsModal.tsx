@@ -58,7 +58,7 @@ import {
   recommendationLabel,
   recommendationTone,
 } from './recommendation';
-import { VenuePicker } from './VenuePicker';
+import { VenueField } from './VenueField';
 import { RescheduleButton, RescheduledNote } from './RescheduleInterview';
 import { slotLabel } from './slotLabel';
 import { PanelGroups, PanelSideToggle } from './PanelGroups';
@@ -515,9 +515,11 @@ export function CandidateInterviewsModal({
                     </div>
                   ) : (
                     <div>
-                      {roomList && mode !== 'online' ? (
-                        <VenuePicker
+                      {mode !== 'online' ? (
+                        <VenueField
+                          compact
                           value={location}
+                          roomList={roomList}
                           invalid={locationError}
                           onChange={(v) => {
                             setLocation(v);

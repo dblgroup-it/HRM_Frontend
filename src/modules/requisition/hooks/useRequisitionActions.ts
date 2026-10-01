@@ -84,11 +84,13 @@ export function useApprovalAction() {
       id,
       decision,
       note,
+      boardMemberIds,
     }: {
       id: string;
       decision: ApprovalDecision;
       note: string;
-    }) => requisitionApi.act(id, decision, note),
+      boardMemberIds?: string[];
+    }) => requisitionApi.act(id, decision, note, boardMemberIds),
     onSuccess: sync,
   });
 }
@@ -141,6 +143,7 @@ export function useUpdateRoleProfile() {
         jobDescription: string;
         responsibilities: string[];
         requirements: string[];
+        source?: 'job_analysis';
       };
     }) => requisitionApi.updateRoleProfile(id, input),
     onSuccess: sync,

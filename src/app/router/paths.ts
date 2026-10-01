@@ -54,6 +54,8 @@ export const ROUTES = {
   boardGroups: '/configuration/board-groups',
   /** Public board-member approval page (no auth). */
   boardVote: (token = ':token') => `/board-vote/${token}`,
+  /** Public board-member vote on a requisition the CHRO sent to the board. */
+  requisitionBoardVote: (token = ':token') => `/requisition-board/${token}`,
   /** Head of Talent Acquisition's consolidated board-approval page. */
   approvalSheets: '/approval-sheets',
   /** Head of Talent Acquisition schedules and sends requested medical tests. */

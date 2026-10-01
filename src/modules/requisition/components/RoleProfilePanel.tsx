@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pencil, RefreshCw, Sparkles, X } from 'lucide-react';
+import { Check, ClipboardList, Pencil, RefreshCw, Sparkles, X } from 'lucide-react';
 
 import {
   BusyOverlay,
@@ -18,11 +18,13 @@ import {
   useGenerateRoleProfile,
   useUpdateRoleProfile,
 } from '../hooks/useRequisitionActions';
+import { draftRoleProfile } from '../roleProfileDraft';
 
 const GENERATED_BY_LABEL: Record<string, string> = {
   ai: 'AI-generated',
   template: 'Generated from template',
   manual: 'Edited by HR',
+  job_analysis: "From Factory HR's job analysis",
 };
 
 export function RoleProfilePanel({
@@ -36,8 +38,16 @@ export function RoleProfilePanel({
   showStep?: boolean;
 }) {
   const generate = useGenerateRoleProfile();
+  const adopt = useUpdateRoleProfile();
   const profile = requisition.roleProfile;
   const [editing, setEditing] = useState(false);
+  /**
+   * Nothing saved yet, but Factory HR wrote the job analysis before approval:
+   * start from that rather than from a blank page. It is shown as the
+   * profile until someone uses, edits or regenerates it.
+   */
+  const draft = profile ? null : draftRoleProfile(requisition);
+  const shown = profile ?? draft;
 
   const editable =
     canContinue && requisition.status !== 'posted';
@@ -59,12 +69,13 @@ export function RoleProfilePanel({
     generatedBy: 'manual',
   };
   const writingFromScratch = editing && !profile;
+  const by = requisition.jobAnalysis?.completedBy?.name ?? null;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>{showStep ? 'Role Profile · Step 4' : 'Role Profile'}</CardTitle>
-        {profile && editable && !editing && (
+        {shown && editable && !editing && (
           <div className="flex items-center gap-1">
             <Button
               size="sm"
@@ -90,10 +101,10 @@ export function RoleProfilePanel({
         {writingFromScratch ? (
           <RoleProfileForm
             id={requisition.id}
-            profile={blank}
+            profile={draft ?? blank}
             onDone={() => setEditing(false)}
           />
-        ) : !profile ? (
+        ) : !shown ? (
           <div className="flex flex-col items-center gap-4 py-6 text-center">
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-brand-600">
               <Sparkles className="h-6 w-6" />
@@ -130,7 +141,7 @@ export function RoleProfilePanel({
               )}
             </div>
           </div>
-        ) : editing ? (
+        ) : editing && profile ? (
           <RoleProfileForm
             id={requisition.id}
             profile={profile}
@@ -138,31 +149,72 @@ export function RoleProfilePanel({
           />
         ) : (
           <div className="space-y-5">
+            {draft && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="flex items-start gap-2 text-sm text-amber-800">
+                  <ClipboardList className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    Drafted from {by ? `${by}'s` : "Factory HR's"} job analysis.
+                    Use it as it is, edit it, or regenerate it with AI.
+                  </span>
+                </p>
+                {editable && (
+                  <Button
+                    size="sm"
+                    isLoading={adopt.isPending}
+                    leftIcon={<Check className="h-4 w-4" />}
+                    onClick={() =>
+                      adopt.mutate({
+                        id: requisition.id,
+                        input: {
+                          summary: draft.summary,
+                          jobDescription: draft.jobDescription,
+                          responsibilities: draft.responsibilities,
+                          requirements: draft.requirements,
+                          source: 'job_analysis',
+                        },
+                      })
+                    }
+                  >
+                    Use this profile
+                  </Button>
+                )}
+              </div>
+            )}
             <div className="rounded-lg bg-brand-50/60 p-4">
-              <p className="text-sm text-slate-700">{profile.summary}</p>
-              <p className="mt-2 inline-flex items-center gap-1 text-xs text-brand-600">
-                <Sparkles className="h-3 w-3" />
-                {GENERATED_BY_LABEL[profile.generatedBy ?? 'ai'] ??
-                  'AI-generated'}{' '}
-                {formatRelative(profile.generatedAt)}
-              </p>
+              <p className="text-sm text-slate-700">{shown.summary}</p>
+              {!draft && (
+                <p className="mt-2 inline-flex items-center gap-1 text-xs text-brand-600">
+                  <Sparkles className="h-3 w-3" />
+                  {GENERATED_BY_LABEL[shown.generatedBy ?? 'ai'] ??
+                    'AI-generated'}{' '}
+                  {formatRelative(shown.generatedAt)}
+                </p>
+              )}
             </div>
 
             <div>
               <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Job description
               </h4>
-              <p className="text-sm text-slate-600">{profile.jobDescription}</p>
+              <p className="whitespace-pre-line text-sm text-slate-600">
+                {shown.jobDescription}
+              </p>
             </div>
 
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <ProfileList
                 title="Responsibilities"
-                items={profile.responsibilities}
+                items={shown.responsibilities}
               />
-              <ProfileList title="Requirements" items={profile.requirements} />
+              <ProfileList title="Requirements" items={shown.requirements} />
             </div>
           </div>
+        )}
+        {adopt.isError && (
+          <p className="mt-3 text-sm text-red-600">
+            {(adopt.error as Error).message}
+          </p>
         )}
         {generate.isError && (
           <p className="mt-3 text-sm text-red-600">

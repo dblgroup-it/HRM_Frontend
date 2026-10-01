@@ -205,6 +205,10 @@ export const APPROVAL_ROLE_META: Record<
     title: 'CHRO',
     subtitle: 'Escalated final approval',
   },
+  board: {
+    title: 'Board',
+    subtitle: 'Board approval by email',
+  },
 };
 
 /**

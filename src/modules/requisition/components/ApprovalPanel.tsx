@@ -4,6 +4,8 @@ import {
   Check,
   Clock,
   History,
+  Landmark,
+  Mail,
   Undo2,
   UserRound,
   X,
@@ -28,7 +30,9 @@ import type {
   ApprovalDecision,
   ApprovalStep,
   Requisition,
+  RequisitionBoardVote,
 } from '../types/requisition.types';
+import { SendToBoardModal } from './SendToBoardModal';
 import {
   useApprovalAction,
   useResubmitRequisition,
@@ -41,6 +45,7 @@ import {
 
 export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
   const [note, setNote] = useState('');
+  const [boardOpen, setBoardOpen] = useState(false);
   const [overlayVisible, setOverlayVisible] = useState(false);
   const lastDecisionRef = useRef<ApprovalDecision | null>(null);
   const action = useApprovalAction();
@@ -115,6 +120,10 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
   const currentStep = nextPendingIndex >= 0 ? chain[nextPendingIndex] : null;
   const unit = requisition.unitFactory.toLowerCase();
   const isLastStep = nextPendingIndex === chain.length - 1;
+  // Already with the CHRO: the next hand-off is the board, not the CHRO again.
+  const isChroStep = currentStep?.role === 'chro';
+  // With the board: decided by the members' emailed votes, not here.
+  const isBoardStep = currentStep?.role === 'board';
   const canAct =
     !currentStep ||
     !!perms?.isSuperUser ||
@@ -126,13 +135,20 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
             (r.unitId === null || (r.unitName ?? '').toLowerCase() === unit)
         ));
 
-  const act = (decision: ApprovalDecision) => {
+  const act = (decision: ApprovalDecision, boardMemberIds?: string[]) => {
     lastDecisionRef.current = decision;
     action.mutate(
-      { id: requisition.id, decision, note },
-      { onSuccess: () => setNote('') }
+      { id: requisition.id, decision, note, boardMemberIds },
+      {
+        onSuccess: () => {
+          setNote('');
+          setBoardOpen(false);
+        },
+      }
     );
   };
+  const votesFor = (stepId: string) =>
+    (requisition.boardVotes ?? []).filter((v) => v.stepId === stepId);
 
   return (
     <Card>
@@ -185,9 +201,23 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
               isLast={index === chain.length - 1}
               isNext={index === nextPendingIndex && !isRejected}
               leadsToActive={index === nextPendingIndex - 1 && !isRejected}
+              votes={step.role === 'board' ? votesFor(step.id) : []}
             >
               {index === nextPendingIndex &&
                 !isRejected &&
+                isBoardStep &&
+                !perms?.isSuperUser && (
+                  <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                    <Mail className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      With the board — each member was emailed a link. The
+                      first to decide settles it.
+                    </span>
+                  </div>
+                )}
+              {index === nextPendingIndex &&
+                !isRejected &&
+                !(isBoardStep && !perms?.isSuperUser) &&
                 (canAct ? (
                   <div className="mt-3 space-y-3 rounded-lg border border-slate-200 bg-surface-muted p-3">
                     <Textarea
@@ -238,7 +268,7 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
                       >
                         Need more info
                       </Button>
-                      {isLastStep && (
+                      {isLastStep && !isChroStep && !isBoardStep && (
                         <Button
                           size="sm"
                           variant="secondary"
@@ -250,6 +280,16 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
                           onClick={() => act('escalate')}
                         >
                           Send to CHRO
+                        </Button>
+                      )}
+                      {isLastStep && isChroStep && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          leftIcon={<Landmark className="h-4 w-4" />}
+                          onClick={() => setBoardOpen(true)}
+                        >
+                          Send to Board
                         </Button>
                       )}
                     </div>
@@ -331,6 +371,20 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
 
         {activity.length > 0 && <ActivityLog entries={activity} />}
       </CardBody>
+      {boardOpen && (
+        <SendToBoardModal
+          requisitionId={requisition.id}
+          note={note}
+          busy={action.isPending && action.variables?.decision === 'send_to_board'}
+          error={
+            action.isError && action.variables?.decision === 'send_to_board'
+              ? (action.error as Error).message
+              : null
+          }
+          onClose={() => setBoardOpen(false)}
+          onSend={(ids) => act('send_to_board', ids)}
+        />
+      )}
       <BusyOverlay
         show={overlayVisible}
         label={DECISION_OVERLAY_LABEL[lastDecisionRef.current ?? ''] ?? 'Submitting decision…'}
@@ -352,6 +406,7 @@ const DECISION_OVERLAY_LABEL: Record<string, string> = {
   need_more_info: 'Sending back for clarification…',
   escalate: 'Escalating to CHRO…',
   escalated: 'Escalating to CHRO…',
+  send_to_board: 'Sending to the board…',
 };
 
 const ACTION_LABEL: Record<ApprovalDecision, string> = {
@@ -360,6 +415,7 @@ const ACTION_LABEL: Record<ApprovalDecision, string> = {
   need_more_info: 'requested more info',
   escalate: 'escalated to CHRO',
   escalated: 'escalated to CHRO',
+  send_to_board: 'sent it to the Board',
   edited: 'made an edit',
 };
 
@@ -371,19 +427,33 @@ function ActivityLog({ entries }: { entries: Requisition['activityLog'] }) {
         Activity
       </p>
       <ul className="space-y-2">
-        {[...entries].reverse().map((entry, i) => (
+        {[...entries].reverse().map((entry, i) => {
+          // The board hand-off is logged as an escalation whose note names
+          // the members — read it as what it was.
+          const sent =
+            entry.action === 'escalated'
+              ? /^Sent to the Board \((.*?)\)(?: — ([\s\S]*))?$/.exec(
+                  entry.note ?? ''
+                )
+              : null;
+          const board = Boolean(sent);
+          const note = sent ? (sent[2] ?? '') : entry.note;
+          return (
           <li key={i} className="text-xs text-slate-500">
             <span className="font-medium text-slate-700">{entry.actor}</span>{' '}
-            {ACTION_LABEL[entry.action]}
-            {entry.note && (
-              <span className="text-slate-500"> — “{entry.note}”</span>
+            {board
+              ? `${ACTION_LABEL.send_to_board} (${sent?.[1] ?? ''})`
+              : ACTION_LABEL[entry.action]}
+            {note && (
+              <span className="text-slate-500"> — “{note}”</span>
             )}
             <span className="text-slate-400">
               {' '}
               · {formatRelative(entry.createdAt)}
             </span>
           </li>
-        ))}
+          );
+        })}
       </ul>
     </div>
   );
@@ -394,12 +464,14 @@ function ChainRow({
   isLast,
   isNext,
   leadsToActive,
+  votes,
   children,
 }: {
   step: ApprovalStep;
   isLast: boolean;
   isNext: boolean;
   leadsToActive: boolean;
+  votes: RequisitionBoardVote[];
   children?: ReactNode;
 }) {
   const approved = step.status === 'approved';
@@ -460,6 +532,33 @@ function ChainRow({
             {approved ? 'Approved' : rejected ? 'Rejected' : 'Updated'} ·{' '}
             {formatDate(step.actedAt, 'dd MMM yyyy, p')}
           </p>
+        )}
+        {votes.length > 0 && (
+          <ul className="mt-2 flex flex-wrap gap-1.5">
+            {votes.map((v) => (
+              <li
+                key={v.name}
+                title={v.notes ?? undefined}
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
+                  v.status === 'approved'
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : v.status === 'rejected'
+                      ? 'bg-red-50 text-red-700'
+                      : 'bg-slate-100 text-slate-500'
+                )}
+              >
+                {v.status === 'approved' ? (
+                  <Check className="h-3 w-3" />
+                ) : v.status === 'rejected' ? (
+                  <X className="h-3 w-3" />
+                ) : (
+                  <Mail className="h-3 w-3" />
+                )}
+                {v.name}
+              </li>
+            ))}
+          </ul>
         )}
         {children}
       </div>

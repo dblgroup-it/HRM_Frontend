@@ -32,7 +32,7 @@ import type {
   InterviewKindKey,
   InterviewModeKey,
 } from '../types/assessment.types';
-import { VenuePicker } from './VenuePicker';
+import { VenueField } from './VenueField';
 import { nextInterviewKind, suggestBatchKind } from './nextInterviewKind';
 import { usesRoomList } from './venue';
 import { useMyPermissions } from '@modules/rbac';
@@ -272,24 +272,15 @@ export function BulkInterviewModal({
                 <label className="mb-1 block text-[0.6875rem] font-medium text-slate-400">
                   Venue <span className="text-rose-500">*</span>
                 </label>
-                {roomList ? (
-                  <VenuePicker
-                    value={location}
-                    invalid={locationError}
-                    onChange={(v) => {
-                      setLocation(v);
-                      if (v.trim()) setLocationError(false);
-                    }}
-                  />
-                ) : (
-                  <Input
-                    placeholder="e.g. HQ Conference Room, Factory Training Hall"
-                    value={location}
-                    onChange={(e) => { setLocation(e.target.value); if (e.target.value.trim()) setLocationError(false); }}
-                    leftIcon={<Building2 className="h-4 w-4" />}
-                    className={locationError ? 'border-rose-400 focus:ring-rose-400' : ''}
-                  />
-                )}
+                <VenueField
+                  value={location}
+                  roomList={roomList}
+                  invalid={locationError}
+                  onChange={(v) => {
+                    setLocation(v);
+                    if (v.trim()) setLocationError(false);
+                  }}
+                />
                 {locationError && (
                   <p className="mt-1 text-[0.6875rem] font-medium text-rose-600">
                     Venue is required for in-person interviews

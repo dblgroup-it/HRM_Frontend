@@ -24,6 +24,7 @@ const ApprovalPathsPage = lazy(
 );
 const BoardGroupsPage = lazy(() => import('@modules/board/pages/BoardGroupsPage'));
 const BoardVotePage   = lazy(() => import('@modules/board/pages/BoardVotePage'));
+const RequisitionBoardVotePage = lazy(() => import('@modules/requisition/pages/RequisitionBoardVotePage'));
 const ActivityLogPage = lazy(() => import('@modules/audit/pages/ActivityLogPage'));
 const BoardSheetPage  = lazy(() => import('@modules/board/pages/BoardSheetPage'));
 const MedicalRequestsPage = lazy(
@@ -125,6 +126,7 @@ export function AppRouter() {
         <Route path="/evaluate/:token" element={<EvaluateByTokenPage />} />
         <Route path={ROUTES.onboarding()} element={<OnboardingPage />} />
         <Route path={ROUTES.boardVote()} element={<BoardVotePage />} />
+        <Route path={ROUTES.requisitionBoardVote()} element={<RequisitionBoardVotePage />} />
         <Route path={ROUTES.boardSheet()} element={<BoardSheetPage />} />
         <Route path={ROUTES.facilityConfirm()} element={<FacilityConfirmPage />} />
 

@@ -4,6 +4,8 @@ import { delay } from '@shared/utils';
 import type { ApiResponse, Paginated } from '@shared/types';
 
 import type {
+  BoardGroupOption,
+  RequisitionBoardVoteInfo,
   ApprovalDecision,
   ApprovalStep,
   CreateRequisitionPayload,
@@ -533,7 +535,8 @@ export const requisitionApi = {
   act(
     id: string,
     decision: ApprovalDecision,
-    note: string
+    note: string,
+    boardMemberIds?: string[]
   ): Promise<Requisition> {
     if (ENV.USE_MOCK_API) {
       return delay(MOCK_LATENCY).then(() =>
@@ -544,7 +547,35 @@ export const requisitionApi = {
       .patch<ApiResponse<Requisition>>(`/requisitions/${id}/approval`, {
         decision,
         note,
+        ...(boardMemberIds ? { boardMemberIds } : {}),
       })
+      .then((res) => res.data);
+  },
+
+  /** Public: what a board member's emailed link shows. */
+  boardVoteInfo(token: string): Promise<RequisitionBoardVoteInfo> {
+    return http
+      .get<ApiResponse<RequisitionBoardVoteInfo>>(`/requisition-board/${token}`)
+      .then((res) => res.data);
+  },
+
+  /** Public: a board member's answer. */
+  boardVote(
+    token: string,
+    decision: 'approved' | 'rejected',
+    note?: string
+  ): Promise<{ ok: true; alreadyVoted?: boolean; alreadyDecided?: boolean }> {
+    return http
+      .post<
+        ApiResponse<{ ok: true; alreadyVoted?: boolean; alreadyDecided?: boolean }>
+      >(`/requisition-board/${token}`, { decision, ...(note ? { note } : {}) })
+      .then((res) => res.data);
+  },
+
+  /** Board groups and members the CHRO may send this requisition to. */
+  boardMembers(id: string): Promise<BoardGroupOption[]> {
+    return http
+      .get<ApiResponse<BoardGroupOption[]>>(`/requisitions/${id}/board-members`)
       .then((res) => res.data);
   },
 
@@ -600,6 +631,8 @@ export const requisitionApi = {
       jobDescription: string;
       responsibilities: string[];
       requirements: string[];
+      /** Saved unchanged from the job-analysis draft. */
+      source?: 'job_analysis';
     }
   ): Promise<Requisition> {
     if (ENV.USE_MOCK_API) {

@@ -27,3 +27,30 @@ export function usesRoomList(perms: RecruitmentPerms | undefined | null): boolea
     (r) => r.key === 'corporate_hr' || r.key === 'corporate_recruiter',
   );
 }
+
+/**
+ * The venue as stored: "room or building, location" — one string, so the
+ * emails, round cards and calendar invites need nothing new. The location is
+ * one of DBL's job locations (the place-of-posting list).
+ */
+export function joinVenue(place: string, location: string): string {
+  if (place && location) return `${place}, ${location}`;
+  return place || location;
+}
+
+/** The inverse of `joinVenue`, given the list the location came from. */
+export function splitVenue(
+  value: string,
+  locations: string[],
+): { place: string; location: string } {
+  // Longest first, so "Dhaka" never wins over "Gulshan, Dhaka".
+  const byLength = [...locations].sort((a, b) => b.length - a.length);
+  for (const loc of byLength) {
+    if (value === loc) return { place: '', location: loc };
+    const tail = `, ${loc}`;
+    if (value.endsWith(tail)) {
+      return { place: value.slice(0, -tail.length), location: loc };
+    }
+  }
+  return { place: value, location: '' };
+}

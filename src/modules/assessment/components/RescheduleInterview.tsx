@@ -8,7 +8,7 @@ import { useMyPermissions } from '@modules/rbac';
 
 import { useRescheduleInterview } from '../hooks/useAssessment';
 import type { InterviewRoundView } from '../types/assessment.types';
-import { VenuePicker } from './VenuePicker';
+import { VenueField } from './VenueField';
 import { usesRoomList } from './venue';
 import { slotLabel } from './slotLabel';
 
@@ -203,10 +203,10 @@ function RescheduleDialog({
           </div>
         </div>
 
-        {mode === 'physical' && roomList ? (
+        {mode === 'physical' ? (
           <div>
             <p className="mb-1.5 text-sm font-medium text-slate-700">Venue</p>
-            <VenuePicker value={location} onChange={setLocation} />
+            <VenueField value={location} roomList={roomList} onChange={setLocation} />
           </div>
         ) : (
           <Input
