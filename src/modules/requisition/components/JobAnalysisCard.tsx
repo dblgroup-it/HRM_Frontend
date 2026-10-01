@@ -63,30 +63,33 @@ export function JobAnalysisCard({
               </span>
             ) : null}
           </header>
-          <JobAnalysisSection requisition={requisition} />
+          <JobAnalysisSection
+            requisition={requisition}
+            attachments={
+              <section className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-3.5 py-3">
+                <header className="mb-2 flex items-center gap-2">
+                  <Paperclip className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                  <h3 className="text-xs font-semibold text-slate-700">
+                    Attachments
+                  </h3>
+                  {attachmentCount > 0 && (
+                    <span className="min-w-[1.25rem] rounded-full bg-brand-50 px-1.5 text-center text-[0.6875rem] font-semibold tabular-nums leading-5 text-brand-700">
+                      {attachmentCount}
+                    </span>
+                  )}
+                  <span className="text-[0.6875rem] text-slate-400">
+                    · optional
+                  </span>
+                </header>
+                <AttachmentsSection
+                  requisition={requisition}
+                  canEdit={canEditFiles}
+                />
+              </section>
+            }
+          />
         </section>
 
-        <section className="space-y-3 rounded-2xl bg-slate-50/80 p-4 ring-1 ring-slate-200/70 sm:p-5">
-          <header className="flex items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-slate-600 shadow-sm ring-1 ring-slate-200">
-              <Paperclip className="h-4 w-4" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                Attachments
-                {attachmentCount > 0 && (
-                  <span className="min-w-[1.25rem] rounded-full bg-brand-50 px-1.5 text-center text-[0.6875rem] font-semibold tabular-nums leading-5 text-brand-700">
-                    {attachmentCount}
-                  </span>
-                )}
-              </h3>
-              <p className="text-xs text-slate-500">
-                The detailed JD and any supporting files
-              </p>
-            </div>
-          </header>
-          <AttachmentsSection requisition={requisition} canEdit={canEditFiles} />
-        </section>
       </div>
     </Card>
   );

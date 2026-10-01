@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   Briefcase,
   Clock,
@@ -51,8 +51,15 @@ import {
  */
 export function JobAnalysisSection({
   requisition: req,
+  attachments,
 }: {
   requisition: Requisition;
+  /**
+   * The files block. While the job analysis is being written it sits above
+   * Submit for approval — files go in before the analysis goes out — and
+   * otherwise after the analysis.
+   */
+  attachments?: ReactNode;
 }) {
   const open = req.status === 'pending_job_analysis';
   const myUserId = useAuthStore((s) => s.user?.id);
@@ -224,8 +231,8 @@ export function JobAnalysisSection({
               {ownership.data?.viaFactoryHr
                 ? 'Shared with every Factory HR on duty for this unit — any of you can continue it, and each save is logged under your name.'
                 : `${req.unitFactory} has no Factory HR available, so this is yours to complete.`}{' '}
-              Submitting starts the approval chain. Attach the detailed JD
-              under Attachments, below.
+              Submitting starts the approval chain. Attach any files that
+              are available or required before you submit.
               {lastWork && (
                 <span className="mt-1 block text-xs text-slate-500">
                   Last worked on by {lastWork.actor} ·{' '}
@@ -355,6 +362,8 @@ export function JobAnalysisSection({
               onChange={(e) => setReturnNote(e.target.value)}
             />
           )}
+
+          {attachments}
 
           <div className="flex flex-wrap gap-2">
             <Button
@@ -528,6 +537,8 @@ export function JobAnalysisSection({
         }
         label="Saving…"
       />
+      {!canWrite && attachments}
+
       <BusyOverlay
         show={draft.isPending}
         label="Drafting the job analysis…"

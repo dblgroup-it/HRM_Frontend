@@ -3,7 +3,6 @@ import { AlertTriangle, Check, Search, Send, UserRound, X } from 'lucide-react';
 
 import {
   Button,
-  Combobox,
   Input,
   Modal,
   Spinner,
@@ -12,7 +11,6 @@ import {
 import { useDebounce } from '@shared/hooks';
 import { cn } from '@shared/lib';
 import { useEmployees } from '@modules/employees';
-import { useOrganogramUnits } from '@modules/organogram';
 
 import {
   useCandidateDelegations,
@@ -50,14 +48,10 @@ export function DelegateInterviewsModal({
     (c) => c.stage && c.stage !== 'shortlisted',
   );
   const [search, setSearch] = useState('');
-  const [unit, setUnit] = useState('');
   const debounced = useDebounce(search, 300);
-  const { data: orgUnits } = useOrganogramUnits();
-  // Narrowing to a factory first is the point: you pick from that unit's own
-  // people rather than hunting names across the whole company.
+  // One search across the directory: name, code or designation.
   const { data, isFetching } = useEmployees({
     search: debounced,
-    unit: unit || undefined,
     page: 1,
     pageSize: 8,
   });
@@ -95,9 +89,8 @@ export function DelegateInterviewsModal({
   const [aiTest, setAiTest] = useState(false);
 
   const results = useMemo(
-    () =>
-      unit || debounced.trim().length >= 2 ? (data?.items ?? []) : [],
-    [unit, debounced, data],
+    () => (debounced.trim().length >= 2 ? (data?.items ?? []) : []),
+    [debounced, data],
   );
 
   const toggle = (userId: string, name: string) =>
@@ -335,31 +328,14 @@ export function DelegateInterviewsModal({
             </div>
           )}
 
-          <div className="mb-2">
-            <Combobox
-              label="Factory / unit (optional)"
-              placeholder="All units — or narrow to one factory"
-              options={(orgUnits ?? []).map((u) => ({
-                value: u.unit,
-                label: u.unit,
-              }))}
-              value={unit}
-              onChange={(v) => setUnit(v)}
-            />
-          </div>
-
           <Input
-            placeholder={
-              unit
-                ? `Search within ${unit}…`
-                : 'Search by name, code or designation…'
-            }
+            placeholder="Search by name, code or designation…"
             leftIcon={<Search className="h-4 w-4" />}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
 
-          {(unit || debounced.trim().length >= 2) && (
+          {debounced.trim().length >= 2 && (
             <div className="mt-1.5 max-h-56 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200">
               {isFetching && results.length === 0 && (
                 <div className="flex justify-center py-6">

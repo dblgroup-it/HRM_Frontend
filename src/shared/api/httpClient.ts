@@ -12,6 +12,9 @@ import { tokenExpired } from './tokenExpiry';
 // Signed-out requests whose 401 means "wrong answer", not "session over".
 const AUTH_ATTEMPT_PATHS = ['/auth/login', '/auth/login/2fa', '/auth/password/'];
 
+const DEFAULT_TIMEOUT_MS = 15_000;
+const WRITE_TIMEOUT_MS = 120_000;
+
 /**
  * Pre-configured Axios instance.
  *
@@ -22,12 +25,21 @@ const AUTH_ATTEMPT_PATHS = ['/auth/login', '/auth/login/2fa', '/auth/password/']
 export const httpClient: AxiosInstance = axios.create({
   baseURL: ENV.API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 15_000,
+  timeout: DEFAULT_TIMEOUT_MS,
 });
 
 /** Attach the bearer token (if present) to every outgoing request. */
 httpClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // Reads stay at the 15 s default. A save, upload or send may well be
+    // slower — a Drive upload, a PDF letter rendered and emailed — and
+    // giving up on it at 15 s did not stop it: the server finished anyway,
+    // the screen said it failed, and the retry did it twice. Two minutes,
+    // under nginx's 180 s, unless the call asked for its own limit.
+    const method = (config.method ?? 'get').toLowerCase();
+    if (method !== 'get' && config.timeout === DEFAULT_TIMEOUT_MS) {
+      config.timeout = WRITE_TIMEOUT_MS;
+    }
     const token = readToken();
     // A session that expired while the tab sat open overnight ends here,
     // without a request the server would only refuse (and the console
@@ -82,6 +94,13 @@ export interface NormalizedError {
 }
 
 function normalizeError(error: unknown): NormalizedError {
+  // Our limit ran out, not the server's: it may well still finish.
+  if (axios.isAxiosError(error) && error.code === 'ECONNABORTED') {
+    return {
+      message:
+        'This is taking longer than usual and may still finish. Refresh in a minute to check before trying again.',
+    };
+  }
   if (axios.isAxiosError(error)) {
     return {
       status: error.response?.status,

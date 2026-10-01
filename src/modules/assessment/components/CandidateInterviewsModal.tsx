@@ -498,11 +498,16 @@ export function CandidateInterviewsModal({
               {/* ② When & where */}
               <FormStep n={2} title="When & where?">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Input
-                    type="datetime-local"
-                    value={scheduledAt}
-                    onChange={(e) => setScheduledAt(e.target.value)}
-                  />
+                  <div className={mode !== 'online' ? 'sm:col-span-2 sm:max-w-[calc(50%-0.375rem)]' : ''}>
+                    <label className="mb-1 block text-[0.6875rem] font-medium text-slate-400">
+                      Date &amp; time
+                    </label>
+                    <Input
+                      type="datetime-local"
+                      value={scheduledAt}
+                      onChange={(e) => setScheduledAt(e.target.value)}
+                    />
+                  </div>
                   {mode === 'online' && !customLink ? (
                     <div className="flex h-10 items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50/60 px-3">
                       <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
@@ -514,11 +519,10 @@ export function CandidateInterviewsModal({
                       </button>
                     </div>
                   ) : (
-                    <div>
+                    <div className={mode !== 'online' ? 'sm:col-span-2' : ''}>
                       {mode !== 'online' ? (
                         <VenueField
-                          compact
-                          value={location}
+                                                    value={location}
                           roomList={roomList}
                           invalid={locationError}
                           onChange={(v) => {

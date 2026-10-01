@@ -55,7 +55,7 @@ export function AttachmentsSection({
   return (
     <div>
       {attachments.length === 0 && !canEdit ? (
-        <p className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">
+        <p className="rounded-lg bg-white px-3 py-2.5 text-sm text-slate-500">
           No files were attached to this requisition.
         </p>
       ) : attachments.length === 0 ? (
@@ -63,29 +63,31 @@ export function AttachmentsSection({
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={upload.isPending}
-          className="flex w-full flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center transition hover:border-brand-300 hover:bg-brand-50/40 disabled:opacity-60"
+          className="flex w-full items-center gap-3 rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2.5 text-left transition hover:border-brand-300 hover:bg-brand-50/40 disabled:opacity-60"
         >
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400">
             {upload.isPending ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Upload className="h-5 w-5" />
+              <Upload className="h-4 w-4" />
             )}
           </span>
-          <span className="text-sm font-medium text-slate-700">
-            Attach the detailed JD
-          </span>
-          <span className="text-xs text-slate-400">
-            PDF, Word or an image · up to 15 MB
+          <span className="min-w-0">
+            <span className="block text-sm font-medium text-slate-700">
+              Attach files, if available or required
+            </span>
+            <span className="block text-xs text-slate-400">
+              PDF, Word or an image · up to 15 MB
+            </span>
           </span>
         </button>
       ) : (
         <>
-          <ul className="space-y-2">
+          <ul className="space-y-1.5">
             {attachments.map((a) => (
               <li
                 key={a.fileId}
-                className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 transition hover:-translate-y-px hover:border-brand-200 hover:shadow-sm"
+                className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 transition hover:border-brand-200"
               >
                 <a
                   href={resolveApiFileUrl(a.url)}
@@ -116,7 +118,7 @@ export function AttachmentsSection({
             <Button
               size="sm"
               variant="outline"
-              className="mt-3"
+              className="mt-2"
               leftIcon={
                 upload.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
