@@ -13,7 +13,10 @@ import { requisitionKeys } from '@modules/requisition/hooks/useRequisitions';
 import type { Requisition } from '@modules/requisition/types/requisition.types';
 import notificationSound from '@assets/notification.mp3';
 
-const SOCKET_URL = ENV.API_BASE_URL.replace(/\/api\/?$/, '');
+// With a relative API base ("/api" — the dev server, opened by its IP or its
+// name) this is empty, and the socket must follow the page's own address.
+const SOCKET_URL =
+  ENV.API_BASE_URL.replace(/\/api\/?$/, '') || window.location.origin;
 
 interface RequisitionChangedPayload {
   id: string;
