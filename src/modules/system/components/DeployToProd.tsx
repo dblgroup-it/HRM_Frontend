@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { Button, Input, Spinner } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 
-import type { PromoteRun, RepoPlan } from '../api/system.api';
+import type { PromoteRun, PromoteStatus, RepoPlan } from '../api/system.api';
 import { usePromoteStatus, useStartPromote } from '../hooks/useSystem';
 
 const RUN_META: Record<PromoteRun['status'], { label: string; tone: string; icon: typeof CheckCircle2 }> = {
@@ -74,6 +74,8 @@ export function DeployToProd() {
           automatically. GitHub <code>main</code> is updated only after a healthy deploy.
         </p>
       </header>
+
+      {data?.autodeploy && <AutodeployLine state={data.autodeploy} />}
 
       {status.isLoading ? (
         <div className="flex justify-center py-6"><Spinner /></div>
@@ -145,6 +147,36 @@ export function DeployToProd() {
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * The dev site updates itself from the dev branch every two minutes; this
+ * says how the last update went, so a push that did not arrive is visible.
+ */
+function AutodeployLine({ state }: { state: NonNullable<PromoteStatus['autodeploy']> }) {
+  const tone =
+    state.status === 'failed'
+      ? 'bg-rose-50 text-rose-800 ring-rose-200'
+      : state.status === 'running'
+        ? 'bg-brand-50 text-brand-800 ring-brand-200'
+        : 'bg-slate-50 text-slate-600 ring-slate-200';
+  return (
+    <p className={cn('mb-4 flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-xl px-3 py-2 text-xs ring-1', tone)}>
+      {state.status === 'running' ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : state.status === 'failed' ? (
+        <XCircle className="h-3.5 w-3.5" />
+      ) : (
+        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+      )}
+      <span className="font-semibold">Dev site auto-update:</span>
+      <span>{state.message}</span>
+      <span className="font-mono opacity-70">
+        backend {state.backend} · frontend {state.frontend} ·{' '}
+        {new Date(state.at).toLocaleString('en-GB')}
+      </span>
+    </p>
   );
 }
 

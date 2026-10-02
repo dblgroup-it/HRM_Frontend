@@ -84,8 +84,18 @@ export interface PromoteRun {
   pushed: boolean;
 }
 
+/** The dev site updating itself from the dev branch (dev-autodeploy.sh). */
+export interface AutodeployState {
+  status: 'running' | 'success' | 'failed';
+  message: string;
+  at: string;
+  backend: string;
+  frontend: string;
+}
+
 export interface PromoteStatus {
   running: boolean;
+  autodeploy?: AutodeployState | null;
   plan: { backend: RepoPlan; frontend: RepoPlan };
   last: PromoteRun | null;
   logTail: string;
