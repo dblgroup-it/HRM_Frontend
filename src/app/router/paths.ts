@@ -9,6 +9,8 @@ export const ROUTES = {
   approvalPaths: '/configuration/approval-paths',
   /** Super-user-only system activity log. */
   activityLog: '/configuration/activity-log',
+  apiLogs: '/configuration/api-logs',
+  devTools: '/configuration/dev-tools',
   accessControl: '/configuration/access',
   integrations: '/configuration/integrations',
   aiSettings: '/configuration/ai',

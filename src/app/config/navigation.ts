@@ -1,4 +1,5 @@
 import {
+  Activity,
   Bell,
   Briefcase,
   ClipboardCheck,
@@ -207,6 +208,12 @@ export const NAVIGATION: NavSection[] = [
         label: 'System Activity',
         to: ROUTES.activityLog,
         icon: History,
+        requiresAccessControl: true,
+      },
+      {
+        label: 'API Logs',
+        to: ROUTES.apiLogs,
+        icon: Activity,
         requiresAccessControl: true,
       },
       {

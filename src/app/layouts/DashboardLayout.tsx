@@ -4,6 +4,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { MobileNav } from './components/MobileNav';
+import { SandboxBanner } from '@modules/system';
 
 /** Authenticated shell: persistent sidebar + header with a routed outlet. */
 export function DashboardLayout() {
@@ -25,7 +26,10 @@ export function DashboardLayout() {
   }, [pathname]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-100 text-slate-800">
+    <div className="flex h-screen flex-col overflow-hidden bg-slate-100 text-slate-800">
+      {/* The dev server's tag — nothing at all on the live site. */}
+      <SandboxBanner />
+    <div className="flex min-h-0 flex-1 overflow-hidden">
       <Sidebar
         open={sidebarOpen}
         collapsed={sidebarCollapsed}
@@ -60,6 +64,7 @@ export function DashboardLayout() {
 
       {/* Mobile bottom navigation */}
       <MobileNav onMore={() => setSidebarOpen(true)} />
+    </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
 import { Button } from '@shared/components/ui';
+import { reportClientError } from '@shared/lib/clientErrors';
 
 interface Props {
   children: ReactNode;
@@ -22,8 +23,9 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // Wire this into your monitoring provider (Sentry, etc.).
     console.error('Uncaught error:', error, info);
+    // To Configuration → API Logs, with the component stack that threw.
+    reportClientError(error, info.componentStack ?? undefined);
   }
 
   handleReset = () => this.setState({ hasError: false, error: undefined });
