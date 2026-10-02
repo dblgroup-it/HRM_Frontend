@@ -173,6 +173,38 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
   const [selected, setSelected] = useState<Candidate | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  /**
+   * Ticked for one session. Only Ready candidates can be ticked — anyone out
+   * with the factory is not the recruiter's to book.
+   */
+  const [ticked, setTicked] = useState<Set<string>>(new Set());
+  /** Who the bulk dialog was opened for: the ticked few, or everyone ready. */
+  const [bulkFor, setBulkFor] = useState<Candidate[]>([]);
+  const tickedCandidates = useMemo(
+    () => schedulable.filter((c) => ticked.has(c.id)),
+    [schedulable, ticked],
+  );
+  // Drop ticks for anyone who has left the Ready list.
+  useEffect(() => {
+    setTicked((prev) => {
+      const ids = new Set(schedulable.map((c) => c.id));
+      const next = new Set([...prev].filter((id) => ids.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [schedulable]);
+  const toggleTick = (id: string) =>
+    setTicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const allTicked =
+    schedulable.length > 0 && tickedCandidates.length === schedulable.length;
+  const openBulk = (list: Candidate[]) => {
+    setBulkFor(list);
+    setBulkOpen(true);
+  };
 
   // Auto-select the first candidate of the list being shown.
   useEffect(() => {
@@ -205,25 +237,25 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
     <div className="flex flex-col gap-4">
 
       {/* ── Top bar ───────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100">
-            <Users className="h-4 w-4 text-amber-600" />
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 ring-1 ring-brand-100">
+            <Users className="h-4 w-4 text-brand-600" />
           </span>
-          <div>
-            <p className="text-sm font-semibold text-slate-800">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-slate-900">
               {candidates.length} candidate{candidates.length !== 1 ? 's' : ''} at interview or final stage
             </p>
-            <p className="text-[0.6875rem] text-slate-400">
-              Select a candidate to manage their interviews
-              {heldCount > 0 &&
-                ` · ${heldCount} out for a first interview`}
+            <p className="text-xs text-slate-500">
+              {schedulable.length} ready to schedule
+              {heldCount > 0 && ` · ${heldCount} out for a first interview`}
             </p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
+            variant="outline"
             leftIcon={<UserPlus className="h-4 w-4" />}
             onClick={() => setAddOpen(true)}
           >
@@ -232,11 +264,20 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
           {schedulable.length > 0 && (
             <Button
               size="sm"
-              variant="outline"
+              variant={tickedCandidates.length > 0 ? 'outline' : 'primary'}
               leftIcon={<CalendarClock className="h-4 w-4" />}
-              onClick={() => setBulkOpen(true)}
+              onClick={() => openBulk(schedulable)}
             >
               Schedule all at once
+            </Button>
+          )}
+          {tickedCandidates.length > 0 && (
+            <Button
+              size="sm"
+              leftIcon={<CalendarClock className="h-4 w-4" />}
+              onClick={() => openBulk(tickedCandidates)}
+            >
+              Schedule {tickedCandidates.length} selected
             </Button>
           )}
         </div>
@@ -250,14 +291,13 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
           description="Search and add a candidate above, or move one to Interview from the Recruitment tab."
         />
       ) : (
-        <div className="flex min-h-0 gap-4 rounded-2xl border border-slate-200 bg-white overflow-hidden"
-             style={{ minHeight: '70vh' }}>
+        <div className="grid min-h-[70vh] grid-cols-1 overflow-hidden rounded-2xl border border-slate-200 bg-white lg:grid-cols-[18rem_minmax(0,1fr)]">
 
           {/* LEFT — candidate list */}
-          <div className="flex w-72 shrink-0 flex-col border-r border-slate-100">
-            <div className="border-b border-slate-100 p-2">
-              {held.length > 0 ? (
-                <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
+          <div className="flex max-h-[40vh] min-w-0 flex-col border-b border-slate-200 bg-slate-50/40 lg:max-h-none lg:border-b-0 lg:border-r">
+            <div className="space-y-2 border-b border-slate-200 p-2.5">
+              {held.length > 0 && (
+                <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-200/60 p-1">
                   {(
                     [
                       ['ready', 'Ready', schedulable.length],
@@ -274,7 +314,7 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
                           : 'Decided — ready for you to interview'
                       }
                       className={cn(
-                        'flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-[0.6875rem] font-semibold transition-colors',
+                        'flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold transition-colors',
                         listTab === key
                           ? 'bg-white text-slate-800 shadow-sm'
                           : 'text-slate-500 hover:text-slate-700',
@@ -294,10 +334,39 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
                     </button>
                   ))}
                 </div>
+              )}
+              {listTab === 'ready' && schedulable.length > 0 ? (
+                <label className="flex cursor-pointer items-center justify-between gap-2 rounded-lg px-1.5 py-1 text-xs font-medium text-slate-600 hover:bg-white">
+                  <span className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={allTicked}
+                      ref={(el) => {
+                        if (el) el.indeterminate = ticked.size > 0 && !allTicked;
+                      }}
+                      onChange={() =>
+                        setTicked(
+                          allTicked
+                            ? new Set()
+                            : new Set(schedulable.map((c) => c.id)),
+                        )
+                      }
+                      className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    Select all
+                  </span>
+                  {ticked.size > 0 && (
+                    <span className="text-[0.6875rem] font-semibold text-brand-700">
+                      {ticked.size} selected
+                    </span>
+                  )}
+                </label>
               ) : (
-                <p className="px-1 py-0.5 text-[0.625rem] font-semibold uppercase tracking-widest text-slate-400">
-                  Candidates
-                </p>
+                held.length === 0 && (
+                  <p className="px-1 text-[0.625rem] font-semibold uppercase tracking-widest text-slate-400">
+                    Candidates
+                  </p>
+                )
               )}
             </div>
             <div className="flex-1 overflow-y-auto">
@@ -314,6 +383,8 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
                   candidate={c}
                   active={selected?.id === c.id}
                   onSelect={() => setSelected(c)}
+                  ticked={listTab === 'ready' ? ticked.has(c.id) : undefined}
+                  onTick={() => toggleTick(c.id)}
                 />
               ))}
             </div>
@@ -324,7 +395,7 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
             <InterviewWorkspace
               key={selected.id}
               reqId={reqId}
-              designation={requisition.designation}
+              designation={requisition.designationLabel || requisition.designation}
               candidate={selected}
             />
           ) : (
@@ -335,12 +406,15 @@ export function InterviewsPanel({ requisition }: { requisition: Requisition }) {
         </div>
       )}
 
-      {/* Bulk modal */}
+      {/* Bulk modal — everyone ready, or just the ticked ones */}
       <BulkInterviewModal
         reqId={reqId}
-        candidates={schedulable}
+        candidates={bulkFor}
         open={bulkOpen}
-        onClose={() => setBulkOpen(false)}
+        onClose={() => {
+          setBulkOpen(false);
+          setTicked(new Set());
+        }}
       />
 
       {/* Add-to-interview modal */}
@@ -466,14 +540,44 @@ function AddToInterviewModal({
 
 // ─── Candidate list card (left sidebar) ───────────────────────────────────────
 
+/**
+ * A round's marks in one place: the average of whoever has marked, out of
+ * what, and as a percentage — the number people actually compare.
+ */
+function roundScore(round: InterviewRoundView) {
+  const max = round.criteria.reduce((sum, c) => sum + c.max, 0);
+  const n = round.evaluations.length;
+  const avg = n > 0 ? round.evaluations.reduce((sum, e) => sum + e.total, 0) / n : 0;
+  return {
+    max,
+    marked: n,
+    avg: Math.round(avg * 10) / 10,
+    pct: n > 0 && max > 0 ? Math.round((avg / max) * 100) : null,
+  };
+}
+
+const pctOf = (total: number, max: number) =>
+  max > 0 ? Math.round((total / max) * 100) : null;
+
+function pctTone(pct: number) {
+  if (pct >= 75) return 'bg-emerald-50 text-emerald-700 ring-emerald-200';
+  if (pct >= 50) return 'bg-amber-50 text-amber-700 ring-amber-200';
+  return 'bg-rose-50 text-rose-700 ring-rose-200';
+}
+
 function CandidateListCard({
   candidate,
   active,
   onSelect,
+  ticked,
+  onTick,
 }: {
   candidate: Candidate;
   active: boolean;
   onSelect: () => void;
+  /** Undefined: this row cannot be ticked (out with the factory). */
+  ticked?: boolean;
+  onTick: () => void;
 }) {
   const held = candidate.firstInterviewHold;
   // Fetch rounds to show progress dots
@@ -481,44 +585,74 @@ function CandidateListCard({
   const completedCount = rounds.filter((r) => r.status === 'completed').length;
   const scheduledCount = rounds.filter((r) => r.status === 'scheduled').length;
   const totalRounds = rounds.length;
+  // The latest round anybody has marked — what the candidate scored last.
+  const lastMarked = [...rounds].reverse().find((r) => r.evaluations.length > 0);
+  const lastScore = lastMarked ? roundScore(lastMarked) : null;
 
   return (
-    <button
-      type="button"
-      onClick={onSelect}
+    <div
       className={cn(
-        'group w-full border-b border-slate-50 px-3 py-3 text-left transition-all duration-150',
+        'group flex w-full items-start gap-2.5 border-b border-slate-100 px-3 py-3 transition-colors duration-150',
         active
-          ? 'bg-brand-50 border-l-[3px] border-l-brand-500 pl-[9px]'
-          : 'hover:bg-slate-50 border-l-[3px] border-l-transparent',
+          ? 'bg-brand-50/70'
+          : 'hover:bg-white',
       )}
     >
-      <div className="flex items-start gap-2.5">
+      {ticked !== undefined && (
+        <input
+          type="checkbox"
+          checked={ticked}
+          onChange={onTick}
+          aria-label={`Select ${candidate.name}`}
+          className="mt-2 h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+        />
+      )}
+      <button
+        type="button"
+        onClick={onSelect}
+        className="flex min-w-0 flex-1 items-start gap-2.5 text-left"
+      >
         <Avatar name={candidate.name} size="sm" />
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <p className={cn(
-              'truncate text-sm font-medium',
+          <p
+            title={candidate.name}
+            className={cn(
+              'truncate text-sm font-semibold',
               active ? 'text-brand-800' : 'text-slate-800',
-            )}>
-              {candidate.name}
-            </p>
+            )}
+          >
+            {candidate.name}
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-1">
             {candidate.matchScore !== null && (
-              <span className={cn(
-                'inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[0.625rem] font-semibold',
-                matchTone(candidate.matchScore),
-              )}>
+              <span
+                title="CV match"
+                className={cn(
+                  'inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[0.625rem] font-semibold',
+                  matchTone(candidate.matchScore),
+                )}
+              >
                 <Sparkles className="h-2.5 w-2.5" />
                 {candidate.matchScore}%
               </span>
             )}
+            {lastScore?.pct != null && lastMarked && (
+              <span
+                title={`${KIND_LABEL[lastMarked.kind]} interview — average ${lastScore.avg} / ${lastScore.max} from ${lastScore.marked} interviewer${lastScore.marked === 1 ? '' : 's'}`}
+                className={cn(
+                  'inline-flex items-center rounded-full px-1.5 py-0.5 text-[0.625rem] font-semibold ring-1',
+                  pctTone(lastScore.pct),
+                )}
+              >
+                {KIND_LABEL[lastMarked.kind][0]} · {lastScore.pct}%
+              </span>
+            )}
+            {candidate.salaryExpectation != null && (
+              <span className="inline-flex items-center rounded-full border border-emerald-100 bg-emerald-50 px-1.5 py-0.5 text-[0.625rem] font-semibold text-emerald-700">
+                ৳ {candidate.salaryExpectation.toLocaleString()}
+              </span>
+            )}
           </div>
-
-          {candidate.salaryExpectation != null && (
-            <span className="mt-0.5 inline-flex items-center rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[0.625rem] font-semibold text-emerald-700">
-              ৳ {candidate.salaryExpectation.toLocaleString()} expected
-            </span>
-          )}
 
           {/* Out with a delegate: name who has it, so nobody has to open the
               card to find out whose desk to chase. */}
@@ -546,7 +680,9 @@ function CandidateListCard({
                       ? 'bg-emerald-400'
                       : r.status === 'scheduled'
                         ? 'bg-amber-400'
-                        : 'bg-slate-300',
+                        : r.status === 'absent'
+                          ? 'bg-rose-400'
+                          : 'bg-slate-300',
                   )}
                 />
               ))}
@@ -558,11 +694,11 @@ function CandidateListCard({
             </div>
           )}
           {totalRounds === 0 && !held && (
-            <p className="mt-0.5 text-[0.625rem] text-slate-400">No interviews yet</p>
+            <p className="mt-1 text-[0.625rem] text-slate-400">No interviews yet</p>
           )}
         </div>
-      </div>
-    </button>
+      </button>
+    </div>
   );
 }
 
@@ -631,6 +767,20 @@ function InterviewWorkspace({
   const kindAutoSetRef = useRef(false);
 
   /**
+   * Two views of one candidate: what has been arranged, and arranging the
+   * next one. They used to sit side by side in three narrow columns, which
+   * wrapped every panelist's name and cut the form off; each now gets the
+   * full width. Opens on the rounds when there are any, else on the form.
+   */
+  const [view, setView] = useState<'rounds' | 'schedule'>('rounds');
+  const viewAutoSetRef = useRef(false);
+  useEffect(() => {
+    if (viewAutoSetRef.current || isLoading) return;
+    viewAutoSetRef.current = true;
+    if (rounds.length === 0 && !held) setView('schedule');
+  }, [isLoading, rounds.length, held]);
+
+  /**
    * The factory ran the first interview. Once they have given their verdict
    * the recruiter books the second or final round as usual — but the first
    * round is the factory's, so it is neither offered nor editable here.
@@ -679,6 +829,7 @@ function InterviewWorkspace({
           setLocation('');
           setPanel([]);
           setLocationError(false);
+          setView('rounds');
         },
       },
     );
@@ -949,45 +1100,78 @@ function InterviewWorkspace({
         )}
       </Modal>
 
-      {/* ── Body: history (left) + form (right) ─────────────────── */}
-      <div className="flex min-h-0 flex-1 overflow-hidden">
+      {/* ── View switch ───────────────────────────────────────── */}
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-white px-5 py-2">
+        <div className="inline-flex rounded-lg bg-slate-100 p-0.5" role="tablist">
+          {(
+            [
+              ['rounds', `Interviews${rounds.length ? ` · ${rounds.length}` : ''}`, CalendarCheck],
+              ['schedule', 'Schedule new', CalendarClock],
+            ] as const
+          ).map(([key, label, Icon]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={view === key}
+              onClick={() => setView(key)}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all duration-150',
+                view === key
+                  ? 'bg-white text-brand-700 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700',
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+            </button>
+          ))}
+        </div>
+        {view === 'rounds' && !held && rounds.length > 0 && (
+          <Button
+            size="sm"
+            variant="outline"
+            leftIcon={<CalendarClock className="h-4 w-4" />}
+            onClick={() => setView('schedule')}
+          >
+            Schedule next round
+          </Button>
+        )}
+      </div>
 
-        {/* History column */}
-        <div className="flex w-[42%] shrink-0 flex-col overflow-hidden border-r border-slate-100 bg-slate-50/50">
-          <div className="shrink-0 border-b border-slate-100 px-4 py-2.5">
-            <p className="text-[0.625rem] font-semibold uppercase tracking-widest text-slate-400">
-              Scheduled Rounds
-            </p>
-          </div>
-          <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50/50">
+        {view === 'rounds' ? (
+          <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
             {isLoading ? (
               <div className="flex justify-center py-10"><Spinner /></div>
             ) : rounds.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-8 text-center">
+              <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-10 text-center">
                 <CalendarClock className="mx-auto mb-2 h-8 w-8 text-slate-300" />
-                <p className="text-sm font-medium text-slate-400">No interviews yet</p>
-                <p className="mt-0.5 text-xs text-slate-300">
+                <p className="text-sm font-medium text-slate-500">No interviews yet</p>
+                <p className="mt-0.5 text-xs text-slate-400">
                   {held
                     ? `${heldByLabel(held)} has not arranged it yet.`
-                    : 'Use the form on the right to schedule the first one.'}
+                    : 'Schedule the first one from the Schedule new tab.'}
                 </p>
               </div>
             ) : (
-              rounds.map((r) => (
-                <RoundCard
-                  key={r.id}
-                  round={r}
-                  candidateId={candidate.id}
-                  onRemove={() => remove.mutate(r.id)}
-                  readOnly={Boolean(held) || (factoryFirst && r.kind === 'first')}
-                />
-              ))
+              <div className="grid grid-cols-1 gap-4 2xl:grid-cols-2">
+                {rounds.map((r) => (
+                  <RoundCard
+                    key={r.id}
+                    round={r}
+                    candidateId={candidate.id}
+                    onRemove={() => remove.mutate(r.id)}
+                    readOnly={Boolean(held) || (factoryFirst && r.kind === 'first')}
+                  />
+                ))}
+              </div>
             )}
 
             {/* AI Evaluation Summary */}
             {hasEvaluations && (
               <div className="overflow-hidden rounded-xl border border-violet-200 bg-violet-50/60">
-                <div className="flex items-center justify-between px-3 py-2.5">
+                <div className="flex items-center justify-between px-4 py-2.5">
                   <span className="flex items-center gap-1.5 text-xs font-semibold text-violet-700">
                     <Sparkles className="h-3.5 w-3.5" />
                     AI Evaluation Summary
@@ -1003,39 +1187,30 @@ function InterviewWorkspace({
                   </button>
                 </div>
                 {evalSummary.isPending && (
-                  <p className="border-t border-violet-100 px-3 py-3 text-xs text-violet-500">
+                  <p className="border-t border-violet-100 px-4 py-3 text-xs text-violet-500">
                     <Sparkles className="mr-1.5 inline h-3.5 w-3.5 animate-pulse" />
                     AI is reading panel evaluations…
                   </p>
                 )}
                 {summaryText && !evalSummary.isPending && (
-                  <p className="border-t border-violet-100 px-3 py-3 text-xs leading-relaxed text-slate-700">
+                  <p className="border-t border-violet-100 px-4 py-3 text-xs leading-relaxed text-slate-700">
                     {summaryText}
                   </p>
                 )}
                 {!summaryText && !evalSummary.isPending && (
-                  <p className="border-t border-violet-100 px-3 pb-3 pt-2 text-[0.6875rem] text-violet-400">
+                  <p className="border-t border-violet-100 px-4 pb-3 pt-2 text-[0.6875rem] text-violet-500">
                     Click Generate to get an AI synthesis of all panel scores and comments.
                   </p>
                 )}
               </div>
             )}
           </div>
-        </div>
-
-        {/* Schedule form column — or why there isn't one */}
-        {held ? (
+        ) : held ? (
+          /* Schedule form — or why there isn't one */
           <HeldByDelegate candidate={candidate} hold={held} />
         ) : (
-        <div className="flex min-w-0 flex-1 flex-col">
-          <div className="shrink-0 border-b border-slate-100 bg-white/80 px-5 py-2.5">
-            <p className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-              <CalendarClock className="h-4 w-4 text-brand-600" />
-              Schedule a new interview
-            </p>
-          </div>
-
-          <div className="flex-1 space-y-5 overflow-y-auto p-5">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-white">
+          <div className="flex-1 space-y-6 overflow-y-auto p-5 sm:p-6">
 
             {/* ① Type & mode */}
             <FormStep n={1} title="Which interview?">
@@ -1066,8 +1241,8 @@ function InterviewWorkspace({
 
             {/* ② When & where */}
             <FormStep n={2} title="When & where?">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className={mode !== 'online' ? 'sm:col-span-2 sm:max-w-[calc(50%-0.375rem)]' : ''}>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-[14rem_minmax(0,1fr)]">
+                <div>
                   <label className="mb-1 block text-[0.6875rem] font-medium text-slate-400">
                     Date &amp; time
                   </label>
@@ -1078,7 +1253,7 @@ function InterviewWorkspace({
                   />
                 </div>
                 {mode === 'online' && !customLink ? (
-                  <div className="flex h-10 items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50/60 px-3">
+                  <div className="flex h-10 items-center justify-between gap-2 self-end rounded-lg border border-emerald-200 bg-emerald-50/60 px-3">
                     <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
                       <Video className="h-3.5 w-3.5" /> Google Meet — auto
                     </span>
@@ -1088,19 +1263,24 @@ function InterviewWorkspace({
                     </button>
                   </div>
                 ) : (
-                  <div className={mode !== 'online' ? 'sm:col-span-2' : ''}>
+                  <div className="min-w-0">
                     {mode !== 'online' ? (
                       <VenueField
-                                                value={location}
+                        value={location}
                         invalid={locationError}
                         onChange={(v) => { setLocation(v); if (v.trim()) setLocationError(false); }}
                       />
                     ) : (
-                    <Input
-                      placeholder="https://… (Teams, Zoom…)"
-                      value={location}
-                      onChange={(e) => { setLocation(e.target.value); if (e.target.value.trim()) setLocationError(false); }}
-                    />
+                    <>
+                      <label className="mb-1 block text-[0.6875rem] font-medium text-slate-400">
+                        Meeting link
+                      </label>
+                      <Input
+                        placeholder="https://… (Teams, Zoom…)"
+                        value={location}
+                        onChange={(e) => { setLocation(e.target.value); if (e.target.value.trim()) setLocationError(false); }}
+                      />
+                    </>
                     )}
                     {locationError && mode !== 'online' && (
                       <p className="mt-1 flex items-center gap-1 text-[0.6875rem] font-medium text-rose-600">
@@ -1251,149 +1431,199 @@ function RoundCard({
   // A mark means somebody was in the room, so "did not attend" stops being
   // offered — the server refuses it too.
   const canMarkAbsent = round.evaluations.length === 0;
-  const maxTotal = round.criteria.reduce((s, c) => s + c.max, 0);
-  const avg = round.evaluations.length > 0
-    ? Math.round((round.evaluations.reduce((s, e) => s + e.total, 0) / round.evaluations.length) * 10) / 10
-    : 0;
-
-  const borderColor =
-    round.status === 'completed' ? 'border-l-emerald-400' :
-    round.status === 'scheduled' ? 'border-l-amber-400'  : 'border-l-slate-200';
+  const score = roundScore(round);
+  const evalBy = new Map(round.evaluations.map((e) => [e.evaluatorId, e]));
+  // Anyone who marked without being on the listed panel still counts.
+  const offPanel = round.evaluations.filter(
+    (e) => !round.panelists.some((p) => p.userId === e.evaluatorId),
+  );
 
   return (
-    <div className={cn('overflow-hidden rounded-xl border border-slate-200 border-l-4 bg-white shadow-sm transition-shadow hover:shadow-md', borderColor)}>
-      {/* Header */}
-      <div className={cn(
-        'flex flex-wrap items-center justify-between gap-2 px-3 py-2',
-        round.status === 'completed' ? 'bg-emerald-50/50' : 'bg-slate-50/60',
-      )}>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-xs font-semibold capitalize text-slate-800">{round.kind} Interview</span>
-          <Badge tone="neutral">{round.mode}</Badge>
-          <Badge tone={STATUS_TONE[round.status]}>{round.status}</Badge>
-        </div>
-        {!readOnly && (
-          <button type="button" title="Remove" onClick={onRemove}
-            className="shrink-0 rounded p-1 text-slate-300 transition hover:bg-rose-50 hover:text-rose-500">
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
 
-      {/* Meta */}
-      <div className="border-t border-slate-100 px-3 py-2 text-[0.6875rem] text-slate-500">
-        <div className="flex flex-wrap gap-x-3 gap-y-1">
-          <span className="inline-flex items-center gap-1">
-            <CalendarClock className="h-3 w-3" />
-            {round.scheduledAt ? `${slotLabel(round.scheduledAt)} (GMT+6)` : 'Time TBD'}
-          </span>
-          {round.meetLink ? (
-            <a href={round.meetLink} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-1 font-medium text-emerald-600 hover:underline">
-              <Video className="h-3 w-3" /> Meet
-            </a>
-          ) : round.location ? (
-            <span className="inline-flex items-center gap-1">
-              <MapPin className="h-3 w-3" /> {round.location}
-            </span>
-          ) : null}
-          {round.calendarSynced && (
-            <span className="inline-flex items-center gap-1 text-brand-600">
-              <CalendarCheck className="h-3 w-3" /> Invites sent
-            </span>
+      {/* Header — what, how, and how it went */}
+      <div className="flex flex-wrap items-start justify-between gap-3 px-4 pb-3 pt-3.5">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-sm font-semibold capitalize text-slate-900">{round.kind} interview</span>
+            <Badge tone="neutral">{round.mode === 'online' ? 'Online' : 'In-person'}</Badge>
+            <Badge tone={STATUS_TONE[round.status]}>{round.status}</Badge>
+          </div>
+          <div className="mt-1.5 space-y-1 text-xs text-slate-500">
+            <p className="flex items-center gap-1.5">
+              <CalendarClock className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+              {round.scheduledAt ? `${slotLabel(round.scheduledAt)} (GMT+6)` : 'Time TBD'}
+              {round.calendarSynced && (
+                <span className="ml-1 inline-flex items-center gap-1 text-brand-600">
+                  <CalendarCheck className="h-3 w-3" /> Invites sent
+                </span>
+              )}
+            </p>
+            {round.meetLink ? (
+              <a href={round.meetLink} target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-1.5 font-medium text-emerald-600 hover:underline">
+                <Video className="h-3.5 w-3.5" /> Join Google Meet
+              </a>
+            ) : round.location ? (
+              <p className="flex items-start gap-1.5" title={round.location}>
+                <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                <span className="line-clamp-2">{round.location}</span>
+              </p>
+            ) : null}
+          </div>
+        </div>
+        <div className="flex shrink-0 items-start gap-2">
+          {score.pct != null && (
+            <div
+              className={cn('rounded-xl px-3 py-1.5 text-right ring-1', pctTone(score.pct))}
+              title={`Average of ${score.marked} interviewer${score.marked === 1 ? '' : 's'}`}
+            >
+              <p className="text-lg font-bold leading-none tabular-nums">{score.pct}%</p>
+              <p className="mt-0.5 text-[0.625rem] font-medium tabular-nums opacity-80">
+                avg {score.avg.toFixed(1)} / {score.max}
+              </p>
+            </div>
+          )}
+          {!readOnly && (
+            <button type="button" title="Remove this round" aria-label="Remove this round" onClick={onRemove}
+              className="rounded-lg p-1.5 text-slate-300 transition hover:bg-rose-50 hover:text-rose-500">
+              <Trash2 className="h-4 w-4" />
+            </button>
           )}
         </div>
-
-        {/* Panelists */}
-        {round.panelists.length > 0 && (
-          <div className="mt-2 space-y-1.5">
-            {round.panelists.map((p) => (
-              <div key={p.id} className="flex items-center gap-2">
-                <span className={cn(
-                  'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.6875rem] font-medium',
-                  p.hasMarked
-                    ? 'bg-emerald-50 text-emerald-700'
-                    : p.tokenStatus === 'opened'
-                      ? 'bg-amber-50 text-amber-700'
-                      : 'bg-slate-100 text-slate-600',
-                )}>
-                  {p.hasMarked ? (
-                    <Check className="h-3 w-3" />
-                  ) : p.tokenStatus === 'opened' ? (
-                    <Circle className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />
-                  ) : (
-                    <Circle className="h-2.5 w-2.5 fill-slate-300 text-slate-300" />
-                  )}
-                  {p.name}
-                  {p.fromHr && (
-                    <span
-                      title="Sits on this panel for HR — records the facilities"
-                      className="rounded-full bg-emerald-600 px-1.5 py-0.5 text-[0.5625rem] font-bold tracking-wide text-white"
-                    >
-                      HR
-                    </span>
-                  )}
-                  {!p.hasMarked && p.tokenStatus && (
-                    <span className={cn(
-                      'rounded-full px-1.5 py-0.5 text-[0.5625rem] font-semibold',
-                      p.tokenStatus === 'opened' ? 'bg-amber-100 text-amber-600' : 'bg-slate-200 text-slate-500',
-                    )}>
-                      {p.tokenStatus === 'opened' ? 'Opened' : 'Sent'}
-                    </span>
-                  )}
-                </span>
-                {!readOnly && !p.hasMarked && (
-                  <div className="ml-auto flex items-center gap-1.5">
-                    {p.evalLink && (
-                      <button type="button"
-                        onClick={() => void navigator.clipboard.writeText(p.evalLink!)}
-                        className="inline-flex items-center gap-1 rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[0.625rem] font-semibold text-brand-700 transition hover:bg-brand-100 active:scale-95">
-                        <ClipboardCopy className="h-3 w-3" /> Copy link
-                      </button>
-                    )}
-                    <button type="button"
-                      disabled={resend.isPending}
-                      onClick={() => resend.mutate({ roundId: round.id, panelistUserId: p.userId },
-                        { onSuccess: (d) => void navigator.clipboard.writeText(d.evalLink) })}
-                      className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[0.625rem] font-semibold text-amber-700 transition hover:bg-amber-100 active:scale-95 disabled:opacity-40">
-                      <RotateCcw className="h-3 w-3" /> New link
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Somebody joining a session that is still to run is normal — a
-            third interviewer walks in, or the panel is short. Appends only:
-            the people already listed keep their link and their marks, and
-            only the newcomer is told.
-
-            Gone once the round is marked done (or the candidate did not turn
-            up, or it was cancelled). The panel is the record of who was in
-            that room, and adding to it afterwards mints an evaluation link
-            for an interview the person never sat in — the server refuses it
-            too, so the control would only ever produce an error. */}
-        {!readOnly && round.status === 'scheduled' && (
-          <AddPanelistInline
-            roundId={round.id}
-            candidateId={candidateId}
-            existingUserIds={round.panelists.map((p) => p.userId)}
-          />
-        )}
       </div>
+
+      {/* Panel — one row per interviewer: where their sheet is, their marks */}
+      {(round.panelists.length > 0 || offPanel.length > 0) && (
+        <div className="border-t border-slate-100 px-4 py-2.5">
+          <div className="mb-1.5 flex items-center justify-between">
+            <p className="text-[0.625rem] font-semibold uppercase tracking-widest text-slate-400">
+              Panel
+            </p>
+            <p className="text-[0.625rem] font-medium tabular-nums text-slate-400">
+              {score.marked}/{Math.max(round.panelists.length, score.marked)} marked
+            </p>
+          </div>
+          <ul className="divide-y divide-slate-100">
+            {round.panelists.map((p) => {
+              const ev = evalBy.get(p.userId);
+              return (
+                <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2">
+                  <div className="flex min-w-0 flex-1 basis-40 items-center gap-2">
+                    <span
+                      className={cn(
+                        'flex h-6 w-6 shrink-0 items-center justify-center rounded-full',
+                        p.hasMarked || ev
+                          ? 'bg-emerald-100 text-emerald-600'
+                          : p.tokenStatus === 'opened'
+                            ? 'bg-amber-100 text-amber-600'
+                            : 'bg-slate-100 text-slate-400',
+                      )}
+                    >
+                      {p.hasMarked || ev ? (
+                        <Check className="h-3.5 w-3.5" />
+                      ) : (
+                        <Circle className="h-2 w-2 fill-current" />
+                      )}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
+                        <span className="truncate" title={p.name}>{p.name}</span>
+                        {p.fromHr && (
+                          <span
+                            title="Sits on this panel for HR — records the facilities"
+                            className="shrink-0 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[0.5625rem] font-bold tracking-wide text-white"
+                          >
+                            HR
+                          </span>
+                        )}
+                      </p>
+                      <p className="truncate text-[0.625rem] text-slate-400">
+                        {p.hasMarked || ev
+                          ? 'Marked'
+                          : p.tokenStatus === 'opened'
+                            ? 'Opened the sheet'
+                            : p.tokenStatus
+                              ? 'Link sent'
+                              : 'Not sent'}
+                        {p.designation ? ` · ${p.designation}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  {ev ? (
+                    <EvaluationFigures ev={ev} max={score.max} />
+                  ) : (
+                    !readOnly &&
+                    !p.hasMarked && (
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {p.evalLink && (
+                          <button type="button"
+                            title="Copy this interviewer's marking link"
+                            onClick={() => {
+                              void navigator.clipboard.writeText(p.evalLink!);
+                              toast.success('Link copied');
+                            }}
+                            className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-brand-200 bg-brand-50 px-2 py-1 text-[0.6875rem] font-semibold text-brand-700 transition hover:bg-brand-100 active:scale-95">
+                            <ClipboardCopy className="h-3 w-3" /> Copy link
+                          </button>
+                        )}
+                        <button type="button"
+                          title="Issue a fresh link (the old one stops working) and copy it"
+                          disabled={resend.isPending}
+                          onClick={() => resend.mutate({ roundId: round.id, panelistUserId: p.userId },
+                            { onSuccess: (d) => { void navigator.clipboard.writeText(d.evalLink); toast.success('New link copied'); } })}
+                          className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[0.6875rem] font-semibold text-amber-700 transition hover:bg-amber-100 active:scale-95 disabled:opacity-40">
+                          <RotateCcw className="h-3 w-3" /> New link
+                        </button>
+                      </div>
+                    )
+                  )}
+                </li>
+              );
+            })}
+            {offPanel.map((ev) => (
+              <li key={ev.evaluatorId} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2">
+                <div className="flex min-w-0 flex-1 basis-40 items-center gap-2">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                    <Check className="h-3.5 w-3.5" />
+                  </span>
+                  <p className="truncate text-xs font-semibold text-slate-800" title={ev.evaluatorName}>
+                    {ev.evaluatorName}
+                  </p>
+                </div>
+                <EvaluationFigures ev={ev} max={score.max} />
+              </li>
+            ))}
+          </ul>
+
+          {/* Somebody joining a session that is still to run is normal — a
+              third interviewer walks in, or the panel is short. Appends only:
+              the people already listed keep their link and their marks, and
+              only the newcomer is told.
+
+              Gone once the round is marked done (or the candidate did not
+              turn up, or it was cancelled). The panel is the record of who
+              was in that room, and adding to it afterwards mints an
+              evaluation link for an interview the person never sat in — the
+              server refuses it too. */}
+          {!readOnly && round.status === 'scheduled' && (
+            <AddPanelistInline
+              roundId={round.id}
+              candidateId={candidateId}
+              existingUserIds={round.panelists.map((p) => p.userId)}
+            />
+          )}
+        </div>
+      )}
 
       <RescheduledNote round={round} />
 
       {/* ── Outcome ───────────────────────────────────────────────────────
           The two things that actually happen to a booked session, asked as a
-          question with two answers. They were a pair of 11px text links
-          wedged between the status badges and the delete bin — the most
-          consequential controls on the card, styled as the least, and one
-          mis-aim away from deleting the round instead. */}
+          question with two answers — labelled buttons, well away from the
+          delete bin. */}
       {!readOnly && round.status === 'scheduled' && (
-        <div className="border-t border-slate-100 bg-white px-3 py-2.5">
+        <div className="border-t border-slate-100 bg-slate-50/60 px-4 py-3">
           <p className="mb-2 text-[0.625rem] font-semibold uppercase tracking-widest text-slate-400">
             Did this interview happen?
           </p>
@@ -1434,7 +1664,7 @@ function RoundCard({
 
       {/* A no-show says so plainly, and says how to take it back. */}
       {round.status === 'absent' && (
-        <div className="flex items-center justify-between gap-2 border-t border-rose-100 bg-rose-50/70 px-3 py-2">
+        <div className="flex items-center justify-between gap-2 border-t border-rose-100 bg-rose-50/70 px-4 py-2">
           <span className="inline-flex items-center gap-1.5 text-[0.6875rem] font-semibold text-rose-700">
             <UserX className="h-3.5 w-3.5" />
             Candidate did not attend
@@ -1452,42 +1682,48 @@ function RoundCard({
           )}
         </div>
       )}
+    </div>
+  );
+}
 
-      {/* Evaluations */}
-      {round.evaluations.length > 0 && (
-        <div className="border-t border-slate-100 bg-slate-50/60 px-3 py-2 text-xs">
-          <p className="mb-1.5 text-[0.625rem] font-semibold uppercase tracking-wide text-slate-400">Evaluations</p>
-          <div className="space-y-1">
-            {round.evaluations.map((ev) => (
-              <div key={ev.evaluatorId} className="flex items-center justify-between">
-                <span className="flex min-w-0 items-center gap-1.5">
-                  <span className="truncate font-medium text-slate-600">{ev.evaluatorName}</span>
-                  {/* The verdict beside the number. A total says how they did;
-                      this says what the person in the room wants done. */}
-                  {ev.recommendation && (
-                    <span
-                      className={cn(
-                        'shrink-0 rounded-full px-1.5 py-0.5 text-[0.5625rem] font-bold uppercase tracking-wide ring-1',
-                        recommendationTone(ev.recommendation),
-                      )}
-                    >
-                      {recommendationLabel(ev.recommendation)}
-                    </span>
-                  )}
-                </span>
-                <span className="ml-2 shrink-0 font-semibold text-slate-700">
-                  {ev.total.toFixed(1)}{maxTotal > 0 && <span className="text-slate-400"> / {maxTotal}</span>}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div className="mt-1.5 flex items-center justify-between border-t border-slate-200 pt-1.5">
-            <span className="text-slate-500">Avg ({round.evaluations.length}/{round.panelists.length} marked)</span>
-            <span className="font-semibold text-brand-700">
-              {avg.toFixed(1)}{maxTotal > 0 && <span className="text-slate-400"> / {maxTotal}</span>}
-            </span>
-          </div>
-        </div>
+/**
+ * One interviewer's result: their total, the same as a percentage, and the
+ * verdict they gave — a total says how the candidate did, the verdict says
+ * what the person in the room wants done.
+ */
+function EvaluationFigures({
+  ev,
+  max,
+}: {
+  ev: InterviewRoundView['evaluations'][number];
+  max: number;
+}) {
+  const pct = pctOf(ev.total, max);
+  return (
+    <div className="flex shrink-0 items-center gap-1.5" title={ev.comments || undefined}>
+      {ev.recommendation && (
+        <span
+          className={cn(
+            'rounded-full px-1.5 py-0.5 text-[0.5625rem] font-bold uppercase tracking-wide ring-1',
+            recommendationTone(ev.recommendation),
+          )}
+        >
+          {recommendationLabel(ev.recommendation)}
+        </span>
+      )}
+      <span className="text-xs font-semibold tabular-nums text-slate-700">
+        {ev.total.toFixed(1)}
+        {max > 0 && <span className="font-normal text-slate-400"> / {max}</span>}
+      </span>
+      {pct != null && (
+        <span
+          className={cn(
+            'min-w-[2.75rem] rounded-md px-1.5 py-0.5 text-center text-[0.6875rem] font-bold tabular-nums ring-1',
+            pctTone(pct),
+          )}
+        >
+          {pct}%
+        </span>
       )}
     </div>
   );

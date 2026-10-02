@@ -20,7 +20,7 @@ We appreciate your interest in DBL Group and will retain your CV in our database
 We wish you every success in your career and future endeavors.
 
 Best Regards,
-Corporate HR
+HR Department
 DBL Group`;
 
 /** The server's batch cap — each one is a real email sent while you wait. */

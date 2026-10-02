@@ -348,6 +348,8 @@ export interface MedicalQueueItem extends OnboardingView {
     alternateDesignations?: string[];
     /** The level settled for this person; null until chosen. */
     fixedDesignation?: string | null;
+    /** The address the letters fall back to (NID, then CV), if any. */
+    address?: string | null;
     unit: string;
     department: string;
     location: string;

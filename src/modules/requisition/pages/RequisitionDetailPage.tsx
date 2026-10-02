@@ -640,7 +640,14 @@ export default function RequisitionDetailPage() {
 
       {activeTab === 'analysis' && (
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-          <JobAnalysisCard requisition={req} canEditFiles={ownsDocument} />
+          <JobAnalysisCard
+            requisition={req}
+            // Files go in with the job analysis; once it has gone to the
+            // chain they are part of what was signed, and are closed.
+            canEditFiles={
+              ownsDocument && req.status === 'pending_job_analysis'
+            }
+          />
           {/* The vacancy it is written from, beside it rather than a tab
               away — section B is a reading of section A. */}
           <DetailCard title="A · Vacancy Information" rows={vacancy} />

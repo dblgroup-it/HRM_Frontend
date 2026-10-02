@@ -17,3 +17,4 @@ export {
   toBdMobile,
 } from './inputGuards';
 export { DHAKA_OFFSET, dhakaInputToIso, isoToDhakaInput } from './dhakaTime';
+export { LOCATION_GROUP, groupLocation, ungroupLocation } from './location';

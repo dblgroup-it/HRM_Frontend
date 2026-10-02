@@ -33,7 +33,14 @@ export function AppointmentLetterModal({
   open,
   onClose,
 }: {
-  candidate: { id: string; name: string; designation: string; unit: string };
+  candidate: {
+    id: string;
+    name: string;
+    designation: string;
+    unit: string;
+    /** The address on file (NID, then CV) — what the box opens with. */
+    address?: string | null;
+  };
   onboarding: OnboardingView | null;
   open: boolean;
   onClose: () => void;
@@ -49,7 +56,14 @@ export function AppointmentLetterModal({
   const reference = refNo.trim()
     ? `${APPOINTMENT_REF_PREFIX}${refNo.trim()}`
     : '';
-  const [address, setAddress] = useState(ob?.candidateAddress ?? '');
+  const [address, setAddress] = useState(
+    ob?.candidateAddress || candidate.address || '',
+  );
+  // The record can arrive after the form mounts; fill an empty box once it does.
+  const onFile = ob?.candidateAddress || candidate.address || '';
+  useEffect(() => {
+    if (open && onFile) setAddress((cur) => cur || onFile);
+  }, [open, onFile]);
   const [joiningDate, setJoiningDate] = useState(ob?.offerJoiningDate ?? '');
   const [html, setHtml] = useState('');
   const [loading, setLoading] = useState(false);

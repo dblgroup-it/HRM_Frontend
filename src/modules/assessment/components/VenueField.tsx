@@ -3,6 +3,7 @@ import { Building2, ChevronDown, MapPin } from 'lucide-react';
 
 import { Input } from '@shared/components/ui';
 import { cn } from '@shared/lib';
+import { groupLocation } from '@shared/utils';
 import { useMasterData } from '@modules/master-data';
 
 import { VenuePicker } from './VenuePicker';
@@ -63,7 +64,7 @@ export function VenueField({
           </option>
           {locations.map((l) => (
             <option key={l} value={l} className="text-slate-800">
-              {l}
+              {groupLocation(l)}
             </option>
           ))}
         </select>

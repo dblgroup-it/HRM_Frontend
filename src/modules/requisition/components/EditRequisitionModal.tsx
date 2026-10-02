@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 
 import {
   Button,
@@ -9,7 +10,7 @@ import {
   Textarea,
 } from '@shared/components/ui';
 import type { SelectOption } from '@shared/types';
-import { wholeNumberInput } from '@shared/utils';
+import { wholeNumberInput, groupLocation } from '@shared/utils';
 import { JOB_GRADES } from '@modules/salaryFixation';
 import { sectionKey, useMasterData } from '@modules/master-data';
 
@@ -55,6 +56,9 @@ export function EditRequisitionModal({
   const update = useUpdateRequisition();
 
   const [designation, setDesignation] = useState(requisition.designation);
+  const [alternates, setAlternates] = useState<string[]>(
+    requisition.alternateDesignations ?? [],
+  );
   const [department, setDepartment] = useState(requisition.department);
   const [section, setSection] = useState(requisition.section ?? '');
   const [subSection, setSubSection] = useState(requisition.subSection ?? '');
@@ -95,6 +99,7 @@ export function EditRequisitionModal({
   useEffect(() => {
     if (!open) return;
     setDesignation(requisition.designation);
+    setAlternates(requisition.alternateDesignations ?? []);
     setDepartment(requisition.department);
     setSection(requisition.section ?? '');
     setSubSection(requisition.subSection ?? '');
@@ -119,6 +124,7 @@ export function EditRequisitionModal({
         id: requisition.id,
         input: {
           designation,
+          alternateDesignations: alternates.filter((d) => d !== designation),
           department,
           section,
           subSection,
@@ -175,12 +181,69 @@ export function EditRequisitionModal({
           A · Vacancy information
         </p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Combobox
-            label="Designation"
-            options={withCurrent(master?.designations ?? [], designation)}
-            value={designation}
-            onChange={setDesignation}
-          />
+          <div>
+            <Combobox
+              label="Designation"
+              options={withCurrent(master?.designations ?? [], designation)}
+              value={designation}
+              onChange={(v) => {
+                setDesignation(v);
+                // A level promoted to primary is no longer an alternate.
+                setAlternates((list) => list.filter((d) => d !== v));
+              }}
+            />
+            {/* Other levels this post may be filled at — the same list the
+                raise form keeps, so editing can neither lose nor hide it. */}
+            <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50/60 p-2.5">
+              <p className="text-[0.6875rem] font-semibold text-slate-600">
+                Also open at
+              </p>
+              {alternates.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {alternates.map((d) => (
+                    <span
+                      key={d}
+                      className="inline-flex items-center gap-1 rounded-full bg-brand-50 py-1 pl-2.5 pr-1 text-xs font-medium text-brand-700"
+                    >
+                      {d}
+                      <button
+                        type="button"
+                        aria-label={`Remove ${d}`}
+                        onClick={() =>
+                          setAlternates((list) => list.filter((x) => x !== d))
+                        }
+                        className="rounded-full p-0.5 text-brand-500 hover:bg-brand-100 hover:text-brand-800"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="mt-1.5">
+                <Combobox
+                  label=""
+                  placeholder="Add another designation"
+                  options={(master?.designations ?? [])
+                    .filter((d) => d !== designation && !alternates.includes(d))
+                    .map((d) => ({ value: d, label: d }))}
+                  value=""
+                  onChange={(v) => {
+                    if (!v || v === designation || alternates.includes(v)) return;
+                    setAlternates((list) => [...list, v]);
+                  }}
+                />
+              </div>
+              {alternates.length > 0 && (
+                <p className="mt-1.5 text-[0.6875rem] text-slate-500">
+                  Reads as{' '}
+                  <span className="font-medium text-slate-700">
+                    {[designation, ...alternates].join(' / ')}
+                  </span>
+                </p>
+              )}
+            </div>
+          </div>
           <Combobox
             label="Department"
             options={withCurrent(master?.departments ?? [], department)}
@@ -263,7 +326,7 @@ export function EditRequisitionModal({
             options={[
               ...(master?.jobLocations ?? []).map((l) => ({
                 value: l,
-                label: l,
+                label: groupLocation(l),
               })),
               ...(placeOfPosting &&
               !(master?.jobLocations ?? []).includes(placeOfPosting)

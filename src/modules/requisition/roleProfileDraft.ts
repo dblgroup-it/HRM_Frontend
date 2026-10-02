@@ -13,6 +13,8 @@ export function draftRoleProfile(
   req: Pick<
     Requisition,
     | 'designation'
+    | 'designationLabel'
+    | 'alternateDesignations'
     | 'department'
     | 'unitFactory'
     | 'placeOfPosting'
@@ -26,8 +28,13 @@ export function draftRoleProfile(
   if (!jd) return null;
 
   const where = [req.department, req.unitFactory].filter(Boolean).join(', ');
+  const title =
+    req.designationLabel ||
+    [req.designation, ...(req.alternateDesignations ?? [])]
+      .filter(Boolean)
+      .join(' / ');
   return {
-    summary: `${req.designation}${where ? ` — ${where}` : ''}${
+    summary: `${title}${where ? ` — ${where}` : ''}${
       req.placeOfPosting ? `, based at ${req.placeOfPosting}` : ''
     }.`,
     jobDescription: jd,

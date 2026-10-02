@@ -5,7 +5,7 @@ import { Button, Modal, Spinner } from '@shared/components/ui';
 import { http } from '@shared/api';
 import type { ApiResponse } from '@shared/types';
 import { cn } from '@shared/lib';
-import { printDocument } from '@shared/utils';
+import { printDocument, groupLocation } from '@shared/utils';
 import { toast } from 'sonner';
 
 import { useMasterData } from '@modules/master-data';
@@ -65,6 +65,8 @@ export function OfferLetterModal({
     requisitionDesignation?: string;
     alternateDesignations?: string[];
     fixedDesignation?: string | null;
+    /** The address on file (NID, then CV) — what the box opens with. */
+    address?: string | null;
     unit: string;
   };
   onboarding: OnboardingView | null;
@@ -100,7 +102,14 @@ export function OfferLetterModal({
   const fixedDesignation =
     candidate.fixedDesignation ?? (multiLevel ? '' : levels[0]);
   const [salutation, setSalutation] = useState('Mr.');
-  const [address, setAddress] = useState(ob?.candidateAddress ?? '');
+  const [address, setAddress] = useState(
+    ob?.candidateAddress || candidate.address || '',
+  );
+  // The record can arrive after the form mounts; fill an empty box once it does.
+  const onFile = ob?.candidateAddress || candidate.address || '';
+  useEffect(() => {
+    if (open && onFile) setAddress((cur) => cur || onFile);
+  }, [open, onFile]);
   // The prefix is fixed company-wide; only the serial is typed. Stored whole,
   // so an older reference saved before this split still loads and displays.
   const [refNo, setRefNo] = useState(
@@ -400,7 +409,7 @@ export function OfferLetterModal({
               <option value="">Not stated — leave the line off</option>
               {jobLocations.map((loc) => (
                 <option key={loc} value={loc}>
-                  {loc}
+                  {groupLocation(loc)}
                 </option>
               ))}
               <option value="__other">Somewhere else…</option>

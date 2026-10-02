@@ -1,5 +1,14 @@
-import { useState } from 'react';
-import { ExternalLink, Phone, Plus, Trash2, UserCheck } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import {
+  ExternalLink,
+  Loader2,
+  Phone,
+  Plus,
+  Trash2,
+  UserCheck,
+  Wand2,
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 import {
   Badge,
@@ -76,6 +85,49 @@ export function ReferenceChecksPanel({
   } | null>(null);
 
   const items = data?.items ?? [];
+
+  /**
+   * Question 7 drafted by AI from the ratings in section 3 (and anything
+   * typed in 2 and 4–6). Runs by itself the first time every rating is in
+   * and the box is still empty; the button redrafts on demand. Nothing is
+   * saved until the form is.
+   */
+  const [drafting, setDrafting] = useState(false);
+  const autoDrafted = useRef(false);
+  const ratedCount = RATING_QUESTIONS.filter(
+    (q) => editing?.input.ratings?.[q.key],
+  ).length;
+  const draftComment = async () => {
+    if (!editing || drafting) return;
+    setDrafting(true);
+    try {
+      const { comment } = await referenceCheckApi.draftComment(
+        candidateId,
+        editing.input,
+      );
+      set({ overallComments: comment });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setDrafting(false);
+    }
+  };
+  const isOpen = Boolean(editing);
+  useEffect(() => {
+    if (!isOpen) autoDrafted.current = false;
+  }, [isOpen]);
+  useEffect(() => {
+    if (
+      editing &&
+      !autoDrafted.current &&
+      ratedCount === RATING_QUESTIONS.length &&
+      !editing.input.overallComments?.trim()
+    ) {
+      autoDrafted.current = true;
+      void draftComment();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ratedCount]);
 
   const set = (patch: Partial<ReferenceCheckInput>) =>
     setEditing((e) => (e ? { ...e, input: { ...e.input, ...patch } } : e));
@@ -344,12 +396,40 @@ export function ReferenceChecksPanel({
                   onChange={(v) => set({ concerns: v })}
                   rows={2}
                 />
-                <Field
-                  label="7) Overall comments"
-                  value={editing.input.overallComments ?? ''}
-                  onChange={(v) => set({ overallComments: v })}
-                  rows={2}
-                />
+                <div>
+                  <Field
+                    label="7) Overall comments"
+                    value={editing.input.overallComments ?? ''}
+                    onChange={(v) => set({ overallComments: v })}
+                    rows={3}
+                  />
+                  <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-[0.6875rem] text-slate-400">
+                      {ratedCount === 0
+                        ? 'Rate section 3 and AI drafts this from the answers.'
+                        : `Drafted from ${ratedCount} of ${RATING_QUESTIONS.length} ratings — read it before saving.`}
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={ratedCount === 0 || drafting}
+                      leftIcon={
+                        drafting ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Wand2 className="h-3.5 w-3.5" />
+                        )
+                      }
+                      onClick={() => void draftComment()}
+                    >
+                      {drafting
+                        ? 'Drafting…'
+                        : editing.input.overallComments?.trim()
+                          ? 'Redraft with AI'
+                          : 'Draft with AI'}
+                    </Button>
+                  </div>
+                </div>
               </div>
             </Section>
           </div>

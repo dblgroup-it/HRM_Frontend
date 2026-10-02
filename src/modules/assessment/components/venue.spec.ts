@@ -5,15 +5,25 @@ import { joinVenue, splitVenue } from './venue';
 const LOCATIONS = ['Kashimpur, Gazipur', 'Gulshan, Dhaka', 'Dhaka'];
 
 describe('venue with a location', () => {
-  it('joins the room and the location', () => {
+  it('joins the room and the location, under the group', () => {
     expect(joinVenue('HR Meeting Room', 'Kashimpur, Gazipur')).toBe(
-      'HR Meeting Room, Kashimpur, Gazipur',
+      'HR Meeting Room, DBL Group, Kashimpur, Gazipur',
     );
-    expect(joinVenue('', 'Dhaka')).toBe('Dhaka');
+    expect(joinVenue('', 'Dhaka')).toBe('DBL Group, Dhaka');
     expect(joinVenue('Room 3', '')).toBe('Room 3');
   });
 
-  it('splits it back, preferring the longest location', () => {
+  it('splits a grouped venue back to the bare location', () => {
+    expect(
+      splitVenue('Board Room, DBL Group, Gulshan, Dhaka', LOCATIONS),
+    ).toEqual({ place: 'Board Room', location: 'Gulshan, Dhaka' });
+    expect(splitVenue('DBL Group, Dhaka', LOCATIONS)).toEqual({
+      place: '',
+      location: 'Dhaka',
+    });
+  });
+
+  it('still reads a venue saved before the group, preferring the longest location', () => {
     expect(splitVenue('Board Room, Gulshan, Dhaka', LOCATIONS)).toEqual({
       place: 'Board Room',
       location: 'Gulshan, Dhaka',

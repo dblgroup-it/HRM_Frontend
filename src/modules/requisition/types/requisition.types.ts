@@ -498,6 +498,8 @@ export interface RequisitionFilters {
 export interface UpdateRequisitionInput {
   // Section A — correctable by Factory HR during the job analysis.
   designation?: string;
+  /** The other levels this post may be filled at; [] clears them. */
+  alternateDesignations?: string[];
   department?: string;
   /** '' clears. */
   section?: string;

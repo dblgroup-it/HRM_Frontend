@@ -2,6 +2,7 @@
    component (and Fast Refresh keeps working). */
 
 import type { RecruitmentPerms } from '@modules/candidates';
+import { groupLocation } from '@shared/utils';
 
 /** "Head Office :: Room-301" — the way the rooms were given to us. */
 export const roomLabel = (building: string, room: string) =>
@@ -29,16 +30,21 @@ export function usesRoomList(perms: RecruitmentPerms | undefined | null): boolea
 }
 
 /**
- * The venue as stored: "room or building, location" — one string, so the
- * emails, round cards and calendar invites need nothing new. The location is
- * one of DBL's job locations (the place-of-posting list).
+ * The venue as stored: "room or building, DBL Group, location" — one string,
+ * so the emails, round cards and calendar invites need nothing new. The
+ * location is one of DBL's job locations (the place-of-posting list), always
+ * named under the group.
  */
 export function joinVenue(place: string, location: string): string {
-  if (place && location) return `${place}, ${location}`;
-  return place || location;
+  const where = groupLocation(location);
+  if (place && where) return `${place}, ${where}`;
+  return place || where;
 }
 
-/** The inverse of `joinVenue`, given the list the location came from. */
+/**
+ * The inverse of `joinVenue`, given the list the location came from. Reads
+ * venues saved before the group was added ("room, location") as well.
+ */
 export function splitVenue(
   value: string,
   locations: string[],
@@ -46,10 +52,12 @@ export function splitVenue(
   // Longest first, so "Dhaka" never wins over "Gulshan, Dhaka".
   const byLength = [...locations].sort((a, b) => b.length - a.length);
   for (const loc of byLength) {
-    if (value === loc) return { place: '', location: loc };
-    const tail = `, ${loc}`;
-    if (value.endsWith(tail)) {
-      return { place: value.slice(0, -tail.length), location: loc };
+    for (const whole of [groupLocation(loc), loc]) {
+      if (value === whole) return { place: '', location: loc };
+      const tail = `, ${whole}`;
+      if (value.endsWith(tail)) {
+        return { place: value.slice(0, -tail.length), location: loc };
+      }
     }
   }
   return { place: value, location: '' };

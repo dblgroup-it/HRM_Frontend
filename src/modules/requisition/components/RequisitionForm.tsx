@@ -36,7 +36,7 @@ import {
 } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import type { SelectOption } from '@shared/types';
-import { wholeNumberInput } from '@shared/utils';
+import { wholeNumberInput, groupLocation } from '@shared/utils';
 import {
   useSeatLookup,
   useOrganogramUnits,
@@ -328,7 +328,7 @@ export function RequisitionForm({ onSubmit, isSubmitting, onCancel }: Props) {
    * the letter and the requisition then disagreed about the same post.
    */
   const jobLocationOptions: SelectOption[] = (master?.jobLocations ?? []).map(
-    (l) => ({ value: l, label: l }),
+    (l) => ({ value: l, label: groupLocation(l) }),
   );
   const lineOfBusinessOptions: SelectOption[] = (
     master?.linesOfBusiness ?? []

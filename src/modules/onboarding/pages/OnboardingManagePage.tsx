@@ -771,7 +771,13 @@ function Flow({
   const [hrNote, setHrNote] = useState('');
   const [hrFile, setHrFile] = useState<File | null>(null);
   const isApproved = boardApproval?.status === 'approved';
-  const approvedVotes = boardApproval?.votes.filter((v) => v.status === 'approved') ?? [];
+  // The board member who approved comes first — Head of Talent Acquisition's
+  // hand-over and the CHRO's sign-off are links in the chain, not the
+  // approval the badge reports.
+  const STAGE_WEIGHT: Record<string, number> = { board: 0, chro: 1, corporate_hr: 2 };
+  const approvedVotes = (boardApproval?.votes ?? [])
+    .filter((v) => v.status === 'approved')
+    .sort((a, b) => (STAGE_WEIGHT[a.stage] ?? 3) - (STAGE_WEIGHT[b.stage] ?? 3));
   const confirmHrApprove = () => {
     if (!hrFile) return;
     hrApprove.mutate(

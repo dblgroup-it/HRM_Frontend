@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   Briefcase,
   Clock,
@@ -31,6 +31,40 @@ import {
   useReturnForChanges,
   useSaveJobAnalysis,
 } from '../hooks/useRequisitionActions';
+
+type JobAnalysisFields = {
+  jobDescription: string;
+  education: string;
+  experience: string;
+  others: string;
+};
+
+/**
+ * The unsaved section B, kept per requisition for the browser session.
+ *
+ * The fields live in this component, and switching to another lifecycle tab
+ * unmounts it — so an AI draft (or anything typed) vanished the moment the
+ * writer looked at the Details tab. Cleared once a save or submit lands.
+ */
+const draftKey = (id: string) => `hrm.jobAnalysisDraft.${id}`;
+
+function readDraft(id: string): JobAnalysisFields | null {
+  try {
+    const raw = sessionStorage.getItem(draftKey(id));
+    return raw ? (JSON.parse(raw) as JobAnalysisFields) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeDraft(id: string, fields: JobAnalysisFields | null) {
+  try {
+    if (fields) sessionStorage.setItem(draftKey(id), JSON.stringify(fields));
+    else sessionStorage.removeItem(draftKey(id));
+  } catch {
+    // Storage blocked (private window) — the draft simply isn't kept.
+  }
+}
 
 /**
  * Section B · Job Analysis — the body, without a card of its own.
@@ -71,10 +105,33 @@ export function JobAnalysisSection({
   const resend = useResendForJobAnalysis(req.id);
   const draft = useDraftJobAnalysis(req.id);
 
-  const [jobDescription, setJobDescription] = useState(req.jobDescription);
-  const [education, setEducation] = useState(req.education);
-  const [experience, setExperience] = useState(req.experience);
-  const [others, setOthers] = useState(req.others);
+  const [stored] = useState(() => (open ? readDraft(req.id) : null));
+  const [jobDescription, setJobDescription] = useState(
+    stored?.jobDescription ?? req.jobDescription,
+  );
+  const [education, setEducation] = useState(stored?.education ?? req.education);
+  const [experience, setExperience] = useState(
+    stored?.experience ?? req.experience,
+  );
+  const [others, setOthers] = useState(stored?.others ?? req.others ?? '');
+
+  // Keep what is on screen whenever it differs from what is saved, so leaving
+  // the tab and coming back finds it as it was left.
+  useEffect(() => {
+    if (!open) {
+      writeDraft(req.id, null);
+      return;
+    }
+    const dirty =
+      jobDescription !== req.jobDescription ||
+      education !== req.education ||
+      experience !== req.experience ||
+      others !== (req.others ?? '');
+    writeDraft(
+      req.id,
+      dirty ? { jobDescription, education, experience, others } : null,
+    );
+  }, [open, req.id, req.jobDescription, req.education, req.experience, req.others, jobDescription, education, experience, others]);
   const [returnNote, setReturnNote] = useState('');
   const [returning, setReturning] = useState(false);
   const [editingVacancy, setEditingVacancy] = useState(false);
@@ -90,14 +147,17 @@ export function JobAnalysisSection({
     jobDescription: jobDescription.trim(),
     education: education.trim(),
     experience: experience.trim(),
-    others: others.trim(),
+    others: (others ?? '').trim(),
   });
 
   const submit = () =>
     save.mutate(
       { ...input(), submit: true },
       {
-        onSuccess: () => toast.success('Job analysis sent for approval'),
+        onSuccess: () => {
+          writeDraft(req.id, null);
+          toast.success('Job analysis sent for approval');
+        },
         onError: (e) => toast.error((e as Error).message),
       },
     );
@@ -106,7 +166,10 @@ export function JobAnalysisSection({
     save.mutate(
       { ...input(), submit: false },
       {
-        onSuccess: () => toast.success('Saved — the requisition stays here'),
+        onSuccess: () => {
+          writeDraft(req.id, null);
+          toast.success('Saved — the requisition stays here');
+        },
         onError: (e) => toast.error((e as Error).message),
       },
     );

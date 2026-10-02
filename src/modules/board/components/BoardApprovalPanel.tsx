@@ -20,6 +20,11 @@ export function BoardApprovalPanel({ candidateId }: { candidateId: string }) {
   const send = useSendBoardApproval(candidateId);
 
   const approvedVotes = approval?.votes.filter((v) => v.status === 'approved') ?? [];
+  // Who actually approved for the board — not Head of Talent Acquisition's
+  // hand-over, which is also an "approved" vote in the chain.
+  const boardApprover = approval?.hrApprovedBy
+    ? `by HR · ${approval.hrApprovedBy.name}`
+    : (approvedVotes.find((v) => v.stage === 'board')?.member.name ?? null);
   const pendingVotes  = approval?.votes.filter((v) => v.status === 'pending')  ?? [];
   const isApproved    = approval?.status === 'approved';
   const isRejected    = approval?.status === 'rejected';
@@ -59,6 +64,11 @@ export function BoardApprovalPanel({ candidateId }: { candidateId: string }) {
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[0.6875rem] font-semibold text-emerald-700">
                 <BadgeCheck className="h-3.5 w-3.5" />
                 Board Approved
+                {boardApprover && (
+                  <span className="font-medium text-emerald-600">
+                    · {boardApprover}
+                  </span>
+                )}
               </span>
             )}
             {isRejected && (
@@ -163,6 +173,13 @@ export function BoardApprovalPanel({ candidateId }: { candidateId: string }) {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[0.75rem] font-medium text-slate-800">
                         {vote.member.name}
+                        <span className="ml-1.5 text-[0.625rem] font-normal text-slate-400">
+                          {vote.stage === 'board'
+                            ? 'Board'
+                            : vote.stage === 'chro'
+                              ? 'CHRO'
+                              : 'Head of Talent Acquisition'}
+                        </span>
                       </p>
                       {vote.respondedAt ? (
                         <div className="flex items-center gap-1 text-[0.625rem] text-slate-400">

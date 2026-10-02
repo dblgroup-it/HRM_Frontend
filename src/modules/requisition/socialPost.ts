@@ -1,3 +1,4 @@
+import { groupLocation } from '@shared/utils';
 import type { Requisition } from './types/requisition.types';
 
 const STOP = new Set([
@@ -74,7 +75,7 @@ export function buildRequisitionSocialPost(
 
   const facts = [
     `👥 Vacancy: ${req.requiredPosts}`,
-    req.placeOfPosting ? `📍 Location: ${req.placeOfPosting}` : null,
+    req.placeOfPosting ? `📍 Location: ${groupLocation(req.placeOfPosting)}` : null,
     req.employmentNature ? `📄 ${req.employmentNature.replace(/_/g, ' ')}` : null,
     req.education ? `🎓 ${req.education}` : null,
     req.experience ? `💼 ${req.experience}` : null,
@@ -84,7 +85,17 @@ export function buildRequisitionSocialPost(
   // The published role profile, when Head of Talent Acquisition has written
   // one — it is the copy meant for candidates, so it beats the internal JD.
   const responsibilities = req.roleProfile?.responsibilities ?? [];
-  const summary = req.roleProfile?.summary?.trim();
+  let summary = req.roleProfile?.summary?.trim();
+  // A profile saved before alternate designations reached it opens with the
+  // primary alone ("Assistant Officer — Dyeing…"); name every level instead.
+  if (
+    summary &&
+    title !== req.designation &&
+    summary.startsWith(`${req.designation} `) &&
+    !summary.startsWith(title)
+  ) {
+    summary = title + summary.slice(req.designation.length);
+  }
   if (summary) {
     out.push('', summary);
   }
@@ -113,7 +124,12 @@ export function buildRequisitionSocialPost(
   out.push('', `📩 Apply online: ${applyUrl}`);
 
   const tags = new Set(['#DBLGroup', '#WeAreHiring', '#Hiring']);
-  for (const phrase of [req.designation, req.department, req.unitFactory]) {
+  for (const phrase of [
+    req.designation,
+    ...(req.alternateDesignations ?? []),
+    req.department,
+    req.unitFactory,
+  ]) {
     const tag = toTag(phrase);
     if (tag) tags.add(tag);
   }
