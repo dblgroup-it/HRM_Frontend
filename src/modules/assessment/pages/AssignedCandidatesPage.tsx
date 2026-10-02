@@ -55,7 +55,7 @@ import type {
   DelegatedCandidate,
   DelegatedTest,
 } from '../types/assessment.types';
-import { isFirstInterviewDone } from '../components/firstInterviewStage';
+import { isDelegationDone } from '../components/firstInterviewStage';
 import { interviewUrgency } from '../components/interviewUrgency';
 import { resolveApiFileUrl } from '@shared/api';
 import {
@@ -202,7 +202,7 @@ function columnOf(row: DelegatedCandidate): Col {
   // Anything past the interview stage is finished as far as the first
   // interview goes — including candidates who have since been hired. See
   // `isFirstInterviewDone`.
-  if (isFirstInterviewDone(row.candidate.stage)) return 'done';
+  if (isDelegationDone(row)) return 'done';
   // Put through, and waiting on the unit's Factory HR Head — nothing more to
   // do here unless they send it back.
   if (row.headApproval?.status === 'pending') return 'with_head';

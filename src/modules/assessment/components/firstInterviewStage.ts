@@ -28,3 +28,16 @@ const OPEN_STAGES = new Set([
 export function isFirstInterviewDone(stage: string): boolean {
   return !OPEN_STAGES.has(stage);
 }
+
+/**
+ * Is this delegate's part over? The stored completion first — a finished
+ * hand-off stays finished even when the recruiter moves the candidate back to
+ * Interview for their second round — and the stage for rows from before it
+ * was recorded.
+ */
+export function isDelegationDone(row: {
+  completedAt?: string | null;
+  candidate: { stage: string };
+}): boolean {
+  return Boolean(row.completedAt) || isFirstInterviewDone(row.candidate.stage);
+}

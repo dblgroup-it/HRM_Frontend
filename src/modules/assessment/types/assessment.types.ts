@@ -296,6 +296,8 @@ export interface DelegatedCandidate {
   id: string;
   note: string | null;
   createdAt: string;
+  /** Set once this hand-off is finished; it stays finished. */
+  completedAt?: string | null;
   delegatedBy: { id: string; name: string } | null;
   /** Others this candidate was handed to as well. */
   alsoAssignedTo: string[];

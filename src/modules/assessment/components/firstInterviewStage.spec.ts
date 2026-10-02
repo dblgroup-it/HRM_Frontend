@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isFirstInterviewDone } from './firstInterviewStage';
+import { isDelegationDone, isFirstInterviewDone } from './firstInterviewStage';
 
 /**
  * The bug this pins: a candidate put through the first interview moves on
@@ -26,5 +26,28 @@ describe('isFirstInterviewDone', () => {
     // A stage added later belongs to whoever owns that part of the process.
     // Defaulting to "still mine" would put it back on an interviewer's board.
     expect(isFirstInterviewDone('offer_sent')).toBe(true);
+  });
+});
+
+describe('isDelegationDone', () => {
+  it('keeps a finished hand-off finished when the candidate is back at Interview', () => {
+    // The recruiter booked the second round: stage is Interview again, but
+    // the factory's part ended — it must not reappear on their board.
+    expect(
+      isDelegationDone({
+        completedAt: '2026-10-01T09:00:00.000Z',
+        candidate: { stage: 'interview' },
+      }),
+    ).toBe(true);
+  });
+
+  it('is open while the hand-off is not finished', () => {
+    expect(
+      isDelegationDone({ completedAt: null, candidate: { stage: 'interview' } }),
+    ).toBe(false);
+  });
+
+  it('still reads older rows from the stage', () => {
+    expect(isDelegationDone({ candidate: { stage: 'final' } })).toBe(true);
   });
 });

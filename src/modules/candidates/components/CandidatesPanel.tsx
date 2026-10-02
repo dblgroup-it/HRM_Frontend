@@ -241,6 +241,23 @@ export function CandidatesPanel({
   );
   const [delegateOpen, setDelegateOpen] = useState(false);
   const selectedIds = useMemo(() => new Set(selectedCandidates.keys()), [selectedCandidates]);
+  /**
+   * A new tab or search starts a new selection. Ticks used to survive both,
+   * so candidates ticked out of sight on another tab went out with the next
+   * "Send for Interview" — eight hand-offs from what looked like a pick of
+   * one. Paging keeps the selection on purpose (the bar says how many are
+   * off this page).
+   */
+  useEffect(() => {
+    setSelectedCandidates((prev) => (prev.size ? new Map() : prev));
+  }, [tab, search]);
+  const offPage = useMemo(
+    () => {
+      const onPage = new Set((candidatePage?.items ?? []).map((c) => c.id));
+      return [...selectedIds].filter((id) => !onPage.has(id)).length;
+    },
+    [selectedIds, candidatePage],
+  );
   // Only shortlisted CVs go out to a factory interviewer. Select-all is shared
   // with the other bulk actions, so rather than crippling it we judge the
   // selection here — and the modal shows what it left behind.
@@ -678,6 +695,11 @@ export function CandidatesPanel({
               <div className="flex items-center justify-between gap-3 rounded-lg border border-brand-200 bg-brand-50 px-4 py-2.5">
                 <span className="text-sm font-medium text-brand-700">
                   {selectedIds.size} candidate{selectedIds.size === 1 ? '' : 's'} selected
+                  {offPage > 0 && (
+                    <span className="ml-1.5 font-normal text-brand-600">
+                      ({offPage} on another page)
+                    </span>
+                  )}
                 </span>
                 <div className="flex items-center gap-2">
                   <Button
