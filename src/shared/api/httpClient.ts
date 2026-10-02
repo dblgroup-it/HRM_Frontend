@@ -23,7 +23,7 @@ const WRITE_TIMEOUT_MS = 120_000;
  * and the module API services will route through here instead.
  */
 export const httpClient: AxiosInstance = axios.create({
-  baseURL: ENV.API_BASE_URL,
+  baseURL: ENV.API_URL,
   headers: { 'Content-Type': 'application/json' },
   timeout: DEFAULT_TIMEOUT_MS,
 });

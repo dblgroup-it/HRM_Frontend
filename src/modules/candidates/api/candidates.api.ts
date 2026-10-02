@@ -1,3 +1,4 @@
+import { ENV } from '@shared/constants';
 import { http } from '@shared/api';
 import type { ApiResponse } from '@shared/types';
 
@@ -182,7 +183,7 @@ export const candidatesApi = {
     if (filters.search?.trim()) params.set('search', filters.search.trim());
     if (filters.sortBy) params.set('sortBy', filters.sortBy);
 
-    const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:4000/api';
+    const apiBase = ENV.API_URL;
     const url = `${apiBase}/requisitions/${reqId}/candidates/export?${params}`;
 
     // Use fetch directly to handle binary response — the axios client unwraps JSON

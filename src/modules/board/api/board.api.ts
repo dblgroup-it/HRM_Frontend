@@ -1,3 +1,4 @@
+import { ENV } from '@shared/constants';
 import { http } from '@shared/api';
 import type { ApiResponse } from '@shared/types';
 import type {
@@ -48,9 +49,7 @@ export const boardApi = {
    * which unwraps JSON and would corrupt a binary body.
    */
   exportSheet: async (batchId: string): Promise<void> => {
-    const base =
-      (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
-      'http://localhost:4000/api';
+    const base = ENV.API_URL;
     let token: string | null = null;
     try {
       const raw = localStorage.getItem('hrm.auth');

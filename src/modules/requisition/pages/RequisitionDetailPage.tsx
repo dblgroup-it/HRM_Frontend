@@ -12,6 +12,7 @@ import {
   Pencil,
   Rocket,
   Share2,
+  Trash2,
   Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -52,6 +53,7 @@ import { RoleProfilePanel } from '../components/RoleProfilePanel';
 import { RecruiterPanel } from '../components/RecruiterPanel';
 import { PostingPanel } from '../components/PostingPanel';
 import { EditRequisitionModal } from '../components/EditRequisitionModal';
+import { DeleteRequisitionModal } from '../components/DeleteRequisitionModal';
 import { JobAnalysisCard } from '../components/JobAnalysisCard';
 import { buildRequisitionSocialPost } from '../socialPost';
 import { FacilitiesPanel } from '../components/FacilitiesPanel';
@@ -75,6 +77,9 @@ export default function RequisitionDetailPage() {
   const { data: req, isLoading, isError } = useRequisition(id);
   const { data: perms } = useMyPermissions();
   const myUserId = useAuthStore((s) => s.user?.id);
+  // Permanent deletion is the ADMIN login's alone — not super users, not HR.
+  const isAdminAccount = useAuthStore((s) => s.user?.role === 'admin');
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const seatLookup = useSeatLookup(
     req?.unitFactory ?? '',
     req?.department ?? '',
@@ -579,10 +584,29 @@ export default function RequisitionDetailPage() {
                 Edit details
               </Button>
             )}
+            {isAdminAccount && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-rose-200 text-rose-600 hover:bg-rose-50"
+                leftIcon={<Trash2 className="h-4 w-4" />}
+                onClick={() => setDeleteOpen(true)}
+              >
+                Delete
+              </Button>
+            )}
             <Badge tone="brand">{req.requiredPosts} required post(s)</Badge>
           </div>
         </div>
       </div>
+
+      {isAdminAccount && (
+        <DeleteRequisitionModal
+          requisition={req}
+          open={deleteOpen}
+          onClose={() => setDeleteOpen(false)}
+        />
+      )}
 
       <EditRequisitionModal
         requisition={req}

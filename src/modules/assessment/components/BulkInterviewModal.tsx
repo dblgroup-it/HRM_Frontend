@@ -41,6 +41,20 @@ import { panelHandlers, panelPayload, type PanelEntry } from './panelEntry';
 
 type Candidate = { id: string; name: string };
 
+/**
+ * A batch's interview type, or 'due': each candidate at the round they are
+ * due. A recruiter's batch is often mixed — someone they found directly is
+ * due a first interview while the factory's finalist is due a second — and
+ * one type for everybody used to mean splitting the batch by hand.
+ */
+type BatchKind = InterviewKindKey | 'due';
+
+const ROUND_LABEL: Record<InterviewKindKey, string> = {
+  first: 'First',
+  second: 'Second',
+  final: 'Final',
+};
+
 const KIND_OPTIONS: { value: InterviewKindKey; label: string }[] = [
   { value: 'first', label: 'First interview' },
   { value: 'second', label: 'Second interview' },
@@ -99,7 +113,12 @@ export function BulkInterviewModal({
       setCandidates(initialCandidates);
       // The interview most of the batch is due — a second once the first is
       // behind them, rather than always starting from a first.
-      setKind(firstRoundOnly ? 'first' : suggestBatchKind(initialCandidates).kind);
+      if (firstRoundOnly) setKind('first');
+      else {
+        const s = suggestBatchKind(initialCandidates);
+        // Mixed batch: book each at their own round rather than refuse some.
+        setKind(s.others.length > 0 ? 'due' : s.kind);
+      }
       setMode('physical');
       setDate('');
       setStartTime('09:00');
@@ -115,7 +134,7 @@ export function BulkInterviewModal({
   }, [open]);
 
   // --- interview config ---
-  const [kind, setKind] = useState<InterviewKindKey>('first');
+  const [kind, setKind] = useState<BatchKind>('first');
   const [mode, setMode] = useState<InterviewModeKey>('physical');
 
   // --- time allocation ---
@@ -146,38 +165,57 @@ export function BulkInterviewModal({
     });
   }, [date, startTime, slotsMode, intervalMin, candidates]);
 
-  const submit = () => {
+  const submit = async () => {
     if (candidates.length === 0 || panel.length === 0) return;
     if (mode !== 'online' && !location.trim()) {
       setLocationError(true);
       return;
     }
     setLocationError(false);
-    bulkSchedule.mutate(
-      {
-        candidateIds: candidates.map((c) => c.id),
-        kind,
-        mode,
-        scheduledAts: date ? (slots.filter(Boolean) as string[]) : undefined,
-        location: location.trim() || undefined,
-        ...panelPayload(panel),
-        notifyCandidate,
-        notifyPanel,
-      },
-      { onSuccess: onClose },
-    );
+    // One call per round type, each candidate keeping the slot the preview
+    // gave them — the server books one type per call.
+    const groups = new Map<InterviewKindKey, number[]>();
+    candidates.forEach((c, i) => {
+      const k = kind === 'due' ? nextInterviewKind(c) : kind;
+      groups.set(k, [...(groups.get(k) ?? []), i]);
+    });
+    try {
+      for (const [k, idx] of groups) {
+        await bulkSchedule.mutateAsync({
+          candidateIds: idx.map((i) => candidates[i].id),
+          kind: k,
+          mode,
+          scheduledAts: date
+            ? (idx.map((i) => slots[i]).filter(Boolean) as string[])
+            : undefined,
+          location: location.trim() || undefined,
+          ...panelPayload(panel),
+          notifyCandidate,
+          notifyPanel,
+        });
+        // Booked: take them out, so a failure in a later group can be retried
+        // without booking these twice.
+        const booked = new Set(idx.map((i) => candidates[i].id));
+        setCandidates((prev) => prev.filter((c) => !booked.has(c.id)));
+      }
+      onClose();
+    } catch {
+      // The hook reports the error; whoever is left in the batch can be retried.
+    }
   };
 
   const [h0, m0] = startTime.split(':').map(Number);
 
   // Who in the batch is due something other than the chosen interview — named
   // up front, so nobody is booked into the wrong round by being in the batch.
-  const offKind = firstRoundOnly
+  const offKind = firstRoundOnly || kind === 'due'
     ? []
     : candidates
         .map((c) => ({ name: c.name, due: nextInterviewKind(c) }))
         .filter((d) => d.due !== kind);
-  const suggested = firstRoundOnly ? null : suggestBatchKind(candidates).kind;
+  const batch = firstRoundOnly ? null : suggestBatchKind(candidates);
+  const suggested = batch?.kind ?? null;
+  const mixed = (batch?.others.length ?? 0) > 0;
 
   return (
     <Modal
@@ -211,6 +249,11 @@ export function BulkInterviewModal({
                 >
                   <Avatar name={c.name} size="sm" />
                   {c.name}
+                  {kind === 'due' && (
+                    <span className="rounded-full bg-brand-50 px-1.5 py-0.5 text-[0.625rem] font-semibold text-brand-700">
+                      {ROUND_LABEL[nextInterviewKind(c)]}
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={() => setCandidates((prev) => prev.filter((x) => x.id !== c.id))}
@@ -231,12 +274,23 @@ export function BulkInterviewModal({
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3">
             <CalendarClock className="h-4 w-4 shrink-0 text-brand-600" />
             <Segmented
-              options={KIND_OPTIONS.filter(
-                (k) => !firstRoundOnly || k.value === 'first',
-              ).map((k) => ({ value: k.value, label: k.label }))}
+              options={[
+                ...(mixed || kind === 'due'
+                  ? [{ value: 'due', label: 'Each one’s due round' }]
+                  : []),
+                ...KIND_OPTIONS.filter(
+                  (k) => !firstRoundOnly || k.value === 'first',
+                ).map((k) => ({ value: k.value, label: k.label })),
+              ]}
               value={kind}
-              onChange={(v) => setKind(v as InterviewKindKey)}
+              onChange={(v) => setKind(v as BatchKind)}
             />
+            {kind === 'due' && (
+              <span className="flex items-center gap-1 text-[0.6875rem] text-brand-600">
+                <Lightbulb className="h-3.5 w-3.5 shrink-0" />
+                Each candidate is booked at the round shown beside their name
+              </span>
+            )}
             {suggested && suggested !== 'first' && kind === suggested && (
               <span className="flex items-center gap-1 text-[0.6875rem] text-brand-600">
                 <Lightbulb className="h-3.5 w-3.5 shrink-0" />
@@ -259,8 +313,8 @@ export function BulkInterviewModal({
               {offKind
                 .map((d) => `${d.name} is due a ${d.due} interview`)
                 .join('; ')}
-              , not a {kind} one. Remove them from this batch and schedule them
-              separately.
+              , not a {kind} one. Choose “Each one’s due round” to book everyone
+              at their own round, or remove them from this batch.
             </p>
           )}
 

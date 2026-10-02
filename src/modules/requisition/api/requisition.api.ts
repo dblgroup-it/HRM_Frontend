@@ -468,6 +468,21 @@ export const requisitionApi = {
       .then((res) => res.data);
   },
 
+  /**
+   * Permanently delete a requisition and everything under it. ADMIN account
+   * only; `confirmCode` must be the requisition's code.
+   */
+  remove(
+    id: string,
+    confirmCode: string,
+  ): Promise<{ code: string; candidates: number; notifications: number }> {
+    return http
+      .delete<
+        ApiResponse<{ code: string; candidates: number; notifications: number }>
+      >(`/requisitions/${id}`, { data: { confirmCode } })
+      .then((res) => res.data);
+  },
+
   /** Requisitioner sends a clarified requisition back into the chain. */
   resubmit(id: string): Promise<Requisition> {
     if (ENV.USE_MOCK_API) {

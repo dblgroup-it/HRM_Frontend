@@ -349,6 +349,8 @@ export interface DelegatedCandidate {
   tests: DelegatedTest[];
   /** A finalist from this unit goes to its Factory HR Head before the recruiter. */
   requiresHeadApproval?: boolean;
+  /** The unit's Factory HR Head(s), by name. */
+  headApproverNames?: string[];
   /** Where the Factory HR Head sign-off stands, once one has been asked for. */
   headApproval?: {
     status: 'pending' | 'approved' | 'returned' | 'rejected';

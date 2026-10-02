@@ -1074,13 +1074,19 @@ function BoardCard({
    * now sits at the top right where the eye lands, and the footer is left to
    * the actions alone.
    */
+  const heads = row.headApproverNames ?? [];
   const state: { tone: string; icon: LucideIcon; text: string; title?: string } =
     col === 'with_head'
       ? {
           tone: 'bg-orange-50 text-orange-700 ring-orange-200',
           icon: Hourglass,
-          text: 'With Factory HR Head',
-          title: 'Put through — waiting on the Factory HR Head to approve',
+          // Named, so nobody has to ask whose desk it is on.
+          text: heads.length
+            ? `HR Head · ${heads[0]}${heads.length > 1 ? ` +${heads.length - 1}` : ''}`
+            : 'With Factory HR Head',
+          title: `Put through — waiting on the Factory HR Head${
+            heads.length ? ` (${heads.join(', ')})` : ''
+          } to approve`,
         }
     : col === 'done'
       ? rejected
