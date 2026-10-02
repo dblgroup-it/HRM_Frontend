@@ -133,8 +133,10 @@ function DatabaseSwitcher() {
             <Database className="h-4 w-4 text-brand-600" /> Data copy
           </h2>
           <p className="text-xs text-slate-500">
-            A fresh copy of the live database is made every night at 02:45. Pick
-            the day to work on; the dev server restarts onto it in a few seconds.
+            A fresh copy of the live database is made every night at 02:45, and
+            the last 7 days are kept. Pick the day to work on; the dev server
+            restarts onto it in a few seconds. A picked day older than 7 days is
+            removed, and the server goes back to the newest.
           </p>
         </div>
         <Button
