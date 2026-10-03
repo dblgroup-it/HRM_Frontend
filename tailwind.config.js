@@ -89,6 +89,11 @@ export default {
           '0%': { 'background-position': '-200% 0' },
           '100%': { 'background-position': '200% 0' },
         },
+        // "Waiting for approval": three dots rising in turn.
+        'wait-dot': {
+          '0%, 80%, 100%': { opacity: '0.3', transform: 'translateY(0)' },
+          '40%': { opacity: '1', transform: 'translateY(-2px)' },
+        },
         'flow-down': {
           '0%': { 'background-position': '0% 0%' },
           '100%': { 'background-position': '0% 200%' },
@@ -173,6 +178,7 @@ export default {
         float: 'float 6s ease-in-out infinite',
         shimmer: 'shimmer 2.5s linear infinite',
         'flow-down': 'flow-down 1.2s linear infinite',
+        'wait-dot': 'wait-dot 1.2s ease-in-out infinite',
         'loader-pop': 'loader-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) both',
         'text-up-out': 'text-up-out 0.2s ease forwards',
         'text-up-in':  'text-up-in  0.2s ease forwards',

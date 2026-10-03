@@ -176,17 +176,35 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
           {requisition.raisedBy && (
             <li className="flex gap-3">
               <div className="flex flex-col items-center">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-slate-300 bg-slate-100 text-slate-500">
+                <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-emerald-300 bg-emerald-50 text-emerald-600">
                   <UserRound className="h-4 w-4" />
+                  {/* Submitting is the raiser's own sign-off. */}
+                  <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-white ring-2 ring-white motion-safe:animate-loader-pop">
+                    <Check className="h-2.5 w-2.5" strokeWidth={3} />
+                  </span>
                 </span>
                 {chain.length > 0 && (
-                  <span className="my-1 w-0.5 flex-1 bg-slate-200" />
+                  <span
+                    className={cn(
+                      'my-1 w-0.5 flex-1',
+                      nextPendingIndex === 0 && !isRejected
+                        ? 'bg-gradient-to-b from-emerald-300 via-brand-500 to-brand-200 bg-[length:100%_50%] motion-safe:animate-flow-down'
+                        : chain[0]?.status === 'approved'
+                          ? 'bg-accent-300'
+                          : 'bg-slate-200'
+                    )}
+                  />
                 )}
               </div>
               <div className="min-w-0 flex-1 pb-3">
-                <p className="text-sm font-medium text-slate-800">
-                  {requisition.raisedBy}
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                  <p className="text-sm font-medium text-slate-800">
+                    {requisition.raisedBy}
+                  </p>
+                  <StatusPill tone="done">
+                    <Check className="h-3 w-3" strokeWidth={3} /> Submitted
+                  </StatusPill>
+                </div>
                 <p className="mt-0.5 text-xs text-slate-400">
                   Raised this requisition · {formatDate(requisition.createdAt)}
                 </p>
@@ -200,6 +218,7 @@ export function ApprovalPanel({ requisition }: { requisition: Requisition }) {
               step={step}
               isLast={index === chain.length - 1}
               isNext={index === nextPendingIndex && !isRejected}
+              notStarted={awaitingJobAnalysis}
               leadsToActive={index === nextPendingIndex - 1 && !isRejected}
               votes={step.role === 'board' ? votesFor(step.id) : []}
             >
@@ -465,11 +484,14 @@ function ChainRow({
   isNext,
   leadsToActive,
   votes,
+  notStarted = false,
   children,
 }: {
   step: ApprovalStep;
   isLast: boolean;
   isNext: boolean;
+  /** The chain waits on the job analysis: nobody's turn yet. */
+  notStarted?: boolean;
   leadsToActive: boolean;
   votes: RequisitionBoardVote[];
   children?: ReactNode;
@@ -483,18 +505,29 @@ function ChainRow({
       <div className="flex flex-col items-center">
         <span
           className={cn(
-            'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-300',
+            'relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-300',
             approved
-              ? 'animate-loader-pop border-accent-500 bg-accent-500 text-white'
+              ? 'motion-safe:animate-loader-pop border-accent-500 bg-accent-500 text-white'
               : rejected
                 ? 'border-red-500 bg-red-500 text-white'
                 : infoRequested
                   ? 'border-amber-500 bg-amber-50 text-amber-600'
                   : isNext
-                    ? 'animate-pulse border-brand-600 bg-brand-50 text-brand-600'
+                    ? 'border-brand-600 bg-brand-50 text-brand-600'
                     : 'border-slate-200 bg-white text-slate-300'
           )}
         >
+          {/* Whose turn it is: two rings leaving at different times — one
+              pulse reads as a badge, two read as something in progress. */}
+          {isNext && (
+            <>
+              <span className="pointer-events-none absolute inset-0 rounded-full bg-brand-400/30 motion-safe:animate-ping" />
+              <span
+                className="pointer-events-none absolute -inset-1 rounded-full border border-brand-300/60 motion-safe:animate-ping"
+                style={{ animationDelay: '600ms' }}
+              />
+            </>
+          )}
           {approved ? (
             <Check className="h-4 w-4" />
           ) : rejected ? (
@@ -519,8 +552,33 @@ function ChainRow({
         )}
       </div>
 
-      <div className={cn('pb-4', isLast && 'pb-0')}>
-        <p className="text-sm font-medium text-slate-800">{step.title}</p>
+      <div className={cn('min-w-0 flex-1 pb-4', isLast && 'pb-0')}>
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+          <p className="text-sm font-medium text-slate-800">{step.title}</p>
+          {approved ? (
+            <StatusPill tone="done">
+              <Check className="h-3 w-3 motion-safe:animate-loader-pop" strokeWidth={3} />
+              Approved
+            </StatusPill>
+          ) : rejected ? (
+            <StatusPill tone="bad">
+              <X className="h-3 w-3" strokeWidth={3} /> Rejected
+            </StatusPill>
+          ) : infoRequested ? (
+            <StatusPill tone="warn">
+              <Undo2 className="h-3 w-3" /> Sent back
+            </StatusPill>
+          ) : isNext ? (
+            <StatusPill tone="wait">
+              <WaitDots />
+              {step.role === 'board' ? 'Waiting for the board' : 'Waiting for approval'}
+            </StatusPill>
+          ) : (
+            <StatusPill tone="idle">
+              {notStarted ? 'Not started yet' : 'Upcoming'}
+            </StatusPill>
+          )}
+        </div>
         <p className="text-xs text-slate-400">
           {step.assignee ? step.assignee : step.subtitle}
         </p>
@@ -563,5 +621,46 @@ function ChainRow({
         {children}
       </div>
     </li>
+  );
+}
+
+/** A step's state in words, beside its name. */
+function StatusPill({
+  tone,
+  children,
+}: {
+  tone: 'done' | 'wait' | 'bad' | 'warn' | 'idle';
+  children: ReactNode;
+}) {
+  return (
+    <span
+      className={cn(
+        'inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[0.6875rem] font-semibold ring-1',
+        {
+          done: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+          wait: 'bg-brand-50 text-brand-700 ring-brand-200',
+          bad: 'bg-red-50 text-red-700 ring-red-200',
+          warn: 'bg-amber-50 text-amber-700 ring-amber-200',
+          idle: 'bg-slate-50 text-slate-500 ring-slate-200',
+        }[tone]
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+/** Three dots rising in turn — "someone is on it". Still for reduced motion. */
+function WaitDots() {
+  return (
+    <span className="inline-flex items-end gap-0.5 pr-0.5" aria-hidden>
+      {[0, 150, 300].map((delay) => (
+        <span
+          key={delay}
+          className="h-1 w-1 rounded-full bg-current motion-safe:animate-wait-dot"
+          style={{ animationDelay: `${delay}ms` }}
+        />
+      ))}
+    </span>
   );
 }
