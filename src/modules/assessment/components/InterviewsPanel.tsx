@@ -13,6 +13,7 @@ import {
   Building2,
   CalendarCheck,
   CalendarClock,
+  CalendarDays,
   Check,
   CheckCircle2,
   Circle,
@@ -762,6 +763,7 @@ function InterviewWorkspace({
   const [panel, setPanel]             = useState<PanelEntry[]>([]);
   const [notifyCandidate, setNotifyCandidate] = useState(true);
   const [notifyPanel, setNotifyPanel]         = useState(true);
+  const [notifyCalendar, setNotifyCalendar]   = useState(true);
   const [locationError, setLocationError]     = useState(false);
 
   const kindAutoSetRef = useRef(false);
@@ -821,7 +823,7 @@ function InterviewWorkspace({
         scheduledAt: dhakaInputToIso(scheduledAt),
         location: location.trim() || undefined,
         ...panelPayload(panel),
-        notifyCandidate, notifyPanel,
+        notifyCandidate, notifyPanel, notifyCalendar,
       },
       {
         onSuccess: () => {
@@ -1298,7 +1300,10 @@ function InterviewWorkspace({
               </div>
               <p className="mt-2 flex items-center gap-1.5 text-[0.6875rem] text-slate-400">
                 <CalendarCheck className="h-3.5 w-3.5 shrink-0" />
-                Times are Dhaka time (GMT+6). Panel gets a Google Calendar invite with reminders.
+                Times are Dhaka time (GMT+6).{' '}
+                {notifyCalendar
+                  ? 'Panel gets a Google Calendar invite with reminders.'
+                  : 'No calendar invite — Notify on calendar is off.'}
               </p>
             </FormStep>
 
@@ -1328,6 +1333,9 @@ function InterviewWorkspace({
                 icon={<Mail className="h-3.5 w-3.5" />} label="Email candidate" />
               <ToggleChip checked={notifyPanel} onChange={setNotifyPanel}
                 icon={<Bell className="h-3.5 w-3.5" />} label="Notify panel" />
+              <ToggleChip checked={notifyCalendar} onChange={setNotifyCalendar}
+                icon={<CalendarDays className="h-3.5 w-3.5" />} label="Notify on calendar"
+                hint={CALENDAR_HINT} />
             </div>
             <div className="flex items-center gap-3">
               {panel.length === 0 && (
@@ -1350,7 +1358,11 @@ function InterviewWorkspace({
       <BusyOverlay
         show={schedule.isPending}
         label="Scheduling interview…"
-        sublabel={mode === 'online' ? 'Creating calendar invite and Google Meet link.' : 'Creating calendar invite for the panel.'}
+        sublabel={
+          notifyCalendar
+            ? mode === 'online' ? 'Creating calendar invite and Google Meet link.' : 'Creating calendar invite for the panel.'
+            : mode === 'online' ? 'Creating the Google Meet link — no calendar invites.' : 'Saving the interview — no calendar invites.'
+        }
       />
     </div>
   );
@@ -1869,11 +1881,16 @@ function Segmented({
   );
 }
 
-function ToggleChip({ checked, onChange, icon, label }: {
+const CALENDAR_HINT =
+  "Sends a Google Calendar invitation (with Google's reminders) to the panel, and to the candidate when they are emailed. Off: the interview is kept on the recruitment calendar only and nobody is invited.";
+
+function ToggleChip({ checked, onChange, icon, label, hint }: {
   checked: boolean; onChange: (v: boolean) => void; icon: React.ReactNode; label: string;
+  /** Shown on hover — what the switch actually does. */
+  hint?: string;
 }) {
   return (
-    <button type="button" onClick={() => onChange(!checked)}
+    <button type="button" onClick={() => onChange(!checked)} title={hint} aria-pressed={checked}
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-150',
         checked ? 'border-brand-200 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-400 hover:text-slate-600',

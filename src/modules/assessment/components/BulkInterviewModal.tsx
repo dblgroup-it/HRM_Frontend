@@ -4,6 +4,7 @@ import {
   Bell,
   Building2,
   CalendarClock,
+  CalendarDays,
   Check,
   Mail,
   Search,
@@ -147,6 +148,7 @@ export function BulkInterviewModal({
   const [locationError, setLocationError] = useState(false);
   const [notifyCandidate, setNotifyCandidate] = useState(true);
   const [notifyPanel, setNotifyPanel] = useState(true);
+  const [notifyCalendar, setNotifyCalendar] = useState(true);
 
   // --- panel ---
   const [panel, setPanel] = useState<PanelEntry[]>([]);
@@ -192,6 +194,7 @@ export function BulkInterviewModal({
           ...panelPayload(panel),
           notifyCandidate,
           notifyPanel,
+          notifyCalendar,
         });
         // Booked: take them out, so a failure in a later group can be retried
         // without booking these twice.
@@ -459,6 +462,13 @@ export function BulkInterviewModal({
               icon={<Bell className="h-3.5 w-3.5" />}
               label="Notify panel"
             />
+            <ToggleChip
+              checked={notifyCalendar}
+              onChange={setNotifyCalendar}
+              icon={<CalendarDays className="h-3.5 w-3.5" />}
+              label="Notify on calendar"
+              hint={CALENDAR_HINT}
+            />
           </div>
           <div className="flex items-center gap-3">
             {panel.length === 0 && (
@@ -479,7 +489,11 @@ export function BulkInterviewModal({
       <BusyOverlay
         show={bulkSchedule.isPending}
         label={`Scheduling ${candidates.length} interviews…`}
-        sublabel="Creating calendar invites for each candidate and the shared panel."
+        sublabel={
+          notifyCalendar
+            ? 'Creating calendar invites for each candidate and the shared panel.'
+            : 'Saving the interviews — no calendar invites.'
+        }
       />
     </Modal>
   );
@@ -549,21 +563,29 @@ function SlotModeBtn({
   );
 }
 
+const CALENDAR_HINT =
+  "Sends a Google Calendar invitation (with Google's reminders) to the panel, and to each candidate when they are emailed. Off: the interviews are kept on the recruitment calendar only and nobody is invited.";
+
 function ToggleChip({
   checked,
   onChange,
   icon,
   label,
+  hint,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
   icon: React.ReactNode;
   label: string;
+  /** Shown on hover — what the switch actually does. */
+  hint?: string;
 }) {
   return (
     <button
       type="button"
       onClick={() => onChange(!checked)}
+      title={hint}
+      aria-pressed={checked}
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition',
         checked

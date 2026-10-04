@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, CalendarClock, MapPin, Users, Video } from 'lucide-react';
+import { Bell, CalendarClock, CalendarDays, MapPin, Users, Video } from 'lucide-react';
 
 import { Button, Input, Modal, Textarea } from '@shared/components/ui';
 import { cn } from '@shared/lib';
@@ -49,7 +49,9 @@ export function RescheduledNote({ round }: { round: InterviewRoundView }) {
  * Offered while the round is still to happen and nobody has marked — the same
  * rule the server holds. The candidate gets an email with the new time, and
  * every panelist a notice with their unchanged marking link; both can be
- * switched off for a correction nobody needs to hear about.
+ * switched off for a correction nobody needs to hear about. So can Google's
+ * calendar update — and on an interview arranged without calendar invites,
+ * ticking it sends them now.
  */
 export function RescheduleButton({
   round,
@@ -101,6 +103,9 @@ function RescheduleDialog({
   const [reason, setReason] = useState('');
   const [tellCandidate, setTellCandidate] = useState(true);
   const [tellPanel, setTellPanel] = useState(true);
+  // Rounds from before the choice existed were all invited.
+  const invited = round.calendarNotify !== false;
+  const [tellCalendar, setTellCalendar] = useState(invited);
 
   const newIso = dhakaInputToIso(when);
   const newAt = newIso ? new Date(newIso) : null;
@@ -127,6 +132,7 @@ function RescheduleDialog({
           reason: reason.trim() || undefined,
           notifyCandidate: tellCandidate,
           notifyPanel: tellPanel,
+          notifyCalendar: tellCalendar,
         },
       },
       { onSuccess: onClose },
@@ -245,6 +251,17 @@ function RescheduleDialog({
             label={`Notify the panel (${round.panelists.length})`}
             icon={<Users className="h-3.5 w-3.5 text-slate-400" />}
           />
+          <Check
+            checked={tellCalendar}
+            onChange={setTellCalendar}
+            label={invited ? 'Update the calendar invite' : 'Send calendar invites'}
+            icon={<CalendarDays className="h-3.5 w-3.5 text-slate-400" />}
+          />
+          {!invited && (
+            <p className="pl-6 text-xs text-slate-400">
+              This interview was arranged without calendar invites.
+            </p>
+          )}
         </div>
       </div>
     </Modal>
