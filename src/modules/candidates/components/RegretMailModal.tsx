@@ -8,8 +8,8 @@ import { formatDate } from '@shared/utils';
 import { useSendRegretMail } from '../hooks/useCandidates';
 import {
   MAX_REGRET_PER_SEND as MAX_PER_SEND,
-  REGRET_MAIL_PREVIEW,
   regretBlocker,
+  regretMailPreview,
   type RegretTarget,
 } from '../regretMail';
 
@@ -223,13 +223,14 @@ export function RegretMailModal({
           </button>
           {showLetter && (
             <p className="max-h-64 overflow-y-auto whitespace-pre-line border-t border-slate-200 bg-slate-50/60 px-4 py-3 text-sm leading-6 text-slate-700">
-              {REGRET_MAIL_PREVIEW}
+              {regretMailPreview({ name: single?.name, position: designation })}
             </p>
           )}
         </div>
         <p className="text-xs text-slate-400">
-          Sent from the DBL recruitment mailbox, once per candidate. The
-          wording is DBL&apos;s standard letter and is the same for everyone.
+          Sent from the DBL recruitment mailbox, once per candidate.
+          DBL&apos;s standard letter, addressed to each candidate by first
+          name.
         </p>
       </div>
     </Modal>

@@ -54,6 +54,8 @@ export interface SubmittedCv {
 export interface Candidate {
   id: string;
   requisitionId: string;
+  /** APP-2026-00031 — what the candidate quotes; the pipeline search finds it. */
+  applicationId?: string;
   name: string;
   email: string;
   phone: string;
@@ -203,11 +205,22 @@ export interface CareerListing {
 
 export interface ApplicationStatus {
   requisitionId: string;
+  /** APP-2026-00031 — the number in their confirmation email. */
+  applicationId?: string;
   code: string;
   designation: string;
   unitFactory: string;
   stage: string;
   appliedAt: string;
+}
+
+/** What the careers page gets back once an application is in. */
+export interface PublicApplyResult {
+  ok: boolean;
+  /** APP-2026-00031. Absent from a server older than the number. */
+  applicationId?: string;
+  /** The post, as the confirmation email names it. */
+  position?: string;
 }
 
 export interface PublicApplyInput {

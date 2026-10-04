@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft,
   Building2,
   CheckCircle2,
   Clock,
+  Hash,
   Loader2,
   Mail,
   SearchX,
@@ -142,6 +143,12 @@ function ApplicationCard({ app, index }: { app: ApplicationStatus; index: number
           <Clock className="h-3.5 w-3.5 text-slate-400" />
           Applied {appliedDate}
         </span>
+        {app.applicationId && (
+          <span className="flex items-center gap-1.5">
+            <Hash className="h-3.5 w-3.5 text-slate-400" />
+            <span className="font-semibold tabular-nums tracking-wide text-slate-600">{app.applicationId}</span>
+          </span>
+        )}
       </div>
 
       <StageProgress stage={app.stage} />
@@ -149,20 +156,34 @@ function ApplicationCard({ app, index }: { app: ApplicationStatus; index: number
   );
 }
 
-export default function ApplicationStatusPage() {
-  const [email, setEmail] = useState('');
-  const [submitted, setSubmitted] = useState('');
+const looksLikeEmail = (v: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v);
 
-  const status = useMutation({
-    mutationFn: (e: string) => candidatesApi.applicationStatus(e),
+export default function ApplicationStatusPage() {
+  // "View Application Status" in the confirmation email and "Track
+  // application" after applying both arrive with ?email=, already looked up.
+  const [params] = useSearchParams();
+  const linked = (params.get('email') ?? '').trim();
+  const [email, setEmail] = useState(linked);
+  const [submitted, setSubmitted] = useState(looksLikeEmail(linked) ? linked : '');
+
+  // A query rather than a mutation: it is a read, it runs on arrival from a
+  // link, and it must not be repeated behind the visitor's back — the
+  // endpoint allows five lookups a minute.
+  const status = useQuery({
+    queryKey: ['application-status', submitted.toLowerCase()],
+    queryFn: () => candidatesApi.applicationStatus(submitted),
+    enabled: Boolean(submitted),
+    retry: false,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 
   const submit = (ev: FormEvent) => {
     ev.preventDefault();
     const trimmed = email.trim();
-    if (!trimmed || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) return;
-    setSubmitted(trimmed);
-    status.mutate(trimmed);
+    if (!trimmed || !looksLikeEmail(trimmed)) return;
+    if (trimmed.toLowerCase() === submitted.toLowerCase()) void status.refetch();
+    else setSubmitted(trimmed);
   };
 
   const apps = status.data ?? [];
@@ -224,10 +245,10 @@ export default function ApplicationStatusPage() {
             </div>
             <button
               type="submit"
-              disabled={status.isPending}
+              disabled={status.isFetching}
               className="flex shrink-0 items-center gap-2 rounded-xl bg-brand-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 disabled:opacity-60 active:scale-95"
             >
-              {status.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Check'}
+              {status.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Check'}
             </button>
           </form>
 

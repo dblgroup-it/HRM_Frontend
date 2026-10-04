@@ -5,7 +5,7 @@ import {
   ArrowLeft,
   Briefcase,
   Building2,
-  CheckCircle2,
+  Check,
   ClipboardList,
   FileText,
   Loader2,
@@ -20,6 +20,7 @@ import { Logo, PhoneInput } from '@shared/components/ui';
 import { isValidBdMobile, toBdMobile } from '@shared/utils';
 import { ROUTES } from '@app/router/paths';
 import { candidatesApi } from '../api/candidates.api';
+import { ApplicationSubmittedDialog } from '../components/ApplicationSubmittedDialog';
 
 const ACCEPT = '.pdf,application/pdf';
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
@@ -87,14 +88,22 @@ export default function ApplyPage() {
   const [salaryExpectation, setSalaryExpectation] = useState('');
   const [cv, setCv] = useState<File | null>(null);
   const [error, setError] = useState('');
+  const [showSubmitted, setShowSubmitted] = useState(false);
 
   const apply = useMutation({
     mutationFn: () =>
       candidatesApi.apply(
         reqId,
-        { name, email, phone: toBdMobile(phone), salaryExpectation: salaryExpectation.trim() || undefined },
+        {
+          name,
+          email: email.trim(),
+          phone: toBdMobile(phone),
+          // The figure alone: "40,000" goes as 40000.
+          salaryExpectation: salaryExpectation.replace(/\D/g, '') || undefined,
+        },
         cv as File,
       ),
+    onSuccess: () => setShowSubmitted(true),
     onError: (e) => setError(errMsg(e, 'Something went wrong. Please try again.')),
   });
 
@@ -172,26 +181,43 @@ export default function ApplyPage() {
   }
 
   // ── Success ──
+  // The popup announces it; closing it leaves this page, so the application
+  // cannot be sent a second time by accident.
   if (apply.isSuccess) {
+    const position = apply.data.position || job.data.designation;
+    const applicationId = apply.data.applicationId;
     return (
       <div className="flex min-h-screen flex-col bg-slate-50">
         <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-md">
-          <Logo />
+          <div className="mx-auto flex max-w-5xl items-center justify-between px-2">
+            <Logo />
+            <Link to={ROUTES.careers} className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-brand-600 transition">
+              <ArrowLeft className="h-3.5 w-3.5" /> Browse all jobs
+            </Link>
+          </div>
         </header>
         <div className="flex flex-1 items-center justify-center px-4 py-12">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm animate-rise-in">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
-              <CheckCircle2 className="h-9 w-9 text-emerald-500" />
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm animate-rise-in sm:p-10">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 shadow-md shadow-emerald-500/20 ring-8 ring-emerald-50">
+              <Check className="h-7 w-7 text-white" strokeWidth={3} />
             </div>
-            <h1 className="mt-5 text-xl font-bold text-slate-900">Application received!</h1>
-            <p className="mx-auto mt-3 max-w-xs text-sm leading-relaxed text-slate-500">
+            <h1 className="mt-6 text-xl font-bold text-slate-900">Application submitted</h1>
+            <p className="mx-auto mt-3 max-w-xs text-balance text-sm leading-relaxed text-slate-500">
               Thank you for applying for{' '}
-              <span className="font-semibold text-slate-700">{job.data.designation}</span> at DBL Group.
-              Our recruitment team will review your CV and reach out if your profile matches.
+              <span className="font-semibold text-slate-700">{position}</span> at DBL Group.
+              Our HR Team will review your profile against the position requirements.
             </p>
+            {applicationId && (
+              <p className="mt-4 text-xs text-slate-500">
+                Application ID{' '}
+                <span className="ml-1 rounded-md bg-slate-100 px-2 py-1 text-[0.8125rem] font-bold tabular-nums tracking-wide text-slate-800">
+                  {applicationId}
+                </span>
+              </p>
+            )}
             <div className="mt-6 space-y-2">
               <Link
-                to={ROUTES.applyStatus}
+                to={`${ROUTES.applyStatus}?email=${encodeURIComponent(email.trim())}`}
                 className="flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 transition"
               >
                 <ClipboardList className="h-4 w-4" /> Track your application
@@ -205,6 +231,13 @@ export default function ApplyPage() {
             </div>
           </div>
         </div>
+        <ApplicationSubmittedDialog
+          open={showSubmitted}
+          onClose={() => setShowSubmitted(false)}
+          position={position}
+          applicationId={applicationId}
+          email={email}
+        />
       </div>
     );
   }
@@ -363,10 +396,13 @@ export default function ApplyPage() {
                   <Field label="Expected salary (BDT)">
                     <input
                       className={INPUT}
+                      inputMode="numeric"
                       value={salaryExpectation}
-                      onChange={(e) => setSalaryExpectation(e.target.value)}
-                      placeholder="e.g. 40,000 or Negotiable"
+                      // Digits and commas only: the server stores a figure.
+                      onChange={(e) => setSalaryExpectation(e.target.value.replace(/[^\d,]/g, ''))}
+                      placeholder="e.g. 40,000"
                     />
+                    <p className="mt-1.5 text-xs text-slate-400">Leave blank if negotiable.</p>
                   </Field>
 
                   {/* CV upload */}

@@ -15,6 +15,7 @@ import type {
   EmailCandidateInput,
   FinalistComparison,
   PublicApplyInput,
+  PublicApplyResult,
   PublicJobInfo,
   RegretMailResult,
   RecruitmentWorkspace,
@@ -297,7 +298,7 @@ export const candidatesApi = {
     reqId: string,
     input: PublicApplyInput,
     cv: File,
-  ): Promise<{ ok: boolean }> => {
+  ): Promise<PublicApplyResult> => {
     const fd = new FormData();
     fd.append('name', input.name);
     fd.append('email', input.email);
@@ -305,7 +306,7 @@ export const candidatesApi = {
     if (input.salaryExpectation) fd.append('salaryExpectation', input.salaryExpectation);
     fd.append('cv', cv);
     return http
-      .post<ApiResponse<{ ok: boolean }>>(`/apply/${reqId}`, fd, MULTIPART)
+      .post<ApiResponse<PublicApplyResult>>(`/apply/${reqId}`, fd, MULTIPART)
       .then((r) => r.data);
   },
 };
