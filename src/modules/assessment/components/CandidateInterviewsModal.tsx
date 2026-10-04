@@ -590,10 +590,10 @@ export function CandidateInterviewsModal({
                 <ToggleChip checked={notifyPanel} onChange={setNotifyPanel}
                   icon={<Bell className="h-3.5 w-3.5" />} label="Notify panel" />
                 <ToggleChip checked={notifyCalendar} onChange={setNotifyCalendar}
-                  icon={<CalendarDays className="h-3.5 w-3.5" />} label="Notify on calendar"
+                  icon={<CalendarDays className="h-3.5 w-3.5" />} label="Calendar notify to candidate"
                   hint={CALENDAR_HINT} />
               </div>
-              <div className="flex items-center gap-3">
+              <div className="ml-auto flex items-center gap-3">
                 {panel.length === 0 && (
                   <span className="text-xs text-slate-400">Add at least one interviewer</span>
                 )}
