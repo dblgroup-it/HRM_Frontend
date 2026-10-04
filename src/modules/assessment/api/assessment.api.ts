@@ -235,7 +235,7 @@ export const assessmentApi = {
       reason?: string;
       notifyCandidate?: boolean;
       notifyPanel?: boolean;
-      /** Let Google send the calendar update (or the invites, if none went). */
+      /** "Notify on calendar" for the candidate (invites them if they were not). */
       notifyCalendar?: boolean;
     },
   ): Promise<InterviewRoundView & { notified: { candidate: boolean; panel: number } }> =>

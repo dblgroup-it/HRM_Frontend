@@ -492,7 +492,7 @@ export function BulkInterviewModal({
         sublabel={
           notifyCalendar
             ? 'Creating calendar invites for each candidate and the shared panel.'
-            : 'Saving the interviews — no calendar invites.'
+            : 'Creating calendar invites for the shared panel.'
         }
       />
     </Modal>
@@ -564,7 +564,7 @@ function SlotModeBtn({
 }
 
 const CALENDAR_HINT =
-  "Sends a Google Calendar invitation (with Google's reminders) to the panel, and to each candidate when they are emailed. Off: the interviews are kept on the recruitment calendar only and nobody is invited.";
+  "Sends each candidate a Google Calendar invitation, with Google's reminders. Off: the candidates get no calendar invite or calendar email at all. The panel's calendar invite is not affected.";
 
 function ToggleChip({
   checked,

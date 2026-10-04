@@ -558,8 +558,8 @@ export function CandidateInterviewsModal({
                   <CalendarCheck className="h-3.5 w-3.5 shrink-0" />
                   Times are Dhaka time (GMT+6).{' '}
                   {notifyCalendar
-                    ? 'Everyone on the panel gets a Google Calendar invite with reminders.'
-                    : 'No calendar invite — Notify on calendar is off.'}
+                    ? 'The panel and the candidate get a Google Calendar invite with reminders.'
+                    : 'The panel gets a Google Calendar invite with reminders — the candidate does not.'}
                 </p>
               </FormStep>
 
@@ -612,13 +612,9 @@ export function CandidateInterviewsModal({
           show={schedule.isPending}
           label="Scheduling interview…"
           sublabel={
-            notifyCalendar
-              ? mode === 'online'
-                ? 'Creating the calendar invite and Google Meet link.'
-                : 'Creating the calendar invite for the panel.'
-              : mode === 'online'
-                ? 'Creating the Google Meet link — no calendar invites.'
-                : 'Saving the interview — no calendar invites.'
+            mode === 'online'
+              ? 'Creating the calendar invite and Google Meet link.'
+              : 'Creating the calendar invite for the panel.'
           }
         />
       </div>
@@ -675,7 +671,7 @@ function Segmented({
 }
 
 const CALENDAR_HINT =
-  "Sends a Google Calendar invitation (with Google's reminders) to the panel, and to the candidate when they are emailed. Off: the interview is kept on the recruitment calendar only and nobody is invited.";
+  "Sends the candidate a Google Calendar invitation, with Google's reminders. Off: the candidate gets no calendar invite or calendar email at all. The panel's calendar invite is not affected.";
 
 function ToggleChip({
   checked, onChange, icon, label, hint,

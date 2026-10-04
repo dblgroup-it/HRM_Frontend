@@ -49,9 +49,9 @@ export function RescheduledNote({ round }: { round: InterviewRoundView }) {
  * Offered while the round is still to happen and nobody has marked — the same
  * rule the server holds. The candidate gets an email with the new time, and
  * every panelist a notice with their unchanged marking link; both can be
- * switched off for a correction nobody needs to hear about. So can Google's
- * calendar update — and on an interview arranged without calendar invites,
- * ticking it sends them now.
+ * switched off for a correction nobody needs to hear about. So can the
+ * candidate's calendar update — and for a candidate who was not on the
+ * calendar invite, ticking it invites them now.
  */
 export function RescheduleButton({
   round,
@@ -103,8 +103,8 @@ function RescheduleDialog({
   const [reason, setReason] = useState('');
   const [tellCandidate, setTellCandidate] = useState(true);
   const [tellPanel, setTellPanel] = useState(true);
-  // Rounds from before the choice existed were all invited.
-  const invited = round.calendarNotify !== false;
+  // Is the candidate on the calendar invite? Older rounds: yes.
+  const invited = round.calendarInviteCandidate !== false;
   const [tellCalendar, setTellCalendar] = useState(invited);
 
   const newIso = dhakaInputToIso(when);
@@ -254,12 +254,16 @@ function RescheduleDialog({
           <Check
             checked={tellCalendar}
             onChange={setTellCalendar}
-            label={invited ? 'Update the calendar invite' : 'Send calendar invites'}
+            label={
+              invited
+                ? "Update the candidate's calendar invite"
+                : 'Send the candidate a calendar invite'
+            }
             icon={<CalendarDays className="h-3.5 w-3.5 text-slate-400" />}
           />
           {!invited && (
             <p className="pl-6 text-xs text-slate-400">
-              This interview was arranged without calendar invites.
+              The candidate was not sent a calendar invite for this interview.
             </p>
           )}
         </div>

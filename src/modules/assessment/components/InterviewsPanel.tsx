@@ -1302,8 +1302,8 @@ function InterviewWorkspace({
                 <CalendarCheck className="h-3.5 w-3.5 shrink-0" />
                 Times are Dhaka time (GMT+6).{' '}
                 {notifyCalendar
-                  ? 'Panel gets a Google Calendar invite with reminders.'
-                  : 'No calendar invite — Notify on calendar is off.'}
+                  ? 'Panel and candidate get a Google Calendar invite with reminders.'
+                  : 'Panel gets a Google Calendar invite with reminders — the candidate does not.'}
               </p>
             </FormStep>
 
@@ -1358,11 +1358,7 @@ function InterviewWorkspace({
       <BusyOverlay
         show={schedule.isPending}
         label="Scheduling interview…"
-        sublabel={
-          notifyCalendar
-            ? mode === 'online' ? 'Creating calendar invite and Google Meet link.' : 'Creating calendar invite for the panel.'
-            : mode === 'online' ? 'Creating the Google Meet link — no calendar invites.' : 'Saving the interview — no calendar invites.'
-        }
+        sublabel={mode === 'online' ? 'Creating calendar invite and Google Meet link.' : 'Creating calendar invite for the panel.'}
       />
     </div>
   );
@@ -1882,7 +1878,7 @@ function Segmented({
 }
 
 const CALENDAR_HINT =
-  "Sends a Google Calendar invitation (with Google's reminders) to the panel, and to the candidate when they are emailed. Off: the interview is kept on the recruitment calendar only and nobody is invited.";
+  "Sends the candidate a Google Calendar invitation, with Google's reminders. Off: the candidate gets no calendar invite or calendar email at all. The panel's calendar invite is not affected.";
 
 function ToggleChip({ checked, onChange, icon, label, hint }: {
   checked: boolean; onChange: (v: boolean) => void; icon: React.ReactNode; label: string;

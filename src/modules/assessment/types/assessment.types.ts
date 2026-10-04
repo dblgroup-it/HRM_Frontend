@@ -212,9 +212,9 @@ export interface BulkScheduleInput {
   notifyCandidate?: boolean;
   notifyPanel?: boolean;
   /**
-   * "Notify on calendar": invite the panel (and the candidate, when emailed)
-   * to the Google Calendar event. Off, it stays on the recruitment calendar
-   * only. Default on.
+   * "Notify on calendar": put the candidate on the Google Calendar invite.
+   * Off, Google sends the candidate nothing. The panel is invited either
+   * way. Default on.
    */
   notifyCalendar?: boolean;
 }
@@ -230,8 +230,8 @@ export interface InterviewRoundView {
   status: InterviewStatusKey;
   meetLink: string | null;
   calendarSynced: boolean;
-  /** "Notify on calendar" — the panel (and candidate) are on the invite. */
-  calendarNotify?: boolean;
+  /** "Notify on calendar" — the candidate is on the calendar invite. */
+  calendarInviteCandidate?: boolean;
   /** Set once the round has been moved to a new time. */
   rescheduled?: {
     count: number;
@@ -297,9 +297,9 @@ export interface ScheduleInterviewInput {
   notifyCandidate?: boolean;
   notifyPanel?: boolean;
   /**
-   * "Notify on calendar": invite the panel (and the candidate, when emailed)
-   * to the Google Calendar event. Off, it stays on the recruitment calendar
-   * only. Default on.
+   * "Notify on calendar": put the candidate on the Google Calendar invite.
+   * Off, Google sends the candidate nothing. The panel is invited either
+   * way. Default on.
    */
   notifyCalendar?: boolean;
 }
