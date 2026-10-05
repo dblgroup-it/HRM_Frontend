@@ -449,26 +449,21 @@ export function BulkInterviewModal({
 
         {/* ── Pinned footer ── */}
         <div className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
-          <div className="flex flex-wrap gap-2">
-            <ToggleChip
-              checked={notifyCalendar}
-              onChange={setNotifyCalendar}
-              icon={<CalendarDays className="h-3.5 w-3.5" />}
-              label="Notify (Google Calendar)"
-              hint={CALENDAR_HINT}
-            />
-            <ToggleChip
-              checked={notifyCandidate}
-              onChange={setNotifyCandidate}
-              icon={<Mail className="h-3.5 w-3.5" />}
-              label="Email candidates"
-            />
-            <ToggleChip
-              checked={notifyPanel}
-              onChange={setNotifyPanel}
-              icon={<Bell className="h-3.5 w-3.5" />}
-              label="Notify panel"
-            />
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            {/* Who hears about it: the candidate (calendar invite, email), then the panel. */}
+            <div role="group" aria-label="Notify the candidates" className="flex items-center gap-2">
+              <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-slate-400">Candidates</span>
+              <ToggleChip checked={notifyCalendar} onChange={setNotifyCalendar}
+                icon={<CalendarDays className="h-3.5 w-3.5" />} label="Google Calendar"
+                hint={CALENDAR_HINT} />
+              <ToggleChip checked={notifyCandidate} onChange={setNotifyCandidate}
+                icon={<Mail className="h-3.5 w-3.5" />} label="Email" />
+            </div>
+            <div role="group" aria-label="Notify the panel" className="flex items-center gap-2">
+              <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-slate-400">Panel</span>
+              <ToggleChip checked={notifyPanel} onChange={setNotifyPanel}
+                icon={<Bell className="h-3.5 w-3.5" />} label="Notify" />
+            </div>
           </div>
           <div className="ml-auto flex items-center gap-3">
             {panel.length === 0 && (

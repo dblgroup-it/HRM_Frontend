@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, CalendarClock, CalendarDays, MapPin, Users, Video } from 'lucide-react';
+import { Bell, CalendarClock, CalendarDays, Mail, MapPin, Users, Video } from 'lucide-react';
 
 import { Button, Input, Modal, Textarea } from '@shared/components/ui';
 import { cn } from '@shared/lib';
@@ -236,32 +236,42 @@ function RescheduleDialog({
           maxLength={300}
         />
 
-        <div className="space-y-2 rounded-xl border border-slate-200 p-3">
+        <div className="space-y-3 rounded-xl border border-slate-200 p-3">
           <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
             <Bell className="h-3.5 w-3.5" /> Tell them the new time
           </p>
-          <Check
-            checked={tellCalendar}
-            onChange={setTellCalendar}
-            label="Notify (Google Calendar)"
-            icon={<CalendarDays className="h-3.5 w-3.5 text-slate-400" />}
-          />
-          {!invited && (
-            <p className="-mt-1 pl-6 text-xs text-slate-400">
-              Not sent a calendar invite when this was arranged — tick to send one.
-            </p>
-          )}
-          <Check
-            checked={tellCandidate}
-            onChange={setTellCandidate}
-            label="Email the candidate"
-          />
-          <Check
-            checked={tellPanel}
-            onChange={setTellPanel}
-            label={`Notify the panel (${round.panelists.length})`}
-            icon={<Users className="h-3.5 w-3.5 text-slate-400" />}
-          />
+          <div role="group" aria-label="Notify the candidate">
+            <p className="mb-1.5 text-xs font-semibold text-slate-500">Candidate</p>
+            <div className="flex flex-wrap gap-x-5 gap-y-2">
+              <Check
+                checked={tellCalendar}
+                onChange={setTellCalendar}
+                label="Google Calendar"
+                icon={<CalendarDays className="h-3.5 w-3.5 text-slate-400" />}
+              />
+              <Check
+                checked={tellCandidate}
+                onChange={setTellCandidate}
+                label="Email"
+                icon={<Mail className="h-3.5 w-3.5 text-slate-400" />}
+              />
+            </div>
+            {!invited && (
+              <p className="mt-1.5 text-xs text-slate-400">
+                No calendar invite was sent when this was arranged — tick Google
+                Calendar to send one.
+              </p>
+            )}
+          </div>
+          <div role="group" aria-label="Notify the panel">
+            <p className="mb-1.5 text-xs font-semibold text-slate-500">Panel</p>
+            <Check
+              checked={tellPanel}
+              onChange={setTellPanel}
+              label={`Notify (${round.panelists.length})`}
+              icon={<Users className="h-3.5 w-3.5 text-slate-400" />}
+            />
+          </div>
         </div>
       </div>
     </Modal>
