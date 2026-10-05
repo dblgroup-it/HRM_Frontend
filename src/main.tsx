@@ -11,9 +11,11 @@ import '@fontsource/inter/latin-600.css';
 import '@fontsource/inter/latin-700.css';
 import App from './App';
 import { installClientErrorReporting } from '@shared/lib/clientErrors';
+import { installStaleBuildRecovery } from '@shared/lib/staleBuild';
 import './index.css';
 
 installClientErrorReporting();
+installStaleBuildRecovery();
 
 const rootElement = document.getElementById('root');
 
