@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -485,6 +485,22 @@ const MANUAL_TESTS = {
   },
 } as const;
 
+const num = (v: string) => (v.trim() === '' ? null : Number(v));
+
+/**
+ * What is wrong with a total and mark as typed, or null — the same rule the
+ * server applies (`screening-marks.ts`), so a mistake is caught here instead
+ * of coming back as a refused save.
+ */
+function markProblem(total: number | null, obtained: number | null): string | null {
+  if (total !== null && total <= 0) return 'Total must be more than 0.';
+  if (obtained !== null && obtained < 0) return 'Obtained can’t be below 0.';
+  if (total !== null && obtained !== null && obtained > total) {
+    return 'Obtained can’t be more than the total.';
+  }
+  return null;
+}
+
 function ManualTestCell({
   kind,
   candidateId,
@@ -496,6 +512,9 @@ function ManualTestCell({
 }) {
   const upsert = useUpsertSalaryFixation(candidateId);
   const cfg = MANUAL_TESTS[kind];
+  const totalRef = useRef<HTMLInputElement>(null);
+  const obtainedRef = useRef<HTMLInputElement>(null);
+  const [problem, setProblem] = useState<string | null>(null);
 
   if (!data) {
     return (
@@ -510,6 +529,24 @@ function ManualTestCell({
   const obtained = data[cfg.obtainedKey];
   const passPct = data[cfg.passKey];
   const result = evaluateScreeningTest(total, obtained, enabled, passPct);
+
+  // The two boxes are one mark: both are read and saved together when either
+  // is left. Saving each on its own let a total of 50 be stored under a mark
+  // of 68 already there — which the database refused with a 500. Leaving a
+  // box unchanged sends nothing: any save reopens a finalized salary.
+  const commit = () => {
+    const nextTotal = num(totalRef.current?.value ?? '');
+    const nextObtained = num(obtainedRef.current?.value ?? '');
+    const wrong = markProblem(nextTotal, nextObtained);
+    setProblem(wrong);
+    if (wrong) return;
+    if (nextTotal === total && nextObtained === obtained) return;
+    upsert.mutate({ [cfg.totalKey]: nextTotal, [cfg.obtainedKey]: nextObtained });
+  };
+  const inputClass = cn(
+    'w-16 rounded-md border px-2 py-1 text-xs',
+    problem ? 'border-rose-400' : 'border-slate-200',
+  );
 
   return (
     <div className="space-y-1.5 rounded-lg border border-slate-200 bg-white p-2.5 shadow-sm">
@@ -528,32 +565,39 @@ function ManualTestCell({
       {enabled && (
         <div className="flex flex-wrap items-center gap-1.5">
           <input
+            ref={totalRef}
             type="number"
+            min={0}
             placeholder="Total"
+            aria-label={`${cfg.label} total`}
+            aria-invalid={problem ? true : undefined}
             defaultValue={total ?? ''}
-            onBlur={(e) =>
-              upsert.mutate({
-                [cfg.totalKey]: e.target.value === '' ? null : Number(e.target.value),
-              })
-            }
-            className="w-16 rounded-md border border-slate-200 px-2 py-1 text-xs"
+            onBlur={commit}
+            className={inputClass}
           />
           <span className="text-xs text-slate-300">/</span>
           <input
+            ref={obtainedRef}
             type="number"
+            min={0}
             placeholder="Obtained"
+            aria-label={`${cfg.label} obtained`}
+            aria-invalid={problem ? true : undefined}
             defaultValue={obtained ?? ''}
-            onBlur={(e) =>
-              upsert.mutate({
-                [cfg.obtainedKey]: e.target.value === '' ? null : Number(e.target.value),
-              })
-            }
-            className="w-16 rounded-md border border-slate-200 px-2 py-1 text-xs"
+            onBlur={commit}
+            className={inputClass}
           />
-          {result.status === 'pass' && <Badge tone="success">Pass</Badge>}
-          {result.status === 'fail' && <Badge tone="danger">Fail</Badge>}
-          {result.status === 'pending' && <Badge tone="neutral">Pending</Badge>}
+          {/* The verdict is of the saved marks — hidden while the boxes hold
+              ones that were refused, so it cannot read as their result. */}
+          {!problem && result.status === 'pass' && <Badge tone="success">Pass</Badge>}
+          {!problem && result.status === 'fail' && <Badge tone="danger">Fail</Badge>}
+          {!problem && result.status === 'pending' && <Badge tone="neutral">Pending</Badge>}
         </div>
+      )}
+      {enabled && problem && (
+        <p role="alert" className="text-[0.6875rem] text-rose-600">
+          {problem} Not saved.
+        </p>
       )}
       {/* The marked script, attached here or by whoever ran the session — this
           is the side that reads it, and can also attach a late-arriving one. */}
