@@ -29,6 +29,7 @@ export function ChangePasswordRequiredPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
   const badLength =
     newPassword.length > 0 &&
@@ -46,6 +47,7 @@ export function ChangePasswordRequiredPage() {
     e.preventDefault();
     if (!ready) return;
     setBusy(true);
+    setError('');
     try {
       // Every existing session is invalidated by the change, so the backend
       // hands back a replacement token for this one.
@@ -56,9 +58,14 @@ export function ChangePasswordRequiredPage() {
       passwordChanged(res.data.token);
       toast.success('Password changed — welcome to DBL HRM.');
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : 'Could not change your password.',
-      );
+      // The API's errors are plain { message } objects, not Error instances —
+      // checking for Error hid every reason ("cannot contain your employee
+      // code", "current password is incorrect") behind one generic line.
+      const message =
+        (err as { message?: string } | null)?.message ||
+        'Could not change your password.';
+      setError(message);
+      toast.error(message);
     } finally {
       setBusy(false);
     }
@@ -115,7 +122,7 @@ export function ChangePasswordRequiredPage() {
               }
             >
               {MIN_PASSWORD_LENGTH} to {MAX_PASSWORD_LENGTH} characters. It
-              cannot be your employee code.
+              cannot be or contain your employee code.
             </span>
           </label>
 
@@ -137,6 +144,15 @@ export function ChangePasswordRequiredPage() {
               </span>
             )}
           </label>
+
+          {error && (
+            <p
+              role="alert"
+              className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
+            >
+              {error}
+            </p>
+          )}
 
           <Button type="submit" disabled={!ready} className="mt-1 w-full">
             <KeyRound className="mr-2 h-4 w-4" />

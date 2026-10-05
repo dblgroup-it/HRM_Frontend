@@ -19,6 +19,7 @@ import { cn } from '@shared/lib';
 import { http } from '@shared/api';
 import type { ApiResponse } from '@shared/types';
 
+import { useAuthStore } from '@modules/auth';
 import { ProfileForm } from '../components/ProfileForm';
 import { AvatarUploader } from '../components/AvatarUploader';
 import { TwoFactorSection } from '../components/TwoFactorSection';
@@ -205,6 +206,7 @@ function ChangePasswordModal({
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
+  const passwordChanged = useAuthStore((s) => s.passwordChanged);
 
   const reset = () => {
     setCurrent('');
@@ -216,12 +218,16 @@ function ChangePasswordModal({
   const change = useMutation({
     mutationFn: () =>
       http
-        .post<ApiResponse<{ ok: boolean }>>('/auth/change-password', {
+        .post<ApiResponse<{ ok: boolean; token: string }>>('/auth/change-password', {
           currentPassword: current,
           newPassword: next,
         })
         .then((r) => r.data),
-    onSuccess: () => {
+    onSuccess: (result) => {
+      // A change ends every session, this one included; the server hands
+      // back a fresh token for this tab. Without keeping it, the next click
+      // sent you to sign-in.
+      if (result?.token) passwordChanged(result.token);
       toast.success('Password changed');
       reset();
       onClose();
