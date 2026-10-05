@@ -4,8 +4,7 @@ import { toast } from 'sonner';
 
 import { Avatar, Button } from '@shared/components/ui';
 import { useAuth, useAuthStore, authApi } from '@modules/auth';
-
-const MAX_BYTES = 2 * 1024 * 1024;
+import { MAX_SOURCE_BYTES, prepareAvatar } from '../utils/avatarImage';
 
 function errMsg(error: unknown, fallback: string): string {
   if (typeof error === 'object' && error !== null && 'message' in error) {
@@ -28,15 +27,19 @@ export function AvatarUploader() {
       toast.error('Please choose an image file');
       return;
     }
-    if (file.size > MAX_BYTES) {
-      toast.error('Image must be 2 MB or smaller');
+    if (file.size > MAX_SOURCE_BYTES) {
+      toast.error('Image must be 15 MB or smaller');
       return;
     }
-    const localUrl = URL.createObjectURL(file);
-    setPreview(localUrl);
     setBusy(true);
+    let localUrl: string | null = null;
     try {
-      const { avatarUrl } = await authApi.uploadAvatar(file);
+      // Upload a clean, face-centred 256-pixel square, not the camera
+      // original — squeezing that into a small circle is what looked grainy.
+      const prepared = await prepareAvatar(file);
+      localUrl = URL.createObjectURL(prepared);
+      setPreview(localUrl);
+      const { avatarUrl } = await authApi.uploadAvatar(prepared);
       updateUser({ avatarUrl });
       toast.success('Profile picture updated');
     } catch (e) {
@@ -44,7 +47,7 @@ export function AvatarUploader() {
     } finally {
       setBusy(false);
       setPreview(null);
-      URL.revokeObjectURL(localUrl);
+      if (localUrl) URL.revokeObjectURL(localUrl);
     }
   };
 
@@ -100,7 +103,8 @@ export function AvatarUploader() {
           )}
         </div>
         <p className="mt-1.5 text-xs text-slate-400">
-          JPG, PNG or WebP, up to 2 MB. Stored securely on Google Drive.
+          JPG, PNG or WebP. Resized and centred for you; stored securely on
+          Google Drive.
         </p>
       </div>
 
