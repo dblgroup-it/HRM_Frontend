@@ -454,7 +454,7 @@ export function BulkInterviewModal({
               checked={notifyCalendar}
               onChange={setNotifyCalendar}
               icon={<CalendarDays className="h-3.5 w-3.5" />}
-              label="Notify candidates (Google Calendar)"
+              label="Notify (Google Calendar)"
               hint={CALENDAR_HINT}
             />
             <ToggleChip

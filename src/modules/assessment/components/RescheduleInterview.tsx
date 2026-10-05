@@ -243,7 +243,7 @@ function RescheduleDialog({
           <Check
             checked={tellCalendar}
             onChange={setTellCalendar}
-            label="Notify candidate (Google Calendar)"
+            label="Notify (Google Calendar)"
             icon={<CalendarDays className="h-3.5 w-3.5 text-slate-400" />}
           />
           {!invited && (

@@ -586,7 +586,7 @@ export function CandidateInterviewsModal({
             <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/80 px-5 py-3">
               <div className="flex flex-wrap gap-2">
                 <ToggleChip checked={notifyCalendar} onChange={setNotifyCalendar}
-                  icon={<CalendarDays className="h-3.5 w-3.5" />} label="Notify candidate (Google Calendar)"
+                  icon={<CalendarDays className="h-3.5 w-3.5" />} label="Notify (Google Calendar)"
                   hint={CALENDAR_HINT} />
                 <ToggleChip checked={notifyCandidate} onChange={setNotifyCandidate}
                   icon={<Mail className="h-3.5 w-3.5" />} label="Email candidate" />
