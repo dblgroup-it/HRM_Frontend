@@ -54,7 +54,7 @@ function statusLabel(row: ApiLogRow) {
  *
  * The question this page answers is "did something break, for whom, and
  * where": the last day's counts first, the paths failing most, then every
- * row, each opening onto its message, stack and request id. Kept 30 days.
+ * row, each opening onto its message, stack and request id. Kept 7 days.
  */
 export default function ApiLogsPage() {
   const [source, setSource] = useState('');
@@ -87,7 +87,7 @@ export default function ApiLogsPage() {
     <div className="space-y-5">
       <PageHeader
         title="API Logs"
-        description="Every failed or slow request, and every error in a user's browser. Kept 30 days; refreshes every 30 seconds."
+        description="Every failed or slow request, and every error in a user's browser. Kept 7 days; refreshes every 30 seconds."
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
