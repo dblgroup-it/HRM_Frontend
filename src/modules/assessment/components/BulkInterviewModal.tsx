@@ -451,6 +451,13 @@ export function BulkInterviewModal({
         <div className="mt-3 flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
           <div className="flex flex-wrap gap-2">
             <ToggleChip
+              checked={notifyCalendar}
+              onChange={setNotifyCalendar}
+              icon={<CalendarDays className="h-3.5 w-3.5" />}
+              label="Notify candidates (Google Calendar)"
+              hint={CALENDAR_HINT}
+            />
+            <ToggleChip
               checked={notifyCandidate}
               onChange={setNotifyCandidate}
               icon={<Mail className="h-3.5 w-3.5" />}
@@ -461,13 +468,6 @@ export function BulkInterviewModal({
               onChange={setNotifyPanel}
               icon={<Bell className="h-3.5 w-3.5" />}
               label="Notify panel"
-            />
-            <ToggleChip
-              checked={notifyCalendar}
-              onChange={setNotifyCalendar}
-              icon={<CalendarDays className="h-3.5 w-3.5" />}
-              label="Calendar notify to candidates"
-              hint={CALENDAR_HINT}
             />
           </div>
           <div className="ml-auto flex items-center gap-3">

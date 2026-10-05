@@ -585,13 +585,13 @@ export function CandidateInterviewsModal({
             {/* Pinned footer */}
             <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/80 px-5 py-3">
               <div className="flex flex-wrap gap-2">
+                <ToggleChip checked={notifyCalendar} onChange={setNotifyCalendar}
+                  icon={<CalendarDays className="h-3.5 w-3.5" />} label="Notify candidate (Google Calendar)"
+                  hint={CALENDAR_HINT} />
                 <ToggleChip checked={notifyCandidate} onChange={setNotifyCandidate}
                   icon={<Mail className="h-3.5 w-3.5" />} label="Email candidate" />
                 <ToggleChip checked={notifyPanel} onChange={setNotifyPanel}
                   icon={<Bell className="h-3.5 w-3.5" />} label="Notify panel" />
-                <ToggleChip checked={notifyCalendar} onChange={setNotifyCalendar}
-                  icon={<CalendarDays className="h-3.5 w-3.5" />} label="Calendar notify to candidate"
-                  hint={CALENDAR_HINT} />
               </div>
               <div className="ml-auto flex items-center gap-3">
                 {panel.length === 0 && (

@@ -241,6 +241,17 @@ function RescheduleDialog({
             <Bell className="h-3.5 w-3.5" /> Tell them the new time
           </p>
           <Check
+            checked={tellCalendar}
+            onChange={setTellCalendar}
+            label="Notify candidate (Google Calendar)"
+            icon={<CalendarDays className="h-3.5 w-3.5 text-slate-400" />}
+          />
+          {!invited && (
+            <p className="-mt-1 pl-6 text-xs text-slate-400">
+              Not sent a calendar invite when this was arranged — tick to send one.
+            </p>
+          )}
+          <Check
             checked={tellCandidate}
             onChange={setTellCandidate}
             label="Email the candidate"
@@ -251,21 +262,6 @@ function RescheduleDialog({
             label={`Notify the panel (${round.panelists.length})`}
             icon={<Users className="h-3.5 w-3.5 text-slate-400" />}
           />
-          <Check
-            checked={tellCalendar}
-            onChange={setTellCalendar}
-            label={
-              invited
-                ? "Update the candidate's calendar invite"
-                : 'Send the candidate a calendar invite'
-            }
-            icon={<CalendarDays className="h-3.5 w-3.5 text-slate-400" />}
-          />
-          {!invited && (
-            <p className="pl-6 text-xs text-slate-400">
-              The candidate was not sent a calendar invite for this interview.
-            </p>
-          )}
         </div>
       </div>
     </Modal>
