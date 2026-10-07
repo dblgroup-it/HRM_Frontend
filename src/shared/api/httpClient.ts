@@ -91,6 +91,8 @@ function readToken(): string | null {
 export interface NormalizedError {
   message: string;
   status?: number;
+  /** The server's machine-readable reason, when it gave one (e.g. EMAIL_NOT_VERIFIED). */
+  code?: string;
 }
 
 function normalizeError(error: unknown): NormalizedError {
@@ -102,12 +104,11 @@ function normalizeError(error: unknown): NormalizedError {
     };
   }
   if (axios.isAxiosError(error)) {
+    const data = error.response?.data as { message?: string; code?: unknown } | undefined;
     return {
       status: error.response?.status,
-      message:
-        (error.response?.data as { message?: string })?.message ??
-        error.message ??
-        'Unexpected network error',
+      message: data?.message ?? error.message ?? 'Unexpected network error',
+      ...(typeof data?.code === 'string' && { code: data.code }),
     };
   }
   return { message: 'Unexpected error' };

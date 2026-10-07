@@ -4,6 +4,8 @@ import type { ApiResponse } from '@shared/types';
 
 import type {
   ApplicationStatus,
+  ApplyEmailCodeSent,
+  ApplyEmailVerified,
   ApplyHistory,
   SubmittedCv,
   CareerListing,
@@ -294,6 +296,23 @@ export const candidatesApi = {
   jobInfo: (reqId: string): Promise<PublicJobInfo> =>
     http.get<ApiResponse<PublicJobInfo>>(`/apply/${reqId}`).then((r) => r.data),
 
+  /** Mail the applicant a code proving the address is theirs. */
+  sendApplyEmailCode: (
+    reqId: string,
+    input: { email: string; name?: string },
+  ): Promise<ApplyEmailCodeSent> =>
+    http
+      .post<ApiResponse<ApplyEmailCodeSent>>(`/apply/${reqId}/email-code`, input)
+      .then((r) => r.data),
+
+  verifyApplyEmailCode: (
+    reqId: string,
+    input: { email: string; code: string },
+  ): Promise<ApplyEmailVerified> =>
+    http
+      .post<ApiResponse<ApplyEmailVerified>>(`/apply/${reqId}/email-code/verify`, input)
+      .then((r) => r.data),
+
   apply: (
     reqId: string,
     input: PublicApplyInput,
@@ -304,6 +323,9 @@ export const candidatesApi = {
     fd.append('email', input.email);
     if (input.phone) fd.append('phone', input.phone);
     if (input.salaryExpectation) fd.append('salaryExpectation', input.salaryExpectation);
+    if (input.emailVerificationToken) {
+      fd.append('emailVerificationToken', input.emailVerificationToken);
+    }
     fd.append('cv', cv);
     return http
       .post<ApiResponse<PublicApplyResult>>(`/apply/${reqId}`, fd, MULTIPART)

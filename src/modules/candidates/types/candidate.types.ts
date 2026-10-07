@@ -186,6 +186,12 @@ export interface PublicJobInfo {
   placeOfPosting: string;
   requiredPosts: number;
   employmentNature: string;
+  /**
+   * Whether an application must prove its email with an emailed code. False
+   * while email is switched off (no code could arrive); absent from a server
+   * older than the check.
+   */
+  verifyEmail?: boolean;
 }
 
 export interface CareerListing {
@@ -228,6 +234,21 @@ export interface PublicApplyInput {
   email: string;
   phone?: string;
   salaryExpectation?: string;
+  /** Proof that `email` is theirs — from verifying the emailed code. */
+  emailVerificationToken?: string;
+}
+
+export interface ApplyEmailCodeSent {
+  /** The address, as the server keyed it. */
+  sentTo: string;
+  /** Until another code can be asked for. */
+  resendInSeconds: number;
+}
+
+export interface ApplyEmailVerified {
+  verificationToken: string;
+  /** ISO time the proof lapses — an hour after the code was accepted. */
+  expiresAt: string;
 }
 
 export interface CreateCandidateInput {

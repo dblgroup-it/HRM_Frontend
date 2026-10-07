@@ -20,7 +20,9 @@ import { Logo, PhoneInput } from '@shared/components/ui';
 import { isValidBdMobile, toBdMobile } from '@shared/utils';
 import { ROUTES } from '@app/router/paths';
 import { candidatesApi } from '../api/candidates.api';
+import { forgetProof, usableProof } from '../applyEmailProof';
 import { ApplicationSubmittedDialog } from '../components/ApplicationSubmittedDialog';
+import { VerifyEmailDialog } from '../components/VerifyEmailDialog';
 
 const ACCEPT = '.pdf,application/pdf';
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
@@ -74,7 +76,9 @@ const INPUT =
 export default function ApplyPage() {
   const { reqId = '' } = useParams();
   const fileRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
+  const [verifyOpen, setVerifyOpen] = useState(false);
 
   const job = useQuery({
     queryKey: ['apply', reqId],
@@ -91,7 +95,7 @@ export default function ApplyPage() {
   const [showSubmitted, setShowSubmitted] = useState(false);
 
   const apply = useMutation({
-    mutationFn: () =>
+    mutationFn: (emailVerificationToken?: string) =>
       candidatesApi.apply(
         reqId,
         {
@@ -100,11 +104,27 @@ export default function ApplyPage() {
           phone: toBdMobile(phone),
           // The figure alone: "40,000" goes as 40000.
           salaryExpectation: salaryExpectation.replace(/\D/g, '') || undefined,
+          emailVerificationToken,
         },
         cv as File,
       ),
-    onSuccess: () => setShowSubmitted(true),
-    onError: (e) => setError(errMsg(e, 'Something went wrong. Please try again.')),
+    onSuccess: () => {
+      setVerifyOpen(false);
+      setShowSubmitted(true);
+    },
+    onError: (e) => {
+      // The proof was refused (lapsed, or the address changed): ask for a
+      // fresh code rather than leave them with an error they cannot act on.
+      if ((e as { code?: unknown }).code === 'EMAIL_NOT_VERIFIED') {
+        forgetProof();
+        // Closed first, so a dialog already open starts over with a new code.
+        setVerifyOpen(false);
+        requestAnimationFrame(() => setVerifyOpen(true));
+        return;
+      }
+      setVerifyOpen(false);
+      setError(errMsg(e, 'Something went wrong. Please try again.'));
+    },
   });
 
   const pickFile = (file: File) => {
@@ -130,7 +150,19 @@ export default function ApplyPage() {
     if (phone && !isValidBdMobile(phone))
       return setError('Please enter a valid mobile number — the 10 digits after +880.');
     if (!cv) return setError('Please attach your CV.');
-    apply.mutate();
+    if (!job.data?.verifyEmail) return apply.mutate(undefined);
+    // Proved already in this tab (applying for a second post): no new code.
+    const proof = usableProof(email);
+    if (proof) return apply.mutate(proof);
+    setVerifyOpen(true);
+  };
+
+  const changeEmail = () => {
+    setVerifyOpen(false);
+    requestAnimationFrame(() => {
+      emailRef.current?.focus();
+      emailRef.current?.select();
+    });
   };
 
   // ── Loading ──
@@ -315,11 +347,19 @@ export default function ApplyPage() {
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm animate-rise-in" style={{ animationDelay: '120ms' }}>
                   <h3 className="text-sm font-bold text-slate-800">How to apply</h3>
                   <ol className="mt-3 space-y-3">
-                    {[
-                      'Fill in your personal details accurately.',
-                      'Attach your CV — PDF format only, max 5 MB.',
-                      'Submit and track your status with your email.',
-                    ].map((step, i) => (
+                    {(job.data.verifyEmail
+                      ? [
+                          'Fill in your personal details accurately.',
+                          'Attach your CV — PDF format only, max 5 MB.',
+                          'Submit, then enter the 6-digit code we email you.',
+                          'Track your status with your email.',
+                        ]
+                      : [
+                          'Fill in your personal details accurately.',
+                          'Attach your CV — PDF format only, max 5 MB.',
+                          'Submit and track your status with your email.',
+                        ]
+                    ).map((step, i) => (
                       <li key={i} className="flex gap-3 text-xs text-slate-500">
                         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-100 text-[0.625rem] font-bold text-brand-700">
                           {i + 1}
@@ -371,6 +411,7 @@ export default function ApplyPage() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Field label="Email address" required>
                       <input
+                        ref={emailRef}
                         className={INPUT}
                         type="email"
                         value={email}
@@ -474,7 +515,7 @@ export default function ApplyPage() {
                   {/* Submit */}
                   <button
                     type="submit"
-                    disabled={apply.isPending}
+                    disabled={apply.isPending || verifyOpen}
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 py-3.5 text-sm font-bold text-white shadow-md shadow-brand-200 transition hover:bg-brand-700 disabled:opacity-60 active:scale-[0.98]"
                   >
                     {apply.isPending ? (
@@ -485,6 +526,12 @@ export default function ApplyPage() {
                   </button>
 
                   <p className="text-center text-xs text-slate-400">
+                    {job.data.verifyEmail && (
+                      <>
+                        We&rsquo;ll email you a code to confirm your address.
+                        <br />
+                      </>
+                    )}
                     Your details are shared only with DBL Group recruitment.
                   </p>
                 </form>
@@ -493,6 +540,17 @@ export default function ApplyPage() {
           </div>
         </div>
       </main>
+
+      <VerifyEmailDialog
+        open={verifyOpen}
+        reqId={reqId}
+        email={email.trim()}
+        name={name}
+        submitting={apply.isPending}
+        onVerified={(token) => apply.mutate(token)}
+        onChangeEmail={changeEmail}
+        onClose={() => setVerifyOpen(false)}
+      />
 
       {/* Footer */}
       <footer className="mt-auto border-t border-slate-200 bg-white">
