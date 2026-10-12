@@ -44,6 +44,7 @@ import {
 } from '../hooks/useZingHr';
 import { SyncTerminal } from '../components/SyncTerminal';
 import { AutomationPanel } from '../components/AutomationPanel';
+import { ItRequestSettingsCard } from '../components/ItRequestSettingsCard';
 import { BdJobsSettingsCard } from '../bdjobs';
 import type { ZingHrSyncLog } from '../types/zinghr.types';
 
@@ -221,6 +222,9 @@ export default function IntegrationsPage() {
           }
         />
       </div>
+
+      {/* ── Where "Notify IT" sends account requests ──────────────── */}
+      <ItRequestSettingsCard />
 
       {/* ── Automation ──────────────────────────────────────────────── */}
       <AutomationPanel />

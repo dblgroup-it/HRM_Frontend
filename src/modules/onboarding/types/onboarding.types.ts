@@ -1,3 +1,4 @@
+import type { ItRequestView } from './itRequest.types';
 
 /** Where a checklist item sits on the page. */
 export type DocSection =
@@ -183,6 +184,8 @@ export interface OnboardingView {
   itEmail: string;
   itAssetId: string;
   itNotifiedAt: string | null;
+  /** "Notify IT": the request to IT and its answer; null until one is sent. */
+  itRequest: ItRequestView | null;
   docs: OnboardingDoc[];
   createdAt: string;
   updatedAt: string;

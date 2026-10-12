@@ -36,6 +36,7 @@ const ApprovalSheetsPage = lazy(
   () => import('@modules/board/pages/ApprovalSheetsPage'),
 );
 const FacilityConfirmPage = lazy(() => import('@modules/onboarding/pages/FacilityConfirmPage'));
+const ItRequestConfirmPage = lazy(() => import('@modules/onboarding/pages/ItRequestConfirmPage'));
 const IntegrationsPage = lazy(
   () => import('@modules/integrations/pages/IntegrationsPage')
 );
@@ -131,6 +132,7 @@ export function AppRouter() {
         <Route path={ROUTES.requisitionBoardVote()} element={<RequisitionBoardVotePage />} />
         <Route path={ROUTES.boardSheet()} element={<BoardSheetPage />} />
         <Route path={ROUTES.facilityConfirm()} element={<FacilityConfirmPage />} />
+        <Route path={ROUTES.itRequestConfirm()} element={<ItRequestConfirmPage />} />
 
         {/* Authenticated */}
         <Route element={<ProtectedRoute />}>

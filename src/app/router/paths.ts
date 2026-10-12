@@ -66,6 +66,8 @@ export const ROUTES = {
   boardSheet: (token = ':token') => `/board-sheet/${token}`,
   /** Public — Admin/IT recipient's facility-provisioning confirmation link. */
   facilityConfirm: (token = ':token') => `/facility-provisioning/${token}`,
+  /** Public — IT's confirmation link from a "Notify IT" request email. */
+  itRequestConfirm: (token = ':token') => `/it-request/${token}`,
 
   // System
   settings: '/settings',

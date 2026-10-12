@@ -65,6 +65,7 @@ import { OfferLetterModal } from '../components/OfferLetterModal';
 import { AppointmentLetterModal } from '../components/AppointmentLetterModal';
 import { FacilityProvisioningPanel } from '../components/FacilityProvisioningPanel';
 import { HrVerifyModal } from '../components/HrVerifyModal';
+import { ItProvisioningSection } from '../components/ItProvisioningSection';
 import { ReferenceChecksPanel } from '../components/ReferenceChecksPanel';
 import { useReferenceChecks } from '../hooks/useReferenceChecks';
 import { useSetPlacement } from '../hooks/useOnboarding';
@@ -84,7 +85,6 @@ import {
   useAlertMedical,
   useCandidateTimeline,
   useMedicalExam,
-  useNotifyIt,
   useReviewFacilities,
   useSetMedical,
   useOnboarding,
@@ -738,7 +738,6 @@ function Flow({
   const nidComplete = Boolean(
     ob.nid.name && ob.nid.address && ob.nid.dateOfBirth && ob.nid.number,
   );
-  const notifyIt = useNotifyIt(candidateId);
   const skipDocs = useSkipDocs(candidateId);
   const skipVerification = useSkipVerification(candidateId);
   const reviewFacilities = useReviewFacilities(candidateId);
@@ -747,7 +746,6 @@ function Flow({
   // whoever arranges the run corrects on the facility requirements.
   const setPackage = useSetCandidatePackage(candidateId);
 
-  const [itEmail, setItEmail] = useState(ob.itEmail);
   const [offerLetterOpen, setOfferLetterOpen] = useState(false);
   const [appointmentOpen, setAppointmentOpen] = useState(false);
   const [verifyConfirmOpen, setVerifyConfirmOpen] = useState(false);
@@ -1878,98 +1876,12 @@ function Flow({
             </div>
           </div>
 
-          <div className="border-t border-slate-100 pt-5">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              IT provisioning &amp; completion
-            </p>
-            {!ob.hrVerifiedAt ? (
-              <p className="flex items-center gap-1.5 text-sm text-slate-400">
-                <Lock className="h-4 w-4 shrink-0" /> Complete final verification above first.
-              </p>
-            ) : ob.itNotifiedAt ? (
-              <div className="space-y-3">
-                <Badge tone="success">Onboarded {fmt(ob.itNotifiedAt)}</Badge>
-                <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <Mail className="h-4 w-4 shrink-0 text-brand-500" />
-                  <div className="min-w-0">
-                    <p className="text-[0.6875rem] font-medium uppercase tracking-wide text-slate-400">Work email</p>
-                    <p className="mt-0.5 truncate text-sm font-semibold text-slate-800">{ob.itEmail || '—'}</p>
-                  </div>
-                </div>
-                {/* Provisioning checklist */}
-                <div className="rounded-xl border border-slate-200 divide-y divide-slate-100">
-                  {[
-                    { key: 'email', label: 'Work email account created', done: Boolean(ob.itEmail) },
-                  ].map(({ key, label, done: d }) => (
-                    <div key={key} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                      <span
-                        className={cn(
-                          'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
-                          d
-                            ? 'border-emerald-500 bg-emerald-500 text-white'
-                            : 'border-slate-300 text-transparent',
-                        )}
-                      >
-                        <Check className="h-3 w-3" strokeWidth={3} />
-                      </span>
-                      <span className={cn('flex-1', d ? 'text-slate-700' : 'text-slate-500')}>{label}</span>
-                      {d && <span className="text-[0.6875rem] font-medium text-emerald-600">Completed</span>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <p className="text-sm text-slate-500">
-                  {itWebhook
-                    ? "Fires the IT webhook with the new hire's details; the issued email is written back automatically."
-                    : 'Enter the work email issued by the IT team.'}
-                </p>
-                {/* Provisioning items visual checklist */}
-                <div className="rounded-xl border border-slate-200 bg-slate-50/60 divide-y divide-slate-100">
-                  {[
-                    { label: 'Work email account', icon: Mail, field: 'email' },
-                    { label: 'Access card', icon: ShieldCheck, field: null },
-                  ].map(({ label, icon: Icon, field }) => (
-                    <div key={label} className="flex items-center gap-3 px-4 py-2.5">
-                      <Icon className="h-4 w-4 shrink-0 text-slate-400" />
-                      <span className="flex-1 text-sm text-slate-600">{label}</span>
-                      {field === 'email' ? (
-                        <input
-                          type="email"
-                          placeholder="name@dbl-group.com"
-                          value={itEmail}
-                          onChange={(e) => setItEmail(e.target.value)}
-                          className="w-48 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-                        />
-                      ) : (
-                        <span className="text-[0.6875rem] text-slate-400">Handled by IT team</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <Button
-                  isLoading={notifyIt.isPending}
-                  disabled={!ob.hrVerifiedAt || !isBoardApproved}
-                  title={
-                    !isBoardApproved
-                      ? 'Board Approval is required before onboarding can be completed'
-                      : !ob.hrVerifiedAt
-                        ? 'Complete HR verification first'
-                        : undefined
-                  }
-                  leftIcon={<Mail className="h-4 w-4" />}
-                  onClick={() =>
-                    notifyIt.mutate({
-                      email: itEmail || undefined,
-                    })
-                  }
-                >
-                  Notify IT &amp; complete onboarding
-                </Button>
-              </div>
-            )}
-          </div>
+          <ItProvisioningSection
+            candidateId={candidateId}
+            ob={ob}
+            isBoardApproved={isBoardApproved}
+            itWebhook={itWebhook}
+          />
         </div>
       ),
     },

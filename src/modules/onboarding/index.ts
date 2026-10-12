@@ -17,3 +17,8 @@ export type {
   MedicalQueueItem,
 } from './types/onboarding.types';
 export type { RecruitmentPerms } from './access';
+export {
+  useItRequestSettings,
+  useSaveItRequestSettings,
+} from './hooks/useItRequest';
+export type { ItRequestSettings } from './types/itRequest.types';
