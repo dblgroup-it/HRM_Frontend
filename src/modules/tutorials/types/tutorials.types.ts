@@ -12,6 +12,8 @@ export interface Tutorial {
   group: string;
   /** The guide's section titles, for "Inside this guide". */
   contents: string[];
+  /** The same sections with the page each starts on (null when unknown). */
+  chapters: TutorialChapter[];
   pages: number;
   bytes: number;
   /** Signed, short-lived links; relative to the API. */
@@ -19,6 +21,11 @@ export interface Tutorial {
   downloadUrl: string;
   /** The cover as a small picture; null on an older build. */
   thumbUrl: string | null;
+}
+
+export interface TutorialChapter {
+  title: string;
+  page: number | null;
 }
 
 export interface TutorialsList {

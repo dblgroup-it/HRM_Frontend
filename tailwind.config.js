@@ -166,6 +166,13 @@ export default {
           '0%': { transform: 'scale(0)', opacity: '0.35' },
           '100%': { transform: 'scale(1)', opacity: '0' },
         },
+        /** Tutorials: one slow streak of light travelling the hiring journey (a quarter of the line wide). */
+        'journey-streak': {
+          '0%': { transform: 'translateX(-100%)', opacity: '0' },
+          '15%': { opacity: '1' },
+          '85%': { opacity: '1' },
+          '100%': { transform: 'translateX(400%)', opacity: '0' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.2s ease-out',
@@ -191,6 +198,7 @@ export default {
         'btn-sheen': 'btn-sheen 0.9s cubic-bezier(0.4,0,0.2,1)',
         'btn-wiggle': 'btn-wiggle 0.5s ease-in-out',
         'btn-ripple': 'btn-ripple 0.55s cubic-bezier(0.16,1,0.3,1) forwards',
+        'journey-streak': 'journey-streak 6.5s cubic-bezier(0.45,0,0.55,1) infinite',
       },
     },
   },
