@@ -108,6 +108,7 @@ const SettingsPage = lazy(
 const NotificationsPage = lazy(
   () => import('@modules/notifications/pages/NotificationsPage')
 );
+const TutorialsPage = lazy(() => import('@modules/tutorials/pages/TutorialsPage'));
 const NotFoundPage = lazy(() => import('@app/router/NotFoundPage'));
 const CareersPage = lazy(() => import('@modules/candidates/pages/CareersPage'));
 const ApplicationStatusPage = lazy(() => import('@modules/candidates/pages/ApplicationStatusPage'));
@@ -217,6 +218,7 @@ export function AppRouter() {
               path={ROUTES.notifications}
               element={<NotificationsPage />}
             />
+            <Route path={ROUTES.tutorials} element={<TutorialsPage />} />
           </Route>
         </Route>
 

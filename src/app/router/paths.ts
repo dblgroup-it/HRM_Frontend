@@ -72,4 +72,6 @@ export const ROUTES = {
   // System
   settings: '/settings',
   notifications: '/notifications',
+  /** The client documentation: the workflow and one guide per role, as PDFs. */
+  tutorials: '/tutorials',
 } as const;

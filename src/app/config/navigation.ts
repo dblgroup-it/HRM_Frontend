@@ -1,6 +1,7 @@
 import {
   Activity,
   Bell,
+  BookOpen,
   Briefcase,
   ClipboardCheck,
   ClipboardList,
@@ -263,6 +264,12 @@ export const NAVIGATION: NavSection[] = [
         label: 'Notifications',
         to: ROUTES.notifications,
         icon: Bell,
+      },
+      {
+        // The client documentation: the workflow and a guide per role.
+        label: 'Tutorials',
+        to: ROUTES.tutorials,
+        icon: BookOpen,
       },
     ],
   },
