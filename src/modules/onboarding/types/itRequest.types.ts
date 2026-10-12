@@ -55,7 +55,6 @@ export interface ItRequestDraft {
   };
   preferredEmail: string;
   platform: string;
-  approvedBy: string;
   purpose: string;
   /** The people this hire replaces; `include` = ask IT to delete. */
   deletions: (ItLeaver & { include: boolean; found: boolean })[];
@@ -66,7 +65,6 @@ export interface ItRequestDraft {
 export interface ItRequestInput {
   preferredEmail?: string;
   platform?: string;
-  approvedBy?: string;
   purpose?: string;
   deletions?: ItLeaver[];
 }

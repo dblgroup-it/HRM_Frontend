@@ -55,7 +55,6 @@ export function NotifyItModal({
 
   const [preferredEmail, setPreferredEmail] = useState('');
   const [platform, setPlatform] = useState('Google');
-  const [approvedBy, setApprovedBy] = useState('');
   const [purpose, setPurpose] = useState('');
   const [leavers, setLeavers] = useState<Leaver[]>([]);
   const [ready, setReady] = useState(false);
@@ -70,7 +69,6 @@ export function NotifyItModal({
     if (!d) return;
     setPreferredEmail(d.preferredEmail);
     setPlatform(d.platform);
-    setApprovedBy(d.approvedBy);
     setPurpose(d.purpose);
     setLeavers(d.deletions.map((l) => ({ ...l })));
     setReady(true);
@@ -80,13 +78,12 @@ export function NotifyItModal({
     () => ({
       preferredEmail: preferredEmail.trim() || undefined,
       platform,
-      approvedBy: approvedBy.trim() || undefined,
       purpose: purpose.trim() || undefined,
       deletions: leavers
         .filter((l) => l.include)
         .map(({ name, code, email, reason }) => ({ name, code, email, reason })),
     }),
-    [preferredEmail, platform, approvedBy, purpose, leavers],
+    [preferredEmail, platform, purpose, leavers],
   );
   const debounced = useDebounce(input, 350);
   // Only once the form holds the draft, and only once typing has paused —
@@ -208,13 +205,6 @@ export function NotifyItModal({
                 options={d.platforms.map((p) => ({ value: p, label: p }))}
                 value={platform}
                 onChange={(e) => setPlatform(e.target.value)}
-              />
-              <Textarea
-                label="Approved by"
-                rows={2}
-                value={approvedBy}
-                onChange={(e) => setApprovedBy(e.target.value)}
-                hint="From the requisition's sign-offs — edit if needed."
               />
               <Textarea
                 label="Purpose"
