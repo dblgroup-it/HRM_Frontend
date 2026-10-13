@@ -20,6 +20,7 @@ import {
   Check,
   ChevronDown,
   FileText,
+  FileUser,
   Flag,
   History,
   Loader2,
@@ -54,7 +55,6 @@ import {
 import type { Candidate, CandidateStage } from '../types/candidate.types';
 import { GenderBadge } from './GenderBadge';
 import { MatchPopover } from './MatchPopover';
-import { GeneratedCvModal } from './GeneratedCvModal';
 import { resolveApiFileUrl } from '@shared/api';
 
 const ACCEPT = '.pdf,application/pdf';
@@ -146,7 +146,6 @@ export function CandidateRow({
   const navigate = useNavigate();
   const rowRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [cvOpen, setCvOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [flagModalOpen, setFlagModalOpen] = useState(false);
   const [matchOpen, setMatchOpen] = useState(false);
@@ -177,6 +176,7 @@ export function CandidateRow({
   const isNew = !seenLocally;
   const hold = candidate.firstInterviewHold;
   const hasCv = Boolean(candidate.cvUrl || candidate.hasGeneratedCv);
+  const fromBdjobs = candidate.source === 'bdjobs';
   const src = cvSourceDisplay(candidate.cvSource);
   const headline = candidate.headline;
 
@@ -494,17 +494,36 @@ export function CandidateRow({
             {primary === 'salary' && salaryBtn}
             {primary === 'scan' && scanBtn}
 
-            {candidate.cvUrl ? (
-              <ActionBtn as="a" href={resolveApiFileUrl(candidate.cvUrl)} icon={FileText} motion="lift" title="View the CV">
-                CV
+            {/* A Bdjobs applicant can have two CVs: the one they attached
+                ("Personal CV") and their application laid out as Bdjobs'
+                details CV ("BDJobs CV"). Both open in a new tab. */}
+            {candidate.cvUrl && (
+              <ActionBtn
+                as="a"
+                href={resolveApiFileUrl(candidate.cvUrl)}
+                icon={FileText}
+                motion="lift"
+                title={fromBdjobs ? 'The CV the candidate attached on BDJobs' : 'View the CV'}
+              >
+                {fromBdjobs ? 'Personal CV' : 'CV'}
               </ActionBtn>
-            ) : candidate.hasGeneratedCv ? (
-              /* Applied through Bdjobs — fields, no document. The CV is built
-                 from what they submitted rather than leaving nothing to read. */
-              <ActionBtn icon={FileText} motion="lift" title="View the CV built from this application" onClick={() => setCvOpen(true)}>
-                CV
+            )}
+            {candidate.profileCvUrl && (
+              <ActionBtn
+                as="a"
+                href={resolveApiFileUrl(candidate.profileCvUrl)}
+                icon={candidate.profileCvSource === 'bdjobs' ? FileUser : FileText}
+                motion="lift"
+                title={
+                  candidate.profileCvSource === 'bdjobs'
+                    ? 'The BDJobs application as a CV — opens as a PDF'
+                    : 'The CV built from this application — opens as a PDF'
+                }
+              >
+                {candidate.profileCvSource === 'bdjobs' ? 'BDJobs CV' : 'CV'}
               </ActionBtn>
-            ) : (
+            )}
+            {!candidate.cvUrl && !candidate.profileCvUrl && (
               <ActionBtn icon={Upload} motion="lift" busy={upload.isPending} title="Upload a CV" onClick={() => fileRef.current?.click()}>
                 {upload.isPending ? 'Uploading…' : 'Upload CV'}
               </ActionBtn>
@@ -597,17 +616,6 @@ export function CandidateRow({
           e.target.value = '';
         }}
       />
-
-      {/* Only mounted once opened — it fetches the document on mount, and a
-          long candidate list must not fetch one CV per row. */}
-      {cvOpen && (
-        <GeneratedCvModal
-          candidateId={candidate.id}
-          candidateName={candidate.name}
-          open={cvOpen}
-          onClose={() => setCvOpen(false)}
-        />
-      )}
 
       <BusyOverlay
         show={screen.isPending}

@@ -76,6 +76,14 @@ export interface Candidate {
    * every Bdjobs applicant, who applies as fields rather than a document.
    */
   hasGeneratedCv?: boolean;
+  /**
+   * The CV rendered from the stored profile, as a PDF — opens in a new tab.
+   * For a Bdjobs applicant it is the "BDJobs CV", shown beside their own
+   * file ("Personal CV") when they attached one. Null for an uploaded CV.
+   */
+  profileCvUrl?: string | null;
+  /** 'bdjobs' when `profileCvUrl` is the BDJobs CV. */
+  profileCvSource?: string | null;
   notes: string;
   salaryExpectation: number | null;
   /** Finalized salary fixation result — null until Salary Fixation is finalized for this candidate. */
