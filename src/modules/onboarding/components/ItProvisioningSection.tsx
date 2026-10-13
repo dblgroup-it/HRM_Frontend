@@ -73,6 +73,14 @@ export function ItProvisioningSection({
               <dl className="mt-3 grid gap-x-4 gap-y-1.5 text-sm sm:grid-cols-[9rem_minmax(0,1fr)]">
                 <dt className="text-slate-400">Sent to</dt>
                 <dd className="break-words text-slate-700">{req.sentTo}</dd>
+                {req.cc?.length > 0 && (
+                  <>
+                    <dt className="text-slate-400">Copied</dt>
+                    <dd className="break-words text-slate-700">
+                      {req.cc.map((c) => c.name).join(', ')}
+                    </dd>
+                  </>
+                )}
                 <dt className="text-slate-400">Address asked for</dt>
                 <dd className="text-slate-700">
                   {req.preferredEmail || 'IT to choose'} · {req.platform}

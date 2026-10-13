@@ -13,6 +13,15 @@ export interface ItLeaverDone extends ItLeaver {
   deleted: boolean;
 }
 
+/** Somebody copied on the request — picked from the directory; the server looks up the address. */
+export interface ItCcPerson {
+  code: string;
+  name: string;
+  designation: string | null;
+  /** Null when the directory has no address for them — sending is refused until removed. */
+  email: string | null;
+}
+
 /** The request as the onboarding page shows it. */
 export interface ItRequestView {
   id: string;
@@ -25,6 +34,7 @@ export interface ItRequestView {
   preferredEmail: string | null;
   platform: string;
   deletions: ItLeaver[];
+  cc: ItCcPerson[];
   expiresAt: string;
   completedAt: string | null;
   completedByName: string | null;
@@ -40,6 +50,7 @@ export interface ItRequestView {
 export interface ItRequestDraft {
   recipients: string[];
   salutation: string;
+  /** Reply-To only — the requester is not copied unless they add themselves. */
   requesterEmail: string | null;
   /** False while outgoing email is switched off — IT would get nothing. */
   deliverable: boolean;
@@ -58,6 +69,8 @@ export interface ItRequestDraft {
   purpose: string;
   /** The people this hire replaces; `include` = ask IT to delete. */
   deletions: (ItLeaver & { include: boolean; found: boolean })[];
+  /** Copied last time — empty on a first request. */
+  cc: ItCcPerson[];
   previous: ItRequestView | null;
 }
 
@@ -67,13 +80,15 @@ export interface ItRequestInput {
   platform?: string;
   purpose?: string;
   deletions?: ItLeaver[];
+  /** Employee codes to copy. Nobody by default. */
+  ccCodes?: string[];
 }
 
 export interface ItRequestPreview {
   subject: string;
   html: string;
   to: string[];
-  cc: string | null;
+  cc: ItCcPerson[];
 }
 
 /** IT's page, opened from the link in the email. */
