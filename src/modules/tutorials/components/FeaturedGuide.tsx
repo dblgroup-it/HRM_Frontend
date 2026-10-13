@@ -84,14 +84,21 @@ export function FeaturedGuide({
           </div>
 
           <div className="mt-5 flex flex-wrap items-center gap-2.5">
-            <span className="relative inline-flex items-center gap-2 overflow-hidden rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors group-hover:bg-brand-700">
+            {/* A real link, above the card's: drawn as a button over the stretched link, a plain label caught the click and went nowhere. */}
+            <a
+              href={resolveApiFileUrl(guide.url)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onOpen}
+              className="relative z-10 inline-flex items-center gap-2 overflow-hidden rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 group-hover:bg-brand-700"
+            >
               <span
                 aria-hidden
                 className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-0 motion-safe:group-hover:animate-btn-sheen"
               />
               Open guide
               <ArrowUpRight className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-            </span>
+            </a>
             <a
               href={resolveApiFileUrl(guide.downloadUrl)}
               onClick={onOpen}

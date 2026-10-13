@@ -120,15 +120,20 @@ export function GuideCard({
               <Download className="h-3.5 w-3.5" />
               Download
             </a>
-            <span
+            {/* A real link: its moving arrow would otherwise sit above the card's link and swallow the click. */}
+            <a
+              href={base}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onOpen}
               className={cn(
-                'inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors group-hover:bg-white/80',
+                'relative z-10 inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors hover:bg-white group-hover:bg-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300',
                 tone.text,
               )}
             >
               Open
               <ArrowUpRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-            </span>
+            </a>
           </div>
         </div>
 
