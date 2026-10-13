@@ -29,7 +29,7 @@ import {
   useItRequestPreview,
   useSendItRequest,
 } from '../hooks/useItRequest';
-import type { ItRequestInput } from '../types/itRequest.types';
+import type { ItCcLookup, ItRequestInput } from '../types/itRequest.types';
 
 /** Loose on purpose — the server checks too, and names the bad address. */
 const EMAIL = /^[^\s@,;<>()"]+@[^\s@,;<>()"]+\.[^\s@,;<>()".]{2,}$/;
@@ -46,6 +46,19 @@ interface Leaver {
   include: boolean;
   found: boolean;
 }
+
+/**
+ * Where one CC pick stands. Every pick ends in one of the settled states —
+ * `waiting` lasts only while the preview is on its way, never past an answer
+ * or a failure.
+ */
+type CcState =
+  | { kind: 'waiting' }
+  | { kind: 'ok'; email: string }
+  | { kind: 'none' }
+  | { kind: 'to'; email: string }
+  | { kind: 'duplicate'; email: string }
+  | { kind: 'failed' };
 
 /** Somebody HR chose to copy — the address is the server's to look up. */
 interface CcPick {
@@ -153,23 +166,47 @@ export function NotifyItModal({
     open && ready && debounced === input ? debounced : null
   );
 
-  /** code → address (null: none on file). Absent until the server has looked. */
-  const ccEmail = useMemo(() => {
-    const m = new Map<string, string | null>();
-    for (const c of d?.cc ?? []) m.set(c.code, c.email);
-    for (const c of preview.data?.cc ?? []) m.set(c.code, c.email);
+  /** code → the server's answer for that pick. */
+  const lookups = useMemo(() => {
+    const m = new Map<string, ItCcLookup>();
+    for (const c of d?.cc ?? []) m.set(c.code, { ...c, skip: null });
+    for (const c of preview.data?.cc ?? []) m.set(c.code, c);
     return m;
   }, [d, preview.data]);
+  // The preview for exactly this form has come back (or failed): from here a
+  // pick with no answer is a failure, not something still to wait for.
+  const lookupFailed = preview.isError && !preview.isFetching;
+  const lookupDone =
+    debounced === input &&
+    !preview.isFetching &&
+    (preview.isError || (preview.isSuccess && !preview.isPlaceholderData));
+  const ccState = (code: string): CcState => {
+    const l = lookups.get(code);
+    if (l) {
+      if (!l.email) return { kind: 'none' };
+      if (l.skip) return { kind: l.skip, email: l.email };
+      return { kind: 'ok', email: l.email };
+    }
+    return lookupFailed || lookupDone
+      ? { kind: 'failed' }
+      : { kind: 'waiting' };
+  };
+  const ccStates = cc.map((c) => ({ ...c, state: ccState(c.code) }));
+  const onCcCount = ccStates.filter(
+    (c) => c.state.kind !== 'to' && c.state.kind !== 'duplicate'
+  ).length;
 
   const preferredBad =
     Boolean(preferredEmail.trim()) && !isEmail(preferredEmail);
   const leaverBad = leavers.some((l) => l.include && !isEmail(l.email));
-  const ccNoEmail = cc.find((c) => ccEmail.get(c.code) === null);
+  const ccNoEmail = ccStates.find((c) => c.state.kind === 'none');
+  const ccFailed = ccStates.some((c) => c.state.kind === 'failed');
   const canSend =
     Boolean(d?.deliverable) &&
     !preferredBad &&
     !leaverBad &&
     !ccNoEmail &&
+    !ccFailed &&
     !busy;
 
   const blocker = !d
@@ -182,7 +219,9 @@ export function NotifyItModal({
           ? 'Enter the leaver’s email address, or switch it off'
           : ccNoEmail
             ? `${ccNoEmail.name} has no email on file — remove them from CC`
-            : null;
+            : ccFailed
+              ? 'Could not look up a CC address — try again'
+              : null;
 
   const setLeaver = (i: number, patch: Partial<Leaver>) =>
     setLeavers((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
@@ -426,16 +465,18 @@ export function NotifyItModal({
 
                     {cc.length > 0 && (
                       <ul className="mb-2.5 space-y-2">
-                        {cc.map((c) => {
-                          const email = ccEmail.get(c.code);
+                        {ccStates.map((c) => {
+                          const st = c.state;
                           return (
                             <li
                               key={c.code}
                               className={cn(
                                 'flex items-center gap-3 rounded-2xl border bg-white px-3 py-2 motion-safe:animate-card-in',
-                                email === null
+                                st.kind === 'none' || st.kind === 'failed'
                                   ? 'border-rose-200'
-                                  : 'border-slate-200'
+                                  : st.kind === 'to' || st.kind === 'duplicate'
+                                    ? 'border-amber-200'
+                                    : 'border-slate-200'
                               )}
                             >
                               <Avatar
@@ -453,25 +494,10 @@ export function NotifyItModal({
                                     </span>
                                   )}
                                 </p>
-                                <p
-                                  className={cn(
-                                    'truncate text-xs',
-                                    email === null
-                                      ? 'text-rose-600'
-                                      : 'text-slate-500'
-                                  )}
-                                >
-                                  {email === undefined ? (
-                                    <span className="inline-flex items-center gap-1 text-slate-400">
-                                      <Loader2 className="h-3 w-3 animate-spin" />{' '}
-                                      Looking up the address…
-                                    </span>
-                                  ) : email === null ? (
-                                    'No email address on file — cannot be added on CC'
-                                  ) : (
-                                    email
-                                  )}
-                                </p>
+                                <CcStatus
+                                  state={st}
+                                  onRetry={() => void preview.refetch()}
+                                />
                               </div>
                               <button
                                 type="button"
@@ -656,22 +682,31 @@ export function NotifyItModal({
                           <AddressChip key={r}>{r}</AddressChip>
                         ))}
                       </Recipients>
-                      {cc.length > 0 && (
+                      {onCcCount > 0 && (
                         <Recipients label="Cc">
-                          {cc.map((c) => (
-                            <AddressChip
-                              key={c.code}
-                              muted={ccEmail.get(c.code) === null}
-                            >
-                              {c.name}
-                              {ccEmail.get(c.code) ? (
-                                <span className="hidden text-slate-400 sm:inline">
-                                  {' '}
-                                  &lt;{ccEmail.get(c.code)}&gt;
-                                </span>
-                              ) : null}
-                            </AddressChip>
-                          ))}
+                          {ccStates
+                            .filter(
+                              (c) =>
+                                c.state.kind !== 'to' &&
+                                c.state.kind !== 'duplicate'
+                            )
+                            .map((c) => (
+                              <AddressChip
+                                key={c.code}
+                                muted={
+                                  c.state.kind === 'none' ||
+                                  c.state.kind === 'failed'
+                                }
+                              >
+                                {c.name}
+                                {c.state.kind === 'ok' ? (
+                                  <span className="hidden text-slate-400 sm:inline">
+                                    {' '}
+                                    &lt;{c.state.email}&gt;
+                                  </span>
+                                ) : null}
+                              </AddressChip>
+                            ))}
                         </Recipients>
                       )}
                     </dl>
@@ -692,6 +727,23 @@ export function NotifyItModal({
                           preview.isFetching && 'opacity-60'
                         )}
                       />
+                    ) : lookupFailed ? (
+                      <div className="flex h-full min-h-[24rem] flex-col items-center justify-center gap-3 px-6 text-center">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
+                          <AlertTriangle className="h-5 w-5" />
+                        </span>
+                        <p className="max-w-sm text-sm text-slate-600">
+                          {(preview.error as Error)?.message ||
+                            'The preview could not be loaded.'}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => void preview.refetch()}
+                          className="rounded-xl border border-slate-200 px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                        >
+                          Try again
+                        </button>
+                      </div>
                     ) : (
                       <div className="flex h-full min-h-[24rem] items-center justify-center">
                         <Spinner />
@@ -726,7 +778,7 @@ export function NotifyItModal({
                       {d.recipients.join(', ')}
                     </span>
                     {' · '}
-                    {cc.length ? `${cc.length} on CC` : 'nobody on CC'}
+                    {onCcCount ? `${onCcCount} on CC` : 'nobody on CC'}
                     {deleting > 0 &&
                       ` · ${deleting} account${deleting > 1 ? 's' : ''} to delete`}
                     <span className="hidden md:inline">
@@ -774,6 +826,51 @@ export function NotifyItModal({
       </div>
     </Portal>
   );
+}
+
+/** The line under a CC pick's name: its address, or why it is not on CC. */
+function CcStatus({ state, onRetry }: { state: CcState; onRetry: () => void }) {
+  switch (state.kind) {
+    case 'waiting':
+      return (
+        <p className="inline-flex items-center gap-1 text-xs text-slate-400">
+          <Loader2 className="h-3 w-3 animate-spin" /> Looking up the address…
+        </p>
+      );
+    case 'ok':
+      return <p className="truncate text-xs text-slate-500">{state.email}</p>;
+    case 'none':
+      return (
+        <p className="truncate text-xs text-rose-600">
+          No email address on file — cannot be added on CC
+        </p>
+      );
+    case 'to':
+      return (
+        <p className="text-xs text-amber-700" title={state.email}>
+          Already receives it as To — not added on CC
+        </p>
+      );
+    case 'duplicate':
+      return (
+        <p className="text-xs text-amber-700" title={state.email}>
+          Same address as someone above — added once
+        </p>
+      );
+    case 'failed':
+      return (
+        <p className="text-xs text-rose-600">
+          Could not look up the address ·{' '}
+          <button
+            type="button"
+            onClick={onRetry}
+            className="font-semibold underline-offset-2 hover:underline"
+          >
+            Try again
+          </button>
+        </p>
+      );
+  }
 }
 
 /**

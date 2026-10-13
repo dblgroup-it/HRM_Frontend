@@ -84,11 +84,20 @@ export interface ItRequestInput {
   ccCodes?: string[];
 }
 
+/**
+ * A pick as the preview answers it — every pick comes back. `skip` says why
+ * one with an address is not put on CC: it is already the To address, or
+ * another pick's.
+ */
+export interface ItCcLookup extends ItCcPerson {
+  skip: 'to' | 'duplicate' | null;
+}
+
 export interface ItRequestPreview {
   subject: string;
   html: string;
   to: string[];
-  cc: ItCcPerson[];
+  cc: ItCcLookup[];
 }
 
 /** IT's page, opened from the link in the email. */
