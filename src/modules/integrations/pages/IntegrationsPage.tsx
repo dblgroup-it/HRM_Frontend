@@ -45,6 +45,7 @@ import {
 import { SyncTerminal } from '../components/SyncTerminal';
 import { AutomationPanel } from '../components/AutomationPanel';
 import { ItRequestSettingsCard } from '../components/ItRequestSettingsCard';
+import { TutorialVideoSettingsCard } from '../components/TutorialVideoSettingsCard';
 import { BdJobsSettingsCard } from '../bdjobs';
 import type { ZingHrSyncLog } from '../types/zinghr.types';
 
@@ -225,6 +226,9 @@ export default function IntegrationsPage() {
 
       {/* ── Where "Notify IT" sends account requests ──────────────── */}
       <ItRequestSettingsCard />
+
+      {/* ── The video playlist on the Tutorials page ──────────────── */}
+      <TutorialVideoSettingsCard />
 
       {/* ── Automation ──────────────────────────────────────────────── */}
       <AutomationPanel />

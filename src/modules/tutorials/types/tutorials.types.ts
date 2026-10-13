@@ -28,6 +28,24 @@ export interface TutorialChapter {
   page: number | null;
 }
 
+/** The video playlist on the Tutorials page — the same for everyone. */
+export interface TutorialVideos {
+  playlistId: string;
+  title: string;
+  channel: string | null;
+  /** The playlist on YouTube. */
+  url: string;
+  /** YouTube's privacy-enhanced player for the playlist. */
+  embedUrl: string;
+}
+
+/** The playlist as a super user sets it on Integrations; null id = off the page. */
+export interface TutorialVideoSettings {
+  playlistId: string | null;
+  title: string;
+  channel: string;
+}
+
 export interface TutorialsList {
   version: string | null;
   date: string | null;
@@ -36,4 +54,6 @@ export interface TutorialsList {
   /** The roles this person holds, for the header. */
   roles: { key: string; name: string }[];
   guides: Tutorial[];
+  /** Null when no playlist is set (or an older API, which sends none). */
+  videos?: TutorialVideos | null;
 }

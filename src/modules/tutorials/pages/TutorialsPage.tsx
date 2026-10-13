@@ -9,6 +9,7 @@ import { firstName } from '@shared/utils';
 import { FeaturedGuide } from '../components/FeaturedGuide';
 import { GuideCard } from '../components/GuideCard';
 import { TutorialsHero } from '../components/TutorialsHero';
+import { VideoPlaylist } from '../components/VideoPlaylist';
 import { useOpenedGuides } from '../hooks/useOpenedGuides';
 import { useTutorials } from '../hooks/useTutorials';
 import { STAGES, toneOf } from '../tones';
@@ -22,7 +23,8 @@ import { greeting, matchesQuery, readingTime } from '../utils';
  * and signs links for those alone); super users and the admin see every
  * guide. The guide to start with is shown large, the rest as cards tinted by
  * the stage of the hiring workflow they cover. Search reaches every chapter,
- * the journey filters by stage, and a chapter opens the PDF at its page.
+ * the journey filters by stage, and a chapter opens the PDF at its page. The
+ * video playlist sits above them all, the same for everyone.
  */
 export default function TutorialsPage() {
   const { data, isLoading, isError, refetch } = useTutorials();
@@ -102,6 +104,9 @@ export default function TutorialsPage() {
         stage={stage}
         onStage={canFilter ? setStage : null}
       />
+
+      {/* The videos are for everyone, whatever their roles; set aside while searching or filtering. */}
+      {data.videos && !searching && !stage && <VideoPlaylist videos={data.videos} />}
 
       {!guides.length ? (
         <EmptyState
