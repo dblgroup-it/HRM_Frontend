@@ -181,7 +181,7 @@ export function NotifyItModal({
         : leaverBad
           ? 'Enter the leaver’s email address, or switch it off'
           : ccNoEmail
-            ? `${ccNoEmail.name} has no email on file — remove them from Cc`
+            ? `${ccNoEmail.name} has no email on file — remove them from CC`
             : null;
 
   const setLeaver = (i: number, patch: Partial<Leaver>) =>
@@ -415,13 +415,121 @@ export function NotifyItModal({
                     </div>
                   </Section>
 
-                  {/* ② The leavers */}
+                  {/* ② Who else sees it */}
+                  <Section n={2} title="Add on CC" hint="optional" delay={80}>
+                    {cc.length === 0 && !picking && (
+                      <p className="mb-3 text-xs leading-5 text-slate-500">
+                        Nobody is on CC. Add colleagues from the employee
+                        directory if they should see this request — or skip it.
+                      </p>
+                    )}
+
+                    {cc.length > 0 && (
+                      <ul className="mb-2.5 space-y-2">
+                        {cc.map((c) => {
+                          const email = ccEmail.get(c.code);
+                          return (
+                            <li
+                              key={c.code}
+                              className={cn(
+                                'flex items-center gap-3 rounded-2xl border bg-white px-3 py-2 motion-safe:animate-card-in',
+                                email === null
+                                  ? 'border-rose-200'
+                                  : 'border-slate-200'
+                              )}
+                            >
+                              <Avatar
+                                name={c.name}
+                                src={c.avatarUrl}
+                                size="sm"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium text-slate-800">
+                                  {c.name}
+                                  {c.designation && (
+                                    <span className="font-normal text-slate-400">
+                                      {' '}
+                                      · {c.designation}
+                                    </span>
+                                  )}
+                                </p>
+                                <p
+                                  className={cn(
+                                    'truncate text-xs',
+                                    email === null
+                                      ? 'text-rose-600'
+                                      : 'text-slate-500'
+                                  )}
+                                >
+                                  {email === undefined ? (
+                                    <span className="inline-flex items-center gap-1 text-slate-400">
+                                      <Loader2 className="h-3 w-3 animate-spin" />{' '}
+                                      Looking up the address…
+                                    </span>
+                                  ) : email === null ? (
+                                    'No email address on file — cannot be added on CC'
+                                  ) : (
+                                    email
+                                  )}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                aria-label={`Remove ${c.name} from CC`}
+                                onClick={() =>
+                                  setCc((list) =>
+                                    list.filter((x) => x.code !== c.code)
+                                  )
+                                }
+                                className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+
+                    <Reveal open={picking}>
+                      <CcPicker
+                        active={picking}
+                        picked={cc.map((c) => c.code)}
+                        onPick={(p) => addCc(p)}
+                        onDone={() => setPicking(false)}
+                      />
+                    </Reveal>
+
+                    {!picking && cc.length < MAX_CC && (
+                      <button
+                        type="button"
+                        onClick={() => setPicking(true)}
+                        className="group flex w-full items-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 px-4 py-3 text-left transition-all duration-200 hover:border-brand-300 hover:bg-brand-50/40"
+                      >
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white text-brand-600 shadow-sm ring-1 ring-slate-200 transition-transform duration-200 group-hover:-translate-y-0.5">
+                          <UserPlus className="h-4 w-4" />
+                        </span>
+                        <span>
+                          <span className="block text-sm font-semibold text-slate-800">
+                            {cc.length
+                              ? 'Add another on CC'
+                              : 'Add from employee directory'}
+                          </span>
+                          <span className="block text-xs text-slate-500">
+                            Search by name, code or designation
+                          </span>
+                        </span>
+                      </button>
+                    )}
+                  </Section>
+
+                  {/* ③ The leavers */}
                   {leavers.length > 0 && (
                     <Section
-                      n={2}
+                      n={3}
                       title="Leaver’s email"
                       hint={`replaces ${leavers.length > 1 ? `${leavers.length} people` : 'one person'}`}
-                      delay={80}
+                      delay={120}
                     >
                       <div className="space-y-2">
                         {leavers.map((l, i) => {
@@ -509,119 +617,6 @@ export function NotifyItModal({
                       </div>
                     </Section>
                   )}
-
-                  {/* ③ Who else sees it */}
-                  <Section
-                    n={leavers.length > 0 ? 3 : 2}
-                    title="Copy someone"
-                    hint="optional"
-                    delay={120}
-                  >
-                    {cc.length === 0 && !picking && (
-                      <p className="mb-3 text-xs leading-5 text-slate-500">
-                        Nobody is copied. Add colleagues from the employee
-                        directory if they should see this request — or skip it.
-                      </p>
-                    )}
-
-                    {cc.length > 0 && (
-                      <ul className="mb-2.5 space-y-2">
-                        {cc.map((c) => {
-                          const email = ccEmail.get(c.code);
-                          return (
-                            <li
-                              key={c.code}
-                              className={cn(
-                                'flex items-center gap-3 rounded-2xl border bg-white px-3 py-2 motion-safe:animate-card-in',
-                                email === null
-                                  ? 'border-rose-200'
-                                  : 'border-slate-200'
-                              )}
-                            >
-                              <Avatar
-                                name={c.name}
-                                src={c.avatarUrl}
-                                size="sm"
-                              />
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-medium text-slate-800">
-                                  {c.name}
-                                  {c.designation && (
-                                    <span className="font-normal text-slate-400">
-                                      {' '}
-                                      · {c.designation}
-                                    </span>
-                                  )}
-                                </p>
-                                <p
-                                  className={cn(
-                                    'truncate text-xs',
-                                    email === null
-                                      ? 'text-rose-600'
-                                      : 'text-slate-500'
-                                  )}
-                                >
-                                  {email === undefined ? (
-                                    <span className="inline-flex items-center gap-1 text-slate-400">
-                                      <Loader2 className="h-3 w-3 animate-spin" />{' '}
-                                      Looking up the address…
-                                    </span>
-                                  ) : email === null ? (
-                                    'No email address on file — cannot be copied'
-                                  ) : (
-                                    email
-                                  )}
-                                </p>
-                              </div>
-                              <button
-                                type="button"
-                                aria-label={`Do not copy ${c.name}`}
-                                onClick={() =>
-                                  setCc((list) =>
-                                    list.filter((x) => x.code !== c.code)
-                                  )
-                                }
-                                className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                              >
-                                <X className="h-4 w-4" />
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-
-                    <Reveal open={picking}>
-                      <CcPicker
-                        active={picking}
-                        picked={cc.map((c) => c.code)}
-                        onPick={(p) => addCc(p)}
-                        onDone={() => setPicking(false)}
-                      />
-                    </Reveal>
-
-                    {!picking && cc.length < MAX_CC && (
-                      <button
-                        type="button"
-                        onClick={() => setPicking(true)}
-                        className="group flex w-full items-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 px-4 py-3 text-left transition-all duration-200 hover:border-brand-300 hover:bg-brand-50/40"
-                      >
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white text-brand-600 shadow-sm ring-1 ring-slate-200 transition-transform duration-200 group-hover:-translate-y-0.5">
-                          <UserPlus className="h-4 w-4" />
-                        </span>
-                        <span>
-                          <span className="block text-sm font-semibold text-slate-800">
-                            {cc.length
-                              ? 'Copy someone else'
-                              : 'Add from employee directory'}
-                          </span>
-                          <span className="block text-xs text-slate-500">
-                            Search by name, code or designation
-                          </span>
-                        </span>
-                      </button>
-                    )}
-                  </Section>
                 </div>
               </div>
 
@@ -731,7 +726,7 @@ export function NotifyItModal({
                       {d.recipients.join(', ')}
                     </span>
                     {' · '}
-                    {cc.length ? `${cc.length} copied` : 'nobody copied'}
+                    {cc.length ? `${cc.length} on CC` : 'nobody on CC'}
                     {deleting > 0 &&
                       ` · ${deleting} account${deleting > 1 ? 's' : ''} to delete`}
                     <span className="hidden md:inline">
