@@ -203,6 +203,8 @@ export default function EvaluateByTokenPage() {
           location={data.interview.location}
           markerName={data.panelistName}
           cvUrl={data.candidate.cvUrl}
+          profileCvUrl={data.candidate.profileCvUrl}
+          profileCvSource={data.candidate.profileCvSource}
           brief={data.candidate.brief}
           facilities={
             data.fromHr && data.facilities ? (

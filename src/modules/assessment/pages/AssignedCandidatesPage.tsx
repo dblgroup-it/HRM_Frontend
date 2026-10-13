@@ -9,7 +9,6 @@ import {
   Clock,
   Copy,
   CornerDownRight,
-  FileText,
   Hourglass,
   ListChecks,
   RotateCcw,
@@ -57,13 +56,13 @@ import type {
 } from '../types/assessment.types';
 import { isDelegationDone } from '../components/firstInterviewStage';
 import { interviewUrgency } from '../components/interviewUrgency';
-import { resolveApiFileUrl } from '@shared/api';
 import {
   RegretMailModal,
   RegretMailToggle,
   useSendRegretMail,
 } from '@modules/candidates';
 import type { RegretTarget } from '@modules/candidates';
+import { CvLinks } from '@modules/candidates/components/CvLinks';
 
 /** What the regret-mail modal needs, from a board row. */
 const regretTargetOf = (row: DelegatedCandidate): RegretTarget => ({
@@ -1141,6 +1140,21 @@ function BoardCard({
   const pressing =
     (col === 'to_schedule' && age.tone === 'late') || soon === 'overdue';
 
+  // "Personal CV" and "BDJobs CV" for a BDJobs applicant; "CV" otherwise.
+  const twoCvs = Boolean(row.candidate.cvUrl && row.candidate.profileCvUrl);
+  const cvLinks = (
+    <CvLinks
+      cvUrl={row.candidate.cvUrl}
+      profileCvUrl={row.candidate.profileCvUrl}
+      profileCvSource={row.candidate.profileCvSource}
+      label="CV"
+      draggable={false}
+      iconClassName="h-3.5 w-3.5"
+      labelClassName="truncate"
+      className="inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[0.6875rem] font-semibold text-slate-600 transition-all hover:-translate-y-0.5 hover:border-brand-200 hover:text-brand-600 hover:shadow-sm"
+    />
+  );
+
   return (
     <article
       data-card={row.id}
@@ -1386,23 +1400,15 @@ function BoardCard({
         // Two fixed rows, so nothing wraps on a narrow card: the tools share
         // the first equally, the stage's own step(s) the second.
         <div className="space-y-2 border-t border-slate-100 px-4 py-3 lg:border-t-0">
+          {/* A BDJobs applicant's two CVs get a row of their own — beside
+              Test marks and Facilities, four labels did not fit. */}
+          {twoCvs && <div className="flex gap-1.5">{cvLinks}</div>}
           <div className="flex gap-1.5">
           {/* Labelled, not three bare glyphs in a box. A document, a
               checklist and a dollar sign all render at 14px as "some kind
               of form", and the only way to tell them apart was to hover
               each one and wait for a tooltip. */}
-          {row.candidate.cvUrl && (
-            <a
-              href={resolveApiFileUrl(row.candidate.cvUrl)}
-              target="_blank"
-              rel="noreferrer"
-              draggable={false}
-              className="inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[0.6875rem] font-semibold text-slate-600 transition-all hover:-translate-y-0.5 hover:border-brand-200 hover:text-brand-600 hover:shadow-sm"
-            >
-              <FileText className="h-3.5 w-3.5" />
-              CV
-            </a>
-          )}
+          {!twoCvs && cvLinks}
           <button
             type="button"
             onClick={onEnterMarks}

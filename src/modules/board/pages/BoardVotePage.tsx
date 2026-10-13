@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { BadgeCheck, Building2, CheckCircle2, Clock, FileText, Layers, Sparkles, XCircle } from 'lucide-react';
+import { BadgeCheck, Building2, CheckCircle2, Clock, Layers, Sparkles, XCircle } from 'lucide-react';
 
 import { FullPageSpinner } from '@shared/components/ui';
 import { useSubmitVote, useVoteInfo } from '../hooks/useBoard';
-import { resolveApiFileUrl } from '@shared/api';
+import { CvLinks } from '@modules/candidates/components/CvLinks';
 
 export default function BoardVotePage() {
   const { token = '' } = useParams<{ token: string }>();
@@ -99,13 +99,16 @@ export default function BoardVotePage() {
             )}
           </div>
 
-          {c.cvUrl && (
-            <div className="border-t border-slate-100 px-5 py-3">
-              <a href={resolveApiFileUrl(c.cvUrl)} target="_blank" rel="noreferrer"
-                className="inline-flex items-center gap-2 text-[0.8125rem] font-medium text-brand-600 hover:text-brand-700">
-                <FileText className="h-4 w-4" />
-                View Candidate CV
-              </a>
+          {(c.cvUrl || c.profileCvUrl) && (
+            <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-slate-100 px-5 py-3">
+              <CvLinks
+                cvUrl={c.cvUrl}
+                profileCvUrl={c.profileCvUrl}
+                profileCvSource={c.profileCvSource}
+                label="View Candidate CV"
+                iconClassName="h-4 w-4"
+                className="inline-flex items-center gap-2 text-[0.8125rem] font-medium text-brand-600 hover:text-brand-700"
+              />
             </div>
           )}
         </div>

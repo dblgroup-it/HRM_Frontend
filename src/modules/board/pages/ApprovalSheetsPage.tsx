@@ -3,7 +3,6 @@ import {
   ClipboardList,
   FileSpreadsheet,
   Download,
-  FileText,
   Printer,
   Send,
   CheckCircle2,
@@ -42,7 +41,7 @@ import type {
   SheetRow,
   SheetSummary,
 } from '../types/board.types';
-import { resolveApiFileUrl } from '@shared/api';
+import { CvLinks } from '@modules/candidates/components/CvLinks';
 
 const money = (n: number | null) =>
   n == null
@@ -185,18 +184,13 @@ export default function ApprovalSheetsPage() {
                       {r.name}
                       {/* The CV goes with the name — the sheet mirrors DBL's
                           paper form and gains no column of its own. */}
-                      {r.cvUrl && (
-                        <a
-                          href={resolveApiFileUrl(r.cvUrl)}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="mt-0.5 flex items-center gap-1 text-[0.6875rem] font-normal text-brand-600 hover:underline"
-                        >
-                          <FileText className="h-3 w-3" />
-                          View CV
-                        </a>
-                      )}
+                      <CvLinks
+                        cvUrl={r.cvUrl}
+                        profileCvUrl={r.profileCvUrl}
+                        profileCvSource={r.profileCvSource}
+                        stopPropagation
+                        className="mt-0.5 flex items-center gap-1 text-[0.6875rem] font-normal text-brand-600 hover:underline"
+                      />
                     </td>
                     <td className="px-3 py-2.5 text-slate-700">{r.position}</td>
                     <td className="px-3 py-2.5 text-slate-600">{r.department}</td>
@@ -618,17 +612,13 @@ function SheetRowEditor({ row, index }: { row: SheetRow; index: number }) {
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
         <span className="text-slate-400">{index + 1}.</span>
         <span className="font-semibold text-slate-900">{row.name}</span>
-        {row.cvUrl && (
-          <a
-            href={resolveApiFileUrl(row.cvUrl)}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1 text-brand-600 hover:underline"
-          >
-            <FileText className="h-3 w-3" />
-            CV
-          </a>
-        )}
+        <CvLinks
+          cvUrl={row.cvUrl}
+          profileCvUrl={row.profileCvUrl}
+          profileCvSource={row.profileCvSource}
+          label="CV"
+          className="inline-flex items-center gap-1 text-brand-600 hover:underline"
+        />
         <span className="text-slate-500">
           {row.position} · {row.unit}
         </span>

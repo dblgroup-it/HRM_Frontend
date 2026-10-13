@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import {
   Check,
   ChevronDown,
-  FileText,
   RotateCcw,
   Search,
   UserCheck,
@@ -19,7 +18,6 @@ import {
   PageHeader,
   Spinner,
 } from '@shared/components/ui';
-import { resolveApiFileUrl } from '@shared/api';
 import { cn } from '@shared/lib';
 import { formatDate } from '@shared/utils';
 import { useMyPermissions } from '@modules/rbac';
@@ -34,6 +32,7 @@ import type {
   FirstInterviewApprovalRow,
   HeadDecision,
 } from '../types/assessment.types';
+import { CvLinks } from '@modules/candidates/components/CvLinks';
 
 /** A decision that needs a reason before it goes. */
 interface PendingAction {
@@ -352,16 +351,13 @@ function Row({
               />
               {open ? 'Hide interview' : 'View interview'}
             </button>
-            {row.cvUrl && (
-              <a
-                href={resolveApiFileUrl(row.cvUrl)}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-[0.6875rem] font-semibold text-brand-600 hover:text-brand-800"
-              >
-                <FileText className="h-3 w-3" /> CV
-              </a>
-            )}
+            <CvLinks
+              cvUrl={row.cvUrl}
+              profileCvUrl={row.profileCvUrl}
+              profileCvSource={row.profileCvSource}
+              label="CV"
+              className="inline-flex items-center gap-1 text-[0.6875rem] font-semibold text-brand-600 hover:text-brand-800"
+            />
           </div>
         </div>
 

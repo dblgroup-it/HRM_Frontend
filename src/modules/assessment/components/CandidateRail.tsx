@@ -3,15 +3,14 @@ import {
   CalendarClock,
   UserRound,
   ExternalLink,
-  FileText,
   MapPin,
   Video,
 } from 'lucide-react';
 
 import { cn } from '@shared/lib';
-import { resolveApiFileUrl } from '@shared/api';
 
 import type { CandidateBrief } from '../types/assessment.types';
+import { CvLinks } from '@modules/candidates/components/CvLinks';
 
 function cap(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -30,6 +29,9 @@ export interface CandidateRailProps {
   /** "Marking as …" — the emailed page names the panelist; in-app it is you. */
   markerName?: string;
   cvUrl: string | null;
+  /** The BDJobs CV — beside `cvUrl` ("Personal CV") for a BDJobs applicant. */
+  profileCvUrl?: string | null;
+  profileCvSource?: string | null;
   brief: CandidateBrief | null | undefined;
   /**
    * Where the rail pins from `lg` up — below whatever header the page has.
@@ -67,6 +69,8 @@ export function CandidateRail({
   location,
   markerName,
   cvUrl,
+  profileCvUrl,
+  profileCvSource,
   brief,
   stickyClassName = 'lg:top-[4.25rem]',
   facilities,
@@ -269,18 +273,17 @@ export function CandidateRail({
 
           {facilities}
 
-          {cvUrl && (
-            <div className="border-t border-slate-200 p-3">
-              <a
-                href={resolveApiFileUrl(cvUrl)}
-                target="_blank"
-                rel="noreferrer"
+          {(cvUrl || profileCvUrl) && (
+            <div className="space-y-2 border-t border-slate-200 p-3">
+              <CvLinks
+                cvUrl={cvUrl}
+                profileCvUrl={profileCvUrl}
+                profileCvSource={profileCvSource}
+                label="Full CV"
+                iconClassName="h-4 w-4"
+                trailing={<ExternalLink className="h-3.5 w-3.5 shrink-0 text-white/80" />}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-3.5 py-2.5 text-xs font-semibold text-white shadow-sm shadow-brand-600/25 transition-all hover:bg-brand-700 active:scale-[0.98]"
-              >
-                <FileText className="h-4 w-4 shrink-0" />
-                Full CV
-                <ExternalLink className="h-3.5 w-3.5 shrink-0 text-white/80" />
-              </a>
+              />
             </div>
           )}
         </div>

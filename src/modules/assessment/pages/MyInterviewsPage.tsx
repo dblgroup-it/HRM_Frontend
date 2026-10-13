@@ -419,6 +419,8 @@ function EvaluationSheet({
           scheduledAt={round.scheduledAt}
           location={round.location}
           cvUrl={round.candidate.cvUrl}
+          profileCvUrl={round.candidate.profileCvUrl}
+          profileCvSource={round.candidate.profileCvSource}
           brief={round.candidate.brief}
           stickyClassName="lg:top-0"
           facilities={
