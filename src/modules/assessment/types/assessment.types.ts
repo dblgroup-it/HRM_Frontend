@@ -171,9 +171,9 @@ export interface PublicEvalData {
   candidate: {
     name: string;
     cvUrl: string | null;
-    /** The BDJobs CV as a PDF — beside `cvUrl` ("Personal CV") for a BDJobs applicant. */
+    /** The BDJobs CV as a PDF — only when there is no personal CV (`cvUrl`). */
     profileCvUrl?: string | null;
-    /** 'bdjobs' when `profileCvUrl` is the BDJobs CV. */
+    /** 'bdjobs' for a BDJobs applicant — the one CV link says which CV it is. */
     profileCvSource?: string | null;
     /** The CV as facts, so a panelist is not scoring a PDF in another tab. */
     brief: CandidateBrief;
@@ -270,9 +270,9 @@ export interface MyInterviewRound {
     email: string;
     phone: string;
     cvUrl: string | null;
-    /** The BDJobs CV as a PDF — beside `cvUrl` ("Personal CV") for a BDJobs applicant. */
+    /** The BDJobs CV as a PDF — only when there is no personal CV (`cvUrl`). */
     profileCvUrl?: string | null;
-    /** 'bdjobs' when `profileCvUrl` is the BDJobs CV. */
+    /** 'bdjobs' for a BDJobs applicant — the one CV link says which CV it is. */
     profileCvSource?: string | null;
     /** The same block the token form shows. */
     brief: CandidateBrief;
@@ -337,9 +337,9 @@ export interface DelegatedCandidate {
     phone: string | null;
     stage: string;
     cvUrl: string | null;
-    /** The BDJobs CV as a PDF — beside `cvUrl` ("Personal CV") for a BDJobs applicant. */
+    /** The BDJobs CV as a PDF — only when there is no personal CV (`cvUrl`). */
     profileCvUrl?: string | null;
-    /** 'bdjobs' when `profileCvUrl` is the BDJobs CV. */
+    /** 'bdjobs' for a BDJobs applicant — the one CV link says which CV it is. */
     profileCvSource?: string | null;
     rejectedAt: string | null;
     /** 'first_interview' when a factory-side interviewer turned them down. */
@@ -555,9 +555,9 @@ export interface FirstInterviewApprovalRow {
   email: string;
   phone: string;
   cvUrl: string | null;
-  /** The BDJobs CV as a PDF — beside `cvUrl` ("Personal CV") for a BDJobs applicant. */
+  /** The BDJobs CV as a PDF — only when there is no personal CV (`cvUrl`). */
   profileCvUrl?: string | null;
-  /** 'bdjobs' when `profileCvUrl` is the BDJobs CV. */
+  /** 'bdjobs' for a BDJobs applicant — the one CV link says which CV it is. */
   profileCvSource?: string | null;
   matchScore: number | null;
   presentSalary: number | null;

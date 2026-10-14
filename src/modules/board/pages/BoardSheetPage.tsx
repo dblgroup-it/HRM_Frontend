@@ -7,7 +7,7 @@ import { cn } from '@shared/lib';
 
 import { useSheetVote, useSubmitSheetVote } from '../hooks/useBoard';
 import type { SheetRow } from '../types/board.types';
-import { CvLinks } from '@modules/candidates/components/CvLinks';
+import { CvLink } from '@modules/candidates/components/CvLink';
 
 const money = (n: number | null) =>
   n == null
@@ -149,7 +149,7 @@ export default function BoardSheetPage() {
                     {r.name}
                     {/* An approver asked to sign for a hire should be able to
                         read the CV without leaving the sheet. */}
-                    <CvLinks
+                    <CvLink
                       cvUrl={r.cvUrl}
                       profileCvUrl={r.profileCvUrl}
                       profileCvSource={r.profileCvSource}

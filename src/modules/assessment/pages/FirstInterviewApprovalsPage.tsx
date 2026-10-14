@@ -32,7 +32,7 @@ import type {
   FirstInterviewApprovalRow,
   HeadDecision,
 } from '../types/assessment.types';
-import { CvLinks } from '@modules/candidates/components/CvLinks';
+import { CvLink } from '@modules/candidates/components/CvLink';
 
 /** A decision that needs a reason before it goes. */
 interface PendingAction {
@@ -351,7 +351,7 @@ function Row({
               />
               {open ? 'Hide interview' : 'View interview'}
             </button>
-            <CvLinks
+            <CvLink
               cvUrl={row.cvUrl}
               profileCvUrl={row.profileCvUrl}
               profileCvSource={row.profileCvSource}

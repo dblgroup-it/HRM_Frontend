@@ -70,9 +70,9 @@ export interface VotePageInfo {
     department: string;
     code: string;
     cvUrl: string | null;
-    /** The BDJobs CV as a PDF — beside `cvUrl` ("Personal CV") for a BDJobs applicant. */
+    /** The BDJobs CV as a PDF — only when there is no personal CV (`cvUrl`). */
     profileCvUrl?: string | null;
-    /** 'bdjobs' when `profileCvUrl` is the BDJobs CV. */
+    /** 'bdjobs' for a BDJobs applicant — the one CV link says which CV it is. */
     profileCvSource?: string | null;
     /** The figure this chain signs off on. Replaces the AI match score. */
     salary: number | null;
@@ -89,9 +89,9 @@ export interface SheetRow {
   candidateId: string;
   name: string;
   cvUrl: string | null;
-  /** The BDJobs CV as a PDF — beside `cvUrl` ("Personal CV") for a BDJobs applicant. */
+  /** The BDJobs CV as a PDF — only when there is no personal CV (`cvUrl`). */
   profileCvUrl?: string | null;
-  /** 'bdjobs' when `profileCvUrl` is the BDJobs CV. */
+  /** 'bdjobs' for a BDJobs applicant — the one CV link says which CV it is. */
   profileCvSource?: string | null;
   position: string;
   department: string;

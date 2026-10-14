@@ -62,7 +62,7 @@ import {
   useSendRegretMail,
 } from '@modules/candidates';
 import type { RegretTarget } from '@modules/candidates';
-import { CvLinks } from '@modules/candidates/components/CvLinks';
+import { CvLink } from '@modules/candidates/components/CvLink';
 
 /** What the regret-mail modal needs, from a board row. */
 const regretTargetOf = (row: DelegatedCandidate): RegretTarget => ({
@@ -1140,10 +1140,9 @@ function BoardCard({
   const pressing =
     (col === 'to_schedule' && age.tone === 'late') || soon === 'overdue';
 
-  // "Personal CV" and "BDJobs CV" for a BDJobs applicant; "CV" otherwise.
-  const twoCvs = Boolean(row.candidate.cvUrl && row.candidate.profileCvUrl);
-  const cvLinks = (
-    <CvLinks
+  // The candidate's own CV, or their BDJobs CV when they have none.
+  const cvLink = (
+    <CvLink
       cvUrl={row.candidate.cvUrl}
       profileCvUrl={row.candidate.profileCvUrl}
       profileCvSource={row.candidate.profileCvSource}
@@ -1400,15 +1399,12 @@ function BoardCard({
         // Two fixed rows, so nothing wraps on a narrow card: the tools share
         // the first equally, the stage's own step(s) the second.
         <div className="space-y-2 border-t border-slate-100 px-4 py-3 lg:border-t-0">
-          {/* A BDJobs applicant's two CVs get a row of their own — beside
-              Test marks and Facilities, four labels did not fit. */}
-          {twoCvs && <div className="flex gap-1.5">{cvLinks}</div>}
           <div className="flex gap-1.5">
           {/* Labelled, not three bare glyphs in a box. A document, a
               checklist and a dollar sign all render at 14px as "some kind
               of form", and the only way to tell them apart was to hover
               each one and wait for a tooltip. */}
-          {!twoCvs && cvLinks}
+          {cvLink}
           <button
             type="button"
             onClick={onEnterMarks}

@@ -35,7 +35,7 @@ import {
 } from '../hooks/useCandidates';
 import { canViewCandidatePipeline } from '../access';
 import type { TalentBankSearchHit, TalentPoolCandidate } from '../types/candidate.types';
-import { CvLinks } from '@modules/candidates/components/CvLinks';
+import { CvLink } from '@modules/candidates/components/CvLink';
 
 /* ─── constants ─── */
 const STAGE: Record<string, { label: string; tone: 'success' | 'brand' | 'warning' | 'neutral' }> = {
@@ -309,7 +309,7 @@ function CandidateRow({
       <div className="flex shrink-0 items-center gap-2">
         {/* View CV — icon-only on mobile, icon+text on sm+ */}
         {c.cvUrl || c.profileCvUrl ? (
-          <CvLinks
+          <CvLink
             cvUrl={c.cvUrl}
             profileCvUrl={c.profileCvUrl}
             profileCvSource={c.profileCvSource}

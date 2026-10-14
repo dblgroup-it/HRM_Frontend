@@ -77,12 +77,12 @@ export interface Candidate {
    */
   hasGeneratedCv?: boolean;
   /**
-   * The CV rendered from the stored profile, as a PDF — opens in a new tab.
-   * For a Bdjobs applicant it is the "BDJobs CV", shown beside their own
-   * file ("Personal CV") when they attached one. Null for an uploaded CV.
+   * The CV rendered from the stored profile, as a PDF — the "BDJobs CV".
+   * Sent beside a personal CV (`cvUrl`) too: the pipeline row shows both.
+   * Every other screen opens one, personal first (`CvLink`).
    */
   profileCvUrl?: string | null;
-  /** 'bdjobs' when `profileCvUrl` is the BDJobs CV. */
+  /** 'bdjobs' for a BDJobs applicant — the one CV button says which CV it is. */
   profileCvSource?: string | null;
   notes: string;
   salaryExpectation: number | null;

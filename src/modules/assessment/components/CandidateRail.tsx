@@ -10,7 +10,7 @@ import {
 import { cn } from '@shared/lib';
 
 import type { CandidateBrief } from '../types/assessment.types';
-import { CvLinks } from '@modules/candidates/components/CvLinks';
+import { CvLink } from '@modules/candidates/components/CvLink';
 
 function cap(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -29,7 +29,7 @@ export interface CandidateRailProps {
   /** "Marking as …" — the emailed page names the panelist; in-app it is you. */
   markerName?: string;
   cvUrl: string | null;
-  /** The BDJobs CV — beside `cvUrl` ("Personal CV") for a BDJobs applicant. */
+  /** The BDJobs CV — only when there is no personal CV (`cvUrl`). */
   profileCvUrl?: string | null;
   profileCvSource?: string | null;
   brief: CandidateBrief | null | undefined;
@@ -274,8 +274,8 @@ export function CandidateRail({
           {facilities}
 
           {(cvUrl || profileCvUrl) && (
-            <div className="space-y-2 border-t border-slate-200 p-3">
-              <CvLinks
+            <div className="border-t border-slate-200 p-3">
+              <CvLink
                 cvUrl={cvUrl}
                 profileCvUrl={profileCvUrl}
                 profileCvSource={profileCvSource}

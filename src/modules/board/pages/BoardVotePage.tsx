@@ -4,7 +4,7 @@ import { BadgeCheck, Building2, CheckCircle2, Clock, Layers, Sparkles, XCircle }
 
 import { FullPageSpinner } from '@shared/components/ui';
 import { useSubmitVote, useVoteInfo } from '../hooks/useBoard';
-import { CvLinks } from '@modules/candidates/components/CvLinks';
+import { CvLink } from '@modules/candidates/components/CvLink';
 
 export default function BoardVotePage() {
   const { token = '' } = useParams<{ token: string }>();
@@ -100,8 +100,8 @@ export default function BoardVotePage() {
           </div>
 
           {(c.cvUrl || c.profileCvUrl) && (
-            <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-slate-100 px-5 py-3">
-              <CvLinks
+            <div className="border-t border-slate-100 px-5 py-3">
+              <CvLink
                 cvUrl={c.cvUrl}
                 profileCvUrl={c.profileCvUrl}
                 profileCvSource={c.profileCvSource}

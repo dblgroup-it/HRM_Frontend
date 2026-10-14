@@ -41,7 +41,7 @@ import type {
   SheetRow,
   SheetSummary,
 } from '../types/board.types';
-import { CvLinks } from '@modules/candidates/components/CvLinks';
+import { CvLink } from '@modules/candidates/components/CvLink';
 
 const money = (n: number | null) =>
   n == null
@@ -184,7 +184,7 @@ export default function ApprovalSheetsPage() {
                       {r.name}
                       {/* The CV goes with the name — the sheet mirrors DBL's
                           paper form and gains no column of its own. */}
-                      <CvLinks
+                      <CvLink
                         cvUrl={r.cvUrl}
                         profileCvUrl={r.profileCvUrl}
                         profileCvSource={r.profileCvSource}
@@ -612,7 +612,7 @@ function SheetRowEditor({ row, index }: { row: SheetRow; index: number }) {
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
         <span className="text-slate-400">{index + 1}.</span>
         <span className="font-semibold text-slate-900">{row.name}</span>
-        <CvLinks
+        <CvLink
           cvUrl={row.cvUrl}
           profileCvUrl={row.profileCvUrl}
           profileCvSource={row.profileCvSource}

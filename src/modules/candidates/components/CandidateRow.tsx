@@ -494,9 +494,10 @@ export function CandidateRow({
             {primary === 'salary' && salaryBtn}
             {primary === 'scan' && scanBtn}
 
-            {/* A Bdjobs applicant can have two CVs: the one they attached
-                ("Personal CV") and their application laid out as Bdjobs'
-                details CV ("BDJobs CV"). Both open in a new tab. */}
+            {/* The recruiter's row is the one place both CVs show: the
+                applicant's own ("Personal CV") and their application as a PDF
+                ("BDJobs CV"). Every other screen opens one, personal first
+                (CvLink). Both open in a new tab. */}
             {candidate.cvUrl && (
               <ActionBtn
                 as="a"
