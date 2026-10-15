@@ -592,3 +592,21 @@ export interface HeadDecisionResult {
   skipped: number;
   results: { candidateId: string; ok: boolean; error?: string }[];
 }
+
+/** One candidate behind a Candidate Approval email's link, decided or not. */
+export interface CandidateApprovalLinkRow extends FirstInterviewApprovalRow {
+  status: 'pending' | 'approved' | 'returned' | 'rejected';
+  decidedBy: string | null;
+  decidedAt: string | null;
+  decisionNote: string | null;
+}
+
+/** What the Candidate Approval email's link opens (no sign-in). */
+export interface CandidateApprovalLinkInfo {
+  headName: string;
+  submittedBy: string | null;
+  sentAt: string;
+  expiresAt: string;
+  expired: boolean;
+  candidates: CandidateApprovalLinkRow[];
+}

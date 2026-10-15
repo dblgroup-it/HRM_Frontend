@@ -19,6 +19,7 @@ import type {
   DelegateWorkload,
   DelegationBoard,
   BulkFirstInterviewOutcomeResult,
+  CandidateApprovalLinkInfo,
   FirstInterviewApprovalRow,
   FirstInterviewOutcomeResult,
   HeadDecision,
@@ -125,6 +126,21 @@ export const assessmentApi = {
         '/first-interview-approvals/decide',
         input,
       )
+      .then((r) => r.data),
+
+  /** Public: the candidates a Candidate Approval email's link covers. */
+  candidateApprovalLink: (token: string): Promise<CandidateApprovalLinkInfo> =>
+    http
+      .get<ApiResponse<CandidateApprovalLinkInfo>>(`/candidate-approval/${token}`)
+      .then((r) => r.data),
+
+  /** Public: the Head's decision from that link — one candidate or several. */
+  decideByApprovalLink: (
+    token: string,
+    input: { candidateIds: string[]; decision: HeadDecision; note?: string },
+  ): Promise<HeadDecisionResult> =>
+    http
+      .post<ApiResponse<HeadDecisionResult>>(`/candidate-approval/${token}`, input)
       .then((r) => r.data),
 
   /** Hand-marked screening tests for one candidate — no salary information. */

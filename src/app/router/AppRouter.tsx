@@ -25,6 +25,9 @@ const ApprovalPathsPage = lazy(
 const BoardGroupsPage = lazy(() => import('@modules/board/pages/BoardGroupsPage'));
 const BoardVotePage   = lazy(() => import('@modules/board/pages/BoardVotePage'));
 const RequisitionBoardVotePage = lazy(() => import('@modules/requisition/pages/RequisitionBoardVotePage'));
+const CandidateApprovalLinkPage = lazy(
+  () => import('@modules/assessment/pages/CandidateApprovalLinkPage'),
+);
 const ActivityLogPage = lazy(() => import('@modules/audit/pages/ActivityLogPage'));
 const ApiLogsPage = lazy(() => import('@modules/system/pages/ApiLogsPage'));
 const DevToolsPage = lazy(() => import('@modules/system/pages/DevToolsPage'));
@@ -131,6 +134,7 @@ export function AppRouter() {
         <Route path={ROUTES.onboarding()} element={<OnboardingPage />} />
         <Route path={ROUTES.boardVote()} element={<BoardVotePage />} />
         <Route path={ROUTES.requisitionBoardVote()} element={<RequisitionBoardVotePage />} />
+        <Route path={ROUTES.candidateApproval()} element={<CandidateApprovalLinkPage />} />
         <Route path={ROUTES.boardSheet()} element={<BoardSheetPage />} />
         <Route path={ROUTES.facilityConfirm()} element={<FacilityConfirmPage />} />
         <Route path={ROUTES.itRequestConfirm()} element={<ItRequestConfirmPage />} />

@@ -148,7 +148,7 @@ export const NAVIGATION: NavSection[] = [
         requiresDelegations: true,
       },
       {
-        label: 'First Interview Approvals',
+        label: 'Candidate Approvals',
         to: ROUTES.firstInterviewApprovals,
         icon: UserCheck,
         requiresFirstInterviewApproval: true,

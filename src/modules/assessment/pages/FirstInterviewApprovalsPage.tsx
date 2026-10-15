@@ -1,25 +1,14 @@
 import { useMemo, useState } from 'react';
-import {
-  Check,
-  ChevronDown,
-  RotateCcw,
-  Search,
-  UserCheck,
-  X,
-} from 'lucide-react';
+import { Check, RotateCcw, Search, UserCheck } from 'lucide-react';
 
 import {
   Button,
   Card,
-  Checkbox,
   EmptyState,
   Input,
-  Modal,
   PageHeader,
   Spinner,
 } from '@shared/components/ui';
-import { cn } from '@shared/lib';
-import { formatDate } from '@shared/utils';
 import { useMyPermissions } from '@modules/rbac';
 
 import { canApproveFirstInterviews } from '../access';
@@ -27,24 +16,23 @@ import {
   useDecideFirstInterviewApprovals,
   useFirstInterviewApprovals,
 } from '../hooks/useAssessment';
-import { recommendationLabel, recommendationTone } from '../components/recommendation';
+import {
+  ApprovalRow,
+  DecisionDialog,
+  TickBox,
+  type PendingAction,
+} from '../components/CandidateApprovalRow';
 import type {
   FirstInterviewApprovalRow,
   HeadDecision,
 } from '../types/assessment.types';
-import { CvLink } from '@modules/candidates/components/CvLink';
-
-/** A decision that needs a reason before it goes. */
-interface PendingAction {
-  decision: Exclude<HeadDecision, 'approve'>;
-  ids: string[];
-  label: string;
-}
 
 /**
- * The Factory HR Head's queue.
+ * Candidate Approvals — the Factory HR Head's queue (renamed from First
+ * Interview Approvals, 2026-10-15). The Head can also decide from the email
+ * each send brings (CandidateApprovalLinkPage).
  *
- * Finalists Factory HR put through after a first interview they were handed.
+ * Candidates Factory HR put through after a first interview they were handed.
  * Nothing reaches the Corporate Recruiter for the second interview until it
  * is approved here. Built like Medical Approvals — oldest first, searchable,
  * one action for a whole selection — because it is worked the same way.
@@ -84,7 +72,7 @@ export default function FirstInterviewApprovalsPage() {
     return (
       <EmptyState
         title="Not available"
-        description="Only a Factory HR Head can approve first-interview finalists."
+        description="Only a Factory HR Head can approve candidates."
       />
     );
   }
@@ -127,8 +115,8 @@ export default function FirstInterviewApprovalsPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="First Interview Approvals"
-        description="Finalists Factory HR put through after the first interview. Approve them to send them to the Corporate Recruiter for the second interview."
+        title="Candidate Approvals"
+        description="Candidates Factory HR put through after the first interview. Approve them to send them to the Corporate Recruiter for the second interview."
       />
 
       <Card>
@@ -156,7 +144,7 @@ export default function FirstInterviewApprovalsPage() {
           <div className="py-12">
             <EmptyState
               title="Could not load the queue"
-              description="Something went wrong fetching the finalists. Try again."
+              description="Something went wrong fetching the candidates. Try again."
             />
           </div>
         ) : all.length === 0 ? (
@@ -164,20 +152,20 @@ export default function FirstInterviewApprovalsPage() {
             <EmptyState
               icon={<UserCheck className="h-6 w-6" />}
               title="Nothing waiting"
-              description="Every finalist Factory HR sent has been dealt with."
+              description="Every candidate Factory HR sent has been dealt with."
             />
           </div>
         ) : rows.length === 0 ? (
           <div className="py-12">
-            <EmptyState title="No matches" description="No finalist matches this search." />
+            <EmptyState title="No matches" description="No candidate matches this search." />
           </div>
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-3 bg-slate-50/70 px-4 py-2.5">
-              <Checkbox
-                label=""
-                checked={allVisibleSelected}
-                onChange={() =>
+              <TickBox
+              label="Select all"
+              checked={allVisibleSelected}
+              onChange={() =>
                   setSelected(
                     allVisibleSelected
                       ? new Set()
@@ -225,7 +213,7 @@ export default function FirstInterviewApprovalsPage() {
 
             <div className="divide-y divide-slate-100">
               {rows.map((row) => (
-                <Row
+                <ApprovalRow
                   key={row.candidateId}
                   row={row}
                   checked={selected.has(row.candidateId)}
@@ -255,300 +243,3 @@ export default function FirstInterviewApprovalsPage() {
   );
 }
 
-function pct(row: FirstInterviewApprovalRow): number | null {
-  const { averageTotal, maxTotal } = row.interview;
-  if (averageTotal === null || !maxTotal) return null;
-  return Math.round((averageTotal / maxTotal) * 100);
-}
-
-function Row({
-  row,
-  checked,
-  open,
-  busy,
-  onToggle,
-  onExpand,
-  onApprove,
-  onReject,
-  onReturn,
-}: {
-  row: FirstInterviewApprovalRow;
-  checked: boolean;
-  open: boolean;
-  busy: boolean;
-  onToggle: () => void;
-  onExpand: () => void;
-  onApprove: () => void;
-  onReject: () => void;
-  onReturn: () => void;
-}) {
-  const score = pct(row);
-  const verdicts = row.interview.panel.filter((p) => p.recommendation);
-  return (
-    <div className={cn('transition-colors', checked && 'bg-brand-50/40')}>
-      <div className="flex items-start gap-3 px-4 py-3.5">
-        <div className="pt-1">
-          <Checkbox label="" checked={checked} onChange={onToggle} />
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <p className="truncate text-sm font-semibold text-slate-900">
-              {row.candidateName}
-            </p>
-            {score !== null && (
-              <span
-                className={cn(
-                  'rounded-full px-2 py-0.5 text-[0.625rem] font-bold tabular-nums',
-                  score >= 70
-                    ? 'bg-emerald-50 text-emerald-700'
-                    : score >= 50
-                      ? 'bg-amber-50 text-amber-700'
-                      : 'bg-rose-50 text-rose-700',
-                )}
-                title={`Average ${row.interview.averageTotal} of ${row.interview.maxTotal}`}
-              >
-                {score}%
-              </span>
-            )}
-            {verdicts.map((p, i) => (
-              <span
-                key={`${p.name}-${i}`}
-                className={cn(
-                  'rounded-full px-2 py-0.5 text-[0.625rem] font-semibold ring-1',
-                  recommendationTone(p.recommendation!),
-                )}
-                title={`${p.name}'s recommendation`}
-              >
-                {recommendationLabel(p.recommendation!)}
-              </span>
-            ))}
-          </div>
-
-          <p className="mt-0.5 truncate text-xs text-slate-500">
-            {row.requisition.designation} · {row.requisition.unitFactory}
-          </p>
-          <p className="mt-1 text-[0.6875rem] text-slate-400">
-            {row.requisition.code}
-            {row.submittedBy ? ` · sent by ${row.submittedBy}` : ''}
-            {` · ${formatDate(row.submittedAt)}`}
-          </p>
-
-          {row.note && (
-            <p className="mt-2 border-l-2 border-slate-200 pl-2.5 text-xs italic text-slate-600">
-              {row.note}
-            </p>
-          )}
-
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={onExpand}
-              className="inline-flex items-center gap-1 text-[0.6875rem] font-semibold text-slate-500 hover:text-slate-800"
-            >
-              <ChevronDown
-                className={cn('h-3 w-3 transition-transform', open && 'rotate-180')}
-              />
-              {open ? 'Hide interview' : 'View interview'}
-            </button>
-            <CvLink
-              cvUrl={row.cvUrl}
-              profileCvUrl={row.profileCvUrl}
-              profileCvSource={row.profileCvSource}
-              label="CV"
-              className="inline-flex items-center gap-1 text-[0.6875rem] font-semibold text-brand-600 hover:text-brand-800"
-            />
-          </div>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-1">
-          <IconAction
-            title="Approve — send for the second interview"
-            tone="ok"
-            disabled={busy}
-            onClick={onApprove}
-            icon={Check}
-          />
-          <IconAction
-            title="Reject this candidate"
-            tone="alert"
-            disabled={busy}
-            onClick={onReject}
-            icon={X}
-          />
-          <IconAction
-            title="Return to Factory HR"
-            tone="plain"
-            disabled={busy}
-            onClick={onReturn}
-            icon={RotateCcw}
-          />
-        </div>
-      </div>
-
-      {open && (
-        <div className="space-y-3 px-3 pb-4 sm:px-4 sm:pl-[3.25rem]">
-          <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-            <Fact label="Interviewed">
-              {row.interview.scheduledAt ? formatDate(row.interview.scheduledAt) : '—'}
-            </Fact>
-            <Fact label="Average score">
-              {row.interview.averageTotal !== null
-                ? `${row.interview.averageTotal} / ${row.interview.maxTotal}`
-                : 'Not marked'}
-            </Fact>
-            <Fact label="Present salary">
-              {row.presentSalary != null ? `৳ ${row.presentSalary.toLocaleString()}` : '—'}
-            </Fact>
-            <Fact label="Expected salary">
-              {row.salaryExpectation != null
-                ? `৳ ${row.salaryExpectation.toLocaleString()}`
-                : '—'}
-            </Fact>
-          </div>
-          {row.interview.panel.length > 0 ? (
-            <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
-              {row.interview.panel.map((p, i) => (
-                <li key={`${p.name}-${i}`} className="px-3 py-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-semibold text-slate-800">{p.name}</span>
-                    <span className="text-xs tabular-nums text-slate-500">
-                      {p.total} / {row.interview.maxTotal}
-                    </span>
-                    {p.recommendation && (
-                      <span
-                        className={cn(
-                          'rounded-full px-2 py-0.5 text-[0.625rem] font-semibold ring-1',
-                          recommendationTone(p.recommendation),
-                        )}
-                      >
-                        {recommendationLabel(p.recommendation)}
-                      </span>
-                    )}
-                  </div>
-                  {p.comments && (
-                    <p className="mt-1 text-xs text-slate-600">{p.comments}</p>
-                  )}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-xs text-slate-400">No panel marks recorded.</p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white px-2.5 py-2">
-      <p className="text-[0.625rem] font-medium uppercase tracking-wide text-slate-400">
-        {label}
-      </p>
-      <p className="mt-0.5 font-semibold text-slate-800">{children}</p>
-    </div>
-  );
-}
-
-function IconAction({
-  title,
-  tone,
-  disabled,
-  onClick,
-  icon: Icon,
-}: {
-  title: string;
-  tone: 'ok' | 'alert' | 'plain';
-  disabled?: boolean;
-  onClick: () => void;
-  icon: typeof Check;
-}) {
-  return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      disabled={disabled}
-      onClick={onClick}
-      className={cn(
-        'rounded-lg border border-slate-200 p-2 text-slate-500 transition-colors disabled:opacity-40',
-        tone === 'ok' && 'hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700',
-        tone === 'alert' && 'hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700',
-        tone === 'plain' && 'hover:bg-slate-50 hover:text-slate-800',
-      )}
-    >
-      <Icon className="h-3.5 w-3.5" />
-    </button>
-  );
-}
-
-/** Returning or rejecting overrules the interviewer, so it carries a reason. */
-function DecisionDialog({
-  pending,
-  note,
-  busy,
-  onNote,
-  onCancel,
-  onConfirm,
-}: {
-  pending: PendingAction | null;
-  note: string;
-  busy: boolean;
-  onNote: (v: string) => void;
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  const reject = pending?.decision === 'reject';
-  const enough = note.trim().length >= 3;
-  return (
-    <Modal
-      open={Boolean(pending)}
-      onClose={onCancel}
-      size="md"
-      title={reject ? 'Reject after the first interview' : 'Return to Factory HR'}
-      footer={
-        <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={onCancel} disabled={busy}>
-            Cancel
-          </Button>
-          <Button
-            variant={reject ? 'danger' : 'primary'}
-            onClick={onConfirm}
-            disabled={!enough}
-            isLoading={busy}
-          >
-            {reject ? 'Reject' : 'Return'}
-          </Button>
-        </div>
-      }
-    >
-      <div className="space-y-3">
-        <p className="text-sm text-slate-600">
-          <span className="font-semibold text-slate-800">{pending?.label}</span>{' '}
-          {reject
-            ? 'will be rejected and taken off the pipeline. Factory HR and the recruiter are told.'
-            : 'will go back to Factory HR, still at the first interview. They can put them through again or turn them down.'}
-        </p>
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-slate-600">
-            {reject ? 'Reason for rejecting' : 'What should Factory HR look at again?'}
-          </span>
-          <textarea
-            autoFocus
-            rows={4}
-            value={note}
-            onChange={(e) => onNote(e.target.value)}
-            placeholder={
-              reject
-                ? 'e.g. Not enough hands-on experience with the knitting line'
-                : 'e.g. Confirm the notice period and re-check the practical test'
-            }
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-          />
-        </label>
-      </div>
-    </Modal>
-  );
-}
