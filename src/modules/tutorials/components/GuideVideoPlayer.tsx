@@ -20,6 +20,7 @@ import type { Tutorial, TutorialVideo } from '../types/tutorials.types';
 import { SPEEDS, chapterAt, clock, partLengths, speedLabel } from '../videoUtils';
 
 const SPEED_KEY = 'hrm.tutorials.videoSpeed';
+const VOLUME_KEY = 'hrm.tutorials.videoVolume';
 const SUBS_KEY = 'hrm.tutorials.videoSubs';
 const LANG_NAMES: Record<string, string> = { bn: 'বাংলা', en: 'English' };
 
@@ -51,6 +52,14 @@ export function GuideVideoPlayer({
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(video.durationMs / 1000);
   const [muted, setMuted] = useState(false);
+  const [volume, setVolume] = useState<number>(() => {
+    try {
+      const v = Number(localStorage.getItem(VOLUME_KEY));
+      return Number.isFinite(v) && v >= 0 && v <= 1 && localStorage.getItem(VOLUME_KEY) !== null ? v : 1;
+    } catch {
+      return 1;
+    }
+  });
   const [speed, setSpeed] = useState<number>(() => {
     try {
       const v = Number(localStorage.getItem(SPEED_KEY));
@@ -93,6 +102,20 @@ export function GuideVideoPlayer({
       /* a convenience only */
     }
   }, [subs, open]);
+
+  // Volume follows the element and is remembered.
+  useEffect(() => {
+    const el = ref.current;
+    if (el) {
+      el.volume = volume;
+      if (volume > 0 && el.muted) el.muted = false;
+    }
+    try {
+      localStorage.setItem(VOLUME_KEY, String(volume));
+    } catch {
+      /* a convenience only */
+    }
+  }, [volume, open]);
 
   const seekTo = useCallback((ms: number) => {
     const el = ref.current;
@@ -148,6 +171,16 @@ export function GuideVideoPlayer({
       else if (e.key === ']') toPart(current + 1);
       else if (e.key === '[') toPart(time * 1000 - chapters[current].startMs > 3000 ? current : current - 1);
       else if (e.key === 'f') void frameRef.current?.requestFullscreen?.();
+      else if (e.key === 'm') {
+        const el = ref.current;
+        if (el) el.muted = !el.muted;
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setVolume((v) => Math.min(1, Math.round((v + 0.1) * 10) / 10));
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setVolume((v) => Math.max(0, Math.round((v - 0.1) * 10) / 10));
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -157,7 +190,7 @@ export function GuideVideoPlayer({
 
   return (
     <Modal open={open} onClose={onClose} size="full" title={`${guide.kicker} · ${guide.title}`}>
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_19rem]">
+      <div className="grid max-h-[calc(100vh-7rem)] gap-3 overflow-y-auto sm:gap-4 lg:max-h-none lg:grid-cols-[minmax(0,1fr)_19rem] lg:overflow-visible">
         {/* The screen */}
         <div
           ref={frameRef}
@@ -171,7 +204,7 @@ export function GuideVideoPlayer({
             crossOrigin="anonymous"
             preload="metadata"
             playsInline
-            className="aspect-video w-full bg-black"
+            className="aspect-video max-h-[70vh] w-full bg-black object-contain"
             onClick={toggle}
             onPlay={() => setPlaying(true)}
             onPause={() => setPlaying(false)}
@@ -197,7 +230,7 @@ export function GuideVideoPlayer({
               type="button"
               onClick={toggle}
               aria-label="Play"
-              className="absolute inset-0 flex items-center justify-center bg-black/20 transition-colors hover:bg-black/30"
+              className="absolute inset-x-0 top-0 flex aspect-video items-center justify-center bg-black/20 transition-colors hover:bg-black/30 sm:inset-0 sm:aspect-auto"
             >
               <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-xl transition-transform hover:scale-105">
                 <Play className="ml-1 h-7 w-7 fill-current" />
@@ -206,10 +239,11 @@ export function GuideVideoPlayer({
           )}
 
           {/* The control bar */}
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent px-3 pb-2.5 pt-8 text-white">
+          {/* On a phone the bar sits under the picture; from sm up it floats over its foot. */}
+          <div className="relative bg-slate-950 px-3 pb-2.5 pt-2 text-white sm:absolute sm:inset-x-0 sm:bottom-0 sm:bg-transparent sm:bg-gradient-to-t sm:from-black/80 sm:via-black/50 sm:to-transparent sm:pt-8">
             {/* Seek bar with a tick at each part */}
             <div
-              className="group/seek relative h-5 cursor-pointer"
+              className="group/seek relative h-6 cursor-pointer touch-none"
               role="slider"
               aria-label="Position"
               aria-valuemin={0}
@@ -238,7 +272,7 @@ export function GuideVideoPlayer({
               />
             </div>
 
-            <div className="mt-1 flex items-center gap-1.5">
+            <div className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-1 sm:gap-x-1.5">
               <Ctl onClick={() => toPart(time * 1000 - chapters[current].startMs > 3000 ? current : current - 1)} label="Previous part">
                 <ChevronLeft className="h-5 w-5" />
               </Ctl>
@@ -248,15 +282,27 @@ export function GuideVideoPlayer({
               <Ctl onClick={() => toPart(current + 1)} label="Next part" disabled={current >= chapters.length - 1}>
                 <ChevronRight className="h-5 w-5" />
               </Ctl>
-              <Ctl
-                onClick={() => {
-                  const el = ref.current;
-                  if (el) el.muted = !el.muted;
-                }}
-                label={muted ? 'Unmute' : 'Mute'}
-              >
-                {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-              </Ctl>
+              <div className="group/vol flex items-center">
+                <Ctl
+                  onClick={() => {
+                    const el = ref.current;
+                    if (el) el.muted = !el.muted;
+                  }}
+                  label={muted ? 'Unmute' : 'Mute'}
+                >
+                  {muted || volume === 0 ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                </Ctl>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={muted ? 0 : volume}
+                  onChange={(e) => setVolume(Number(e.target.value))}
+                  aria-label="Volume"
+                  className="h-1.5 w-0 cursor-pointer accent-brand-400 transition-[width] duration-200 group-hover/vol:w-20 group-focus-within/vol:w-20 sm:w-16 sm:group-hover/vol:w-24"
+                />
+              </div>
               <span className="ml-1 text-xs tabular-nums text-white/90">
                 {clock(time * 1000)} <span className="text-white/50">/ {clock(duration * 1000)}</span>
               </span>
@@ -333,14 +379,14 @@ export function GuideVideoPlayer({
         </div>
 
         {/* The parts */}
-        <aside className="flex max-h-[70vh] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <aside className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white lg:max-h-[70vh]">
           <div className="border-b border-slate-100 px-4 py-3">
             <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-slate-400">Parts</p>
             <p className="mt-0.5 text-sm font-semibold text-slate-800">
               {chapters.length} parts · {clock(video.durationMs)}
             </p>
           </div>
-          <ol className="flex-1 overflow-y-auto p-1.5">
+          <ol className="max-h-[40vh] flex-1 overflow-y-auto p-1.5 lg:max-h-none">
             {chapters.map((c, i) => {
               const on = i === current;
               const done = i < current;
@@ -376,8 +422,8 @@ export function GuideVideoPlayer({
               );
             })}
           </ol>
-          <p className="border-t border-slate-100 px-4 py-2 text-[0.6875rem] leading-relaxed text-slate-400">
-            Space plays and pauses · ← → ten seconds · [ ] previous and next part · F full screen
+          <p className="hidden border-t border-slate-100 px-4 py-2 text-[0.6875rem] leading-relaxed text-slate-400 sm:block">
+            Space plays and pauses · ← → ten seconds · ↑ ↓ volume · M mute · [ ] previous and next part · F full screen
           </p>
         </aside>
       </div>

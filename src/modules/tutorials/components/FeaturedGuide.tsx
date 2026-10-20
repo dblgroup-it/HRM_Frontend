@@ -108,8 +108,12 @@ export function FeaturedGuide({
               <Download className="h-4 w-4" />
               Download
             </a>
-            <WatchVideoButton guide={guide} prominent />
           </div>
+          {guide.video && (
+            <div className="mt-4 max-w-2xl">
+              <WatchVideoButton guide={guide} prominent />
+            </div>
+          )}
         </div>
 
         {guide.chapters.length > 0 && (
