@@ -49,9 +49,10 @@ export function GuideCard({
   const video = guide.video;
   return (
     <div className={cn('motion-safe:animate-rise-in', wide && 'sm:col-span-2')} style={{ animationDelay: `${160 + Math.min(order, 8) * 60}ms` }}>
-      <article className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_40px_-30px_rgba(15,23,42,0.35)] transition-all duration-300 hover:border-slate-300 hover:shadow-[0_26px_50px_-26px_rgba(15,23,42,0.45)] motion-safe:hover:-translate-y-1">
-        {/* The cover's band, edge to edge — the band is 800×490 on the thumbnail, so this box shows all of it */}
-        <div className="relative aspect-[800/490] overflow-hidden bg-slate-100">
+      <article className="group relative isolate flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_40px_-30px_rgba(15,23,42,0.35)] transition-all duration-300 hover:border-slate-300 hover:shadow-[0_26px_50px_-26px_rgba(15,23,42,0.45)] motion-safe:hover:-translate-y-1">
+        {/* The cover's band, edge to edge — the band is 800×490 on the thumbnail, so this box shows all of it.
+            Rounded and masked itself: the image scales on hover, and a transformed child escapes an ancestor's rounded clip in Safari (square corner). */}
+        <div className="relative isolate aspect-[800/490] overflow-hidden rounded-t-3xl bg-slate-100 [-webkit-mask-image:-webkit-radial-gradient(white,black)]">
           {guide.thumbUrl ? (
             <img
               src={resolveApiFileUrl(guide.thumbUrl)}

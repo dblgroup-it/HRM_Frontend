@@ -57,12 +57,12 @@ function VideoCard({ guide, order = 0, onPlay }: { guide: Tutorial; order?: numb
   const fresh = isNew(video.publishedAt);
   return (
     <div className="motion-safe:animate-card-in" style={{ animationDelay: `${140 + order * 80}ms` }}>
-      <article className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_40px_-28px_rgba(15,23,42,0.4)] transition-all duration-300 hover:border-slate-300 hover:shadow-[0_26px_50px_-26px_rgba(15,23,42,0.45)] motion-safe:hover:-translate-y-1">
+      <article className="group relative isolate flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_18px_40px_-28px_rgba(15,23,42,0.4)] transition-all duration-300 hover:border-slate-300 hover:shadow-[0_26px_50px_-26px_rgba(15,23,42,0.45)] motion-safe:hover:-translate-y-1">
         <button
           type="button"
           onClick={() => onPlay(guide)}
           aria-label={`Watch the ${guide.title} video, ${video.chapters.length} parts, ${clock(video.durationMs)}`}
-          className="relative block aspect-video w-full overflow-hidden bg-slate-900 text-left focus:outline-none focus-visible:ring-4 focus-visible:ring-rose-300/60"
+          className="relative isolate block aspect-video w-full overflow-hidden rounded-t-3xl bg-slate-900 text-left [-webkit-mask-image:-webkit-radial-gradient(white,black)] focus:outline-none focus-visible:ring-4 focus-visible:ring-rose-300/60"
         >
           {poster && (
             <img src={poster} alt="" className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out motion-safe:group-hover:scale-[1.05]" />
