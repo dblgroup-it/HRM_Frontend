@@ -9,6 +9,7 @@ import type { Tutorial } from '../types/tutorials.types';
 import { atPage, matchingChapters, readingTime } from '../utils';
 import { ChapterList } from './ChapterList';
 import { GuideCover, OpenedTick } from './GuideCover';
+import { WatchVideoButton } from './WatchVideoButton';
 
 /**
  * One guide, washed in its stage's tint. The whole card opens it; Chapters
@@ -91,6 +92,12 @@ export function GuideCard({
             )}
           </div>
         </div>
+
+        {guide.video && (
+          <div className="mt-3">
+            <WatchVideoButton guide={guide} />
+          </div>
+        )}
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
           {guide.chapters.length > 0 ? (

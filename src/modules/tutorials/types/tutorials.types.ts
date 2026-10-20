@@ -21,6 +21,25 @@ export interface Tutorial {
   downloadUrl: string;
   /** The cover as a small picture; null on an older build. */
   thumbUrl: string | null;
+  /** The guide as a recorded video, cut into its chapters; null when none is published (or an older API). */
+  video?: TutorialVideo | null;
+}
+
+/** A guide's video: a signed stream link, its parts, subtitles and poster. */
+export interface TutorialVideo {
+  url: string;
+  durationMs: number;
+  bytes: number;
+  chapters: TutorialVideoChapter[];
+  /** Language code → signed WebVTT link. */
+  subtitles: Record<string, string>;
+  posterUrl: string | null;
+}
+
+export interface TutorialVideoChapter {
+  n: number;
+  title: string;
+  startMs: number;
 }
 
 export interface TutorialChapter {

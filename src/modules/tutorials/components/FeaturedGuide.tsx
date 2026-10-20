@@ -9,6 +9,7 @@ import { toneOf } from '../tones';
 import type { Tutorial } from '../types/tutorials.types';
 import { fileSize, matchingChapters, readingTime } from '../utils';
 import { ChapterList } from './ChapterList';
+import { WatchVideoButton } from './WatchVideoButton';
 import { GuideCover, OpenedTick } from './GuideCover';
 
 const kicker = 'text-[0.6875rem] font-semibold uppercase tracking-[0.1em]';
@@ -107,6 +108,7 @@ export function FeaturedGuide({
               <Download className="h-4 w-4" />
               Download
             </a>
+            <WatchVideoButton guide={guide} prominent />
           </div>
         </div>
 
