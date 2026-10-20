@@ -8,7 +8,6 @@ import { firstName } from '@shared/utils';
 
 import { GuideCard } from '../components/GuideCard';
 import { TutorialsHero } from '../components/TutorialsHero';
-import { VideoPlaylist } from '../components/VideoPlaylist';
 import { VideoShelf } from '../components/VideoShelf';
 import { useOpenedGuides } from '../hooks/useOpenedGuides';
 import { useTutorials } from '../hooks/useTutorials';
@@ -18,9 +17,9 @@ import { greeting, isNew, matchesQuery, readingTime } from '../utils';
 
 /**
  * Tutorials — the learning hub, role by role, led by what is newest and most
- * watched: a short banner, the video guides as cards, then
- * every guide as a cover-led tile with its chapters, grouped by stage, and
- * the IT Helpdesk's YouTube playlist at the foot. Each person sees the
+ * watched: a short banner (with the IT Helpdesk's YouTube playlist as a strip
+ * at its foot), the video guides as cards, then every guide as a cover-led
+ * tile with its chapters, grouped by stage. Each person sees the
  * guides for the roles they hold (the server decides); super users and the
  * admin see every guide. Search reaches every chapter; the journey filters
  * by stage; a chapter opens the PDF at its page.
@@ -83,6 +82,7 @@ export default function TutorialsPage() {
         counts={counts}
         stage={stage}
         onStage={canFilter ? setStage : null}
+        playlist={data.videos ?? null}
       />
 
       {/* The videos lead, unless the person is searching or filtering. */}
@@ -156,9 +156,6 @@ export default function TutorialsPage() {
               </button>
             </div>
           )}
-
-          {/* The IT Helpdesk's playlist, for everyone, at the foot. */}
-          {data.videos && !searching && !stage && <VideoPlaylist videos={data.videos} />}
 
           {data.version && (
             <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 pt-1 text-xs text-slate-400">

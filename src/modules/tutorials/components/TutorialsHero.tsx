@@ -1,7 +1,9 @@
 import { Search, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 
+import type { TutorialVideos } from '../types/tutorials.types';
 import { HiringJourney } from './HiringJourney';
+import { VideoPlaylist } from './VideoPlaylist';
 
 interface Stats {
   guides: number;
@@ -13,8 +15,9 @@ interface Stats {
 /**
  * The top of the Tutorials page, kept short: the title and a greeting on
  * one side, the search on the other ("/" jumps to it), and the person's part
- * of the hiring journey underneath. Soft light in the brand colours drifts
- * behind it (motion-safe); the stages arrive one after another.
+ * of the hiring journey underneath, and the IT Helpdesk's YouTube playlist
+ * as a strip at the foot. Soft light in the brand colours drifts behind it
+ * (motion-safe); the stages arrive one after another.
  */
 export function TutorialsHero({
   greeting,
@@ -26,6 +29,7 @@ export function TutorialsHero({
   counts,
   stage,
   onStage,
+  playlist,
 }: {
   greeting: string;
   intro: string;
@@ -36,6 +40,7 @@ export function TutorialsHero({
   counts: Record<string, number>;
   stage: string | null;
   onStage: ((s: string | null) => void) | null;
+  playlist: TutorialVideos | null;
 }) {
   return (
     <section className="relative isolate overflow-hidden rounded-3xl border border-brand-100 bg-white px-5 py-5 shadow-[0_18px_50px_-30px_rgba(24,119,192,0.45)] motion-safe:animate-page-in sm:px-7">
@@ -86,6 +91,12 @@ export function TutorialsHero({
           }
         />
       </div>
+
+      {playlist && (
+        <div className="mt-4 border-t border-brand-100 pt-4 motion-safe:animate-card-in" style={{ animationDelay: '320ms' }}>
+          <VideoPlaylist videos={playlist} />
+        </div>
+      )}
     </section>
   );
 }
