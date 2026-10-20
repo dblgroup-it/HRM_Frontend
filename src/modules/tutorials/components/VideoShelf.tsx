@@ -12,8 +12,9 @@ import { GuideVideoPlayer } from './GuideVideoPlayer';
 
 /**
  * The video guides, first on the page: one poster-led card per guide that
- * has a video, side by side. The poster grows under the pointer and the
- * play ring pulses; the body says only what it is and how long. A video
+ * has a video, side by side. The thumbnail shows clean at rest (it carries
+ * its own title); under the pointer it grows, dims and gets the play ring.
+ * The body says only what it is and how long. A video
  * published this month carries a New mark.
  */
 export function VideoShelf({ guides, onOpen }: { guides: Tutorial[]; onOpen: (slug: string) => void }) {
@@ -66,16 +67,17 @@ function VideoCard({ guide, order = 0, onPlay }: { guide: Tutorial; order?: numb
           {poster && (
             <img src={poster} alt="" className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out motion-safe:group-hover:scale-[1.05]" />
           )}
-          <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent opacity-80 transition-opacity group-hover:opacity-100" />
-          <span className="absolute inset-0 flex items-center justify-center">
-            <span className="relative flex items-center justify-center">
-              <span className="absolute h-14 w-14 rounded-full bg-white/25 motion-safe:animate-ping [animation-duration:2.4s]" />
-              <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-[#ff0033] text-white shadow-2xl ring-4 ring-white/25 transition-transform duration-300 motion-safe:group-hover:scale-110">
-                <Play className="ml-0.5 h-6 w-6 fill-current" />
-              </span>
+          {/* The thumbnail carries its own title and play pill, so at rest nothing covers it; the ring arrives on hover */}
+          <span aria-hidden className="absolute inset-0 bg-slate-950/0 transition-colors duration-300 group-hover:bg-slate-950/35" />
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-all duration-300 group-hover:opacity-100 motion-safe:scale-75 motion-safe:group-hover:scale-100 motion-safe:group-focus-visible:scale-100 group-focus-visible:opacity-100">
+            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[#ff0033] text-white shadow-2xl ring-4 ring-white/30">
+              <Play className="ml-0.5 h-7 w-7 fill-current" />
             </span>
           </span>
-          <span className="absolute bottom-3 right-3 rounded-md bg-black/70 px-1.5 py-0.5 text-[0.6875rem] font-semibold tabular-nums text-white">{clock(video.durationMs)}</span>
+          <span className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-md bg-black/75 px-1.5 py-0.5 text-[0.6875rem] font-semibold tabular-nums text-white">
+            <Play className="h-3 w-3 fill-current" />
+            {clock(video.durationMs)}
+          </span>
           {fresh && (
             <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-emerald-400 px-2 py-0.5 text-[0.6875rem] font-bold uppercase tracking-wide text-emerald-950 shadow">
               <Sparkles className="h-3 w-3" />
