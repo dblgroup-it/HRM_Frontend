@@ -652,7 +652,8 @@ export function GuideVideoPlayer({
         </div>
 
         {/* ─── The parts beside the picture ─── */}
-        <aside className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white lg:max-h-[calc((100dvh-13rem))]">
+        {/* lg:h-0 lg:min-h-full: the list adds nothing to the row's height and fills whatever the picture sets, so the dialog ends where the picture ends */}
+        <aside className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white lg:h-0 lg:min-h-full">
           <div className="border-b border-slate-100 px-4 py-3">
             <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-slate-400">Parts</p>
             <div className="mt-0.5 flex items-baseline justify-between gap-2">
@@ -665,7 +666,7 @@ export function GuideVideoPlayer({
               <div className={cn('h-full rounded-full', tone.dot)} style={{ width: `${watched * 100}%` }} />
             </div>
           </div>
-          <div className="max-h-[40vh] flex-1 overflow-y-auto lg:max-h-none">{parts}</div>
+          <div className="max-h-[40vh] min-h-0 flex-1 overflow-y-auto lg:max-h-none">{parts}</div>
           <p className="hidden border-t border-slate-100 px-4 py-2 text-[0.6875rem] leading-relaxed text-slate-400 sm:block">
             Space plays and pauses · ← → ten seconds · ↑ ↓ volume · M mute · [ ] previous and next part · F full screen
           </p>
