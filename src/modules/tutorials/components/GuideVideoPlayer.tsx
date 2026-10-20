@@ -206,11 +206,30 @@ export function GuideVideoPlayer({
     }
     remember(VOLUME_KEY, String(volume));
   }, [volume, open]);
+  // The captions are drawn by the player, not the browser (a light glass pill, UI labels in DBL blue,
+  // the look of the motion videos): every track stays 'hidden', which still loads it and fires
+  // cuechange, and the chosen track's active cue is mirrored into state.
+  const [cue, setCue] = useState<string | null>(null);
   useEffect(() => {
     const el = ref.current;
-    if (el) for (const t of Array.from(el.textTracks)) t.mode = t.language === subs ? 'showing' : 'hidden';
     remember(SUBS_KEY, subs);
-  }, [subs, open, src]);
+    if (!el) return;
+    const tracks = Array.from(el.textTracks);
+    for (const t of tracks) t.mode = 'hidden';
+    const track = tracks.find((t) => t.language === subs);
+    if (!track) {
+      setCue(null);
+      return;
+    }
+    const read = () => {
+      const active = track.activeCues ? Array.from(track.activeCues) : [];
+      setCue(active.length ? active.map((c) => (c as VTTCue).text).join('\n') : null);
+    };
+    read();
+    track.addEventListener('cuechange', read);
+    // a track added after mount (a new source) is picked up on the next render
+    return () => track.removeEventListener('cuechange', read);
+  }, [subs, open, src, langs.length]);
 
   const seekTo = useCallback((ms: number) => {
     const el = ref.current;
@@ -432,6 +451,27 @@ export function GuideVideoPlayer({
                 />
               ))}
             </video>
+
+            {/* The caption: a light glass pill above the controls; English UI labels inside a Bangla line in DBL blue */}
+            {cue && (
+              <div
+                aria-live="off"
+                className={cn(
+                  'pointer-events-none absolute inset-x-0 z-[5] flex justify-center px-4 transition-[bottom] duration-300',
+                  controlsHidden ? 'bottom-4 sm:bottom-6' : 'bottom-4 sm:bottom-24',
+                )}
+              >
+                <p
+                  className={cn(
+                    'max-w-[min(92%,62rem)] whitespace-pre-line rounded-2xl bg-white/90 px-4 py-2 text-center font-semibold leading-snug text-[#0f2a44] shadow-[0_10px_30px_-12px_rgba(15,42,68,0.55)] ring-1 ring-[#1877c0]/15 backdrop-blur-md',
+                    fs ? 'text-2xl sm:text-3xl' : 'text-sm sm:text-lg',
+                    subs === 'bn' && 'font-[\'Noto_Sans_Bengali\',Inter,sans-serif]',
+                  )}
+                >
+                  {subs === 'bn' ? <CueText text={cue} /> : cue}
+                </p>
+              </div>
+            )}
 
             {/* A quiet play mark while paused */}
             {!playing && (
@@ -763,5 +803,23 @@ function MenuItem({ on, onClick, note, children }: { on: boolean; onClick: () =>
       {children}
       {note && <span className="text-[0.625rem] font-normal text-white/50">{note}</span>}
     </button>
+  );
+}
+
+/** A Bangla caption with its English runs (the UI labels it names) in DBL blue. */
+function CueText({ text }: { text: string }) {
+  const parts = text.split(/([A-Za-z][A-Za-z0-9&+/.'’ -]*[A-Za-z0-9])/g);
+  return (
+    <>
+      {parts.map((p, i) =>
+        i % 2 === 1 ? (
+          <span key={i} className="text-[#1877c0]">
+            {p}
+          </span>
+        ) : (
+          <span key={i}>{p}</span>
+        ),
+      )}
+    </>
   );
 }
