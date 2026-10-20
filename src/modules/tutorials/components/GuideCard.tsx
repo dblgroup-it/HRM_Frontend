@@ -13,9 +13,10 @@ import { GuideVideoPlayer } from './GuideVideoPlayer';
 import { OpenedTick } from './GuideCover';
 
 /**
- * A guide as a tile led by its cover: the cover large across the top in the
- * stage's tint, then the title, what it is for, and one row of actions —
- * Open, Download, Chapters, and Watch where the guide has a video. `order`
+ * A guide as a tile led by its cover: the cover standing on the stage's
+ * tinted shelf — it leans back and a light sweeps across as the pointer
+ * arrives — then the title, what it is for, and one row of actions: Open,
+ * Download, Chapters, and Watch where the guide has a video. `order`
  * staggers the entrance; `wide` is the master guide, two columns wide.
  */
 export function GuideCard({
@@ -47,26 +48,31 @@ export function GuideCard({
     <div className={cn('motion-safe:animate-rise-in', wide && 'sm:col-span-2')} style={{ animationDelay: `${160 + Math.min(order, 8) * 60}ms` }}>
       <article
         className={cn(
-          'group relative flex h-full flex-col overflow-hidden rounded-3xl border bg-white transition-all duration-300 hover:shadow-[0_20px_40px_-24px_rgba(15,23,42,0.45)] motion-safe:hover:-translate-y-1',
+          'group relative flex h-full flex-col overflow-hidden rounded-3xl border bg-white transition-all duration-300 hover:shadow-[0_24px_48px_-24px_rgba(15,23,42,0.5)] motion-safe:hover:-translate-y-1',
           tone.card,
         )}
       >
         {/* The cover on its tinted shelf */}
-        <div className={cn('relative flex items-end justify-center overflow-hidden px-6 pt-6', wide ? 'h-52' : 'h-44')}>
+        <div className={cn('relative flex items-end justify-center overflow-hidden px-6 pt-7 [perspective:900px]', wide ? 'h-56' : 'h-48')}>
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.7)_1px,transparent_1px)] [background-size:14px_14px] opacity-60"
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.75)_1px,transparent_1px)] [background-size:14px_14px] opacity-70"
+          />
+          {/* the light that sweeps across on hover */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/2 -skew-x-12 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-0 transition-all duration-700 ease-out motion-safe:group-hover:left-full motion-safe:group-hover:opacity-100"
           />
           <div
             className={cn(
-              'relative w-28 overflow-hidden rounded-t-md bg-white shadow-[0_-2px_24px_-10px_rgba(15,23,42,0.5)] ring-1 ring-slate-200/80 transition-transform duration-300 ease-out motion-safe:group-hover:-translate-y-1.5',
-              wide && 'w-32',
+              'relative w-[7.5rem] overflow-hidden rounded-t-md bg-white shadow-[0_-4px_30px_-10px_rgba(15,23,42,0.55)] ring-1 ring-slate-200/80 transition-transform duration-500 ease-out motion-safe:group-hover:[transform:rotateX(8deg)_translateY(-8px)]',
+              wide && 'w-36',
             )}
           >
             {guide.thumbUrl ? (
-              <img src={resolveApiFileUrl(guide.thumbUrl)} alt="" loading="lazy" className="aspect-[210/260] w-full object-cover object-top" />
+              <img src={resolveApiFileUrl(guide.thumbUrl)} alt="" loading="lazy" className="aspect-[210/255] w-full object-cover object-top" />
             ) : (
-              <div className="flex aspect-[210/260] items-center justify-center bg-slate-50">
+              <div className="flex aspect-[210/255] items-center justify-center bg-slate-50">
                 <FileText className="h-6 w-6 text-slate-300" />
               </div>
             )}
@@ -144,9 +150,7 @@ export function GuideCard({
               target="_blank"
               rel="noopener noreferrer"
               onClick={onOpen}
-              className={cn(
-                'relative z-10 inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300',
-              )}
+              className="relative z-10 inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
             >
               Open guide
               <ArrowUpRight className="h-3.5 w-3.5" />

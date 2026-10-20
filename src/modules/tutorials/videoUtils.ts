@@ -29,3 +29,7 @@ export const SPEEDS = [0.75, 1, 1.25, 1.5, 2] as const;
 export function speedLabel(rate: number): string {
   return `${Number.isInteger(rate) ? rate : rate.toFixed(2).replace(/0+$/, '')}×`;
 }
+
+/** The qualities offered: Auto starts on the recorded 1080p and steps down to 720p on a link that keeps stalling. */
+export const QUALITIES = ['auto', '1080', '720'] as const;
+export type Quality = (typeof QUALITIES)[number];

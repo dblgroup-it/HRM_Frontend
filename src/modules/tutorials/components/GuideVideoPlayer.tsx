@@ -6,6 +6,7 @@ import {
   ListVideo,
   Maximize2,
   Minimize2,
+  MonitorPlay,
   Pause,
   Play,
   Volume1,
@@ -21,14 +22,20 @@ import { cn } from '@shared/lib';
 
 import { toneOf } from '../tones';
 import type { Tutorial, TutorialVideo } from '../types/tutorials.types';
-import { SPEEDS, chapterAt, clock, partLengths, speedLabel } from '../videoUtils';
+import { QUALITIES, SPEEDS, chapterAt, clock, partLengths, speedLabel, type Quality } from '../videoUtils';
 
 const SPEED_KEY = 'hrm.tutorials.videoSpeed';
 const SUBS_KEY = 'hrm.tutorials.videoSubs';
 const VOLUME_KEY = 'hrm.tutorials.videoVolume';
+const QUALITY_KEY = 'hrm.tutorials.videoQuality';
 const LANG_NAMES: Record<string, string> = { bn: 'বাংলা', en: 'English' };
 /** The controls fade this long after the pointer rests, while playing. */
 const HIDE_AFTER_MS = 2600;
+/** Auto quality: two stalls inside this window, or one this long, and 1080p steps down to 720p. */
+const STALL_WINDOW_MS = 45_000;
+const LONG_STALL_MS = 2_500;
+/** Auto quality starts at 720p on a link the browser reports slower than this (Mbit/s). */
+const SLOW_LINK_MBPS = 4;
 
 function remembered<T>(key: string, parse: (raw: string) => T | null, fallback: T): T {
   try {
@@ -48,13 +55,26 @@ function remember(key: string, value: string) {
   }
 }
 
+/** What the browser says of the connection, where it says anything (Chrome, Edge). */
+function reportedDownlinkMbps(): number | null {
+  const c = (navigator as Navigator & { connection?: { downlink?: number; saveData?: boolean } }).connection;
+  if (!c) return null;
+  if (c.saveData) return 0;
+  return typeof c.downlink === 'number' ? c.downlink : null;
+}
+
 /**
- * A guide's video, played part by part. The picture carries its own controls,
- * which fade while it plays and return on a touch of the pointer: a seek bar
- * drawn in segments, one per part; play, previous and next part; volume with
- * a slider; the clock and the part playing; speed, subtitles and full screen.
- * The parts list sits beside the picture — and in full screen slides in over
- * it from the Parts button, so a part is never more than a tap away.
+ * A guide's video, played part by part. The picture carries its own controls
+ * on a glass bar at its foot, which fades while it plays and returns on a
+ * touch of the pointer: a seek bar drawn in segments, one per part; play,
+ * previous and next part; volume with a slider; the clock and the part
+ * playing; speed, quality, subtitles and full screen. The parts list sits
+ * beside the picture — and in full screen slides in over it from the Parts
+ * button, so a part is never more than a tap away.
+ *
+ * Quality: the video is recorded at 1080p and that is what plays — unless
+ * the stream keeps stalling, when Auto steps down to 720p at the same moment
+ * and says so. 1080p and 720p can be pinned by hand.
  * Keys: space · ← → 10 s · ↑ ↓ volume · M · [ ] parts · F full screen.
  */
 export function GuideVideoPlayer({
@@ -82,9 +102,89 @@ export function GuideVideoPlayer({
   const [speed, setSpeed] = useState(() => remembered(SPEED_KEY, (r) => (SPEEDS.includes(Number(r) as never) ? Number(r) : null), 1));
   const [subs, setSubs] = useState(() => remembered(SUBS_KEY, (r) => r, 'bn'));
   const [speedOpen, setSpeedOpen] = useState(false);
+  const [qualityOpen, setQualityOpen] = useState(false);
   const [fs, setFs] = useState(false);
   const [partsOpen, setPartsOpen] = useState(false);
   const [idle, setIdle] = useState(false);
+
+  // ─── Quality ───
+  const sources = video.sources ?? { '1080': video.url };
+  const has720 = Boolean(sources['720']);
+  const [quality, setQuality] = useState<Quality>(() =>
+    remembered(QUALITY_KEY, (r) => (QUALITIES.includes(r as Quality) ? (r as Quality) : null), 'auto'),
+  );
+  const [autoLevel, setAutoLevel] = useState<'1080' | '720'>(() => {
+    const mbps = reportedDownlinkMbps();
+    return mbps !== null && mbps < SLOW_LINK_MBPS ? '720' : '1080';
+  });
+  const [notice, setNotice] = useState<string | null>(null);
+  const level: '1080' | '720' = !has720 ? '1080' : quality === 'auto' ? autoLevel : quality;
+  const src = resolveApiFileUrl(sources[level] ?? video.url);
+  /** Where to pick up after the source changes: set by whoever asks for the change. */
+  const resume = useRef<{ time: number; playing: boolean } | null>(null);
+  const stalls = useRef<number[]>([]);
+  const stallSince = useRef<number | null>(null);
+
+  const changeLevel = useCallback((next: Quality, why?: string) => {
+    const el = ref.current;
+    if (el) resume.current = { time: el.currentTime, playing: !el.paused && !el.ended };
+    if (next === 'auto') setQuality('auto');
+    else setQuality(next);
+    remember(QUALITY_KEY, next);
+    if (why) setNotice(why);
+  }, []);
+  const stepDown = useCallback(() => {
+    const el = ref.current;
+    if (el) resume.current = { time: el.currentTime, playing: !el.paused && !el.ended };
+    setAutoLevel('720');
+    setNotice('Switched to 720p to keep the video playing smoothly');
+  }, []);
+
+  // A new source picks up where the old one was.
+  useEffect(() => {
+    const el = ref.current;
+    const at = resume.current;
+    if (!el || !at) return;
+    resume.current = null;
+    const onMeta = () => {
+      el.currentTime = at.time;
+      el.playbackRate = speed;
+      if (at.playing) void el.play().catch(() => undefined);
+    };
+    if (el.readyState >= 1 && el.currentSrc === src) onMeta();
+    else el.addEventListener('loadedmetadata', onMeta, { once: true });
+    return () => el.removeEventListener('loadedmetadata', onMeta);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [src]);
+
+  // Auto quality watches for stalls once the video is under way.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !has720 || quality !== 'auto' || autoLevel === '720') return;
+    const onWaiting = () => {
+      if (el.currentTime < 3 || el.seeking) return;
+      const now = Date.now();
+      stallSince.current = now;
+      stalls.current = [...stalls.current.filter((t) => now - t < STALL_WINDOW_MS), now];
+      if (stalls.current.length >= 2) stepDown();
+    };
+    const onPlaying = () => {
+      if (stallSince.current !== null && Date.now() - stallSince.current >= LONG_STALL_MS) stepDown();
+      stallSince.current = null;
+    };
+    el.addEventListener('waiting', onWaiting);
+    el.addEventListener('playing', onPlaying);
+    return () => {
+      el.removeEventListener('waiting', onWaiting);
+      el.removeEventListener('playing', onPlaying);
+    };
+  }, [has720, quality, autoLevel, stepDown, src]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const t = window.setTimeout(() => setNotice(null), 4500);
+    return () => window.clearTimeout(t);
+  }, [notice]);
 
   const chapters = video.chapters;
   const lengths = useMemo(() => partLengths(chapters, video.durationMs), [chapters, video.durationMs]);
@@ -110,7 +210,7 @@ export function GuideVideoPlayer({
     const el = ref.current;
     if (el) for (const t of Array.from(el.textTracks)) t.mode = t.language === subs ? 'showing' : 'hidden';
     remember(SUBS_KEY, subs);
-  }, [subs, open]);
+  }, [subs, open, src]);
 
   const seekTo = useCallback((ms: number) => {
     const el = ref.current;
@@ -163,8 +263,9 @@ export function GuideVideoPlayer({
     if (hideTimer.current) window.clearTimeout(hideTimer.current);
     hideTimer.current = window.setTimeout(() => setIdle(true), HIDE_AFTER_MS);
   }, []);
+  const menuOpen = speedOpen || qualityOpen || partsOpen;
   useEffect(() => {
-    if (!playing || speedOpen || partsOpen) {
+    if (!playing || menuOpen) {
       setIdle(false);
       if (hideTimer.current) window.clearTimeout(hideTimer.current);
       return;
@@ -173,7 +274,7 @@ export function GuideVideoPlayer({
     return () => {
       if (hideTimer.current) window.clearTimeout(hideTimer.current);
     };
-  }, [playing, speedOpen, partsOpen, wake]);
+  }, [playing, menuOpen, wake]);
 
   // Start on the part asked for, once the metadata is in.
   useEffect(() => {
@@ -226,6 +327,7 @@ export function GuideVideoPlayer({
   }, [onClose]);
 
   const controlsHidden = idle && playing;
+  const watched = Math.min(time * 1000, total) / total;
 
   const parts = (
     <ol className="p-1.5">
@@ -282,70 +384,82 @@ export function GuideVideoPlayer({
     </ol>
   );
 
+  const qualityLabel = quality === 'auto' ? `Auto · ${level}p` : `${level}p`;
+
   return (
     <Modal open={open} onClose={onClose_} size="full" title={`${guide.kicker} · ${guide.title}`}>
-      <div className="grid max-h-[calc(100vh-7rem)] gap-3 overflow-y-auto sm:gap-4 lg:max-h-none lg:grid-cols-[minmax(0,1fr)_19rem] lg:overflow-visible">
+      {/* items-start: the frame hugs its 16:9 picture rather than stretching to the parts list, which left a black band under the video */}
+      <div className="grid max-h-[calc(100vh-7rem)] items-start gap-3 overflow-y-auto sm:gap-4 lg:max-h-none lg:grid-cols-[minmax(0,1fr)_19rem] lg:overflow-visible">
         {/* ─── The picture ─── */}
         <div
           ref={frameRef}
           className={cn(
             'group/player relative overflow-hidden bg-black ring-1 ring-black/10',
-            fs ? 'flex h-full w-full items-center justify-center rounded-none' : 'rounded-2xl',
+            fs ? 'flex h-full w-full flex-col items-center justify-center rounded-none' : 'mx-auto w-full rounded-2xl',
             controlsHidden && 'cursor-none',
           )}
+          // Out of full screen the frame is exactly the picture's 16:9, as tall as the dialog allows — no bars above or below.
+          style={fs ? undefined : { maxWidth: 'calc((100dvh - 13rem) * 16 / 9)' }}
           onMouseMove={wake}
           onTouchStart={wake}
           onDoubleClick={toggleFullscreen}
         >
-          <video
-            ref={ref}
-            src={resolveApiFileUrl(video.url)}
-            poster={video.posterUrl ? resolveApiFileUrl(video.posterUrl) : undefined}
-            crossOrigin="anonymous"
-            preload="metadata"
-            playsInline
-            className={cn('w-full bg-black object-contain', fs ? 'h-full max-h-full' : 'aspect-video max-h-[70vh]')}
-            onClick={toggle}
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-            onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
-            onDurationChange={(e) => setDuration(e.currentTarget.duration || video.durationMs / 1000)}
-            onVolumeChange={(e) => setMuted(e.currentTarget.muted)}
-          >
-            {langs.map((l) => (
-              <track
-                key={l}
-                kind="subtitles"
-                srcLang={l}
-                label={LANG_NAMES[l]}
-                src={resolveApiFileUrl(video.subtitles[l])}
-                default={l === subs}
-              />
-            ))}
-          </video>
-
-          {/* A quiet play mark while paused */}
-          {!playing && (
-            <button
-              type="button"
+          <div className="relative aspect-video w-full" style={fs ? { maxWidth: 'calc(100vh * 16 / 9)' } : undefined}>
+            <video
+              ref={ref}
+              src={src}
+              poster={video.posterUrl ? resolveApiFileUrl(video.posterUrl) : undefined}
+              crossOrigin="anonymous"
+              preload="metadata"
+              playsInline
+              className="absolute inset-0 h-full w-full bg-black object-contain"
               onClick={toggle}
-              aria-label="Play"
-              className="absolute inset-0 flex items-center justify-center"
+              onPlay={() => setPlaying(true)}
+              onPause={() => setPlaying(false)}
+              onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
+              onDurationChange={(e) => setDuration(e.currentTarget.duration || video.durationMs / 1000)}
+              onVolumeChange={(e) => setMuted(e.currentTarget.muted)}
             >
-              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-2xl ring-1 ring-black/5 transition-transform hover:scale-105 sm:h-[4.5rem] sm:w-[4.5rem]">
-                <Play className="ml-1 h-7 w-7 fill-current" />
-              </span>
-            </button>
-          )}
+              {langs.map((l) => (
+                <track
+                  key={l}
+                  kind="subtitles"
+                  srcLang={l}
+                  label={LANG_NAMES[l]}
+                  src={resolveApiFileUrl(video.subtitles[l])}
+                  default={l === subs}
+                />
+              ))}
+            </video>
 
-          {/* ─── The controls ─── */}
+            {/* A quiet play mark while paused */}
+            {!playing && (
+              <button type="button" onClick={toggle} aria-label="Play" className="absolute inset-0 flex items-center justify-center">
+                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-2xl ring-1 ring-black/5 transition-transform hover:scale-105 sm:h-[4.5rem] sm:w-[4.5rem]">
+                  <Play className="ml-1 h-7 w-7 fill-current" />
+                </span>
+              </button>
+            )}
+
+            {/* Auto quality's one-line notice */}
+            {notice && (
+              <p
+                role="status"
+                className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-full bg-slate-950/70 px-3 py-1 text-xs font-medium text-white shadow backdrop-blur motion-safe:animate-card-in sm:top-4"
+              >
+                {notice}
+              </p>
+            )}
+          </div>
+
+          {/* ─── The controls: a glass bar over the foot of the picture ─── */}
           <div
             className={cn(
               'inset-x-0 bottom-0 z-10 text-white transition-opacity duration-300',
-              // on a phone the bar sits under the picture; from sm up (and in full screen) it floats over its foot
-              fs
-                ? 'absolute bg-gradient-to-t from-black/85 via-black/50 to-transparent px-4 pb-3 pt-14 sm:px-6'
-                : 'relative bg-slate-950 px-3 pb-2.5 pt-2 sm:absolute sm:bg-transparent sm:bg-gradient-to-t sm:from-black/85 sm:via-black/50 sm:to-transparent sm:px-4 sm:pt-12',
+              // on a phone the bar sits under the picture; from sm up (and in full screen) it is glass over its foot
+              'relative bg-slate-950 px-3 pb-2.5 pt-2',
+              'sm:absolute sm:border-t sm:border-white/10 sm:bg-slate-950/40 sm:px-4 sm:backdrop-blur-xl sm:backdrop-saturate-150',
+              fs && 'absolute border-t border-white/10 bg-slate-950/40 px-4 backdrop-blur-xl backdrop-saturate-150 sm:px-6',
               controlsHidden && 'pointer-events-none opacity-0',
             )}
           >
@@ -378,8 +492,8 @@ export function GuideVideoPlayer({
                 );
               })}
               <span
-                className="pointer-events-none absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow opacity-0 transition-opacity group-hover/seek:opacity-100"
-                style={{ left: `${(time * 1000 / total) * 100}%` }}
+                className="pointer-events-none absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-0 shadow transition-opacity group-hover/seek:opacity-100"
+                style={{ left: `${watched * 100}%` }}
               />
             </div>
 
@@ -424,49 +538,58 @@ export function GuideVideoPlayer({
               </span>
 
               <div className="ml-auto flex items-center gap-1">
-                {/* Speed */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setSpeedOpen((v) => !v)}
-                    aria-haspopup="menu"
-                    aria-expanded={speedOpen}
-                    className={cn(
-                      'inline-flex h-8 items-center gap-1 rounded-lg px-2 text-xs font-semibold tabular-nums transition-colors hover:bg-white/15',
-                      speedOpen && 'bg-white/15',
-                    )}
+                {/* Quality */}
+                {has720 && (
+                  <Menu
+                    open={qualityOpen}
+                    onToggle={() => {
+                      setQualityOpen((v) => !v);
+                      setSpeedOpen(false);
+                    }}
+                    icon={<MonitorPlay className="h-4 w-4" />}
+                    label={qualityLabel}
+                    heading="Quality"
                   >
-                    <Gauge className="h-4 w-4" />
-                    {speedLabel(speed)}
-                  </button>
-                  {speedOpen && (
-                    <div
-                      role="menu"
-                      className="absolute bottom-full right-0 mb-2 w-32 overflow-hidden rounded-xl bg-slate-900/95 p-1 text-xs shadow-xl ring-1 ring-white/10 backdrop-blur"
+                    {QUALITIES.map((q) => (
+                      <MenuItem
+                        key={q}
+                        on={q === quality}
+                        onClick={() => {
+                          changeLevel(q, q === 'auto' ? undefined : `Playing at ${q}p`);
+                          setQualityOpen(false);
+                        }}
+                        note={q === 'auto' ? '1080p, 720p if it stalls' : q === '1080' ? 'recorded' : 'lighter'}
+                      >
+                        {q === 'auto' ? 'Auto' : `${q}p`}
+                      </MenuItem>
+                    ))}
+                  </Menu>
+                )}
+                {/* Speed */}
+                <Menu
+                  open={speedOpen}
+                  onToggle={() => {
+                    setSpeedOpen((v) => !v);
+                    setQualityOpen(false);
+                  }}
+                  icon={<Gauge className="h-4 w-4" />}
+                  label={speedLabel(speed)}
+                  heading="Playback speed"
+                >
+                  {SPEEDS.map((s) => (
+                    <MenuItem
+                      key={s}
+                      on={s === speed}
+                      onClick={() => {
+                        setSpeed(s);
+                        setSpeedOpen(false);
+                      }}
+                      note={s === 1 ? 'normal' : undefined}
                     >
-                      <p className="px-2 pb-1 pt-1.5 text-[0.625rem] font-semibold uppercase tracking-wider text-white/50">Playback speed</p>
-                      {SPEEDS.map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          role="menuitemradio"
-                          aria-checked={s === speed}
-                          onClick={() => {
-                            setSpeed(s);
-                            setSpeedOpen(false);
-                          }}
-                          className={cn(
-                            'flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left hover:bg-white/10',
-                            s === speed && 'bg-brand-500/30 font-semibold',
-                          )}
-                        >
-                          {speedLabel(s)}
-                          {s === 1 && <span className="text-[0.625rem] text-white/50">normal</span>}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                      {speedLabel(s)}
+                    </MenuItem>
+                  ))}
+                </Menu>
                 {/* Subtitles */}
                 {langs.length > 0 && (
                   <label
@@ -507,7 +630,7 @@ export function GuideVideoPlayer({
           {fs && (
             <aside
               className={cn(
-                'absolute inset-y-0 right-0 z-20 flex w-80 max-w-[85vw] flex-col bg-slate-950/90 text-white backdrop-blur transition-transform duration-300',
+                'absolute inset-y-0 right-0 z-20 flex w-80 max-w-[85vw] flex-col bg-slate-950/80 text-white backdrop-blur-xl transition-transform duration-300',
                 partsOpen ? 'translate-x-0' : 'translate-x-full',
               )}
               aria-hidden={!partsOpen}
@@ -529,19 +652,17 @@ export function GuideVideoPlayer({
         </div>
 
         {/* ─── The parts beside the picture ─── */}
-        <aside className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white lg:max-h-[70vh]">
+        <aside className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white lg:max-h-[calc((100dvh-13rem))]">
           <div className="border-b border-slate-100 px-4 py-3">
             <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-slate-400">Parts</p>
             <div className="mt-0.5 flex items-baseline justify-between gap-2">
               <p className="text-sm font-semibold text-slate-800">
                 {chapters.length} parts · {clock(video.durationMs)}
               </p>
-              <p className="text-xs tabular-nums text-slate-400">
-                {Math.round((Math.min(time * 1000, total) / total) * 100)}% watched
-              </p>
+              <p className="text-xs tabular-nums text-slate-400">{Math.round(watched * 100)}% watched</p>
             </div>
             <div className="mt-2 h-1 overflow-hidden rounded-full bg-slate-100">
-              <div className={cn('h-full rounded-full', tone.dot)} style={{ width: `${(Math.min(time * 1000, total) / total) * 100}%` }} />
+              <div className={cn('h-full rounded-full', tone.dot)} style={{ width: `${watched * 100}%` }} />
             </div>
           </div>
           <div className="max-h-[40vh] flex-1 overflow-y-auto lg:max-h-none">{parts}</div>
@@ -580,6 +701,65 @@ function Ctl({
       )}
     >
       {children}
+    </button>
+  );
+}
+
+/** A small menu that opens upward from a button on the bar. */
+function Menu({
+  open,
+  onToggle,
+  icon,
+  label,
+  heading,
+  children,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  icon: React.ReactNode;
+  label: string;
+  heading: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={cn(
+          'inline-flex h-8 items-center gap-1 rounded-lg px-2 text-xs font-semibold tabular-nums transition-colors hover:bg-white/15',
+          open && 'bg-white/15',
+        )}
+      >
+        {icon}
+        {label}
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute bottom-full right-0 mb-2 w-44 overflow-hidden rounded-xl bg-slate-900/95 p-1 text-xs shadow-xl ring-1 ring-white/10 backdrop-blur"
+        >
+          <p className="px-2 pb-1 pt-1.5 text-[0.625rem] font-semibold uppercase tracking-wider text-white/50">{heading}</p>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MenuItem({ on, onClick, note, children }: { on: boolean; onClick: () => void; note?: string; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      role="menuitemradio"
+      aria-checked={on}
+      onClick={onClick}
+      className={cn('flex w-full items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-left hover:bg-white/10', on && 'bg-brand-500/30 font-semibold')}
+    >
+      {children}
+      {note && <span className="text-[0.625rem] font-normal text-white/50">{note}</span>}
     </button>
   );
 }

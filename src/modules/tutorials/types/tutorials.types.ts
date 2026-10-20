@@ -28,6 +28,8 @@ export interface Tutorial {
 /** A guide's video: a signed stream link, its parts, subtitles and poster. */
 export interface TutorialVideo {
   url: string;
+  /** The same video by height — the recorded "1080" and, where encoded, a lighter "720"; absent on an older API. */
+  sources?: Partial<Record<'1080' | '720', string>>;
   durationMs: number;
   bytes: number;
   chapters: TutorialVideoChapter[];

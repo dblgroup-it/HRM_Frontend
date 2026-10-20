@@ -18,11 +18,12 @@ import { greeting, isNew, matchesQuery, readingTime } from '../utils';
 
 /**
  * Tutorials — the learning hub, role by role, led by what is newest and most
- * watched: the video guides first, then every guide as a cover-led tile with
- * its chapters, and the IT Helpdesk's YouTube playlist at the foot. Each
- * person sees the guides for the roles they hold (the server decides);
- * super users and the admin see every guide. Search reaches every chapter;
- * the journey filters by stage; a chapter opens the PDF at its page.
+ * watched: a short banner, the video guides as cards, then
+ * every guide as a cover-led tile with its chapters, grouped by stage, and
+ * the IT Helpdesk's YouTube playlist at the foot. Each person sees the
+ * guides for the roles they hold (the server decides); super users and the
+ * admin see every guide. Search reaches every chapter; the journey filters
+ * by stage; a chapter opens the PDF at its page.
  */
 export default function TutorialsPage() {
   const { data, isLoading, isError, refetch } = useTutorials();
@@ -94,40 +95,51 @@ export default function TutorialsPage() {
         />
       ) : (
         <>
-          <div key={stage ?? 'all'} className="space-y-8">
-            {sections.map((s) => (
-              <section key={s.name} className="space-y-3">
-                <div className="flex items-center gap-2.5">
-                  {s.tinted && <span className={cn('h-2.5 w-2.5 rounded-full', toneOf(s.name).dot)} />}
-                  <h2 className="text-lg font-semibold tracking-tight text-slate-900">
-                    {s.tinted ? s.name : 'Guides'}
-                    {!s.tinted && <span className="ml-2 text-sm font-normal text-slate-400">PDF, chapter by chapter</span>}
-                  </h2>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.6875rem] font-medium tabular-nums text-slate-500">
-                    {s.guides.length}
-                  </span>
-                  {stage && (
-                    <button type="button" onClick={() => setStage(null)} className="ml-auto text-xs font-medium text-brand-700 hover:underline">
-                      Show all guides
-                    </button>
-                  )}
-                </div>
-                <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {s.guides.map((g) => (
-                    <GuideCard
-                      key={g.slug}
-                      guide={g}
-                      order={order++}
-                      opened={Boolean(opened[g.slug])}
-                      onOpen={open(g)}
-                      query={query}
-                      wide={g.slug === 'master'}
-                      fresh={docsFresh}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
+          <div key={stage ?? 'all'} className="space-y-10">
+            {sections.map((s, si) => {
+              const tone = toneOf(s.name);
+              return (
+                <section key={s.name} className="space-y-4">
+                  <div className="flex items-center gap-3 motion-safe:animate-card-in" style={{ animationDelay: `${80 + si * 60}ms` }}>
+                    {s.tinted ? (
+                      <span className={cn('h-7 w-1.5 rounded-full', tone.dot)} />
+                    ) : (
+                      <span className="h-7 w-1.5 rounded-full bg-slate-300" />
+                    )}
+                    <div className="min-w-0">
+                      <h2 className="text-lg font-semibold tracking-tight text-slate-900">
+                        {s.tinted ? s.name : 'Guides'}
+                        <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 align-middle text-[0.6875rem] font-medium tabular-nums text-slate-500">
+                          {s.guides.length}
+                        </span>
+                      </h2>
+                      <p className="text-xs text-slate-400">
+                        {s.tinted ? `Stage ${STAGES.indexOf(s.name as (typeof STAGES)[number]) + 1} of the hiring journey` : 'PDF, chapter by chapter'}
+                      </p>
+                    </div>
+                    {stage && (
+                      <button type="button" onClick={() => setStage(null)} className="ml-auto text-xs font-medium text-brand-700 hover:underline">
+                        Show all guides
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {s.guides.map((g) => (
+                      <GuideCard
+                        key={g.slug}
+                        guide={g}
+                        order={order++}
+                        opened={Boolean(opened[g.slug])}
+                        onOpen={open(g)}
+                        query={query}
+                        wide={g.slug === 'master'}
+                        fresh={docsFresh}
+                      />
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
           </div>
 
           {nothingFound && (
