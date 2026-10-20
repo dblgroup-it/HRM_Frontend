@@ -394,7 +394,8 @@ export function GuideVideoPlayer({
         <div
           ref={frameRef}
           className={cn(
-            'group/player relative overflow-hidden bg-black ring-1 ring-black/10',
+            // isolate + the mask: the video and the blurred bar are composited layers, which escape a rounded clip (square corners while the bar shows)
+            'group/player relative isolate overflow-hidden bg-black ring-1 ring-black/10 [-webkit-mask-image:-webkit-radial-gradient(white,black)]',
             fs ? 'flex h-full w-full flex-col items-center justify-center rounded-none' : 'mx-auto w-full rounded-2xl',
             controlsHidden && 'cursor-none',
           )}
@@ -458,8 +459,8 @@ export function GuideVideoPlayer({
               'inset-x-0 bottom-0 z-10 text-white transition-opacity duration-300',
               // on a phone the bar sits under the picture; from sm up (and in full screen) it is glass over its foot
               'relative bg-slate-950 px-3 pb-2.5 pt-2',
-              'sm:absolute sm:border-t sm:border-white/10 sm:bg-slate-950/40 sm:px-4 sm:backdrop-blur-xl sm:backdrop-saturate-150',
-              fs && 'absolute border-t border-white/10 bg-slate-950/40 px-4 backdrop-blur-xl backdrop-saturate-150 sm:px-6',
+              'sm:absolute sm:rounded-b-2xl sm:border-t sm:border-white/10 sm:bg-slate-950/40 sm:px-4 sm:backdrop-blur-xl sm:backdrop-saturate-150',
+              fs && 'absolute rounded-none border-t border-white/10 bg-slate-950/40 px-4 backdrop-blur-xl backdrop-saturate-150 sm:rounded-none sm:px-6',
               controlsHidden && 'pointer-events-none opacity-0',
             )}
           >
