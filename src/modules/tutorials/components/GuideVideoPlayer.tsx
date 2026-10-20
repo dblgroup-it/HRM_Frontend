@@ -411,7 +411,7 @@ export function GuideVideoPlayer({
                   value={muted ? 0 : volume}
                   onChange={(e) => setVolume(Number(e.target.value))}
                   aria-label="Volume"
-                  className="h-1 w-16 cursor-pointer accent-white sm:w-0 sm:transition-[width] sm:duration-200 sm:group-hover/vol:w-20 sm:group-focus-within/vol:w-20"
+                  className="ml-1 h-1 w-14 cursor-pointer accent-white sm:w-20"
                 />
               </div>
               <span className="ml-1.5 text-xs tabular-nums text-white/90 sm:text-[0.8125rem]">
