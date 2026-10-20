@@ -6,25 +6,23 @@ import { EmptyState, ErrorCard, FullPageSpinner } from '@shared/components/ui';
 import { cn } from '@shared/lib';
 import { firstName } from '@shared/utils';
 
-import { FeaturedGuide } from '../components/FeaturedGuide';
 import { GuideCard } from '../components/GuideCard';
 import { TutorialsHero } from '../components/TutorialsHero';
 import { VideoPlaylist } from '../components/VideoPlaylist';
+import { VideoShelf } from '../components/VideoShelf';
 import { useOpenedGuides } from '../hooks/useOpenedGuides';
 import { useTutorials } from '../hooks/useTutorials';
 import { STAGES, toneOf } from '../tones';
 import type { Tutorial } from '../types/tutorials.types';
-import { greeting, matchesQuery, readingTime } from '../utils';
+import { greeting, isNew, matchesQuery, readingTime } from '../utils';
 
 /**
- * Tutorials — the client documentation as a learning hub, role by role.
- *
- * Each person sees the guides for the roles they hold (the server decides,
- * and signs links for those alone); super users and the admin see every
- * guide. The guide to start with is shown large, the rest as cards tinted by
- * the stage of the hiring workflow they cover. Search reaches every chapter,
- * the journey filters by stage, and a chapter opens the PDF at its page. The
- * video playlist sits above them all, the same for everyone.
+ * Tutorials — the learning hub, role by role, led by what is newest and most
+ * watched: the video guides first, then every guide as a cover-led tile with
+ * its chapters, and the IT Helpdesk's YouTube playlist at the foot. Each
+ * person sees the guides for the roles they hold (the server decides);
+ * super users and the admin see every guide. Search reaches every chapter;
+ * the journey filters by stage; a chapter opens the PDF at its page.
  */
 export default function TutorialsPage() {
   const { data, isLoading, isError, refetch } = useTutorials();
@@ -39,35 +37,21 @@ export default function TutorialsPage() {
   }
 
   const guides = data.guides;
-  const master = guides.find((g) => g.slug === 'master');
-  const rest = guides.filter((g) => g.slug !== 'master');
-  // The master leads for those who have it; a single guide leads on its own.
-  const featured = master ?? (rest.length === 1 ? rest[0] : undefined);
-  const listed = featured === master ? rest : [];
-
   const counts = Object.fromEntries(STAGES.map((s) => [s, guides.filter((g) => g.group === s).length]));
-  // Filtering by stage only means something when the cards span two stages or more.
-  const canFilter = new Set(listed.map((g) => g.group)).size > 1;
+  const canFilter = new Set(guides.map((g) => g.group)).size > 1;
   const searching = query.trim().length > 0;
-
-  const showFeatured = featured && matchesQuery(featured, query) && (!stage || featured.group === stage);
-  const shown = listed.filter((g) => (!stage || g.group === stage) && matchesQuery(g, query));
-  // The whole set reads best by stage; a handful reads best together.
+  const shown = guides.filter((g) => (!stage || g.group === stage) && matchesQuery(g, query));
+  // The set reads best by stage once there are several; a handful reads best together.
   const grouped = !stage && !searching && shown.length > 4;
   const sections = grouped
     ? [...new Set([...STAGES, ...shown.map((g) => g.group)])]
         .map((s) => ({ name: s, tinted: true, guides: shown.filter((g) => g.group === s) }))
         .filter((s) => s.guides.length)
     : shown.length
-      ? [
-          {
-            name: stage ?? (searching ? 'Matching guides' : master ? 'More for your role' : 'Your guides'),
-            tinted: Boolean(stage),
-            guides: shown,
-          },
-        ]
+      ? [{ name: stage ?? (searching ? 'Matching guides' : 'Your guides'), tinted: Boolean(stage), guides: shown }]
       : [];
-  const nothingFound = searching && !showFeatured && !shown.length;
+  const nothingFound = searching && !shown.length;
+  const docsFresh = isNew(data.date ? new Date(data.date).toISOString() : null);
 
   const totalPages = guides.reduce((n, g) => n + g.pages, 0);
   const intro =
@@ -83,19 +67,14 @@ export default function TutorialsPage() {
   let order = 0;
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-8">
       <TutorialsHero
         greeting={`${greeting()}${name ? `, ${firstName(name)}` : ''}.`}
         intro={intro}
         roles={data.roles}
         stats={
           guides.length
-            ? {
-                guides: guides.length,
-                pages: totalPages,
-                readingTime: readingTime(totalPages),
-                opened: guides.filter((g) => opened[g.slug]).length,
-              }
+            ? { guides: guides.length, pages: totalPages, readingTime: readingTime(totalPages), opened: guides.filter((g) => opened[g.slug]).length }
             : null
         }
         query={query}
@@ -105,8 +84,8 @@ export default function TutorialsPage() {
         onStage={canFilter ? setStage : null}
       />
 
-      {/* The videos are for everyone, whatever their roles; set aside while searching or filtering. */}
-      {data.videos && !searching && !stage && <VideoPlaylist videos={data.videos} />}
+      {/* The videos lead, unless the person is searching or filtering. */}
+      {!searching && !stage && <VideoShelf guides={guides} onOpen={markOpened} />}
 
       {!guides.length ? (
         <EmptyState
@@ -115,37 +94,25 @@ export default function TutorialsPage() {
         />
       ) : (
         <>
-          {showFeatured && (
-            <FeaturedGuide
-              guide={featured}
-              lead={featured === master ? 'Start here' : 'Your guide'}
-              opened={Boolean(opened[featured.slug])}
-              onOpen={open(featured)}
-              query={query}
-            />
-          )}
-
-          {/* Keyed on the stage, so choosing one plays the cards in afresh. */}
-          <div key={stage ?? 'all'} className="space-y-7">
+          <div key={stage ?? 'all'} className="space-y-8">
             {sections.map((s) => (
               <section key={s.name} className="space-y-3">
                 <div className="flex items-center gap-2.5">
                   {s.tinted && <span className={cn('h-2.5 w-2.5 rounded-full', toneOf(s.name).dot)} />}
-                  <h2 className="text-sm font-semibold text-slate-800">{s.name}</h2>
+                  <h2 className="text-lg font-semibold tracking-tight text-slate-900">
+                    {s.tinted ? s.name : 'Guides'}
+                    {!s.tinted && <span className="ml-2 text-sm font-normal text-slate-400">PDF, chapter by chapter</span>}
+                  </h2>
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.6875rem] font-medium tabular-nums text-slate-500">
                     {s.guides.length}
                   </span>
                   {stage && (
-                    <button
-                      type="button"
-                      onClick={() => setStage(null)}
-                      className="ml-auto text-xs font-medium text-brand-700 hover:underline"
-                    >
+                    <button type="button" onClick={() => setStage(null)} className="ml-auto text-xs font-medium text-brand-700 hover:underline">
                       Show all guides
                     </button>
                   )}
                 </div>
-                <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+                <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {s.guides.map((g) => (
                     <GuideCard
                       key={g.slug}
@@ -154,6 +121,8 @@ export default function TutorialsPage() {
                       opened={Boolean(opened[g.slug])}
                       onOpen={open(g)}
                       query={query}
+                      wide={g.slug === 'master'}
+                      fresh={docsFresh}
                     />
                   ))}
                 </div>
@@ -175,6 +144,9 @@ export default function TutorialsPage() {
               </button>
             </div>
           )}
+
+          {/* The IT Helpdesk's playlist, for everyone, at the foot. */}
+          {data.videos && !searching && !stage && <VideoPlaylist videos={data.videos} />}
 
           {data.version && (
             <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 pt-1 text-xs text-slate-400">

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Tutorial } from './types/tutorials.types';
-import { atPage, greeting, matchesQuery, matchingChapters, readingTime } from './utils';
+import { atPage, greeting, isNew, matchesQuery, matchingChapters, readingTime } from './utils';
 
 const guide = (over: Partial<Tutorial> = {}): Tutorial => ({
   slug: 'factory-hr',
@@ -57,5 +57,16 @@ describe('tutorials utils', () => {
     expect(greeting(new Date(2026, 9, 12, 9))).toBe('Good morning');
     expect(greeting(new Date(2026, 9, 12, 13))).toBe('Good afternoon');
     expect(greeting(new Date(2026, 9, 12, 19))).toBe('Good evening');
+  });
+});
+
+describe('isNew', () => {
+  it('marks the last thirty days', () => {
+    const now = new Date('2026-10-21T00:00:00Z');
+    expect(isNew('2026-10-21', now)).toBe(true);
+    expect(isNew('2026-09-25', now)).toBe(true);
+    expect(isNew('2026-09-01', now)).toBe(false);
+    expect(isNew(null, now)).toBe(false);
+    expect(isNew('not a date', now)).toBe(false);
   });
 });

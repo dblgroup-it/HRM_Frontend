@@ -1,9 +1,6 @@
 import { Search, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 
-import { cn } from '@shared/lib';
-
-import { useCountUp } from '../hooks/useMotion';
 import { HiringJourney } from './HiringJourney';
 
 interface Stats {
@@ -73,7 +70,16 @@ export function TutorialsHero({
           <SearchBox value={query} onChange={onQuery} />
         </div>
 
-        {stats && <StatTiles stats={stats} />}
+        {stats && stats.guides > 1 && (
+          <div className="flex items-center gap-3 text-xs text-slate-500">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/80 ring-1 ring-inset ring-brand-100">
+              <div className="h-full rounded-full bg-brand-500 transition-[width] duration-700" style={{ width: `${(stats.opened / stats.guides) * 100}%` }} />
+            </div>
+            <span className="shrink-0 tabular-nums">
+              {stats.opened} of {stats.guides} guides opened · ~{stats.readingTime} to read it all
+            </span>
+          </div>
+        )}
 
         <HiringJourney counts={counts} selected={stage} onSelect={onStage} />
       </div>
@@ -126,41 +132,6 @@ function SearchBox({ value, onChange }: { value: string; onChange: (v: string) =
           /
         </kbd>
       )}
-    </div>
-  );
-}
-
-function StatTiles({ stats }: { stats: Stats }) {
-  const guides = useCountUp(stats.guides);
-  const pages = useCountUp(stats.pages);
-  const opened = useCountUp(stats.opened, 1100);
-  const share = stats.guides ? (opened / stats.guides) * 100 : 0;
-  const tiles: { value: string; label: string; bar?: number }[] = [
-    { value: String(guides), label: stats.guides === 1 ? 'guide for you' : 'guides for you' },
-    { value: String(pages), label: 'pages' },
-    { value: `~${stats.readingTime}`, label: 'to read it all' },
-    { value: `${opened}/${stats.guides}`, label: 'opened', bar: share },
-  ];
-  return (
-    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-      {tiles.map((t, i) => (
-        <div
-          key={t.label}
-          className="rounded-2xl bg-white/80 px-4 py-3 ring-1 ring-inset ring-brand-100/80 motion-safe:animate-card-in"
-          style={{ animationDelay: `${80 + i * 60}ms` }}
-        >
-          <p className="text-xl font-semibold tabular-nums tracking-tight text-slate-900">{t.value}</p>
-          <p className="text-xs text-slate-500">{t.label}</p>
-          {t.bar !== undefined && (
-            <div className="mt-2 h-1 overflow-hidden rounded-full bg-brand-100">
-              <div
-                className={cn('h-full rounded-full bg-brand-500 transition-[width] duration-700 ease-out')}
-                style={{ width: `${t.bar}%` }}
-              />
-            </div>
-          )}
-        </div>
-      ))}
     </div>
   );
 }

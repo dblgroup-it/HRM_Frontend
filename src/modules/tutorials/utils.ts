@@ -50,3 +50,12 @@ export function greeting(now = new Date()): string {
   const h = now.getHours();
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 }
+
+const NEW_DAYS = 30;
+
+/** Published or updated within the last month: worth a "New" or "Updated" mark. */
+export function isNew(iso: string | null | undefined, now = new Date()): boolean {
+  if (!iso) return false;
+  const t = Date.parse(iso);
+  return Number.isFinite(t) && now.getTime() - t < NEW_DAYS * 864e5;
+}

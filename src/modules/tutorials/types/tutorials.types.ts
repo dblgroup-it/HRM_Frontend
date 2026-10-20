@@ -34,6 +34,8 @@ export interface TutorialVideo {
   /** Language code → signed WebVTT link. */
   subtitles: Record<string, string>;
   posterUrl: string | null;
+  /** ISO date it was published to the app; null on an older API. */
+  publishedAt?: string | null;
 }
 
 export interface TutorialVideoChapter {
