@@ -44,6 +44,7 @@ import {
 } from '../hooks/useZingHr';
 import { SyncTerminal } from '../components/SyncTerminal';
 import { AutomationPanel } from '../components/AutomationPanel';
+import { AiProviderSettingsCard } from '../components/AiProviderSettingsCard';
 import { ItRequestSettingsCard } from '../components/ItRequestSettingsCard';
 import { TutorialVideoSettingsCard } from '../components/TutorialVideoSettingsCard';
 import { BdJobsSettingsCard } from '../bdjobs';
@@ -223,6 +224,9 @@ export default function IntegrationsPage() {
           }
         />
       </div>
+
+      {/* ── Which AI answers, and with which key ──────────────────── */}
+      <AiProviderSettingsCard />
 
       {/* ── Where "Notify IT" sends account requests ──────────────── */}
       <ItRequestSettingsCard />
