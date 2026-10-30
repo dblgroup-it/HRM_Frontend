@@ -78,10 +78,10 @@ export function AssignmentManager({
   const [selected, setSelected] = useState<string>(GLOBAL_KEY);
   const [granting, setGranting] = useState(false);
 
-  const handleReset = (userId: string, name: string, code: string) => {
+  const handleReset = (userId: string, name: string) => {
     if (
       !window.confirm(
-        `Reset ${name}'s password back to their employee code (${code})? Any 2FA will also be turned off.`,
+        `Reset ${name}'s password to the default password? They will have to choose a new one at their next sign-in, and any 2FA will be turned off.`,
       )
     )
       return;
@@ -359,14 +359,10 @@ export function AssignmentManager({
                               thrown out while granting access. */}
                           {isSuper && a.user.id !== myUserId && (
                             <button
-                              title="Reset password to default (employee code)"
+                              title="Reset password to the default"
                               disabled={resetPassword.isPending}
                               onClick={() =>
-                                handleReset(
-                                  a.user.id,
-                                  a.user.name,
-                                  a.user.employeeCode,
-                                )
+                                handleReset(a.user.id, a.user.name)
                               }
                               className="rounded-lg p-1.5 text-slate-400 hover:bg-amber-50 hover:text-amber-600 disabled:opacity-50"
                             >

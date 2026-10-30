@@ -71,7 +71,8 @@ export const rbacApi = {
       .then((res) => res.data);
   },
 
-  /** Super-user only: reset a user's password to its default (employee code). */
+  /** Super-user only: reset a user's password to the default (the server's
+   *  DEFAULT_USER_PASSWORD, or the employee code), returned for the toast. */
   resetPassword(
     userId: string,
   ): Promise<{ ok: boolean; name: string; defaultPassword: string }> {
