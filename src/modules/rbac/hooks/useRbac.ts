@@ -12,6 +12,8 @@ export const rbacKeys = {
   roles: ['rbac', 'roles'] as const,
   assignments: ['rbac', 'assignments'] as const,
   hrLayering: ['rbac', 'hr-layering'] as const,
+  defaultPasswordAudience: ['rbac', 'default-password', 'audience'] as const,
+  defaultPasswordRun: ['rbac', 'default-password', 'run'] as const,
 };
 
 /** Current user's effective roles + accessible units (for gating). */
@@ -121,5 +123,39 @@ export function useDeleteAssignment() {
 export function useResetPassword() {
   return useMutation({
     mutationFn: (userId: string) => rbacApi.resetPassword(userId),
+  });
+}
+
+/**
+ * Who would be emailed their sign-in details. Checking each password takes a
+ * few seconds on the server, so it is asked once, when the dialog opens.
+ */
+export function useDefaultPasswordAudience(enabled: boolean) {
+  return useQuery({
+    queryKey: rbacKeys.defaultPasswordAudience,
+    queryFn: () => rbacApi.defaultPasswordAudience(),
+    enabled,
+    staleTime: 0,
+  });
+}
+
+/** The bulk send's progress, every two seconds while it runs. */
+export function useDefaultPasswordRun(enabled: boolean) {
+  return useQuery({
+    queryKey: rbacKeys.defaultPasswordRun,
+    queryFn: () => rbacApi.defaultPasswordRun(),
+    enabled,
+    refetchInterval: (q) =>
+      q.state.data?.run && !q.state.data.run.finishedAt ? 2_000 : false,
+  });
+}
+
+export function useSendDefaultPasswordNotices() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => rbacApi.sendDefaultPasswordNotices(),
+    onSuccess: (run) => {
+      queryClient.setQueryData(rbacKeys.defaultPasswordRun, { run });
+    },
   });
 }

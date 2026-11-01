@@ -5,6 +5,7 @@ import {
   Building2,
   Globe,
   KeyRound,
+  Mail,
   Search,
   Trash2,
   UserPlus,
@@ -38,8 +39,9 @@ import {
   useResetPassword,
   useRoles,
 } from '../hooks/useRbac';
-import type { RoleAssignment } from '../types/rbac.types';
+import type { AccessEmailNotice, RoleAssignment } from '../types/rbac.types';
 import { priorityShortLabel } from '../layering';
+import { DefaultPasswordNoticeModal } from './DefaultPasswordNoticeModal';
 
 interface PickedEmployee {
   userId: string;
@@ -50,6 +52,27 @@ interface PickedEmployee {
 }
 
 const GLOBAL_KEY = '__global__';
+
+/** The line under a grant or reset toast: is the person being emailed? */
+function accessEmailLine(
+  notice: AccessEmailNotice | undefined,
+  kind: 'grant' | 'reset',
+): string | undefined {
+  switch (notice?.status) {
+    case 'queued':
+      return kind === 'grant'
+        ? `Their sign-in details will be emailed to ${notice.email} in about a minute.`
+        : `Emailed to ${notice.email}.`;
+    case 'no_email':
+      return 'No email address on file — tell them yourself.';
+    case 'mail_off':
+      return 'Email is switched off on Integrations, so nothing was sent.';
+    case 'inactive':
+      return 'Their account is inactive, so nothing was sent.';
+    default:
+      return undefined;
+  }
+}
 
 /**
  * Who can sign in, and what they can do.
@@ -77,18 +100,20 @@ export function AssignmentManager({
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<string>(GLOBAL_KEY);
   const [granting, setGranting] = useState(false);
+  const [noticeOpen, setNoticeOpen] = useState(false);
 
   const handleReset = (userId: string, name: string) => {
     if (
       !window.confirm(
-        `Reset ${name}'s password to the default password? They will have to choose a new one at their next sign-in, and any 2FA will be turned off.`,
+        `Reset ${name}'s password to the default password? They will be emailed it, will have to choose a new one at their next sign-in, and any 2FA will be turned off.`,
       )
     )
       return;
     resetPassword.mutate(userId, {
       onSuccess: (d) =>
         toast.success(`${d.name}'s password reset to: ${d.defaultPassword}`, {
-          duration: 8000,
+          description: accessEmailLine(d.email, 'reset'),
+          duration: 10000,
         }),
       onError: (e) => toast.error((e as Error).message || 'Could not reset'),
     });
@@ -209,6 +234,17 @@ export function AssignmentManager({
               leftIcon={<Search className="h-4 w-4" />}
             />
           </div>
+          {isSuper && (
+            <Button
+              variant="outline"
+              leftIcon={<Mail className="h-4 w-4" />}
+              onClick={() => setNoticeOpen(true)}
+              title="Email everyone still on the default password their sign-in details"
+            >
+              <span className="hidden sm:inline">Email sign-in details</span>
+              <span className="sm:hidden">Email</span>
+            </Button>
+          )}
           <Button
             leftIcon={<UserPlus className="h-4 w-4" />}
             onClick={() => setGranting(true)}
@@ -217,6 +253,11 @@ export function AssignmentManager({
           </Button>
         </div>
       </div>
+
+      <DefaultPasswordNoticeModal
+        open={noticeOpen}
+        onClose={() => setNoticeOpen(false)}
+      />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[16rem_1fr]">
         {/* Rail */}
@@ -464,8 +505,15 @@ function GrantAccessModal({
     createAssignment.mutate(
       { roleId, userId: picked.userId, unitId: needsUnit ? unitId : undefined },
       {
-        onSuccess: () => {
-          toast.success(`${picked.name} can now sign in as ${selectedRole?.name}`);
+        onSuccess: (created) => {
+          const line = accessEmailLine(created.accessNotice, 'grant');
+          toast.success(
+            `${picked.name} can now sign in as ${selectedRole?.name}`,
+            {
+              description: line,
+              duration: created.accessNotice?.status === 'queued' ? 6000 : 10000,
+            },
+          );
           onGranted(needsUnit ? unitId : null);
           onClose();
         },

@@ -10,6 +10,9 @@ import type {
   SetLayeringOrderInput,
   HrLayering,
   AssignmentRemoval,
+  PasswordResetResult,
+  DefaultPasswordAudience,
+  DefaultPasswordRun,
 } from '../types/rbac.types';
 
 export const rbacApi = {
@@ -73,13 +76,36 @@ export const rbacApi = {
 
   /** Super-user only: reset a user's password to the default (the server's
    *  DEFAULT_USER_PASSWORD, or the employee code), returned for the toast. */
-  resetPassword(
-    userId: string,
-  ): Promise<{ ok: boolean; name: string; defaultPassword: string }> {
+  resetPassword(userId: string): Promise<PasswordResetResult> {
     return http
-      .post<ApiResponse<{ ok: boolean; name: string; defaultPassword: string }>>(
+      .post<ApiResponse<PasswordResetResult>>(
         `/auth/users/${userId}/reset-password`,
       )
+      .then((res) => res.data);
+  },
+
+  /** Who can sign in and still holds the default password. */
+  defaultPasswordAudience(): Promise<DefaultPasswordAudience> {
+    return http
+      .get<ApiResponse<DefaultPasswordAudience>>(
+        '/access-notices/default-password',
+      )
+      .then((res) => res.data);
+  },
+
+  /** The bulk send's progress. */
+  defaultPasswordRun(): Promise<{ run: DefaultPasswordRun | null }> {
+    return http
+      .get<ApiResponse<{ run: DefaultPasswordRun | null }>>(
+        '/access-notices/default-password/run',
+      )
+      .then((res) => res.data);
+  },
+
+  /** Email each of them their sign-in details, in the background. */
+  sendDefaultPasswordNotices(): Promise<DefaultPasswordRun> {
+    return http
+      .post<ApiResponse<DefaultPasswordRun>>('/access-notices/default-password')
       .then((res) => res.data);
   },
 };

@@ -34,6 +34,41 @@ export interface RoleAssignment {
     employeeCode: string;
     employee?: { designation: string | null; department: string | null } | null;
   };
+  /** On a fresh grant only: whether the access email is on its way. */
+  accessNotice?: AccessEmailNotice;
+}
+
+/**
+ * Whether an email about someone's account (a role given, a password reset)
+ * is on its way — `queued` — and if not, why.
+ */
+export interface AccessEmailNotice {
+  status: 'queued' | 'no_email' | 'mail_off' | 'inactive';
+  email: string | null;
+}
+
+export interface PasswordResetResult {
+  ok: boolean;
+  name: string;
+  defaultPassword: string;
+  email?: AccessEmailNotice;
+}
+
+/** One bulk send of sign-in details to everyone still on the default. */
+export interface DefaultPasswordRun {
+  startedAt: string;
+  finishedAt: string | null;
+  startedBy: string;
+  total: number;
+  sent: number;
+  failed: number;
+}
+
+export interface DefaultPasswordAudience {
+  recipients: number;
+  withoutEmail: { employeeCode: string; name: string }[];
+  mailOn: boolean;
+  run: DefaultPasswordRun | null;
 }
 
 export interface EffectiveRole {
